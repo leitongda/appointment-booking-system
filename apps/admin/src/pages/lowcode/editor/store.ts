@@ -62,6 +62,8 @@ interface EditorStore {
   addToRoot: (node: LowCodeNode, index: number) => void;
   /** 移动节点 */
   moveNode: (nodeId: string, newParentId: string, index: number) => void;
+  /** 移动节点到根级别 */
+  moveToRoot: (nodeId: string, index: number) => void;
   /** 更新节点属性 */
   updateNodeProps: (nodeId: string, props: Record<string, any>) => void;
   /** 更新节点事件处理器 */
@@ -114,6 +116,32 @@ const DEFAULT_SCHEMA: LowCodeSchema = {
   children: [],
 };
 
+function createTenantScopedStorage() {
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) {
+      throw new Error('localStorage unavailable');
+    }
+    const storage = window.localStorage;
+    const tenantId = storage.getItem('hospital_current_tenant_id') || 'default';
+    return {
+      getItem: (name: string) => storage.getItem(`${name}-${tenantId}`),
+      setItem: (name: string, value: string) => storage.setItem(`${name}-${tenantId}`, value),
+      removeItem: (name: string) => storage.removeItem(`${name}-${tenantId}`),
+    };
+  } catch {
+    const memory = new Map<string, string>();
+    return {
+      getItem: (name: string) => memory.get(name) ?? null,
+      setItem: (name: string, value: string) => {
+        memory.set(name, value);
+      },
+      removeItem: (name: string) => {
+        memory.delete(name);
+      },
+    };
+  }
+}
+
 /** 递归查找节点的父节点 */
 function findParent(
   nodes: LowCodeNode[],
@@ -143,6 +171,14 @@ function findNode(
     }
   }
   return null;
+}
+
+/** 收集所有节点 ID（用于全选） */
+function collectAllNodeIds(nodes: LowCodeNode[]): string[] {
+  return nodes.flatMap((node) => [
+    node.id,
+    ...collectAllNodeIds(node.children || []),
+  ]);
 }
 
 /** 深拷贝 Schema */
@@ -425,6 +461,17 @@ export const useEditorStore = create<EditorStore>()(persist(
     get().setSchema(newSchema);
   },
 
+  moveToRoot: (nodeId, index) => {
+    const { schema } = get();
+    const node = findNode(schema.children, nodeId);
+    if (!node) return;
+    const withoutNode = removeNodeRecursive(schema.children, nodeId);
+    const nextChildren = [...withoutNode];
+    const targetIndex = Math.max(0, Math.min(index, nextChildren.length));
+    nextChildren.splice(targetIndex, 0, node);
+    get().setSchema({ ...schema, children: nextChildren });
+  },
+
   updateNodeProps: (nodeId, props) => {
     const { schema } = get();
     const newChildren = updateNodePropsRecursive(schema.children, nodeId, props);
@@ -633,14 +680,7 @@ export const useEditorStore = create<EditorStore>()(persist(
 }),
 {
   name: 'lowcode-editor',
-  storage: createJSONStorage(() => {
-    const tenantId = localStorage.getItem('hospital_current_tenant_id') || 'default';
-    return {
-      getItem: (name) => localStorage.getItem(`${name}-${tenantId}`),
-      setItem: (name, value) => localStorage.setItem(`${name}-${tenantId}`, value),
-      removeItem: (name) => localStorage.removeItem(`${name}-${tenantId}`),
-    };
-  }),
+  storage: createJSONStorage(createTenantScopedStorage),
   partialize: (state) => ({
     schema: state.schema,
     dataSources: state.dataSources,

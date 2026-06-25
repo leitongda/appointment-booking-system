@@ -259,7 +259,7 @@ const PreviewQRCode: React.FC<PreviewQRCodeProps> = ({ open, onClose, pageId }) 
                   <li>预览链接有时效性，过期后需重新生成</li>
                 </ol>
               </div>
-            </div>
+            </Space>
           )}
         </div>
       </Spin>

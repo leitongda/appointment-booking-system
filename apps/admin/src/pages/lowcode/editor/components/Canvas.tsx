@@ -2,8 +2,11 @@
 
 import React, { useState, useRef } from 'react';
 import { DragDropProvider, DragOverlay } from '@dnd-kit/react';
+import { Segmented, InputNumber, Switch, Tooltip, Space, Select, message } from 'antd';
+import { SwapOutlined, EditOutlined } from '@ant-design/icons';
 import { useEditorStore } from '../store';
 import { SchemaRenderer } from './SchemaRenderer';
+import { EDITOR_COLORS, EDITOR_LAYOUT, ROOT_DROP_ID } from '../constants';
 import type { LowCodeNode, MaterialComponent } from '@hospital/shared';
 
 /** 生成唯一 ID (使用 crypto.randomUUID 如果可用) */
@@ -68,37 +71,316 @@ function computeInsertion(
 }
 
 /** 设备尺寸预设 */
-const DEVICE_PRESETS = [
-  { label: 'iPhone', width: 375, height: 667 },
-  { label: 'Android', width: 360, height: 640 },
-  { label: 'iPad', width: 768, height: 1024 },
+interface DevicePreset {
+  label: string;
+  width: number;
+  height: number;
+  /** 设备像素比 */
+  dpr?: number;
+  /** 厂商分组（用于下拉分组展示） */
+  vendor?: string;
+}
+
+const VENDOR_ORDER = ['Apple', 'Google', 'Samsung', 'H5'];
+const VENDOR_LABEL: Record<string, string> = {
+  Apple: 'Apple',
+  Google: 'Google',
+  Samsung: 'Samsung',
+  H5: 'H5',
+};
+
+const DEVICE_PRESETS: DevicePreset[] = [
+  { label: 'iPhone SE', width: 375, height: 667, dpr: 2, vendor: 'Apple' },
+  { label: 'iPhone 14', width: 390, height: 844, dpr: 3, vendor: 'Apple' },
+  { label: 'iPhone 14 Pro Max', width: 430, height: 932, dpr: 3, vendor: 'Apple' },
+  { label: 'iPad', width: 768, height: 1024, dpr: 2, vendor: 'Apple' },
+  { label: 'iPad Pro 11', width: 834, height: 1194, dpr: 2, vendor: 'Apple' },
+  { label: 'iPad Pro 12.9', width: 1024, height: 1366, dpr: 2, vendor: 'Apple' },
+  { label: 'Android (Nexus)', width: 360, height: 640, dpr: 2, vendor: 'Google' },
+  { label: 'Pixel 7', width: 412, height: 915, dpr: 2.625, vendor: 'Google' },
+  { label: 'Galaxy S22', width: 360, height: 780, dpr: 3, vendor: 'Samsung' },
+  { label: 'H5 窄屏', width: 320, height: 568, dpr: 2, vendor: 'H5' },
 ];
+
+/** 构建按厂商分组的下拉选项 */
+const DEVICE_OPTIONS = VENDOR_ORDER
+  .map((vendor) => {
+    const presets = DEVICE_PRESETS.filter((d) => d.vendor === vendor);
+    if (presets.length === 0) return null;
+    return {
+      label: VENDOR_LABEL[vendor] || vendor,
+      title: VENDOR_LABEL[vendor] || vendor,
+      options: presets.map((d) => ({ label: d.label, value: d.label })),
+    };
+  })
+  .filter(Boolean) as { label: string; title: string; options: { label: string; value: string }[] }[];
 
 /** 缩放级别 */
 const ZOOM_LEVELS = [50, 75, 100, 125];
+/** 常见 DPR 候选 */
+const DPR_OPTIONS = [1, 2, 3];
 
 /** Canvas 组件 */
-export const Canvas: React.FC = () => {
+export const EditorDndProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const addNode = useEditorStore((s) => s.addNode);
+  const addToRoot = useEditorStore((s) => s.addToRoot);
   const moveNode = useEditorStore((s) => s.moveNode);
-  const setSchema = useEditorStore((s) => s.setSchema);
+  const moveToRoot = useEditorStore((s) => s.moveToRoot);
   const schema = useEditorStore((s) => s.schema);
 
   /** 拖拽期间计算出的插入索引 (ref 避免频繁 re-render) */
   const dropIndexRef = useRef<number | null>(null);
   /** 插入指示器的视觉状态 */
   const [indicator, setIndicator] = useState<{ top: number; width: number; left: number } | null>(null);
+
+  const insertNodes = (nodes: LowCodeNode[], parentId: string, insertIndex: number) => {
+    let index = insertIndex;
+    for (const node of nodes) {
+      if (parentId === ROOT_DROP_ID) {
+        addToRoot(node, index);
+      } else {
+        addNode(node, parentId, index);
+      }
+      index++;
+    }
+  };
+
+  return (
+    <DragDropProvider
+      onDragMove={({ operation }) => {
+        const target = operation.target as Record<string, any> | undefined;
+        const position = operation.position as unknown as { clientX: number; clientY: number } | undefined;
+
+        if (!target || !position) {
+          dropIndexRef.current = null;
+          setIndicator(null);
+          return;
+        }
+
+        const parentId = target.data?.parentId as string | undefined;
+        if (!parentId) return;
+
+        const containerEl = document.getElementById(`drop-${parentId}`);
+        if (!containerEl) return;
+
+        const result = computeInsertion(position.clientY, containerEl);
+        if (!result) return;
+
+        dropIndexRef.current = result.index;
+        const rect = containerEl.getBoundingClientRect();
+        setIndicator({
+          top: rect.top + result.top,
+          width: rect.width,
+          left: rect.left,
+        });
+      }}
+      onDragEnd={(event) => {
+        if (event.canceled) {
+          dropIndexRef.current = null;
+          setIndicator(null);
+          return;
+        }
+
+        const computedIndex = dropIndexRef.current;
+        dropIndexRef.current = null;
+        setIndicator(null);
+
+        const source = event.operation.source;
+        const target = event.operation.target;
+        if (!source || !target) return;
+
+        const sourceData = source.data as Record<string, any>;
+        const targetData = target.data as Record<string, any>;
+        const targetParentId = targetData?.type === 'container'
+          ? (targetData.parentId as string | undefined)
+          : undefined;
+        if (!targetParentId) return;
+
+        const getInsertIndex = (parentId: string) => {
+          if (computedIndex !== null) return computedIndex;
+          if (parentId === ROOT_DROP_ID) return schema.children?.length || 0;
+          const parentNode = findNodeById(schema.children || [], parentId);
+          return parentNode?.children?.length || 0;
+        };
+
+        if (sourceData?.type === 'new-component') {
+          const material = sourceData.material as MaterialComponent;
+          insertNodes(
+            [createNodeFromMaterial(material)],
+            targetParentId,
+            getInsertIndex(targetParentId),
+          );
+          return;
+        }
+
+        if (sourceData?.type === 'snippet') {
+          const snippetNodes = sourceData.snippet.nodes as LowCodeNode[];
+          insertNodes(snippetNodes, targetParentId, getInsertIndex(targetParentId));
+          return;
+        }
+
+        if (sourceData?.type === 'existing-node') {
+          const nodeId = sourceData.nodeId as string;
+
+          const isDescendant = (
+            nodes: LowCodeNode[],
+            ancestorId: string,
+            descendantId: string,
+          ): boolean => {
+            for (const n of nodes) {
+              if (n.id === ancestorId) {
+                return !!findNodeById(n.children || [], descendantId);
+              }
+              if (n.children) {
+                const found = isDescendant(n.children, ancestorId, descendantId);
+                if (found) return true;
+              }
+            }
+            return false;
+          };
+
+          if (targetParentId !== ROOT_DROP_ID && isDescendant(schema.children || [], nodeId, targetParentId)) {
+            return;
+          }
+
+          const targetIndex = getInsertIndex(targetParentId);
+          if (targetParentId === ROOT_DROP_ID) {
+            moveToRoot(nodeId, targetIndex);
+          } else {
+            moveNode(nodeId, targetParentId, targetIndex);
+          }
+        }
+      }}
+    >
+      {children}
+      <DragOverlay>
+        {(source) => {
+          if (!source) return null;
+          const data = source.data as Record<string, any>;
+          if (data?.type === 'new-component') {
+            const material = data.material as MaterialComponent;
+            return (
+              <div
+                style={{
+                  padding: '6px 12px',
+                  background: '#e6f4ff',
+                  border: '1px solid #1677ff',
+                  borderRadius: 6,
+                  fontSize: 13,
+                  color: '#1677ff',
+                  opacity: 0.9,
+                }}
+              >
+                {material.title}
+              </div>
+            );
+          }
+          if (data?.type === 'snippet') {
+            const snippet = data.snippet;
+            return (
+              <div
+                style={{
+                  padding: '6px 12px',
+                  background: '#f6ffed',
+                  border: '1px solid #52c41a',
+                  borderRadius: 6,
+                  fontSize: 13,
+                  color: '#52c41a',
+                  opacity: 0.9,
+                }}
+              >
+                {snippet.name}
+              </div>
+            );
+          }
+          if (data?.type === 'existing-node') {
+            const node = findNodeById(
+              schema.children || [],
+              data.nodeId,
+            );
+            return (
+              <div
+                style={{
+                  padding: '6px 12px',
+                  background: '#fff7e6',
+                  border: '1px solid #faad14',
+                  borderRadius: 6,
+                  fontSize: 13,
+                  color: '#d48806',
+                  opacity: 0.9,
+                }}
+              >
+                {node?.componentName || '节点'}
+              </div>
+            );
+          }
+          return null;
+        }}
+      </DragOverlay>
+      {indicator && (
+        <div
+          style={{
+            position: 'fixed',
+            top: indicator.top,
+            left: indicator.left,
+            width: indicator.width,
+            height: 2,
+            background: '#1677ff',
+            borderRadius: 1,
+            boxShadow: '0 0 6px rgba(22,119,255,0.5)',
+            zIndex: 10000,
+            pointerEvents: 'none',
+          }}
+        />
+      )}
+    </DragDropProvider>
+  );
+};
+
+export const Canvas: React.FC = () => {
   /** 画布缩放比例 */
   const [zoom, setZoom] = useState(100);
-  /** 设备尺寸 */
-  const [device, setDevice] = useState(DEVICE_PRESETS[0]);
+  /** 设备尺寸 (可自由编辑) */
+  const [device, setDevice] = useState<DevicePreset>(DEVICE_PRESETS[0]);
+  /** 自定义编辑宽高 */
+  const [width, setWidth] = useState(DEVICE_PRESETS[0].width);
+  const [height, setHeight] = useState(DEVICE_PRESETS[0].height);
+  /** 横屏切换 */
+  const [landscape, setLandscape] = useState(false);
+  /** 设备像素比 */
+  const [dpr, setDpr] = useState(DEVICE_PRESETS[0].dpr ?? 2);
+  /** 自定义尺寸输入展开 */
+  const [customSizeOpen, setCustomSizeOpen] = useState(false);
+  const scale = zoom / 100;
+
+  /** 应用预设设备 */
+  const applyPreset = (preset: DevicePreset) => {
+    setDevice(preset);
+    setWidth(preset.width);
+    setHeight(preset.height);
+    setDpr(preset.dpr ?? 2);
+    setLandscape(false);
+  };
+
+  /** 横屏时交换宽高 */
+  const effectiveWidth = landscape ? height : width;
+  const effectiveHeight = landscape ? width : height;
+
+  /** 提交自定义尺寸 */
+  const applyCustomSize = () => {
+    if (!width || !height || width < 80 || height < 80) {
+      message.warning('请输入有效的宽高（≥ 80）');
+      return;
+    }
+    setDevice({ ...device, width, height });
+  };
 
   return (
     <div
       style={{
         flex: 1,
         overflow: 'auto',
-        background: '#f0f2f5',
+        background: EDITOR_COLORS.workspaceBg,
         display: 'flex',
         flexDirection: 'column',
       }}
@@ -106,335 +388,207 @@ export const Canvas: React.FC = () => {
       {/* 工具栏：缩放 + 设备切换 */}
       <div
         style={{
-          padding: '8px 16px',
-          borderBottom: '1px solid #e8e8e8',
-          background: '#fff',
+          minHeight: 44,
+          padding: '6px 16px',
+          borderBottom: `1px solid ${EDITOR_COLORS.border}`,
+          background: EDITOR_COLORS.panelBg,
           display: 'flex',
           alignItems: 'center',
-          gap: 16,
+          flexWrap: 'wrap',
+          gap: 12,
           fontSize: 12,
         }}
       >
-        <span style={{ color: '#666' }}>缩放:</span>
-        {ZOOM_LEVELS.map((z) => (
+        <span style={{ color: EDITOR_COLORS.textSecondary, whiteSpace: 'nowrap' }}>缩放</span>
+        <Segmented
+          size="small"
+          value={zoom}
+          options={ZOOM_LEVELS.map((z) => ({ label: `${z}%`, value: z }))}
+          onChange={(value) => setZoom(Number(value))}
+        />
+        <span style={{ color: EDITOR_COLORS.textSecondary, whiteSpace: 'nowrap' }}>设备</span>
+        <Select
+          size="small"
+          style={{ minWidth: 160 }}
+          value={device.label}
+          showSearch
+          optionFilterProp="label"
+          options={DEVICE_OPTIONS}
+          onChange={(value) => {
+            const next = DEVICE_PRESETS.find((d) => d.label === value);
+            if (next) applyPreset(next);
+          }}
+        />
+
+        {/* 自定义尺寸展开/收起 */}
+        <Tooltip title="自定义尺寸">
           <a
-            key={z}
-            onClick={() => setZoom(z)}
-            style={{
-              color: zoom === z ? '#1677ff' : '#666',
-              fontWeight: zoom === z ? 600 : 400,
-              cursor: 'pointer',
-            }}
+            onClick={() => setCustomSizeOpen((v) => !v)}
+            style={{ color: customSizeOpen ? EDITOR_COLORS.primary : EDITOR_COLORS.textSecondary, display: 'inline-flex', alignItems: 'center' }}
           >
-            {z}%
+            <EditOutlined />
           </a>
-        ))}
-        <span style={{ color: '#d9d9d9' }}>|</span>
-        <span style={{ color: '#666' }}>设备:</span>
-        {DEVICE_PRESETS.map((d) => (
-          <a
-            key={d.label}
-            onClick={() => setDevice(d)}
-            style={{
-              color: device.label === d.label ? '#1677ff' : '#666',
-              fontWeight: device.label === d.label ? 600 : 400,
-              cursor: 'pointer',
+        </Tooltip>
+
+        {/* 横屏切换 */}
+        <Tooltip title={landscape ? '切换为竖屏' : '切换为横屏'}>
+          <Space size={4} style={{ display: 'inline-flex', alignItems: 'center' }}>
+            <SwapOutlined style={{ color: EDITOR_COLORS.textSecondary }} />
+            <Switch
+              size="small"
+              checked={landscape}
+              onChange={(checked) => setLandscape(checked)}
+            />
+          </Space>
+        </Tooltip>
+
+        {/* 像素比 DPR */}
+        <span style={{ color: EDITOR_COLORS.textSecondary, whiteSpace: 'nowrap' }}>DPR</span>
+        <Segmented
+          size="small"
+          value={DPR_OPTIONS.includes(dpr) ? dpr : undefined}
+          options={DPR_OPTIONS.map((v) => ({ label: `${v}`, value: v }))}
+          onChange={(value) => {
+            setDpr(Number(value));
+          }}
+        />
+        <Tooltip title="精确像素比 (1–4)">
+          <InputNumber
+            size="small"
+            min={1}
+            max={4}
+            step={0.125}
+            style={{ width: 72 }}
+            value={dpr}
+            onChange={(value) => {
+              if (value == null) return;
+              setDpr(Number(value));
             }}
-          >
-            {d.label}
-          </a>
-        ))}
-        <span style={{ color: '#999', marginLeft: 'auto' }}>
-          {device.width} x {device.height}
+          />
+        </Tooltip>
+
+        <span
+          style={{
+            color: EDITOR_COLORS.textMuted,
+            marginLeft: 'auto',
+            minWidth: 120,
+            textAlign: 'right',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {effectiveWidth} × {effectiveHeight} · DPR {dpr}
+          {landscape ? ' · 横屏' : ''}
         </span>
       </div>
+
+      {/* 自定义尺寸输入区 */}
+      {customSizeOpen && (
+        <div
+          style={{
+            padding: '8px 16px',
+            borderBottom: `1px solid ${EDITOR_COLORS.border}`,
+            background: EDITOR_COLORS.itemBg,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            fontSize: 12,
+            flexWrap: 'wrap',
+          }}
+        >
+          <span style={{ color: EDITOR_COLORS.textSecondary }}>宽度</span>
+          <InputNumber
+            size="small"
+            min={80}
+            max={4000}
+            value={width}
+            onChange={(v) => v && setWidth(Number(v))}
+            style={{ width: 80 }}
+          />
+          <span style={{ color: EDITOR_COLORS.textSecondary }}>高度</span>
+          <InputNumber
+            size="small"
+            min={80}
+            max={4000}
+            value={height}
+            onChange={(v) => v && setHeight(Number(v))}
+            style={{ width: 80 }}
+          />
+          <a onClick={applyCustomSize} style={{ color: EDITOR_COLORS.primary }}>
+            应用
+          </a>
+          <Space size={6} style={{ marginLeft: 12 }}>
+            {[
+              { w: 320, h: 568 },
+              { w: 375, h: 667 },
+              { w: 414, h: 896 },
+              { w: 768, h: 1024 },
+              { w: 1024, h: 1366 },
+            ].map((s) => (
+              <a
+                key={`${s.w}x${s.h}`}
+                onClick={() => {
+                  setWidth(s.w);
+                  setHeight(s.h);
+                  setDevice({ ...device, width: s.w, height: s.h });
+                }}
+                style={{
+                  fontSize: 11,
+                  color: EDITOR_COLORS.textSecondary,
+                  padding: '2px 6px',
+                  border: `1px solid ${EDITOR_COLORS.borderSubtle}`,
+                  borderRadius: 4,
+                }}
+              >
+                {s.w}×{s.h}
+              </a>
+            ))}
+          </Space>
+        </div>
+      )}
 
       {/* 画布区域 */}
       <div
         style={{
           flex: 1,
-          padding: 16,
+          padding: EDITOR_LAYOUT.canvasPadding,
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'flex-start',
         }}
       >
-      <DragDropProvider
-        onDragMove={({ operation }) => {
-          const target = operation.target as Record<string, any> | undefined;
-          const position = operation.position as { clientX: number; clientY: number } | undefined;
-
-          if (!target || !position) {
-            dropIndexRef.current = null;
-            setIndicator(null);
-            return;
-          }
-
-          const parentId = target.data?.parentId as string | undefined;
-          if (!parentId) return;
-
-          const containerEl = document.getElementById(`drop-${parentId}`);
-          if (!containerEl) return;
-
-          const result = computeInsertion(position.clientY, containerEl);
-          if (!result) return;
-
-          dropIndexRef.current = result.index;
-          const rect = containerEl.getBoundingClientRect();
-          setIndicator({
-            top: rect.top + result.top,
-            width: rect.width,
-            left: rect.left,
-          });
-        }}
-        onDragEnd={(event) => {
-          if (event.canceled) {
-            dropIndexRef.current = null;
-            setIndicator(null);
-            return;
-          }
-
-          // 拖拽结束，清除指示器
-          const computedIndex = dropIndexRef.current;
-          dropIndexRef.current = null;
-          setIndicator(null);
-
-          const source = event.operation.source;
-          const target = event.operation.target;
-          if (!source || !target) return;
-
-          const sourceData = source.data as Record<string, any>;
-          const targetData = target.data as Record<string, any>;
-
-          // 从物料面板拖入新组件
-          if (sourceData?.type === 'new-component') {
-            const material = sourceData.material as MaterialComponent;
-            const newNode = createNodeFromMaterial(material);
-
-            // 确定目标父节点: 优先使用放置目标的 parentId，否则回退到 Page 根节点
-            let parentId: string;
-            if (targetData?.type === 'container' && targetData.parentId) {
-              parentId = targetData.parentId;
-            } else {
-              const rootNode = schema.children?.[0];
-              if (!rootNode) {
-                setSchema({
-                  ...schema,
-                  children: [...(schema.children || []), newNode],
-                });
-                return;
-              }
-              parentId = rootNode.id;
-            }
-
-            // 使用拖拽过程中计算的精确插入索引，回退到末尾
-            let insertIndex: number;
-            if (computedIndex !== null) {
-              insertIndex = computedIndex;
-            } else {
-              const parentNode = findNodeById(schema.children || [], parentId);
-              insertIndex = parentNode?.children?.length || 0;
-            }
-            addNode(newNode, parentId, insertIndex);
-            return;
-          }
-
-          // 从模板面板拖入 Snippet（展开为完整组件树）
-          if (sourceData?.type === 'snippet') {
-            const snippet = sourceData.snippet;
-            const snippetNodes = snippet.nodes;
-
-            // 确定目标父节点
-            let parentId: string;
-            if (targetData?.type === 'container' && targetData.parentId) {
-              parentId = targetData.parentId;
-            } else {
-              const rootNode = schema.children?.[0];
-              if (!rootNode) {
-                setSchema({
-                  ...schema,
-                  children: [...(schema.children || []), ...snippetNodes],
-                });
-                return;
-              }
-              parentId = rootNode.id;
-            }
-
-            let insertIndex: number;
-            if (computedIndex !== null) {
-              insertIndex = computedIndex;
-            } else {
-              const parentNode = findNodeById(schema.children || [], parentId);
-              insertIndex = parentNode?.children?.length || 0;
-            }
-
-            // 逐个插入 snippet 节点
-            let idx = insertIndex;
-            for (const node of snippetNodes) {
-              addNode(node, parentId, idx);
-              idx++;
-            }
-            return;
-          }
-
-          // 画布内已有节点拖拽重排序
-          if (sourceData?.type === 'existing-node') {
-            const nodeId = sourceData.nodeId as string;
-
-            // 确定目标父节点
-            let newParentId: string;
-            if (targetData?.type === 'container' && targetData.parentId) {
-              newParentId = targetData.parentId;
-            } else {
-              return; // 无法确定目标位置，忽略
-            }
-
-            // 防止将节点拖拽到自身内部 (包含间接子节点)
-            const isDescendant = (
-              nodes: LowCodeNode[],
-              ancestorId: string,
-              descendantId: string,
-            ): boolean => {
-              for (const n of nodes) {
-                if (n.id === ancestorId) {
-                  return !!findNodeById(n.children || [], descendantId);
-                }
-                if (n.children) {
-                  const found = isDescendant(n.children, ancestorId, descendantId);
-                  if (found) return true;
-                }
-              }
-              return false;
-            };
-
-            if (isDescendant(schema.children || [], nodeId, newParentId)) {
-              return; // 目标是自身的子节点，忽略
-            }
-
-            // 使用拖拽过程中计算的精确插入索引，回退到末尾
-            let targetIndex: number;
-            if (computedIndex !== null) {
-              targetIndex = computedIndex;
-            } else {
-              const parentNode = findNodeById(schema.children || [], newParentId);
-              targetIndex = parentNode?.children?.length || 0;
-            }
-
-            moveNode(nodeId, newParentId, targetIndex);
-          }
-        }}
-      >
         <div
           style={{
-            width: device.width,
-            minHeight: device.height,
-            background: '#fff',
-            borderRadius: 12,
-            boxShadow: '0 2px 12px rgba(0,0,0,0.1)',
-            overflow: 'hidden',
+            width: effectiveWidth * scale,
+            minHeight: effectiveHeight * scale,
             position: 'relative',
-            transform: `scale(${zoom / 100})`,
-            transformOrigin: 'top center',
           }}
         >
-          <SchemaRenderer />
-        </div>
-        <DragOverlay>
-          {(source) => {
-            if (!source) return null;
-            const data = source.data as Record<string, any>;
-            if (data?.type === 'new-component') {
-              const material = data.material as MaterialComponent;
-              return (
-                <div
-                  style={{
-                    padding: '6px 12px',
-                    background: '#e6f4ff',
-                    border: '1px solid #1677ff',
-                    borderRadius: 6,
-                    fontSize: 13,
-                    color: '#1677ff',
-                    opacity: 0.9,
-                  }}
-                >
-                  {material.title}
-                </div>
-              );
-            }
-            if (data?.type === 'snippet') {
-              const snippet = data.snippet;
-              return (
-                <div
-                  style={{
-                    padding: '6px 12px',
-                    background: '#f6ffed',
-                    border: '1px solid #52c41a',
-                    borderRadius: 6,
-                    fontSize: 13,
-                    color: '#52c41a',
-                    opacity: 0.9,
-                  }}
-                >
-                  {snippet.name}
-                </div>
-              );
-            }
-            if (data?.type === 'existing-node') {
-              // 查找被拖拽节点的 componentName 用于预览
-              const findNodeById = (
-                nodes: LowCodeNode[],
-                id: string,
-              ): LowCodeNode | null => {
-                for (const n of nodes) {
-                  if (n.id === id) return n;
-                  if (n.children) {
-                    const found = findNodeById(n.children, id);
-                    if (found) return found;
-                  }
-                }
-                return null;
-              };
-              const node = findNodeById(
-                schema.children || [],
-                data.nodeId,
-              );
-              return (
-                <div
-                  style={{
-                    padding: '6px 12px',
-                    background: '#fff7e6',
-                    border: '1px solid #faad14',
-                    borderRadius: 6,
-                    fontSize: 13,
-                    color: '#d48806',
-                    opacity: 0.9,
-                  }}
-                >
-                  {node?.componentName || '节点'}
-                </div>
-              );
-            }
-            return null;
-          }}
-        </DragOverlay>
-        {/* 拖拽插入位置指示器 — 蓝色横线 */}
-        {indicator && (
           <div
             style={{
-              position: 'fixed',
-              top: indicator.top,
-              left: indicator.left,
-              width: indicator.width,
-              height: 2,
-              background: '#1677ff',
-              borderRadius: 1,
-              boxShadow: '0 0 6px rgba(22,119,255,0.5)',
-              zIndex: 10000,
+              width: effectiveWidth,
+              height: effectiveHeight,
+              background: EDITOR_COLORS.panelBg,
+              border: `1px solid ${EDITOR_COLORS.borderSubtle}`,
+              borderRadius: EDITOR_LAYOUT.canvasRadius,
+              boxShadow: '0 4px 16px rgba(15, 23, 42, 0.08)',
+              overflow: 'hidden',
+              position: 'relative',
+              transform: `scale(${scale})`,
+              transformOrigin: 'top left',
+            }}
+          >
+            <SchemaRenderer />
+          </div>
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              borderRadius: EDITOR_LAYOUT.canvasRadius,
               pointerEvents: 'none',
+              boxShadow: `0 0 0 1px ${EDITOR_COLORS.border}`,
             }}
           />
-        )}
-      </DragDropProvider>
+        </div>
       </div>
     </div>
   );

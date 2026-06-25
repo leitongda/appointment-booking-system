@@ -127,8 +127,12 @@ class ForkResponse(BaseSchema):
 
 
 def _get_tenant_id(admin) -> str:
-    """安全提取 tenant_id，缺失时抛出 400 错误。"""
-    tenant_id = getattr(admin, "tenant_id", None)
+    """安全提取 tenant_id，缺失时抛出 400 错误。
+
+    `get_current_admin` 返回的是 dict（AccountInfo.to_dict()），
+    因此必须用 dict 访问，而非 getattr。
+    """
+    tenant_id = admin.get("tenant_id") if isinstance(admin, dict) else getattr(admin, "tenant_id", None)
     if not tenant_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -164,12 +168,13 @@ _TEMPLATE_CATEGORIES = [
 
 
 # ---------------------------------------------------------------------------
-# 1. GET /templates -- 市场列表 (公开, 分页, 可筛选)
+# 1. GET / -- 市场列表 (公开, 分页, 可筛选)
+# 注意：路由前缀已在 v1/__init__.py 注册为 /lowcode/templates，此处用 /
 # ---------------------------------------------------------------------------
 
 
 @router.get(
-    "/templates",
+    "/",
     response_model=PageResponse[TemplateResponse],
     summary="获取模板市场列表",
 )
@@ -199,12 +204,12 @@ async def get_template_list(
 
 
 # ---------------------------------------------------------------------------
-# 2. GET /templates/{template_id} -- 模板详情
+# 2. GET /{template_id} -- 模板详情
 # ---------------------------------------------------------------------------
 
 
 @router.get(
-    "/templates/{template_id}",
+    "/{template_id}",
     response_model=TemplateResponse,
     summary="获取模板详情",
 )
@@ -224,12 +229,12 @@ async def get_template(
 
 
 # ---------------------------------------------------------------------------
-# 3. POST /templates -- 创建/发布模板
+# 3. POST / -- 创建/发布模板
 # ---------------------------------------------------------------------------
 
 
 @router.post(
-    "/templates",
+    "/",
     response_model=TemplateResponse,
     summary="创建模板",
     status_code=status.HTTP_201_CREATED,
@@ -266,7 +271,8 @@ async def create_template(
         )
 
     # 平台管理员可以设置 is_official（平台管理员 tenant_id 为 None）
-    if data.is_official and not getattr(current_admin, 'tenant_id', None):
+    admin_tenant_id = current_admin.get("tenant_id") if isinstance(current_admin, dict) else getattr(current_admin, "tenant_id", None)
+    if data.is_official and not admin_tenant_id:
         template.is_official = True
         await db.commit()
 
@@ -293,12 +299,12 @@ async def create_template(
 
 
 # ---------------------------------------------------------------------------
-# 4. PUT /templates/{template_id} -- 更新元数据
+# 4. PUT /{template_id} -- 更新元数据
 # ---------------------------------------------------------------------------
 
 
 @router.put(
-    "/templates/{template_id}",
+    "/{template_id}",
     response_model=TemplateResponse,
     summary="更新模板元数据",
 )
@@ -355,12 +361,12 @@ async def update_template(
 
 
 # ---------------------------------------------------------------------------
-# 5. DELETE /templates/{template_id} -- 软删除
+# 5. DELETE /{template_id} -- 软删除
 # ---------------------------------------------------------------------------
 
 
 @router.delete(
-    "/templates/{template_id}",
+    "/{template_id}",
     summary="删除模板",
 )
 async def delete_template(
@@ -382,12 +388,12 @@ async def delete_template(
 
 
 # ---------------------------------------------------------------------------
-# 6. POST /templates/{template_id}/fork -- Fork 到当前租户
+# 6. POST /{template_id}/fork -- Fork 到当前租户
 # ---------------------------------------------------------------------------
 
 
 @router.post(
-    "/templates/{template_id}/fork",
+    "/{template_id}/fork",
     response_model=ForkResponse,
     summary="Fork 模板到当前租户",
 )
@@ -426,12 +432,12 @@ async def fork_template(
 
 
 # ---------------------------------------------------------------------------
-# 7. GET /templates/{template_id}/versions -- 版本历史
+# 7. GET /{template_id}/versions -- 版本历史
 # ---------------------------------------------------------------------------
 
 
 @router.get(
-    "/templates/{template_id}/versions",
+    "/{template_id}/versions",
     response_model=TemplateVersionListResponse,
     summary="获取模板版本历史",
 )
@@ -470,12 +476,12 @@ async def list_template_versions(
 
 
 # ---------------------------------------------------------------------------
-# 8. POST /templates/{template_id}/versions -- 创建新版本
+# 8. POST /{template_id}/versions -- 创建新版本
 # ---------------------------------------------------------------------------
 
 
 @router.post(
-    "/templates/{template_id}/versions",
+    "/{template_id}/versions",
     response_model=TemplateVersionItem,
     summary="创建模板新版本",
     status_code=status.HTTP_201_CREATED,
@@ -515,12 +521,12 @@ async def create_template_version(
 
 
 # ---------------------------------------------------------------------------
-# 9. GET /templates/my -- 我发布的模板
+# 9. GET /my -- 我发布的模板
 # ---------------------------------------------------------------------------
 
 
 @router.get(
-    "/templates/my",
+    "/my",
     response_model=PageResponse[TemplateResponse],
     summary="获取我发布的模板",
 )
@@ -569,12 +575,12 @@ async def get_my_templates(
 
 
 # ---------------------------------------------------------------------------
-# 10. GET /templates/categories -- 分类列表
+# 10. GET /categories -- 分类列表
 # ---------------------------------------------------------------------------
 
 
 @router.get(
-    "/templates/categories",
+    "/categories",
     response_model=list[TemplateCategoryItem],
     summary="获取模板分类列表",
 )

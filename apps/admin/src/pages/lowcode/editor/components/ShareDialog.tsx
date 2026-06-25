@@ -164,7 +164,7 @@ const ShareDialog: React.FC<ShareDialogProps> = ({ open, onClose }) => {
         thumbnailKey: thumbnail?.key || null,
       };
 
-      await request.post(`/lowcode/pages/${pageId}/share-to-marketplace`, payload);
+      await request.post(`/lowcode/pages/${pageId}/publish-to-marketplace`, payload);
       setSubmitSuccess(true);
       message.success('已提交到模板市场');
     } catch (err: any) {

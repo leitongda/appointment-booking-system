@@ -8,6 +8,10 @@ export default [
     access: 'canLowcode',
     routes: [
       {
+        path: '/platform/lowcode',
+        redirect: '/platform/lowcode/list',
+      },
+      {
         path: '/platform/lowcode/list',
         name: '页面管理',
         component: './lowcode/list',
@@ -25,19 +29,35 @@ export default [
         hideInMenu: true,
         access: 'canLowcodeMarketplace',
       },
+    ],
+  },
+  {
+    path: '/platform/lowcode/editor',
+    component: './lowcode/layout',
+    layout: false,
+    hideInMenu: true,
+    access: 'canLowcode',
+    routes: [
       {
         path: '/platform/lowcode/editor/:id',
         name: '编辑器',
         component: './lowcode/editor',
         hideInMenu: true,
-        layout: false,
       },
+    ],
+  },
+  {
+    path: '/platform/lowcode/preview',
+    component: './lowcode/layout',
+    layout: false,
+    hideInMenu: true,
+    access: 'canLowcode',
+    routes: [
       {
         path: '/platform/lowcode/preview/:id',
         name: '预览',
         component: './lowcode/preview',
         hideInMenu: true,
-        layout: false,
       },
     ],
   },

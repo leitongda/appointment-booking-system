@@ -76,6 +76,7 @@ function getFileName(filePath: string): string {
 
 /** 调用后端代码生成预览接口 */
 async function fetchCodegenPreview(
+  pageId: string,
   schema: LowCodeSchema,
   dataSources: ApiDataSource[],
   stateSchema: Record<string, StateVariable>,
@@ -87,7 +88,7 @@ async function fetchCodegenPreview(
     stateSchema: stateSchema,
     target,
   };
-  return request.post('/lowcode/pages/codegen/preview', payload);
+  return request.post(`/lowcode/pages/${pageId}/codegen/preview`, payload);
 }
 
 // ---------------------------------------------------------------------------
@@ -112,10 +113,14 @@ const CodePreviewModal: React.FC<CodePreviewModalProps> = ({
 
   /** 生成代码预览 */
   const generate = useCallback(async () => {
+    if (!pageId) {
+      setError('请先保存页面再生成代码');
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
-      const res = await fetchCodegenPreview(schema, dataSources, stateSchema, target);
+      const res = await fetchCodegenPreview(pageId, schema, dataSources, stateSchema, target);
       setResult(res);
       if (res.files.length > 0) {
         setActiveFileKey(res.files[0].path);
@@ -127,7 +132,7 @@ const CodePreviewModal: React.FC<CodePreviewModalProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [schema, dataSources, stateSchema, target]);
+  }, [pageId, schema, dataSources, stateSchema, target]);
 
   /** 打开弹窗时自动生成 */
   useEffect(() => {

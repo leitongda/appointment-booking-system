@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/react';
 import { useEditorStore } from '../store';
 import { ContextMenu } from './ContextMenu';
+import { ROOT_DROP_ID } from '../constants';
 import type { LowCodeNode } from '@hospital/shared';
 
 /** 合并样式：将 node.style 与基础样式合并 */
@@ -37,7 +38,7 @@ const DraggableNode = React.memo(function DraggableNode({
   });
 
   return (
-    <div ref={ref} style={mergeStyles({ position: 'relative' }, nodeStyle)}>
+    <div ref={ref} style={mergeStyles({ position: 'relative' }, nodeStyle)} data-node-id={nodeId}>
       {children}
     </div>
   );
@@ -114,6 +115,7 @@ const SlotRenderer = React.memo(function SlotRenderer({
         {label}
       </div>
       {slotNodes.map((child) => (
+        // eslint-disable-next-line @typescript-eslint/no-use-before-define
         <NodeRenderer key={child.id} node={child} depth={depth + 1} />
       ))}
       {slotNodes.length === 0 && (
@@ -149,9 +151,103 @@ function useNodeActions() {
   return { selectNode, toggleNodeSelect };
 }
 
+/** NutTabs 渲染器 — 独立组件以支持标签切换的本地状态 */
+const NutTabsRenderer = React.memo(function NutTabsRenderer({
+  node,
+  depth,
+}: {
+  node: LowCodeNode;
+  depth: number;
+}) {
+  const panes = node.children?.filter((c) => c.componentName === 'NutTabPane') ?? [];
+  const [activeIdx, setActiveIdx] = useState(0);
+  // 激活索引超出范围时自动回退到第一个标签
+  const safeIdx = activeIdx >= panes.length ? 0 : activeIdx;
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        flex: 1,
+        minHeight: 0,
+      }}
+    >
+      {/* 标签栏 */}
+      <div
+        style={{
+          display: 'flex',
+          flexShrink: 0,
+          borderBottom: '1px solid #eee',
+          background: '#fff',
+        }}
+      >
+        {panes.map((child, idx) => {
+          const isActive = idx === safeIdx;
+          return (
+            <div
+              key={child.id}
+              onClick={() => setActiveIdx(idx)}
+              style={{
+                padding: '10px 16px',
+                fontSize: 14,
+                color: isActive ? '#1677ff' : '#666',
+                borderBottom: isActive ? '2px solid #1677ff' : '2px solid transparent',
+                cursor: 'pointer',
+                userSelect: 'none',
+              }}
+            >
+              {child.props.title || '标签'}
+            </div>
+          );
+        })}
+      </div>
+      {/* 标签内容区 — 仅渲染激活标签，flex:1 撑满标签栏以下剩余高度 */}
+      {panes.map((child, idx) => {
+        if (idx !== safeIdx) return null;
+        return (
+          <div
+            key={child.id}
+            style={{
+              flex: 1,
+              minHeight: 40,
+              display: 'flex',
+              flexDirection: 'column',
+              ...(child.style as React.CSSProperties | undefined),
+            }}
+            data-node-id={child.id}
+            data-component={child.componentName}
+          >
+            {child.children?.map((grandChild) => (
+              <NodeRenderer
+                // eslint-disable-next-line @typescript-eslint/no-use-before-define
+                key={grandChild.id}
+                node={grandChild}
+                depth={depth + 1}
+              />
+            ))}
+            {(!child.children || child.children.length === 0) && (
+              <div
+                style={{
+                  textAlign: 'center',
+                  color: '#ccc',
+                  padding: '20px 0',
+                  fontSize: 12,
+                }}
+              >
+                拖入内容到「{child.props.title || '标签'}」
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+});
+
 /** 单个节点渲染 */
 const NodeRenderer = React.memo(function NodeRenderer({ node, depth = 0 }: { node: LowCodeNode; depth?: number }) {
-  const { isSelected } = useNodeSelection(node.id);
+  const { isSelected, selectedNodeIds } = useNodeSelection(node.id);
   const { selectNode, toggleNodeSelect } = useNodeActions();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
@@ -177,16 +273,20 @@ const NodeRenderer = React.memo(function NodeRenderer({ node, depth = 0 }: { nod
         return (
           <div
             style={{
-              minHeight: 600,
+              flex: 1,
+              minHeight: 0,
               background: '#f5f5f5',
               padding: 0,
               position: 'relative',
+              display: 'flex',
+              flexDirection: 'column',
             }}
           >
             {/* 模拟导航栏 */}
             <div
               style={{
                 height: 44,
+                flexShrink: 0,
                 background: node.props.navigationBarBackgroundColor || '#ffffff',
                 display: 'flex',
                 alignItems: 'center',
@@ -198,10 +298,16 @@ const NodeRenderer = React.memo(function NodeRenderer({ node, depth = 0 }: { nod
             >
               {node.props.navigationBarTitleText || '页面标题'}
             </div>
-            {/* 页面内容区 */}
+            {/* 页面内容区 — flex:1 撑满导航栏以下剩余高度 */}
             <DroppableZone
-              parentId={node.id}
-              style={{ padding: '12px 0', minHeight: 80 }}
+              parentId={node.id || ROOT_DROP_ID}
+              style={{
+                padding: '12px 0',
+                flex: 1,
+                minHeight: 0,
+                display: 'flex',
+                flexDirection: 'column',
+              }}
             >
               {node.children?.map((child) => (
                 <NodeRenderer key={child.id} node={child} depth={depth + 1} />
@@ -302,6 +408,7 @@ const NodeRenderer = React.memo(function NodeRenderer({ node, depth = 0 }: { nod
         return (
           <div style={{ padding: '8px 12px' }}>
             <button
+              type="button"
               style={{
                 width: node.props.block ? '100%' : 'auto',
                 height: 36,
@@ -452,51 +559,7 @@ const NodeRenderer = React.memo(function NodeRenderer({ node, depth = 0 }: { nod
         );
 
       case 'NutTabs':
-        return (
-          <div>
-            <div
-              style={{
-                display: 'flex',
-                borderBottom: '1px solid #eee',
-                background: '#fff',
-              }}
-            >
-              {node.children
-                ?.filter((c) => c.componentName === 'NutTabPane')
-                .map((child, idx) => (
-                  <div
-                    key={child.id}
-                    style={{
-                      padding: '10px 16px',
-                      fontSize: 14,
-                      color: idx === 0 ? '#1677ff' : '#666',
-                      borderBottom:
-                        idx === 0 ? '2px solid #1677ff' : '2px solid transparent',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {child.props.title || '标签'}
-                  </div>
-                ))}
-            </div>
-            {node.children
-              ?.filter((c) => c.componentName === 'NutTabPane')
-              .map((child, idx) => (
-                <div
-                  key={child.id}
-                  style={{ display: idx === 0 ? 'block' : 'none' }}
-                >
-                  {child.children?.map((grandChild) => (
-                    <NodeRenderer
-                      key={grandChild.id}
-                      node={grandChild}
-                      depth={depth + 1}
-                    />
-                  ))}
-                </div>
-              ))}
-          </div>
-        );
+        return <NutTabsRenderer node={node} depth={depth} />;
 
       case 'NutTabPane':
         // 由 NutTabs 父组件处理渲染
@@ -910,6 +973,10 @@ const NodeRenderer = React.memo(function NodeRenderer({ node, depth = 0 }: { nod
           position: 'relative',
           transition: 'outline 0.15s',
           cursor: 'pointer',
+          flex: 1,
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: 'column',
         }}
         data-node-id={node.id}
         data-component={node.componentName}
@@ -950,7 +1017,7 @@ const NodeRenderer = React.memo(function NodeRenderer({ node, depth = 0 }: { nod
   return <DraggableNode nodeId={node.id} nodeStyle={node.style}>{content}</DraggableNode>;
 });
 
-/** 画布渲染入口 */
+/** 画布渲染入口 — 撑满 Canvas 容器（width/height 由外层 100% 提供，不再依赖百分比 minHeight） */
 export const SchemaRenderer: React.FC = () => {
   const schema = useEditorStore((s) => s.schema);
 
@@ -958,8 +1025,11 @@ export const SchemaRenderer: React.FC = () => {
     <div
       style={{
         background: '#fff',
-        minHeight: '100%',
+        width: '100%',
+        height: '100%',
         position: 'relative',
+        display: 'flex',
+        flexDirection: 'column',
       }}
     >
       <NodeRenderer node={schema as unknown as LowCodeNode} />

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useEditorStore } from '../store';
-import type { LowCodeSchema, LowCodeNode } from '@hospital/shared';
+import type { ApiDataSource, EventHandler, LinkageRule, LowCodeSchema, LowCodeNode } from '@hospital/shared';
 
 /** 测试用 Schema 树 */
 const testSchema: LowCodeSchema = {
@@ -35,11 +35,15 @@ function resetStore() {
   useEditorStore.setState({
     schema: { componentName: 'Page', props: {}, children: [] },
     selectedNodeId: null,
+    selectedNodeIds: [],
     history: [{ schema: { componentName: 'Page', props: {}, children: [] }, dataSources: [], stateSchema: {} }],
     historyIndex: 0,
     loading: false,
     pageId: null,
-    savedSchema: { schema: { componentName: 'Page', props: {}, children: [] }, dataSources: [], stateSchema: {} },
+    savedSchema: { componentName: 'Page', props: {}, children: [] },
+    isDirty: false,
+    dataSources: [],
+    stateSchema: {},
   });
 }
 
@@ -517,12 +521,189 @@ describe('useEditorStore', () => {
     it('should set the selected node ID', () => {
       useEditorStore.getState().selectNode('node-1');
       expect(useEditorStore.getState().selectedNodeId).toBe('node-1');
+      expect(useEditorStore.getState().selectedNodeIds).toEqual(['node-1']);
     });
 
     it('should clear selection when null is passed', () => {
-      useEditorStore.setState({ selectedNodeId: 'node-1' });
+      useEditorStore.setState({ selectedNodeId: 'node-1', selectedNodeIds: ['node-1'] });
       useEditorStore.getState().selectNode(null);
       expect(useEditorStore.getState().selectedNodeId).toBeNull();
+      expect(useEditorStore.getState().selectedNodeIds).toEqual([]);
+    });
+  });
+
+  describe('multi selection', () => {
+    it('should toggle selected nodes and keep first selected as active', () => {
+      useEditorStore.getState().toggleNodeSelect('node-1');
+      useEditorStore.getState().toggleNodeSelect('node-2');
+
+      expect(useEditorStore.getState().selectedNodeIds).toEqual(['node-1', 'node-2']);
+      expect(useEditorStore.getState().selectedNodeId).toBe('node-1');
+
+      useEditorStore.getState().toggleNodeSelect('node-1');
+
+      expect(useEditorStore.getState().selectedNodeIds).toEqual(['node-2']);
+      expect(useEditorStore.getState().selectedNodeId).toBe('node-2');
+    });
+
+    it('should select all nodes across nested schema levels', () => {
+      useEditorStore.setState({ schema: testSchema });
+
+      useEditorStore.getState().selectAll();
+
+      expect(useEditorStore.getState().selectedNodeIds).toEqual(['node-1', 'node-2', 'node-3']);
+      expect(useEditorStore.getState().selectedNodeId).toBe('node-1');
+    });
+
+    it('should clear all selected nodes', () => {
+      useEditorStore.setState({ selectedNodeId: 'node-1', selectedNodeIds: ['node-1', 'node-2'] });
+
+      useEditorStore.getState().clearSelection();
+
+      expect(useEditorStore.getState().selectedNodeId).toBeNull();
+      expect(useEditorStore.getState().selectedNodeIds).toEqual([]);
+    });
+  });
+
+  describe('node events and data binding', () => {
+    it('should update event handlers on a node', () => {
+      useEditorStore.setState({ schema: testSchema });
+      const events: EventHandler[] = [
+        { event: 'onClick', actions: [{ type: 'showToast', payload: { message: 'ok' } }] },
+      ];
+
+      useEditorStore.getState().updateNodeEvents('node-3', events);
+
+      const node = useEditorStore.getState().schema.children[1].children![0];
+      expect(node.events).toEqual(events);
+    });
+
+    it('should add and merge node data bindings', () => {
+      useEditorStore.setState({ schema: testSchema });
+
+      useEditorStore.getState().updateNodeDataBinding('node-1', 'text', '{{state.title}}');
+      useEditorStore.getState().updateNodeBinding('node-1', 'color', '{{state.color}}');
+
+      const node = useEditorStore.getState().schema.children[0];
+      expect(node.dataBinding?.bindings).toEqual({
+        text: '{{state.title}}',
+        color: '{{state.color}}',
+      });
+    });
+
+    it('should remove one binding and clear dataBinding when the last binding is removed', () => {
+      useEditorStore.setState({ schema: testSchema });
+      useEditorStore.getState().updateNodeDataBinding('node-1', 'text', '{{state.title}}');
+      useEditorStore.getState().updateNodeDataBinding('node-1', 'color', '{{state.color}}');
+
+      useEditorStore.getState().removeNodeBinding('node-1', 'text');
+
+      let node = useEditorStore.getState().schema.children[0];
+      expect(node.dataBinding?.bindings).toEqual({ color: '{{state.color}}' });
+
+      useEditorStore.getState().removeNodeBinding('node-1', 'color');
+
+      node = useEditorStore.getState().schema.children[0];
+      expect(node.dataBinding).toBeUndefined();
+    });
+  });
+
+  describe('dataSources', () => {
+    const apiSource: ApiDataSource = {
+      id: 'users',
+      name: '用户列表',
+      type: 'api',
+      method: 'GET',
+      url: '/api/v1/users',
+      dataPath: 'data.items',
+    };
+
+    it('should add, update and remove page data sources', () => {
+      useEditorStore.getState().addDataSource(apiSource);
+      expect(useEditorStore.getState().dataSources).toEqual([apiSource]);
+
+      useEditorStore.getState().updateDataSource('users', {
+        method: 'POST',
+        params: { status: 1 },
+      });
+
+      expect(useEditorStore.getState().dataSources[0]).toMatchObject({
+        id: 'users',
+        method: 'POST',
+        params: { status: 1 },
+      });
+
+      useEditorStore.getState().removeDataSource('users');
+      expect(useEditorStore.getState().dataSources).toEqual([]);
+    });
+
+    it('should include data sources in undo and redo history', () => {
+      useEditorStore.getState().addDataSource(apiSource);
+      expect(useEditorStore.getState().dataSources).toHaveLength(1);
+
+      useEditorStore.getState().undo();
+      expect(useEditorStore.getState().dataSources).toEqual([]);
+
+      useEditorStore.getState().redo();
+      expect(useEditorStore.getState().dataSources).toEqual([apiSource]);
+    });
+  });
+
+  describe('stateSchema', () => {
+    it('should set state variables with parsed default values', () => {
+      const schema = {
+        title: { type: 'string', defaultValue: '首页', label: '标题' },
+        count: { type: 'number', defaultValue: 0, label: '计数' },
+        filters: { type: 'array', defaultValue: ['active'], label: '筛选条件' },
+      };
+
+      useEditorStore.getState().setStateSchema(schema);
+
+      expect(useEditorStore.getState().stateSchema).toEqual(schema);
+    });
+
+    it('should include state variables in undo and redo history', () => {
+      const schema = {
+        visible: { type: 'boolean', defaultValue: true, label: '是否显示' },
+      };
+
+      useEditorStore.getState().setStateSchema(schema);
+      expect(useEditorStore.getState().stateSchema).toEqual(schema);
+
+      useEditorStore.getState().undo();
+      expect(useEditorStore.getState().stateSchema).toEqual({});
+
+      useEditorStore.getState().redo();
+      expect(useEditorStore.getState().stateSchema).toEqual(schema);
+    });
+  });
+
+  describe('linkage rules', () => {
+    const rules: LinkageRule[] = [
+      {
+        id: 'rule-1',
+        name: '选择套餐后设置价格',
+        enabled: true,
+        conditions: [{ sourceFieldId: 'node-3', operator: 'equals', value: 'vip' }],
+        actions: [{ type: 'setValue', targetFieldId: 'node-1', value: '199' }],
+      },
+    ];
+
+    it('should update linkage rules for a selected node', () => {
+      useEditorStore.setState({ schema: testSchema });
+
+      useEditorStore.getState().updateNodeLinkageRules('node-1', rules);
+
+      expect(useEditorStore.getState().schema.children[0].linkageRules).toEqual(rules);
+    });
+
+    it('should ignore linkage rule updates without a target node id', () => {
+      useEditorStore.setState({ schema: testSchema });
+
+      useEditorStore.getState().updateNodeLinkageRules(null, rules);
+
+      expect(useEditorStore.getState().schema).toEqual(testSchema);
+      expect(useEditorStore.getState().historyIndex).toBe(0);
     });
   });
 
@@ -760,9 +941,10 @@ describe('useEditorStore', () => {
 
   describe('reset', () => {
     it('should clear all state to defaults', () => {
-      useEditorStore.setState({ loading: true, pageId: 'page-123' });
+      useEditorStore.setState({ loading: true, pageId: 'page-123', dataSources: [{ id: 'x', type: 'api', method: 'GET', url: '/x' }] });
       useEditorStore.getState().setSchema(testSchema);
       useEditorStore.getState().selectNode('node-1');
+      useEditorStore.getState().setStateSchema({ title: { type: 'string', defaultValue: '', label: '标题' } });
 
       useEditorStore.getState().reset();
 
@@ -773,6 +955,9 @@ describe('useEditorStore', () => {
       expect(state.historyIndex).toBe(0);
       expect(state.loading).toBe(false);
       expect(state.pageId).toBeNull();
+      expect(state.isDirty).toBe(false);
+      expect(state.dataSources).toEqual([]);
+      expect(state.stateSchema).toEqual({});
     });
 
     it('should reset savedSchema to default', () => {
@@ -781,9 +966,17 @@ describe('useEditorStore', () => {
 
       useEditorStore.getState().reset();
 
-      expect(useEditorStore.getState().savedSchema.schema.children).toEqual([]);
-      expect(useEditorStore.getState().savedSchema.dataSources).toEqual([]);
-      expect(useEditorStore.getState().savedSchema.stateSchema).toEqual({});
+      expect(useEditorStore.getState().savedSchema.children).toEqual([]);
+    });
+
+    it('should mark current schema as saved and clear dirty state', () => {
+      useEditorStore.getState().setSchema(testSchema);
+      expect(useEditorStore.getState().isDirty).toBe(true);
+
+      useEditorStore.getState().markSaved();
+
+      expect(useEditorStore.getState().savedSchema).toEqual(testSchema);
+      expect(useEditorStore.getState().isDirty).toBe(false);
     });
   });
 });

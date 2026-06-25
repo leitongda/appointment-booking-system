@@ -2,7 +2,7 @@
 
 import React, { useEffect, useCallback, useRef, useState } from 'react';
 import { useParams, history } from '@umijs/max';
-import { Button, Space, message, Spin, Tooltip, Modal, Input, Tabs } from 'antd';
+import { Button, Dropdown, Space, message, Spin, Tooltip, Modal, Input, Tabs } from 'antd';
 import { pinyin } from 'pinyin-pro';
 import {
   SaveOutlined,
@@ -18,6 +18,7 @@ import {
   HistoryOutlined,
   ShareAltOutlined,
   CloudUploadOutlined,
+  MoreOutlined,
 } from '@ant-design/icons';
 import CodePreviewModal from './components/CodePreviewModal';
 import DeployPanel from './components/DeployPanel';
@@ -28,9 +29,10 @@ import type { LowCodeNode } from '@hospital/shared';
 import { ComponentPanel } from './components/ComponentPanel';
 import { DataSourcePanel } from './components/DataSourcePanel';
 import { LayerPanel } from './components/LayerPanel';
-import { Canvas } from './components/Canvas';
+import { Canvas, EditorDndProvider } from './components/Canvas';
 import { PropertyPanel } from './components/PropertyPanel';
 import { lowcodeApi } from '@hospital/api';
+import { EDITOR_COLORS, EDITOR_LAYOUT } from './constants';
 
 /** 按 ID 查找节点 */
 function findNodeById(nodes: LowCodeNode[], id: string): LowCodeNode | null {
@@ -71,7 +73,8 @@ function regenerateIds(node: LowCodeNode): LowCodeNode {
 
 /** 编辑器主页面 */
 const LowCodeEditor: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const params = useParams();
+  const id = params.id as string | undefined;
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [saveModalVisible, setSaveModalVisible] = useState(false);
@@ -97,7 +100,6 @@ const LowCodeEditor: React.FC = () => {
   const historyLength = useEditorStore((s) => s.history.length);
   const isDirty = useEditorStore((s) => s.isDirty);
   const markSaved = useEditorStore((s) => s.markSaved);
-  const selectedNodeId = useEditorStore((s) => s.selectedNodeId);
   const removeNode = useEditorStore((s) => s.removeNode);
   const addNode = useEditorStore((s) => s.addNode);
   const selectAll = useEditorStore((s) => s.selectAll);
@@ -218,9 +220,11 @@ const LowCodeEditor: React.FC = () => {
 
   /** 预览 */
   const handlePreview = useCallback(() => {
-    if (pageId) {
-      window.open(`/platform/lowcode/preview/${pageId}`, '_blank');
+    if (!pageId) {
+      message.warning('请先保存页面再预览');
+      return;
     }
+    window.open(`/platform/lowcode/preview/${pageId}`, '_blank');
   }, [pageId]);
 
   /** 打开代码生成弹窗 */
@@ -431,47 +435,45 @@ const LowCodeEditor: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [undo, redo, handleSave, removeNode, addNode, addToRoot, updateNodeProps, selectAll, toggleNodeSelect]);
 
-  /** 未保存更改警告 */
+  /** 浏览器关闭/刷新时的未保存更改警告 */
   useEffect(() => {
-    /** 浏览器关闭/刷新时的警告 */
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (isDirty) {
         e.preventDefault();
         e.returnValue = '';
       }
     };
-
     window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
 
-    /** 路由切换时的警告 (Umi history.block) */
-    const unblock = history.block((txLocation) => {
-      if (isDirty) {
-        const targetPath = txLocation.pathname + (txLocation.search || '');
-        Modal.confirm({
-          title: '离开确认',
-          content: '当前页面有未保存的更改，确定要离开吗？',
-          okText: '保存并离开',
-          cancelText: '不保存，直接离开',
-          onOk: async () => {
-            unblock();
-            await handleSave();
-            history.push(targetPath);
-          },
-          onCancel: () => {
-            unblock();
-            history.push(targetPath);
-          },
-        });
-        return false;
+  /** 带未保存检查的导航 — 有脏数据时弹窗确认 */
+  const navigateWithDirtyCheck = useCallback(
+    (targetPath: string) => {
+      if (!isDirty) {
+        history.push(targetPath);
+        return;
       }
-      return true;
-    });
-
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      unblock();
-    };
-  }, [isDirty, handleSave]);
+      Modal.confirm({
+        title: '离开确认',
+        content: '当前页面有未保存的更改，确定要离开吗？',
+        okText: '保存并离开',
+        cancelText: '不保存，直接离开',
+        onOk: async () => {
+          try {
+            await handleSave();
+          } catch {
+            return;
+          }
+          history.push(targetPath);
+        },
+        onCancel: () => {
+          history.push(targetPath);
+        },
+      });
+    },
+    [isDirty, handleSave],
+  );
 
   /** 定时自动保存（30秒） */
   useEffect(() => {
@@ -491,30 +493,32 @@ const LowCodeEditor: React.FC = () => {
   }, [isDirty, pageId, doSave]);
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: EDITOR_COLORS.workspaceBg }}>
       {/* 顶部工具栏 */}
       <div
         style={{
-          height: 48,
-          borderBottom: '1px solid #f0f0f0',
+          height: EDITOR_LAYOUT.toolbarHeight,
+          flexShrink: 0,
+          borderBottom: `1px solid ${EDITOR_COLORS.border}`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
+          gap: 12,
           padding: '0 16px',
-          background: '#fff',
+          background: EDITOR_COLORS.panelBg,
         }}
       >
-        <Space>
+        <Space size={8} style={{ minWidth: 0, flexShrink: 0 }}>
           <Button
             type="text"
             icon={<ArrowLeftOutlined />}
-            onClick={() => history.push('/platform/lowcode/list')}
+            onClick={() => navigateWithDirtyCheck('/platform/lowcode/list')}
           >
             返回
           </Button>
           <span style={{ fontWeight: 500, fontSize: 15 }}>页面搭建</span>
         </Space>
-        <Space>
+        <Space size={4} style={{ flex: 1, justifyContent: 'center', minWidth: 160 }}>
           <Tooltip title="撤销 (Ctrl+Z)">
             <Button
               type="text"
@@ -531,44 +535,59 @@ const LowCodeEditor: React.FC = () => {
               disabled={historyIndex >= historyLength - 1}
             />
           </Tooltip>
-          <Button icon={<EyeOutlined />} onClick={handlePreview} disabled={!pageId}>
-            预览
-          </Button>
-          <Tooltip title={isDirty ? '请先保存页面再生成代码' : '生成小程序代码'}>
-            <Button
-              icon={<CodeOutlined />}
-              onClick={handleOpenCodeModal}
-              disabled={!pageId || isDirty}
-            >
-              生成代码
-            </Button>
-          </Tooltip>
-          <Button
-            icon={<HistoryOutlined />}
-            onClick={() => setVersionHistoryVisible(true)}
-            disabled={!pageId}
-          >
-            版本历史
-          </Button>
-          <Button
-            icon={<ShareAltOutlined />}
-            onClick={() => setShareDialogVisible(true)}
-            disabled={!pageId}
-          >
-            分享到市场
-          </Button>
-          <Button
-            icon={<CloudUploadOutlined />}
-            onClick={() => setDeployPanelVisible(true)}
-            disabled={!pageId}
-          >
-            部署
-          </Button>
+        </Space>
+        <Space size={8} style={{ flexShrink: 0 }}>
           {lastSavedAt && (
-            <span style={{ fontSize: 12, color: '#999', marginRight: 8 }}>
+            <span style={{ fontSize: 12, color: EDITOR_COLORS.textMuted, whiteSpace: 'nowrap' }}>
               上次保存: {lastSavedAt.toLocaleTimeString()}
             </span>
           )}
+          <Dropdown
+            trigger={['click']}
+            menu={{
+              items: [
+                {
+                  key: 'preview',
+                  icon: <EyeOutlined />,
+                  label: '预览',
+                  disabled: !pageId,
+                },
+                {
+                  key: 'code',
+                  icon: <CodeOutlined />,
+                  label: isDirty ? '生成代码（请先保存）' : '生成代码',
+                  disabled: !pageId || isDirty,
+                },
+                {
+                  key: 'history',
+                  icon: <HistoryOutlined />,
+                  label: '版本历史',
+                  disabled: !pageId,
+                },
+                {
+                  key: 'share',
+                  icon: <ShareAltOutlined />,
+                  label: '分享到市场',
+                  disabled: !pageId,
+                },
+                {
+                  key: 'deploy',
+                  icon: <CloudUploadOutlined />,
+                  label: '部署',
+                  disabled: !pageId,
+                },
+              ],
+              onClick: ({ key }) => {
+                if (key === 'preview') handlePreview();
+                if (key === 'code') handleOpenCodeModal();
+                if (key === 'history') setVersionHistoryVisible(true);
+                if (key === 'share') setShareDialogVisible(true);
+                if (key === 'deploy') setDeployPanelVisible(true);
+              },
+            }}
+          >
+            <Button icon={<MoreOutlined />}>更多</Button>
+          </Dropdown>
           <Button
             icon={<SaveOutlined />}
             onClick={handleSave}
@@ -589,46 +608,59 @@ const LowCodeEditor: React.FC = () => {
 
       {/* 主体区域 */}
       <Spin spinning={loading}>
-        <div
-          style={{
-            flex: 1,
-            display: 'flex',
-            overflow: 'hidden',
-          }}
-        >
-          {/* 左侧面板 (物料 + 数据源) */}
-          <div style={{ width: 240, borderRight: '1px solid #f0f0f0', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <Tabs
-              defaultActiveKey="components"
-              size="small"
-              style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
-              tabBarStyle={{ margin: 0, paddingLeft: 12, minHeight: 36 }}
-              items={[
-                {
-                  key: 'components',
-                  label: <span><AppstoreOutlined /> 物料</span>,
-                  children: <ComponentPanel />,
-                },
-                {
-                  key: 'datasource',
-                  label: <span><ApiOutlined /> 数据</span>,
-                  children: <DataSourcePanel />,
-                },
-                {
-                  key: 'layers',
-                  label: <span><ApartmentOutlined /> 图层</span>,
-                  children: <LayerPanel />,
-                },
-              ]}
-            />
+        <EditorDndProvider>
+          <div
+            style={{
+              height: `calc(100vh - ${EDITOR_LAYOUT.toolbarHeight}px)`,
+              display: 'flex',
+              overflow: 'hidden',
+            }}
+          >
+            {/* 左侧面板 (物料 + 数据源) */}
+            <div
+              style={{
+                width: EDITOR_LAYOUT.leftPanelWidth,
+                flexShrink: 0,
+                borderRight: `1px solid ${EDITOR_COLORS.border}`,
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+                background: EDITOR_COLORS.panelBg,
+              }}
+            >
+              <Tabs
+                defaultActiveKey="components"
+                size="small"
+                className="lowcode-editor-tabs"
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
+                tabBarStyle={{ margin: 0, paddingLeft: 12, minHeight: 36, borderColor: EDITOR_COLORS.border }}
+                items={[
+                  {
+                    key: 'components',
+                    label: <span><AppstoreOutlined /> 物料</span>,
+                    children: <ComponentPanel />,
+                  },
+                  {
+                    key: 'datasource',
+                    label: <span><ApiOutlined /> 数据</span>,
+                    children: <DataSourcePanel />,
+                  },
+                  {
+                    key: 'layers',
+                    label: <span><ApartmentOutlined /> 图层</span>,
+                    children: <LayerPanel />,
+                  },
+                ]}
+              />
+            </div>
+
+            {/* 中间画布 */}
+            <Canvas />
+
+            {/* 右侧属性面板 */}
+            <PropertyPanel />
           </div>
-
-          {/* 中间画布 */}
-          <Canvas />
-
-          {/* 右侧属性面板 */}
-          <PropertyPanel />
-        </div>
+        </EditorDndProvider>
       </Spin>
       {/* 保存新页面弹窗 */}
       <Modal

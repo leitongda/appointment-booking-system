@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useDraggable } from '@dnd-kit/react';
-import { Card, Collapse, Input, Space, Typography } from 'antd';
+import { Collapse, Input, Space, Typography } from 'antd';
 import {
   FontSizeOutlined,
   PictureOutlined,
@@ -19,11 +19,13 @@ import {
   FormOutlined,
   SwitcherOutlined,
   DownSquareOutlined,
+  SearchOutlined,
 } from '@ant-design/icons';
 import { materialsByCategory, categoryLabels } from '../materials';
 import { snippetTemplates } from '../materials/snippets';
 import type { SnippetTemplate } from '../materials/snippets';
 import type { MaterialComponent } from '@hospital/shared';
+import { EDITOR_COLORS, EDITOR_SPACING } from '../constants';
 
 const { Text } = Typography;
 
@@ -45,6 +47,66 @@ const iconMap: Record<string, React.ReactNode> = {
   DownSquareOutlined: <DownSquareOutlined />,
 };
 
+interface MaterialListItemProps {
+  accentColor: string;
+  description?: string;
+  handleProps?: React.HTMLAttributes<HTMLDivElement>;
+  hoverBg: string;
+  icon: React.ReactNode;
+  title: string;
+}
+
+const MaterialListItem = React.forwardRef<HTMLDivElement, MaterialListItemProps>(
+  ({ accentColor, description, handleProps, hoverBg, icon, title }, ref) => (
+    <div
+      ref={ref}
+      {...handleProps}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        minHeight: 34,
+        padding: '6px 8px',
+        cursor: 'grab',
+        borderRadius: 6,
+        border: `1px solid ${EDITOR_COLORS.borderSubtle}`,
+        background: EDITOR_COLORS.itemBg,
+        transition: 'background 0.16s, border-color 0.16s, box-shadow 0.16s',
+        userSelect: 'none',
+        ...handleProps?.style,
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = accentColor;
+        e.currentTarget.style.background = hoverBg;
+        e.currentTarget.style.boxShadow = '0 1px 4px rgba(15, 23, 42, 0.06)';
+        handleProps?.onMouseEnter?.(e);
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = EDITOR_COLORS.borderSubtle;
+        e.currentTarget.style.background = EDITOR_COLORS.itemBg;
+        e.currentTarget.style.boxShadow = 'none';
+        handleProps?.onMouseLeave?.(e);
+      }}
+    >
+      <span style={{ fontSize: 16, color: accentColor, flexShrink: 0 }}>
+        {icon}
+      </span>
+      <div style={{ minWidth: 0 }}>
+        <Text ellipsis style={{ fontSize: 13, display: 'block', lineHeight: '18px' }}>
+          {title}
+        </Text>
+        {description && (
+          <Text type="secondary" ellipsis style={{ fontSize: 11, lineHeight: '16px', display: 'block' }}>
+            {description}
+          </Text>
+        )}
+      </div>
+    </div>
+  ),
+);
+
+MaterialListItem.displayName = 'MaterialListItem';
+
 /** 单个可拖拽物料项 */
 function DraggableMaterial({ material, onUse }: { material: MaterialComponent; onUse?: () => void }) {
   // 组件被渲染时记录使用
@@ -52,44 +114,29 @@ function DraggableMaterial({ material, onUse }: { material: MaterialComponent; o
     onUse?.();
   }, []);
 
-  const { ref, handle } = useDraggable({
+  const { ref, handleRef } = useDraggable({
     id: `material-${material.componentName}`,
     data: {
       type: 'new-component',
       material,
     },
   });
+  const setDragRefs = React.useCallback(
+    (element: HTMLDivElement | null) => {
+      ref(element);
+      handleRef(element);
+    },
+    [handleRef, ref],
+  );
 
   return (
-    <div
-      ref={ref}
-      {...handle}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        padding: '8px 12px',
-        cursor: 'grab',
-        borderRadius: 6,
-        border: '1px solid #f0f0f0',
-        background: '#fafafa',
-        transition: 'all 0.2s',
-        userSelect: 'none',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = '#1677ff';
-        e.currentTarget.style.background = '#e6f4ff';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = '#f0f0f0';
-        e.currentTarget.style.background = '#fafafa';
-      }}
-    >
-      <span style={{ fontSize: 16, color: '#1677ff' }}>
-        {iconMap[material.icon] || <AppstoreOutlined />}
-      </span>
-      <Text style={{ fontSize: 13 }}>{material.title}</Text>
-    </div>
+    <MaterialListItem
+      ref={setDragRefs}
+      accentColor={EDITOR_COLORS.primary}
+      hoverBg={EDITOR_COLORS.itemHoverBg}
+      icon={iconMap[material.icon] || <AppstoreOutlined />}
+      title={material.title}
+    />
   );
 }
 
@@ -131,47 +178,30 @@ const COMPONENT_KEYWORDS: Record<string, string[]> = {
 
 /** 单个可拖拽 Snippet 项 */
 function DraggableSnippet({ snippet }: { snippet: SnippetTemplate }) {
-  const { ref, handle } = useDraggable({
+  const { ref, handleRef } = useDraggable({
     id: `snippet-${snippet.id}`,
     data: {
       type: 'snippet',
       snippet,
     },
   });
+  const setDragRefs = React.useCallback(
+    (element: HTMLDivElement | null) => {
+      ref(element);
+      handleRef(element);
+    },
+    [handleRef, ref],
+  );
 
   return (
-    <div
-      ref={ref}
-      {...handle}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        padding: '8px 12px',
-        cursor: 'grab',
-        borderRadius: 6,
-        border: '1px solid #f0f0f0',
-        background: '#fafafa',
-        transition: 'all 0.2s',
-        userSelect: 'none',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = '#52c41a';
-        e.currentTarget.style.background = '#f6ffed';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = '#f0f0f0';
-        e.currentTarget.style.background = '#fafafa';
-      }}
-    >
-      <span style={{ fontSize: 16, color: '#52c41a' }}>
-        {iconMap[snippet.icon] || <AppstoreOutlined />}
-      </span>
-      <div>
-        <Text style={{ fontSize: 13, display: 'block' }}>{snippet.name}</Text>
-        <Text type="secondary" style={{ fontSize: 11 }}>{snippet.description}</Text>
-      </div>
-    </div>
+    <MaterialListItem
+      ref={setDragRefs}
+      accentColor="#52c41a"
+      hoverBg="#f0fdf4"
+      icon={iconMap[snippet.icon] || <AppstoreOutlined />}
+      title={snippet.name}
+      description={snippet.description}
+    />
   );
 }
 
@@ -221,16 +251,34 @@ export const ComponentPanel: React.FC = () => {
     .filter(Boolean);
 
   return (
-    <div style={{ padding: 12 }}>
-      <Input
-        placeholder="搜索组件（支持名称/功能/场景）"
-        prefix={<span style={{ color: '#bbb' }}>🔍</span>}
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        allowClear
-        size="small"
-        style={{ marginBottom: 12 }}
-      />
+    <div
+      style={{
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: 0,
+        background: EDITOR_COLORS.panelBg,
+      }}
+    >
+      <div
+        style={{
+          padding: EDITOR_SPACING.panelPadding,
+          paddingBottom: 8,
+          borderBottom: `1px solid ${EDITOR_COLORS.borderSubtle}`,
+          flexShrink: 0,
+        }}
+      >
+        <Input
+          placeholder="搜索组件（支持名称/功能/场景）"
+          prefix={<SearchOutlined style={{ color: EDITOR_COLORS.textMuted }} />}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          allowClear
+          size="small"
+        />
+      </div>
+
+      <div style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: EDITOR_SPACING.panelPadding }}>
 
       {/* 最近使用 */}
       {!search && recentMaterials.length > 0 && (
@@ -238,7 +286,7 @@ export const ComponentPanel: React.FC = () => {
           <Text type="secondary" style={{ fontSize: 12, marginBottom: 6, display: 'block' }}>
             最近使用
           </Text>
-          <Space wrap size={6}>
+          <Space direction="vertical" style={{ width: '100%' }} size={EDITOR_SPACING.itemGap}>
             {recentMaterials.map((m) => (
               <DraggableMaterial
                 key={`recent-${m!.componentName}`}
@@ -261,7 +309,7 @@ export const ComponentPanel: React.FC = () => {
             </Text>
           ),
           children: (
-            <Space direction="vertical" style={{ width: '100%' }} size={6}>
+            <Space direction="vertical" style={{ width: '100%' }} size={EDITOR_SPACING.itemGap}>
               {materials.map((material) => (
                 <DraggableMaterial
                   key={material.componentName}
@@ -283,13 +331,13 @@ export const ComponentPanel: React.FC = () => {
             size="small"
             items={[{
               key: 'snippets',
-              label: (
+            label: (
                 <Text strong style={{ fontSize: 13 }}>
                   模板 ({snippetTemplates.length})
                 </Text>
               ),
               children: (
-                <Space direction="vertical" style={{ width: '100%' }} size={6}>
+                <Space direction="vertical" style={{ width: '100%' }} size={EDITOR_SPACING.itemGap}>
                   {snippetTemplates.map((snippet) => (
                     <DraggableSnippet
                       key={snippet.id}
@@ -302,6 +350,7 @@ export const ComponentPanel: React.FC = () => {
           />
         </div>
       )}
+      </div>
     </div>
   );
 };

@@ -47,8 +47,12 @@ router = APIRouter()
 
 
 def _get_tenant_id(admin) -> str:
-    """安全提取 tenant_id，缺失时抛出 400 错误。"""
-    tenant_id = getattr(admin, "tenant_id", None)
+    """安全提取 tenant_id，缺失时抛出 400 错误。
+
+    `get_current_admin` 返回的是 dict（AccountInfo.to_dict()），
+    因此必须用 dict 访问，而非 getattr。
+    """
+    tenant_id = admin.get("tenant_id") if isinstance(admin, dict) else getattr(admin, "tenant_id", None)
     if not tenant_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

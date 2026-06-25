@@ -1,7 +1,7 @@
 /** 图层面板 — 树形展示组件层级，支持选中、拖拽排序、删除、显隐切换 */
 
 import React, { useState, useMemo, useCallback } from 'react';
-import { Tree, Tooltip, Typography, Empty, Space, Tabs } from 'antd';
+import { Tree, Tooltip, Typography, Empty, Space, Segmented } from 'antd';
 import {
   EyeOutlined,
   EyeInvisibleOutlined,
@@ -32,6 +32,7 @@ import type { DataNode } from 'antd/es/tree';
 import { useEditorStore } from '../store';
 import type { LowCodeNode } from '@hospital/shared';
 import { StateVariablePanel } from './StateVariablePanel';
+import { EDITOR_COLORS, EDITOR_SPACING } from '../constants';
 
 const { Text } = Typography;
 
@@ -122,20 +123,20 @@ function LayerTreeNode({
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 4,
-        padding: '3px 4px',
-        borderRadius: 4,
+        gap: 6,
+        padding: '4px 8px',
+        borderRadius: 6,
         cursor: 'pointer',
         background: isSelected ? '#e6f4ff' : 'transparent',
-        borderLeft: isSelected ? '2px solid #1677ff' : '2px solid transparent',
+        borderLeft: isSelected ? `2px solid ${EDITOR_COLORS.primary}` : '2px solid transparent',
         opacity: isHidden ? 0.45 : 1,
         transition: 'background 0.12s, opacity 0.12s',
         userSelect: 'none',
-        minHeight: 28,
+        minHeight: 32,
       }}
       onClick={() => selectNode(node.id)}
       onMouseEnter={(e) => {
-        if (!isSelected) e.currentTarget.style.background = '#f5f5f5';
+        if (!isSelected) e.currentTarget.style.background = EDITOR_COLORS.itemBg;
       }}
       onMouseLeave={(e) => {
         if (!isSelected) e.currentTarget.style.background = 'transparent';
@@ -143,7 +144,7 @@ function LayerTreeNode({
     >
       {/* 拖拽手柄 */}
       <HolderOutlined
-        style={{ color: '#bbb', fontSize: 10, cursor: 'grab', flexShrink: 0 }}
+        style={{ color: EDITOR_COLORS.textMuted, fontSize: 13, cursor: 'grab', flexShrink: 0 }}
         onClick={(e) => e.stopPropagation()}
       />
 
@@ -151,8 +152,8 @@ function LayerTreeNode({
       {hasChildren ? (
         <span
           style={{
-            fontSize: 10,
-            color: '#999',
+            fontSize: 11,
+            color: EDITOR_COLORS.textMuted,
             width: 14,
             textAlign: 'center',
             flexShrink: 0,
@@ -172,7 +173,7 @@ function LayerTreeNode({
       )}
 
       {/* 组件图标 */}
-      <span style={{ fontSize: 13, color: '#1677ff', flexShrink: 0 }}>
+      <span style={{ fontSize: 14, color: EDITOR_COLORS.primary, flexShrink: 0 }}>
         {icon}
       </span>
 
@@ -183,7 +184,7 @@ function LayerTreeNode({
           fontSize: 12,
           flex: 1,
           minWidth: 0,
-          color: isSelected ? '#1677ff' : '#333',
+          color: isSelected ? EDITOR_COLORS.primary : '#333',
         }}
       >
         {node.componentName}
@@ -199,25 +200,25 @@ function LayerTreeNode({
         <Space size={2} style={{ flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
           <Tooltip title="上移">
             <ArrowUpOutlined
-              style={{ fontSize: 11, color: '#999', cursor: 'pointer' }}
+              style={{ fontSize: 13, color: EDITOR_COLORS.textSecondary, cursor: 'pointer' }}
               onClick={() => onMoveUp(node.id)}
             />
           </Tooltip>
           <Tooltip title="下移">
             <ArrowDownOutlined
-              style={{ fontSize: 11, color: '#999', cursor: 'pointer' }}
+              style={{ fontSize: 13, color: EDITOR_COLORS.textSecondary, cursor: 'pointer' }}
               onClick={() => onMoveDown(node.id)}
             />
           </Tooltip>
           <Tooltip title={isHidden ? '显示' : '隐藏'}>
             {isHidden ? (
               <EyeInvisibleOutlined
-                style={{ fontSize: 11, color: '#999', cursor: 'pointer' }}
+                style={{ fontSize: 13, color: EDITOR_COLORS.textSecondary, cursor: 'pointer' }}
                 onClick={() => onToggleVisibility(node.id)}
               />
             ) : (
               <EyeOutlined
-                style={{ fontSize: 11, color: '#999', cursor: 'pointer' }}
+                style={{ fontSize: 13, color: EDITOR_COLORS.textSecondary, cursor: 'pointer' }}
                 onClick={() => onToggleVisibility(node.id)}
               />
             )}
@@ -225,7 +226,7 @@ function LayerTreeNode({
           {node.componentName !== 'Page' && (
             <Tooltip title="删除">
               <DeleteOutlined
-                style={{ fontSize: 11, color: '#ff4d4f', cursor: 'pointer' }}
+                style={{ fontSize: 13, color: '#ff4d4f', cursor: 'pointer' }}
                 onClick={() => onDelete(node.id)}
               />
             </Tooltip>
@@ -241,6 +242,7 @@ export const LayerPanel: React.FC = () => {
   const schema = useEditorStore((s) => s.schema);
   const removeNode = useEditorStore((s) => s.removeNode);
   const moveNode = useEditorStore((s) => s.moveNode);
+  const [activeView, setActiveView] = useState<'layers' | 'state'>('layers');
 
   /** 展开的节点 ID 集合 */
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(() => {
@@ -378,7 +380,7 @@ export const LayerPanel: React.FC = () => {
       }}
     >
       {/* 树形列表 */}
-      <div style={{ flex: 1, overflow: 'auto', padding: '4px 0' }}>
+      <div style={{ flex: 1, overflow: 'auto', padding: '6px 0' }}>
         {treeData.length > 0 ? (
           <Tree
             treeData={treeData}
@@ -404,10 +406,10 @@ export const LayerPanel: React.FC = () => {
       {/* 底部信息 */}
       <div
         style={{
-          padding: '6px 12px',
-          borderTop: '1px solid #f0f0f0',
+          padding: '8px 12px',
+          borderTop: `1px solid ${EDITOR_COLORS.borderSubtle}`,
           fontSize: 11,
-          color: '#999',
+          color: EDITOR_COLORS.textMuted,
         }}
       >
         点击选中 | 上下箭头排序 | 拖拽至画布添加
@@ -422,34 +424,47 @@ export const LayerPanel: React.FC = () => {
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
+        background: EDITOR_COLORS.panelBg,
       }}
     >
-      <Tabs
-        size="small"
-        items={[
-          {
-            key: 'layers',
-            label: (
-              <span style={{ fontSize: 12 }}>
-                <ApartmentOutlined /> 图层
-                <Text type="secondary" style={{ fontSize: 11, marginLeft: 4 }}>
-                  {totalCount}
-                </Text>
-              </span>
-            ),
-            children: layerContent,
-          },
-          {
-            key: 'state',
-            label: (
-              <span style={{ fontSize: 12 }}>
-                <SettingOutlined /> 状态变量
-              </span>
-            ),
-            children: <StateVariablePanel />,
-          },
-        ]}
-      />
+      <div
+        style={{
+          padding: EDITOR_SPACING.panelPadding,
+          borderBottom: `1px solid ${EDITOR_COLORS.borderSubtle}`,
+          flexShrink: 0,
+        }}
+      >
+        <Segmented
+          block
+          size="small"
+          value={activeView}
+          onChange={(value) => setActiveView(value as 'layers' | 'state')}
+          options={[
+            {
+              label: (
+                <span>
+                  <ApartmentOutlined /> 图层
+                  <Text type="secondary" style={{ fontSize: 11, marginLeft: 4 }}>
+                    {totalCount}
+                  </Text>
+                </span>
+              ),
+              value: 'layers',
+            },
+            {
+              label: (
+                <span>
+                  <SettingOutlined /> 状态
+                </span>
+              ),
+              value: 'state',
+            },
+          ]}
+        />
+      </div>
+      <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+        {activeView === 'layers' ? layerContent : <StateVariablePanel />}
+      </div>
     </div>
   );
 };

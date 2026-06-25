@@ -19,20 +19,31 @@ import { LinkOutlined, DisconnectOutlined, TranslationOutlined } from '@ant-desi
 import { useEditorStore } from '../store';
 import { findMaterial } from '../materials';
 import { findNodeById } from '../utils/tree';
-import type { PropertyConfig, LowCodeNode, ApiDataSource, ValidationRules, AnimationConfig, LowCodeTheme } from '@hospital/shared';
+import type { PropertyConfig, LowCodeNode, ApiDataSource, ValidationRules } from '@hospital/shared';
 import ImageUpload from '@/components/ImageUpload';
 import { EventConfig } from './EventConfig';
 import { LinkageRulesPanel } from './LinkageRulesPanel';
+import { EDITOR_COLORS, EDITOR_LAYOUT, EDITOR_SPACING } from '../constants';
 
 const { Text } = Typography;
 const { TextArea } = Input;
 
+const FORM_ITEM_STYLE = { marginBottom: EDITOR_SPACING.formItem };
+const COMPACT_FORM_ITEM_STYLE = { marginBottom: EDITOR_SPACING.formItemCompact };
+const PANEL_SECTION_STYLE = {
+  marginTop: 12,
+  padding: '12px 0',
+  borderTop: `1px solid ${EDITOR_COLORS.borderSubtle}`,
+};
+const SECTION_TITLE_STYLE = {
+  fontSize: 12,
+  marginBottom: 8,
+  display: 'block',
+};
+
 // ---------------------------------------------------------------------------
 // Expression helpers
 // ---------------------------------------------------------------------------
-
-/** 表达式正则：匹配 {{...}} */
-const EXPRESSION_RE = /^\{\{(.+)\}\}$/;
 
 /** i18n 标记正则：匹配 $t('key') */
 const I18N_RE = /^\$t\('(.+)'\)$/;
@@ -465,6 +476,7 @@ function BindingAwareFormItem({
           </span>
         }
         key={config.key}
+        style={FORM_ITEM_STYLE}
         validateStatus={exprInvalid ? 'error' : undefined}
       >
         <ExpressionInput
@@ -488,7 +500,9 @@ function BindingAwareFormItem({
         </span>
       }
       key={config.key}
+      style={FORM_ITEM_STYLE}
     >
+      {/* eslint-disable-next-line @typescript-eslint/no-use-before-define */}
       <StaticValueInput config={config} value={staticValue} onChange={onStaticChange} onI18nToggle={onI18nToggle} />
     </Form.Item>
   );
@@ -630,7 +644,7 @@ function StaticValueInput({
       return (
         <ImageUpload
           value={value}
-          onChange={(url) => onChange(url ?? '')}
+          onChange={(url: string | null | undefined) => onChange(url ?? '')}
           width={100}
           height={100}
           allowUrlTransfer
@@ -679,7 +693,7 @@ function ValidationRulesPanel({
   };
 
   return (
-    <div style={{ marginTop: 16, padding: '12px 0', borderTop: '1px solid #f0f0f0' }}>
+    <div style={PANEL_SECTION_STYLE}>
       <Collapse
         ghost
         size="small"
@@ -689,7 +703,7 @@ function ValidationRulesPanel({
             label: <Text type="secondary" style={{ fontSize: 12 }}>验证规则</Text>,
             children: (
               <Form layout="vertical" size="small">
-                <Form.Item label="必填" style={{ marginBottom: 8 }}>
+                <Form.Item label="必填" style={COMPACT_FORM_ITEM_STYLE}>
                   <Switch
                     size="small"
                     checked={!!rules?.required}
@@ -697,7 +711,7 @@ function ValidationRulesPanel({
                   />
                 </Form.Item>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                  <Form.Item label="最小长度" style={{ marginBottom: 8 }}>
+                  <Form.Item label="最小长度" style={COMPACT_FORM_ITEM_STYLE}>
                     <InputNumber
                       size="small"
                       min={0}
@@ -707,7 +721,7 @@ function ValidationRulesPanel({
                       style={{ width: '100%' }}
                     />
                   </Form.Item>
-                  <Form.Item label="最大长度" style={{ marginBottom: 8 }}>
+                  <Form.Item label="最大长度" style={COMPACT_FORM_ITEM_STYLE}>
                     <InputNumber
                       size="small"
                       min={0}
@@ -719,7 +733,7 @@ function ValidationRulesPanel({
                   </Form.Item>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                  <Form.Item label="最小值" style={{ marginBottom: 8 }}>
+                  <Form.Item label="最小值" style={COMPACT_FORM_ITEM_STYLE}>
                     <InputNumber
                       size="small"
                       placeholder="不限"
@@ -728,7 +742,7 @@ function ValidationRulesPanel({
                       style={{ width: '100%' }}
                     />
                   </Form.Item>
-                  <Form.Item label="最大值" style={{ marginBottom: 8 }}>
+                  <Form.Item label="最大值" style={COMPACT_FORM_ITEM_STYLE}>
                     <InputNumber
                       size="small"
                       placeholder="不限"
@@ -738,7 +752,7 @@ function ValidationRulesPanel({
                     />
                   </Form.Item>
                 </div>
-                <Form.Item label="正则表达式" style={{ marginBottom: 8 }}>
+                <Form.Item label="正则表达式" style={COMPACT_FORM_ITEM_STYLE}>
                   <Input
                     size="small"
                     placeholder="如: ^[a-zA-Z]+$"
@@ -780,7 +794,7 @@ export const PropertyPanel: React.FC = () => {
   /** 查找选中的节点 */
   const selectedNode = useMemo(() => {
     if (!selectedNodeId) return null;
-    return findNodeById([schema], selectedNodeId);
+    return findNodeById(schema.children || [], selectedNodeId);
   }, [selectedNodeId, schema]);
 
   /** 可用变量列表 */
@@ -803,7 +817,7 @@ export const PropertyPanel: React.FC = () => {
           label: <Text type="secondary" style={{ fontSize: 12 }}>主题</Text>,
           children: (
             <Form layout="vertical" size="small">
-              <Form.Item label="主色调" style={{ marginBottom: 8 }}>
+              <Form.Item label="主色调" style={COMPACT_FORM_ITEM_STYLE}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <ColorPicker
                     value={theme?.primaryColor || '#1677ff'}
@@ -818,7 +832,7 @@ export const PropertyPanel: React.FC = () => {
                   />
                 </div>
               </Form.Item>
-              <Form.Item label="背景色" style={{ marginBottom: 8 }}>
+              <Form.Item label="背景色" style={COMPACT_FORM_ITEM_STYLE}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <ColorPicker
                     value={theme?.backgroundColor || '#ffffff'}
@@ -833,7 +847,7 @@ export const PropertyPanel: React.FC = () => {
                   />
                 </div>
               </Form.Item>
-              <Form.Item label="字体族" style={{ marginBottom: 8 }}>
+              <Form.Item label="字体族" style={COMPACT_FORM_ITEM_STYLE}>
                 <Input
                   size="small"
                   value={theme?.fontFamily || ''}
@@ -860,10 +874,12 @@ export const PropertyPanel: React.FC = () => {
     return (
       <div
         style={{
-          width: 280,
-          borderLeft: '1px solid #f0f0f0',
+          width: EDITOR_LAYOUT.rightPanelWidth,
+          flexShrink: 0,
+          borderLeft: `1px solid ${EDITOR_COLORS.border}`,
           padding: 16,
           overflow: 'auto',
+          background: EDITOR_COLORS.panelBg,
         }}
       >
         {themePanel}
@@ -886,19 +902,21 @@ export const PropertyPanel: React.FC = () => {
   return (
     <div
       style={{
-        width: 280,
-        borderLeft: '1px solid #f0f0f0',
+        width: EDITOR_LAYOUT.rightPanelWidth,
+        flexShrink: 0,
+        borderLeft: `1px solid ${EDITOR_COLORS.border}`,
         overflow: 'auto',
+        background: EDITOR_COLORS.panelBg,
       }}
     >
       {/* 主题配置面板 */}
-      <div style={{ padding: '12px 16px', borderBottom: '1px solid #f0f0f0' }}>
+      <div style={{ padding: EDITOR_SPACING.sectionPadding, borderBottom: `1px solid ${EDITOR_COLORS.borderSubtle}` }}>
         {themePanel}
       </div>
       <div
         style={{
-          padding: '12px 16px',
-          borderBottom: '1px solid #f0f0f0',
+          padding: EDITOR_SPACING.sectionPadding,
+          borderBottom: `1px solid ${EDITOR_COLORS.borderSubtle}`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -915,15 +933,13 @@ export const PropertyPanel: React.FC = () => {
       <div style={{ padding: 16 }}>
         <Form layout="vertical" size="small">
           {/* ID 显示 */}
-          <Form.Item label="节点ID">
+          <Form.Item label="节点ID" style={FORM_ITEM_STYLE}>
             <Input value={selectedNode.id} disabled size="small" />
           </Form.Item>
 
           {/* 属性配置项（带数据绑定切换） */}
           {material?.configureSchema.map((config) => {
             const bindingExpr = selectedNode.dataBinding?.bindings?.[config.key];
-            const isBound = bindingExpr !== undefined;
-
             return (
               <BindingAwareFormItem
                 key={config.key}
@@ -977,13 +993,13 @@ export const PropertyPanel: React.FC = () => {
         </Form>
 
         {/* 样式配置 */}
-        <div style={{ marginTop: 16, padding: '12px 0', borderTop: '1px solid #f0f0f0' }}>
-          <Text type="secondary" style={{ fontSize: 12, marginBottom: 8, display: 'block' }}>
+        <div style={PANEL_SECTION_STYLE}>
+          <Text type="secondary" style={SECTION_TITLE_STYLE}>
             样式
           </Text>
           <Form layout="vertical" size="small">
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              <Form.Item label="宽度" style={{ marginBottom: 8 }}>
+              <Form.Item label="宽度" style={COMPACT_FORM_ITEM_STYLE}>
                 <Input
                   size="small"
                   placeholder="例: 100% 或 375px"
@@ -997,7 +1013,7 @@ export const PropertyPanel: React.FC = () => {
                   }}
                 />
               </Form.Item>
-              <Form.Item label="高度" style={{ marginBottom: 8 }}>
+              <Form.Item label="高度" style={COMPACT_FORM_ITEM_STYLE}>
                 <Input
                   size="small"
                   placeholder="例: auto 或 100px"
@@ -1012,7 +1028,7 @@ export const PropertyPanel: React.FC = () => {
                 />
               </Form.Item>
             </div>
-            <Form.Item label="内边距" style={{ marginBottom: 8 }}>
+            <Form.Item label="内边距" style={COMPACT_FORM_ITEM_STYLE}>
               <Input
                 size="small"
                 placeholder="例: 12px 或 8px 16px"
@@ -1026,7 +1042,7 @@ export const PropertyPanel: React.FC = () => {
                 }}
               />
             </Form.Item>
-            <Form.Item label="外边距" style={{ marginBottom: 8 }}>
+            <Form.Item label="外边距" style={COMPACT_FORM_ITEM_STYLE}>
               <Input
                 size="small"
                 placeholder="例: 0 auto 或 16px 0"
@@ -1041,7 +1057,7 @@ export const PropertyPanel: React.FC = () => {
               />
             </Form.Item>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              <Form.Item label="背景色" style={{ marginBottom: 8 }}>
+              <Form.Item label="背景色" style={COMPACT_FORM_ITEM_STYLE}>
                 <Input
                   size="small"
                   placeholder="#ffffff"
@@ -1055,7 +1071,7 @@ export const PropertyPanel: React.FC = () => {
                   }}
                 />
               </Form.Item>
-              <Form.Item label="圆角" style={{ marginBottom: 8 }}>
+              <Form.Item label="圆角" style={COMPACT_FORM_ITEM_STYLE}>
                 <Input
                   size="small"
                   placeholder="例: 8px"
@@ -1071,7 +1087,7 @@ export const PropertyPanel: React.FC = () => {
               </Form.Item>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              <Form.Item label="边框" style={{ marginBottom: 8 }}>
+              <Form.Item label="边框" style={COMPACT_FORM_ITEM_STYLE}>
                 <Input
                   size="small"
                   placeholder="例: 1px solid #eee"
@@ -1085,7 +1101,7 @@ export const PropertyPanel: React.FC = () => {
                   }}
                 />
               </Form.Item>
-              <Form.Item label="透明度" style={{ marginBottom: 8 }}>
+              <Form.Item label="透明度" style={COMPACT_FORM_ITEM_STYLE}>
                 <Input
                   size="small"
                   placeholder="0-1"
@@ -1104,8 +1120,8 @@ export const PropertyPanel: React.FC = () => {
         </div>
 
         {/* 条件渲染配置 */}
-        <div style={{ marginTop: 16, padding: '12px 0', borderTop: '1px solid #f0f0f0' }}>
-          <Text type="secondary" style={{ fontSize: 12, marginBottom: 8, display: 'block' }}>
+        <div style={PANEL_SECTION_STYLE}>
+          <Text type="secondary" style={SECTION_TITLE_STYLE}>
             显示条件
           </Text>
           <Input
@@ -1124,12 +1140,12 @@ export const PropertyPanel: React.FC = () => {
         </div>
 
         {/* 动画配置 */}
-        <div style={{ marginTop: 16, padding: '12px 0', borderTop: '1px solid #f0f0f0' }}>
-          <Text type="secondary" style={{ fontSize: 12, marginBottom: 8, display: 'block' }}>
+        <div style={PANEL_SECTION_STYLE}>
+          <Text type="secondary" style={SECTION_TITLE_STYLE}>
             动画效果
           </Text>
           <Form layout="vertical" size="small">
-            <Form.Item label="动画类型" style={{ marginBottom: 8 }}>
+            <Form.Item label="动画类型" style={COMPACT_FORM_ITEM_STYLE}>
               <Select
                 size="small"
                 placeholder="选择动画类型"
@@ -1155,7 +1171,7 @@ export const PropertyPanel: React.FC = () => {
             {selectedNode.animation?.type && (
               <>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                  <Form.Item label="持续时间(ms)" style={{ marginBottom: 8 }}>
+                  <Form.Item label="持续时间(ms)" style={COMPACT_FORM_ITEM_STYLE}>
                     <InputNumber
                       size="small"
                       min={0}
@@ -1171,7 +1187,7 @@ export const PropertyPanel: React.FC = () => {
                       style={{ width: '100%' }}
                     />
                   </Form.Item>
-                  <Form.Item label="延迟(ms)" style={{ marginBottom: 8 }}>
+                  <Form.Item label="延迟(ms)" style={COMPACT_FORM_ITEM_STYLE}>
                     <InputNumber
                       size="small"
                       min={0}
@@ -1220,12 +1236,12 @@ export const PropertyPanel: React.FC = () => {
         )}
 
         {/* 循环渲染配置 */}
-        <div style={{ marginTop: 12, padding: '12px 0', borderTop: '1px solid #f0f0f0' }}>
-          <Text type="secondary" style={{ fontSize: 12, marginBottom: 8, display: 'block' }}>
+        <div style={PANEL_SECTION_STYLE}>
+          <Text type="secondary" style={SECTION_TITLE_STYLE}>
             循环渲染
           </Text>
           <Form layout="vertical" size="small">
-            <Form.Item label="数据源" style={{ marginBottom: 8 }}>
+            <Form.Item label="数据源" style={COMPACT_FORM_ITEM_STYLE}>
               <Input
                 size="small"
                 placeholder="例: {{api.users}} 或 {{state.items}}"
@@ -1243,7 +1259,7 @@ export const PropertyPanel: React.FC = () => {
             </Form.Item>
             {selectedNode.loop?.dataSource && (
               <>
-                <Form.Item label="项变量名" style={{ marginBottom: 8 }}>
+                <Form.Item label="项变量名" style={COMPACT_FORM_ITEM_STYLE}>
                   <Input
                     size="small"
                     value={selectedNode.loop.itemName || 'item'}
@@ -1278,7 +1294,7 @@ export const PropertyPanel: React.FC = () => {
         <EventConfig />
 
         {/* 联动规则配置 */}
-        <div style={{ marginTop: 16, padding: '12px 0', borderTop: '1px solid #f0f0f0' }}>
+        <div style={PANEL_SECTION_STYLE}>
           <LinkageRulesPanel />
         </div>
       </div>

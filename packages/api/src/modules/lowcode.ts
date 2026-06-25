@@ -170,22 +170,22 @@ export const lowcodeApi = {
 
   /** 获取页面部署状态 */
   getDeployStatus: (pageId: string): Promise<DeployStatusResponse> => {
-    return request.get(`/lowcode/pages/${pageId}/deploy/status`);
+    return request.get(`/lowcode/pages/${pageId}/deploy-status`);
   },
 
   /** 生成预览二维码 */
   generatePreviewQr: (pageId: string): Promise<PreviewQrResponse> => {
-    return request.post(`/lowcode/pages/${pageId}/deploy/preview`);
+    return request.post(`/lowcode/pages/${pageId}/preview-deploy`);
   },
 
   /** 回滚部署到上一个版本 */
   rollbackDeploy: (pageId: string, targetVersion?: string): Promise<RollbackDeployResponse> => {
-    return request.post(`/lowcode/pages/${pageId}/deploy/rollback`, { target_version: targetVersion });
+    return request.post(`/lowcode/pages/${pageId}/deploy-rollback`, { target_version: targetVersion });
   },
 
-  /** 获取部署历史记录 */
+  /** 获取部署历史记录 (审计日志) */
   getDeployHistory: (pageId: string): Promise<{ data: DeployHistoryItem[] }> => {
-    return request.get(`/lowcode/pages/${pageId}/deploy/history`);
+    return request.get(`/lowcode/pages/${pageId}/audit-logs`);
   },
 };
 
