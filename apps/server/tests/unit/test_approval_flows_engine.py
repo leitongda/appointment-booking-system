@@ -334,8 +334,10 @@ class TestDoApprove:
 class TestDoReject:
     """测试审批拒绝"""
 
+    @patch.object(ApprovalEngine, "_fire_global_listeners", new_callable=AsyncMock)
+    @patch.object(ApprovalEngine, "_get_flow_def", new_callable=AsyncMock, return_value=None)
     @patch("app.modules.approval_flows.engine.get_current_tenant_id", return_value="tenant-1")
-    async def test_reject_sets_status(self, mock_tenant):
+    async def test_reject_sets_status(self, mock_tenant, _mock_flow_def, _mock_listener):
         """拒绝后状态变更为 rejected"""
         db = _make_db_session()
 
@@ -448,8 +450,10 @@ class TestDoDelegate:
 class TestDoWithdraw:
     """测试撤回"""
 
+    @patch.object(ApprovalEngine, "_fire_global_listeners", new_callable=AsyncMock)
+    @patch.object(ApprovalEngine, "_get_flow_def", new_callable=AsyncMock, return_value=None)
     @patch("app.modules.approval_flows.engine.get_current_tenant_id", return_value="tenant-1")
-    async def test_withdraw_by_applicant(self, mock_tenant):
+    async def test_withdraw_by_applicant(self, mock_tenant, _mock_flow_def, _mock_listener):
         """申请人撤回成功"""
         db = _make_db_session()
 

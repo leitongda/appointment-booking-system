@@ -1478,7 +1478,7 @@ class ApprovalEngine:
         except Exception as e:
             logger.warning(
                 "global_listener_failed",
-                event=event,
+                trigger_event=event,
                 instance_id=instance.id,
                 error=str(e),
             )
@@ -1497,7 +1497,7 @@ class ApprovalEngine:
         except Exception as e:
             logger.warning(
                 "node_listener_failed",
-                event=event,
+                trigger_event=event,
                 instance_id=instance.id,
                 node_key=getattr(node, "node_key", None),
                 error=str(e),
