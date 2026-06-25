@@ -23,6 +23,10 @@ class NotificationEvent(BaseModel):
     recipient_phone: str | None = Field(None, description="接收人手机号（短信需要）")
     recipient_email: str | None = Field(None, description="接收人邮箱（邮件需要）")
     recipient_openid: str | None = Field(None, description="接收人微信 OpenID（微信需要）")
+    # 第三方集成平台收件人ID（可选，渠道内会自动查 IntegrationBinding）
+    recipient_dingtalk_id: str | None = Field(None, description="接收人钉钉 userId")
+    recipient_wecom_id: str | None = Field(None, description="接收人企业微信 userid")
+    recipient_feishu_id: str | None = Field(None, description="接收人飞书 open_id")
     template_code: str = Field(..., description="模板代码")
     variables: dict[str, Any] = Field(default_factory=dict, description="模板变量")
     message_type: str = Field(..., description="消息类型: appointment/reminder/stop_clinic/system/consultation/feedback/queue_call")

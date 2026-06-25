@@ -1,7 +1,8 @@
 """平台公告 Schema"""
 from datetime import datetime
+from json import loads as json_loads
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.schemas.response import to_camel
 
@@ -46,6 +47,16 @@ class PlatformAnnouncementResponse(BaseModel):
         from_attributes=True,
         by_alias=True,
     )
+
+    @field_validator("target_tenant_ids", mode="before")
+    @classmethod
+    def parse_target_tenant_ids(cls, v):
+        if isinstance(v, str):
+            try:
+                return json_loads(v)
+            except (json.JSONDecodeError, TypeError):
+                return None
+        return v
 
     id: str
     title: str

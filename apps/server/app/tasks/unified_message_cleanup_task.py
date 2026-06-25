@@ -11,6 +11,11 @@ from sqlalchemy import text
 from app.celery_app import celery_app
 from app.db.session import get_sync_db
 from app.middleware.tenant_context import clear_tenant_context, set_tenant_context
+from app.modules.unified_message.models import (
+    READ_STATUS_ARCHIVED,
+    READ_STATUS_DELETED,
+    READ_STATUS_READ,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -35,8 +40,8 @@ def cleanup_expired_messages():
     清理过期的统一消息数据
 
     - 每天凌晨 3 点执行
-    - 归档 90 天前的已读通知（is_read=1）
-    - 清理 90 天前的已删除通知（is_read=2）
+    - 归档 90 天前的已读通知（READ_STATUS_READ → READ_STATUS_ARCHIVED）
+    - 清理 90 天前的已删除通知（READ_STATUS_DELETED，物理删除）
     - 清理对应的 notification_groups 和 notification_deliveries（孤立记录）
     - 按租户分批处理，每批 BATCH_SIZE 条
     """
@@ -68,15 +73,15 @@ def cleanup_expired_messages():
             with get_sync_db() as db:
                 params = {"tenant_id": tenant_id, "cutoff": cutoff, "batch_size": BATCH_SIZE}
 
-                # 1. 清理已删除的消息（is_read=2，直接物理删除）
+                # 1. 清理已删除的消息（直接物理删除）
                 # PostgreSQL 不支持 DELETE ... LIMIT，使用子查询
                 result = db.execute(
-                    text("""
+                    text(f"""
                         DELETE FROM notification_recipients
                         WHERE id IN (
                             SELECT id FROM notification_recipients
                             WHERE tenant_id = :tenant_id
-                              AND is_read = 2
+                              AND is_read = {READ_STATUS_DELETED}
                               AND created_at < :cutoff
                             LIMIT :batch_size
                         )
@@ -86,15 +91,15 @@ def cleanup_expired_messages():
                 deleted_count = result.rowcount
                 total_deleted += deleted_count
 
-                # 2. 归档已读消息（is_read=1 → is_read=3 表示已归档）
+                # 2. 归档已读消息
                 result = db.execute(
-                    text("""
+                    text(f"""
                         UPDATE notification_recipients
-                        SET is_read = 3
+                        SET is_read = {READ_STATUS_ARCHIVED}
                         WHERE id IN (
                             SELECT id FROM notification_recipients
                             WHERE tenant_id = :tenant_id
-                              AND is_read = 1
+                              AND is_read = {READ_STATUS_READ}
                               AND created_at < :cutoff
                             LIMIT :batch_size
                         )

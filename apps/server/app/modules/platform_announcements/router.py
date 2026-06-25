@@ -1,10 +1,12 @@
 """平台公告 API（仅平台管理员可访问）"""
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.deps import get_current_admin, require_platform_admin
 from app.db.session import get_db
+from app.models.platform_announcement import PlatformAnnouncement
 from app.modules.platform_announcements.service import PlatformAnnouncementService
 from app.schemas.platform_announcement import (
     PlatformAnnouncementCreate,
@@ -71,6 +73,12 @@ async def get_announcement(
     announcement = await service.get_by_id(announcement_id)
     if not announcement:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="公告不存在")
+    await db.execute(
+        update(PlatformAnnouncement).where(
+            PlatformAnnouncement.id == announcement_id
+        ).values(read_count=PlatformAnnouncement.read_count + 1)
+    )
+    await db.commit()
     return PlatformAnnouncementResponse.model_validate(announcement)
 
 

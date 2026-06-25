@@ -13,6 +13,12 @@ from jinja2.sandbox import SandboxedEnvironment
 from sqlalchemy import and_, func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.constants.notification import (
+    CHANNEL_FIELD_MAP,
+    DEFAULT_CHANNEL_STRATEGY,
+    DEDUP_TTL,
+    TYPE_FIELD_MAP,
+)
 from app.core.redis import get_redis
 from app.infrastructure.notifications.metrics import (
     record_dedup_hit,
@@ -21,6 +27,10 @@ from app.infrastructure.notifications.metrics import (
 )
 from app.infrastructure.notifications.registry import channel_registry, register_channels
 from app.modules.unified_message.models import (
+    READ_STATUS_ARCHIVED,
+    READ_STATUS_DELETED,
+    READ_STATUS_READ,
+    READ_STATUS_UNREAD,
     ChannelStrategy,
     NotificationDelivery,
     NotificationGroup,
@@ -40,44 +50,11 @@ from app.schemas.notification import NotificationContent
 
 logger = logging.getLogger(__name__)
 
-# 渠道字段映射（与 dispatcher.py 保持一致）
-_CHANNEL_FIELD_MAP = {
-    "in_app": "in_app_enabled",
-    "sms": "sms_enabled",
-    "wechat": "wechat_enabled",
-    "email": "email_enabled",
-    "websocket": "in_app_enabled",
-}
-
-# 消息类型字段映射（与 dispatcher.py 保持一致）
-_TYPE_FIELD_MAP = {
-    "appointment": "appointment_enabled",
-    "appointment_success": "appointment_enabled",
-    "appointment_reminder": "reminder_enabled",
-    "appointment_cancelled": "appointment_enabled",
-    "schedule": "reminder_enabled",
-    "stop_clinic": "stop_clinic_enabled",
-    "system": "system_enabled",
-    "consultation": "consultation_enabled",
-    "feedback": "feedback_enabled",
-    "queue_call": "appointment_enabled",
-}
-
-# 默认渠道策略（与 dispatcher.py 保持一致）
-_DEFAULT_CHANNEL_STRATEGY = {
-    "appointment": ["wechat", "sms", "in_app"],
-    "appointment_success": ["wechat", "sms", "in_app"],
-    "appointment_reminder": ["wechat", "sms", "in_app"],
-    "appointment_cancelled": ["wechat", "sms", "in_app"],
-    "schedule": ["websocket", "in_app"],
-    "stop_clinic": ["wechat", "sms", "in_app"],
-    "system": ["email", "in_app"],
-    "consultation": ["in_app"],
-    "feedback": ["in_app"],
-    "queue_call": ["websocket", "in_app"],
-}
-
-_DEDUP_TTL = 86400  # 24 小时
+# 向后兼容别名
+_CHANNEL_FIELD_MAP = CHANNEL_FIELD_MAP
+_TYPE_FIELD_MAP = TYPE_FIELD_MAP
+_DEFAULT_CHANNEL_STRATEGY = DEFAULT_CHANNEL_STRATEGY
+_DEDUP_TTL = DEDUP_TTL
 
 
 class UnifiedMessageService:
@@ -397,6 +374,7 @@ class UnifiedMessageService:
                 and_(
                     NotificationRecipient.user_id == user_id,
                     NotificationRecipient.user_type == user_type,
+                    NotificationRecipient.is_read != READ_STATUS_DELETED,
                 )
             )
         )
@@ -406,6 +384,7 @@ class UnifiedMessageService:
                 and_(
                     NotificationRecipient.user_id == user_id,
                     NotificationRecipient.user_type == user_type,
+                    NotificationRecipient.is_read != READ_STATUS_DELETED,
                 )
             )
         )
@@ -454,7 +433,7 @@ class UnifiedMessageService:
         base_condition = and_(
             NotificationRecipient.user_id == user_id,
             NotificationRecipient.user_type == user_type,
-            NotificationRecipient.is_read == 0,
+            NotificationRecipient.is_read == READ_STATUS_UNREAD,
         )
 
         # 使用单条 GROUP BY 查询获取所有消息类型的未读数
@@ -493,7 +472,7 @@ class UnifiedMessageService:
                     NotificationRecipient.user_id == user_id,
                 )
             )
-            .values(is_read=1, read_at=datetime.utcnow())
+            .values(is_read=READ_STATUS_READ, read_at=datetime.utcnow())
         )
         await self.db.commit()
         return result.rowcount > 0
@@ -508,10 +487,10 @@ class UnifiedMessageService:
                 and_(
                     NotificationRecipient.user_id == user_id,
                     NotificationRecipient.user_type == user_type,
-                    NotificationRecipient.is_read == 0,
+                    NotificationRecipient.is_read == READ_STATUS_UNREAD,
                 )
             )
-            .values(is_read=1, read_at=datetime.utcnow())
+            .values(is_read=READ_STATUS_READ, read_at=datetime.utcnow())
         )
 
         if message_type:
@@ -529,7 +508,7 @@ class UnifiedMessageService:
     async def delete(self, message_id: str, user_id: str) -> bool:
         """删除单条消息（软删除：标记为已删除）
 
-        新表使用 NotificationRecipient，删除 = 将 is_read 标记为 2（已删除）。
+        新表使用 NotificationRecipient，删除 = 将 is_read 标记为 READ_STATUS_DELETED。
         """
         result = await self.db.execute(
             update(NotificationRecipient)
@@ -539,7 +518,7 @@ class UnifiedMessageService:
                     NotificationRecipient.user_id == user_id,
                 )
             )
-            .values(is_read=2)
+            .values(is_read=READ_STATUS_DELETED)
         )
         await self.db.commit()
         return result.rowcount > 0
@@ -552,10 +531,10 @@ class UnifiedMessageService:
                 and_(
                     NotificationRecipient.user_id == user_id,
                     NotificationRecipient.user_type == user_type,
-                    NotificationRecipient.is_read == 1,
+                    NotificationRecipient.is_read == READ_STATUS_READ,
                 )
             )
-            .values(is_read=2)
+            .values(is_read=READ_STATUS_DELETED)
         )
         await self.db.commit()
         return result.rowcount

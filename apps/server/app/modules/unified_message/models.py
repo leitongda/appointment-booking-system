@@ -5,6 +5,12 @@ unified_templates, channel_strategies, recipient_rules
 """
 import uuid
 
+# is_read 状态常量（NotificationRecipient.is_read 字段）
+READ_STATUS_UNREAD = 0    # 未读
+READ_STATUS_READ = 1      # 已读
+READ_STATUS_DELETED = 2   # 已删除（软删除）
+READ_STATUS_ARCHIVED = 3  # 已归档
+
 from sqlalchemy import (
     JSON,
     Boolean,
@@ -58,7 +64,7 @@ class NotificationRecipient(Base, TimestampMixin):
     # 站内信数据（复用 Message 语义）
     title = Column(String(200), nullable=True, comment="消息标题")
     content = Column(Text, nullable=True, comment="消息内容")
-    is_read = Column(Integer, default=0, comment="是否已读: 0-未读 1-已读")
+    is_read = Column(Integer, default=0, comment="状态: 0-未读 1-已读 2-已删除(软删除)")
     read_at = Column(DateTime, nullable=True, comment="阅读时间")
     # 联系方式（真实地址，重试发送依赖真实地址）
     phone = Column(String(20), nullable=True, comment="手机号")
@@ -112,6 +118,11 @@ class UnifiedTemplate(Base, TimestampMixin):
     text_template = Column(Text, nullable=True, comment="短信/站内信纯文本模板")
     wechat_template_id = Column(String(50), nullable=True, comment="微信模板 ID")
     wechat_template_mapping = Column(JSON, nullable=True, comment="微信字段映射")
+    # 第三方集成平台模板
+    dingtalk_msg_template = Column(JSON, nullable=True, comment="钉钉工作通知消息体模板")
+    wecom_msg_template = Column(JSON, nullable=True, comment="企业微信应用消息模板")
+    feishu_msg_template = Column(JSON, nullable=True, comment="飞书消息模板")
+    robot_msg_template = Column(Text, nullable=True, comment="群机器人通用 markdown 模板（三平台共用）")
     # 通用
     variables_schema = Column(JSON, nullable=True, comment="变量定义和默认值")
     status = Column(Integer, default=1, comment="状态: 0-禁用 1-启用")

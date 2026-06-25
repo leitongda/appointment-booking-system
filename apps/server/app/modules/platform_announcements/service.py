@@ -3,7 +3,7 @@ import json
 import uuid
 from datetime import datetime
 
-from sqlalchemy import and_, desc, func, select
+from sqlalchemy import and_, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.platform_announcement import PlatformAnnouncement
@@ -39,6 +39,11 @@ class PlatformAnnouncementService:
                 PlatformAnnouncement.title.contains(keyword)
                 | PlatformAnnouncement.content.contains(keyword)
             )
+
+        # 排除已过期的公告
+        conditions.append(
+            or_(PlatformAnnouncement.expire_at.is_(None), PlatformAnnouncement.expire_at > datetime.utcnow())
+        )
 
         if conditions:
             condition = and_(*conditions)
@@ -101,7 +106,10 @@ class PlatformAnnouncementService:
         return announcement
 
     async def publish(self, announcement_id: str) -> PlatformAnnouncement | None:
-        """发布公告：将公告状态改为 published，并为目标租户生成通知"""
+        """发布公告：将公告状态改为 published，并为目标租户生成通知。
+
+        如果 publish_at 设置了且在未来，仅保存定时发布时间，不立即发布。
+        """
         announcement = await self.get_by_id(announcement_id)
         if not announcement:
             return None
@@ -109,6 +117,17 @@ class PlatformAnnouncementService:
         if announcement.status == "published":
             raise ValueError("公告已发布")
 
+        # 如果设置了定时发布时间且在未来，仅保存，不立即发布
+        if announcement.publish_at and announcement.publish_at > datetime.utcnow():
+            await self.db.commit()
+            await self.db.refresh(announcement)
+            return announcement
+
+        # 立即发布
+        return await self._do_publish(announcement)
+
+    async def _do_publish(self, announcement: PlatformAnnouncement) -> PlatformAnnouncement:
+        """执行实际发布逻辑"""
         # 确定目标租户
         target_tenant_ids = []
         if announcement.target_type == "all":
@@ -122,7 +141,8 @@ class PlatformAnnouncementService:
 
         # 更新公告状态
         announcement.status = "published"
-        announcement.publish_at = datetime.utcnow()
+        if not announcement.publish_at or announcement.publish_at > datetime.utcnow():
+            announcement.publish_at = datetime.utcnow()
         announcement.total_count = len(target_tenant_ids)
 
         # 为每个目标租户生成通知
@@ -141,6 +161,23 @@ class PlatformAnnouncementService:
         await self.db.commit()
         await self.db.refresh(announcement)
         return announcement
+
+    async def publish_scheduled(self) -> list[str]:
+        """发布所有到时间的定时公告。返回已发布的公告 ID 列表。"""
+        now = datetime.utcnow()
+        result = await self.db.execute(
+            select(PlatformAnnouncement).where(
+                PlatformAnnouncement.status == "draft",
+                PlatformAnnouncement.publish_at.isnot(None),
+                PlatformAnnouncement.publish_at <= now,
+            )
+        )
+        announcements = result.scalars().all()
+        published_ids = []
+        for ann in announcements:
+            await self._do_publish(ann)
+            published_ids.append(ann.id)
+        return published_ids
 
     async def revoke(self, announcement_id: str) -> PlatformAnnouncement | None:
         """撤回公告"""
