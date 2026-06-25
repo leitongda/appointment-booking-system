@@ -1,0 +1,86 @@
+# 此补丁为参考——ListenerForm.tsx 是未跟踪文件（别人未提交工作）。
+# 我添加的改动有四部分：
+
+# === 改动 1: ACTION_TYPE_OPTIONS 添加第三方推送选项（第11行）===
+const ACTION_TYPE_OPTIONS = [
+  { label: 'Webhook', value: 'webhook' },
+  { label: '站内通知', value: 'notification' },
+  { label: '短信', value: 'sms' },
+  { label: '回调', value: 'callback' },
+  { label: '第三方推送', value: 'integration_push' },
+];
+
+const INTEGRATION_PROVIDER_OPTIONS = [
+  { label: '钉钉', value: 'dingtalk' },
+  { label: '企业微信', value: 'wecom' },
+  { label: '飞书', value: 'feishu' },
+];
+
+const INTEGRATION_TARGET_OPTIONS = [
+  { label: '工作通知（点对点）', value: 'work_message' },
+  { label: '群机器人', value: 'robot' },
+];
+
+const DEFAULT_EVENT_OPTIONS = [
+
+# === 改动 2: ListenerConfig 类型添加 integration_push（第43行）===
+  id?: string;
+  label?: string;
+  event: string;
+  actionType: 'webhook' | 'notification' | 'sms' | 'callback' | 'integration_push';
+  config: Record<string, any>;
+}
+
+# === 改动 3: handleFinish 添加 integration_push config 处理（第102-109行）===
+    } else if (at === 'callback') {
+      config = { callbackName: rest.callbackName };
+    } else if (at === 'integration_push') {
+      config = {
+        provider: rest.provider,
+        target: rest.pushTarget,
+        userIds: rest.userIds,
+        titleTemplate: rest.pushTitleTemplate,
+        contentTemplate: rest.pushContentTemplate,
+      };
+    }
+
+    onSubmit({
+
+# === 改动 4: 表单 UI 添加 integration_push 配置区（第211-242行）===
+      )}
+
+      {actionType === 'integration_push' && (
+        <>
+          <Form.Item label="平台" name="provider" rules={[{ required: true, message: '请选择平台' }]}>
+            <Select options={INTEGRATION_PROVIDER_OPTIONS} placeholder="选择第三方平台" />
+          </Form.Item>
+          <Form.Item label="推送目标" name="pushTarget" rules={[{ required: true }]}>
+            <Select options={INTEGRATION_TARGET_OPTIONS} placeholder="选择推送目标" />
+          </Form.Item>
+          <Form.Item noStyle shouldUpdate={(prev, cur) => prev.pushTarget !== cur.pushTarget}>
+            {({ getFieldValue }) =>
+              getFieldValue('pushTarget') === 'work_message' ? (
+                <Form.Item
+                  label="接收人ID"
+                  name="userIds"
+                  rules={[{ required: true, message: '请输入接收人' }]}
+                  extra="本地管理员ID，系统会自动查其绑定的第三方账号"
+                >
+                  <Select mode="tags" placeholder="输入管理员ID后回车" />
+                </Form.Item>
+              ) : null
+            }
+          </Form.Item>
+          <Form.Item label="标题模板" name="pushTitleTemplate">
+            <Input placeholder="审批待办: {{flowName}}" />
+          </Form.Item>
+          <Form.Item label="内容模板" name="pushContentTemplate">
+            <TextArea rows={3} placeholder="{{applicantName}} 提交的审批等待您处理" />
+          </Form.Item>
+        </>
+      )}
+
+      <Space style={{ marginTop: 8 }}>
+        <Button type="primary" htmlType="submit">
+          确定
+        </Button>

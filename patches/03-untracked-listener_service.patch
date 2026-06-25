@@ -1,0 +1,131 @@
+# 此补丁为参考——listener_service.py 是未跟踪文件（别人未提交工作）。
+# 我添加的改动有两处：
+
+# === 改动 1: _execute_action 方法中添加 integration_push 分支 ===
+# 在 _execute_action 方法的 elif action == "callback": 块之后添加：
+            await self._fire_callback(config, instance, db)
+        elif action == "integration_push":
+            await self._fire_integration_push(config, instance, node, db)
+        else:
+
+# === 改动 2: 新增 _fire_integration_push 方法（完整实现）===
+# 添加在 _fire_callback 方法之后、模板渲染方法之前：
+        callback_action = config.get("callback_action", "on_approved")
+        business_type = instance.business_type
+
+        logger.info(
+            "listener_callback_fired",
+            instance_id=instance.id,
+            business_type=business_type,
+            callback_action=callback_action,
+        )
+        await callback_registry.execute(business_type, callback_action, instance, db)
+
+    # ============================================================
+    # 内部方法 — 第三方集成推送（钉钉/企业微信/飞书）
+    # ============================================================
+
+    async def _fire_integration_push(
+        self,
+        config: dict[str, Any],
+        instance: ApprovalInstance,
+        node: ApprovalFlowNode | None,
+        db: AsyncSession,
+    ) -> None:
+        """通过第三方集成平台推送审批通知。
+
+        支持两种推送目标：
+        - work_message: 企业应用点对点消息（需指定 user_ids，查 IntegrationBinding 拿平台 userId）
+        - robot: 群机器人消息（推送到指定群）
+
+        config 示例:
+            {
+                "provider": "dingtalk",
+                "target": "work_message",  # 或 "robot"
+                "user_ids": ["admin-1"],   # target=work_message 时
+                "title_template": "审批待办: {{flowName}}",
+                "content_template": "{{applicantName}} 提交的审批等待您处理"
+            }
+        """
+        provider_name = config.get("provider")
+        target = config.get("target", "work_message")
+        if not provider_name:
+            logger.warning("integration_push_missing_provider", instance_id=instance.id)
+            return
+
+        try:
+            from sqlalchemy import select
+
+            from app.infrastructure.integrations import get_provider
+            from app.models.integration import Integration, IntegrationBinding
+
+            # 加载租户集成配置
+            stmt = select(Integration).where(
+                Integration.tenant_id == instance.tenant_id,
+                Integration.provider == provider_name,
+                Integration.status == 1,
+            )
+            result = await db.execute(stmt)
+            integration = result.scalar_one_or_none()
+            if not integration:
+                logger.warning(
+                    "integration_push_not_configured",
+                    instance_id=instance.id,
+                    provider=provider_name,
+                )
+                return
+
+            impl = get_provider(provider_name)
+            if not impl:
+                logger.warning("integration_push_provider_missing", provider=provider_name)
+                return
+
+            title = self._render_template(
+                config.get("title_template") or config.get("titleTemplate") or "审批通知",
+                instance, node,
+            )
+            content = self._render_template(
+                config.get("content_template") or config.get("contentTemplate") or "",
+                instance, node,
+            )
+
+            if target == "robot":
+                # 群机器人推送
+                if not integration.webhook_url:
+                    logger.warning("integration_push_no_webhook", instance_id=instance.id)
+                    return
+                from app.common.secret_refs import resolve_secret_ref
+
+                secret = resolve_secret_ref(integration.webhook_secret_ref)
+                markdown = f"## {title}\n\n{content}" if title else content
+                await impl.send_robot_message(
+                    webhook_url=integration.webhook_url,
+                    secret=secret,
+                    msg_type="markdown",
+                    content=markdown,
+                )
+                logger.info(
+                    "integration_push_robot_sent",
+                    instance_id=instance.id,
+                    provider=provider_name,
+                )
+                return
+
+            # 点对点工作通知
+            user_ids = config.get("user_ids") or []
+            if not user_ids:
+                logger.warning("integration_push_no_users", instance_id=instance.id)
+                return
+
+            # 批量查绑定关系，拿平台 userId
+            stmt = select(IntegrationBinding).where(
+                IntegrationBinding.tenant_id == instance.tenant_id,
+                IntegrationBinding.provider == provider_name,
+                IntegrationBinding.user_id.in_(user_ids),
+            )
+            result = await db.execute(stmt)
+            bindings = result.scalars().all()
+            if not bindings:
+                logger.warning(
+                    "integration_push_no_bindings",
+                    instance_id=instance.id,

@@ -1,0 +1,120 @@
+diff --git a/apps/admin/src/pages/login/components/index.ts b/apps/admin/src/pages/login/components/index.ts
+index 95689e5..ed20dee 100644
+--- a/apps/admin/src/pages/login/components/index.ts
++++ b/apps/admin/src/pages/login/components/index.ts
+@@ -1,3 +1,6 @@
+ export { default as AccountLogin, UserOutlined } from './AccountLogin';
+ export { default as PhoneLogin, MobileOutlined } from './PhoneLogin';
+ export { default as WechatLogin, WechatOutlined } from './WechatLogin';
++export { default as IntegrationLogin } from './IntegrationLogin';
++export { default as IntegrationBindPhoneModal } from './IntegrationBindPhoneModal';
++export type { BindPhoneInfo } from './IntegrationBindPhoneModal';
+diff --git a/apps/server/.env.example b/apps/server/.env.example
+index 00a4499..7da4f7b 100644
+--- a/apps/server/.env.example
++++ b/apps/server/.env.example
+@@ -27,6 +27,21 @@ WECHAT_APP_SECRET=your-wechat-app-secret
+ # 在微信公众平台 -> 开发管理 -> 接收消息 -> 事件推送 中配置
+ WECHAT_CALLBACK_TOKEN=your-wechat-callback-token
+ 
++# ============ 第三方集成配置（钉钉/企业微信/飞书） ============
++# 注：以下为全局默认值；多租户下每个租户可在「系统配置-第三方集成」页覆盖。
++# 敏感 Secret 仅放环境变量，数据库以 env: 引用（如 env:DINGTALK_APP_SECRET）。
++# 钉钉企业内部应用（https://open-dev.dingtalk.com）
++# DINGTALK_APP_KEY=your-dingtalk-app-key
++# DINGTALK_APP_SECRET=your-dingtalk-app-secret
++# DINGTALK_AGENT_ID=your-dingtalk-agent-id
++# 企业微信自建应用（https://work.weixin.qq.com）
++# WECOM_CORP_ID=your-wecom-corp-id
++# WECOM_APP_SECRET=your-wecom-app-secret
++# WECOM_AGENT_ID=your-wecom-agent-id
++# 飞书自建应用（https://open.feishu.cn）
++# FEISHU_APP_ID=your-feishu-app-id
++# FEISHU_APP_SECRET=your-feishu-app-secret
++
+ # ============ 限流配置 ============
+ # 生产环境默认启用，建议保持开启以防止 API 滥用
+ RATE_LIMIT_ENABLED=true
+diff --git a/apps/server/app/common/notification_preference.py b/apps/server/app/common/notification_preference.py
+index f907455..2553204 100644
+--- a/apps/server/app/common/notification_preference.py
++++ b/apps/server/app/common/notification_preference.py
+@@ -16,6 +16,10 @@ CHANNEL_FIELD_MAP = {
+     "wechat": "wechat_enabled",
+     "email": "email_enabled",
+     "websocket": "in_app_enabled",  # WebSocket 复用站内信偏好
++    # 第三方集成平台
++    "dingtalk": "dingtalk_enabled",
++    "wecom": "wecom_enabled",
++    "feishu": "feishu_enabled",
+ }
+ 
+ # 消息类型字段映射
+@@ -87,6 +91,7 @@ async def get_user_preferences(
+     try:
+         stmt = text(
+             "SELECT sms_enabled, email_enabled, wechat_enabled, in_app_enabled, "
++            "dingtalk_enabled, wecom_enabled, feishu_enabled, "
+             "appointment_enabled, reminder_enabled, stop_clinic_enabled, system_enabled, "
+             "consultation_enabled, feedback_enabled, quiet_hours_start, quiet_hours_end "
+             "FROM notification_preferences "
+@@ -100,6 +105,7 @@ async def get_user_preferences(
+ 
+         return dict(zip(
+             ["sms_enabled", "email_enabled", "wechat_enabled", "in_app_enabled",
++             "dingtalk_enabled", "wecom_enabled", "feishu_enabled",
+              "appointment_enabled", "reminder_enabled", "stop_clinic_enabled",
+              "system_enabled", "consultation_enabled", "feedback_enabled",
+              "quiet_hours_start", "quiet_hours_end"],
+diff --git a/apps/server/app/infrastructure/notifications/registry.py b/apps/server/app/infrastructure/notifications/registry.py
+index 3e94fa2..da087fd 100644
+--- a/apps/server/app/infrastructure/notifications/registry.py
++++ b/apps/server/app/infrastructure/notifications/registry.py
+@@ -53,9 +53,17 @@ def register_channels():
+     from app.infrastructure.notifications.channels.sms import SmsChannel
+     from app.infrastructure.notifications.channels.websocket import WebSocketChannel
+     from app.infrastructure.notifications.channels.wechat import WechatChannel
++    # 第三方集成渠道
++    from app.infrastructure.notifications.channels.dingtalk import DingtalkChannel
++    from app.infrastructure.notifications.channels.feishu import FeishuChannel
++    from app.infrastructure.notifications.channels.wecom import WecomChannel
+ 
+     channel_registry.register(InAppChannel)
+     channel_registry.register(WechatChannel)
+     channel_registry.register(SmsChannel)
+     channel_registry.register(EmailChannel)
+     channel_registry.register(WebSocketChannel)
++    # 第三方平台（钉钉/企业微信/飞书）
++    channel_registry.register(DingtalkChannel)
++    channel_registry.register(WecomChannel)
++    channel_registry.register(FeishuChannel)
+diff --git a/apps/server/app/models/notification_preference.py b/apps/server/app/models/notification_preference.py
+index 526409e..ce2e26e 100644
+--- a/apps/server/app/models/notification_preference.py
++++ b/apps/server/app/models/notification_preference.py
+@@ -27,6 +27,10 @@ class NotificationPreference(Base):
+     email_enabled = Column(Boolean, default=True, comment="邮件通知")
+     wechat_enabled = Column(Boolean, default=True, comment="微信推送")
+     in_app_enabled = Column(Boolean, default=True, comment="站内消息")
++    # 第三方集成平台（钉钉/企业微信/飞书）
++    dingtalk_enabled = Column(Boolean, default=True, comment="钉钉推送")
++    wecom_enabled = Column(Boolean, default=True, comment="企业微信推送")
++    feishu_enabled = Column(Boolean, default=True, comment="飞书推送")
+     quiet_hours_start = Column(String(5), nullable=True, comment="免打扰开始时间 HH:MM")
+     quiet_hours_end = Column(String(5), nullable=True, comment="免打扰结束时间 HH:MM")
+     created_at = Column(DateTime, default=datetime.utcnow, comment="创建时间")
+diff --git a/apps/server/app/schemas/notification.py b/apps/server/app/schemas/notification.py
+index 1df2c27..9fb17da 100644
+--- a/apps/server/app/schemas/notification.py
++++ b/apps/server/app/schemas/notification.py
+@@ -23,6 +23,10 @@ class NotificationEvent(BaseModel):
+     recipient_phone: str | None = Field(None, description="接收人手机号（短信需要）")
+     recipient_email: str | None = Field(None, description="接收人邮箱（邮件需要）")
+     recipient_openid: str | None = Field(None, description="接收人微信 OpenID（微信需要）")
++    # 第三方集成平台收件人ID（可选，渠道内会自动查 IntegrationBinding）
++    recipient_dingtalk_id: str | None = Field(None, description="接收人钉钉 userId")
++    recipient_wecom_id: str | None = Field(None, description="接收人企业微信 userid")
++    recipient_feishu_id: str | None = Field(None, description="接收人飞书 open_id")
+     template_code: str = Field(..., description="模板代码")
+     variables: dict[str, Any] = Field(default_factory=dict, description="模板变量")
+     message_type: str = Field(..., description="消息类型: appointment/reminder/stop_clinic/system/consultation/feedback/queue_call")
