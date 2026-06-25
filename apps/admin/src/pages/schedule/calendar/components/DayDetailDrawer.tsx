@@ -180,16 +180,16 @@ const DayDetailDrawer: React.FC<DayDetailDrawerProps> = ({
                         onClick={() => onAppointmentClick(appointment)}
                       >
                         <div className="patient-name">
-                          {maskName(appointment.patientName || '')}
+                          <span data-rrweb-mask-text>{maskName(appointment.patientName || '')}</span>
                           <Tag color={statusInfo.color} style={{ marginLeft: 8 }}>
                             {statusInfo.text}
                           </Tag>
                         </div>
                         <div className="appointment-meta">
                           <Space separator="·">
-                            <span>{maskPhone(appointment.patientPhone || '')}</span>
-                            <span>{appointment.timeSlot === 'morning' ? '上午' : 
-                                   appointment.timeSlot === 'afternoon' ? '下午' : 
+                            <span data-rrweb-mask-text>{maskPhone(appointment.patientPhone || '')}</span>
+                            <span>{appointment.timeSlot === 'morning' ? '上午' :
+                                   appointment.timeSlot === 'afternoon' ? '下午' :
                                    appointment.timeSlot === 'evening' ? '晚上' : '普通'}</span>
                           </Space>
                         </div>

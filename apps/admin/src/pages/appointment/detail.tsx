@@ -251,8 +251,8 @@ const AppointmentDetailPage: React.FC = () => {
           <ProDescriptions column={2} columns={[
             { key: '0', title: '预约编号', dataIndex: 'appointmentNo', copyable: true },
             { key: '1', title: '当前状态', render: () => <Tag color={status.color}>{status.text}</Tag> },
-            { key: '2', title: '患者姓名', dataIndex: 'patientName' },
-            { key: '3', title: '患者手机', render: () => appointment?.patientPhone || '-' },
+            { key: '2', title: '患者姓名', render: () => <span data-rrweb-mask-text>{appointment?.patientName || '-'}</span> },
+            { key: '3', title: '患者手机', render: () => <span data-rrweb-mask-text>{appointment?.patientPhone || '-'}</span> },
             { key: '4', title: '预约医生', dataIndex: 'doctorName' },
             { key: '5', title: '所属科室', dataIndex: 'departmentName' },
             { key: '6', title: '预约日期', dataIndex: 'scheduleDate' },
@@ -287,7 +287,7 @@ const AppointmentDetailPage: React.FC = () => {
         {/* 病情描述 */}
         {appointment?.symptomDescription && (
           <Card title="病情描述" style={{ marginTop: 16 }}>
-            <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{appointment.symptomDescription}</p>
+            <div className="rrweb-block" style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{appointment.symptomDescription}</div>
           </Card>
         )}
 
@@ -426,7 +426,7 @@ const AppointmentDetailPage: React.FC = () => {
         <Form form={form} layout="vertical">
           <ProDescriptions column={1} style={{ marginBottom: 16 }} columns={[
             { key: '0', title: '预约编号', render: () => appointment?.appointmentNo },
-            { key: '1', title: '患者姓名', render: () => appointment?.patientName },
+            { key: '1', title: '患者姓名', render: () => <span data-rrweb-mask-text>{appointment?.patientName || '-'}</span> },
             { key: '2', title: '退款模式', render: () => (
               isCompletedRefundException ? (
                 <Tag color="warning">已完成例外退款</Tag>

@@ -1,0 +1,81 @@
+.platform-operations-dashboard {
+  min-width: 0;
+}
+
+.platform-operations-dashboard .ant-page-header-heading {
+  gap: 12px;
+}
+
+.platform-dashboard-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.platform-dashboard-actions .ant-picker {
+  width: 260px;
+  max-width: 100%;
+}
+
+.platform-kpi-section,
+.platform-chart-section,
+.platform-table-section {
+  margin-block-start: var(--spacing-section);
+}
+
+.platform-kpi-card {
+  height: 100%;
+}
+
+.platform-kpi-card .ant-pro-card-body {
+  height: 100%;
+  min-width: 0;
+}
+
+.platform-kpi-card .ant-pro-statistic-card-content {
+  min-width: 0;
+}
+
+.platform-kpi-card .ant-statistic-content-value,
+.platform-kpi-card .ant-pro-statistic-card-statistic {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.platform-chart-shell {
+  min-width: 0;
+  min-height: 320px;
+  overflow: hidden;
+}
+
+.platform-table-title {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+}
+
+.platform-table-filter {
+  width: 200px;
+}
+
+@media (max-width: 575px) {
+  .platform-dashboard-actions {
+    justify-content: stretch;
+  }
+
+  .platform-dashboard-actions .ant-picker,
+  .platform-dashboard-actions .ant-btn {
+    width: 100%;
+  }
+
+  .platform-table-title {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .platform-table-filter {
+    width: 100%;
+  }
+}

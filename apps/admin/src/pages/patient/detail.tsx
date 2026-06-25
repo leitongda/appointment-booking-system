@@ -322,7 +322,7 @@ const PatientDetailPage: React.FC = () => {
 
   // 家庭成员列定义
   const familyColumns = [
-    { title: '姓名', dataIndex: 'name', key: 'name', width: 80 },
+    { title: '姓名', dataIndex: 'name', key: 'name', width: 80, onCell: () => ({ 'data-rrweb-mask-text': '' }) },
     {
       title: '性别',
       dataIndex: 'gender',
@@ -330,7 +330,7 @@ const PatientDetailPage: React.FC = () => {
       width: 60,
       render: (val: number) => GENDER_MAP[val] || '-',
     },
-    { title: '手机号', dataIndex: 'phone', key: 'phone', width: 120 },
+    { title: '手机号', dataIndex: 'phone', key: 'phone', width: 120, onCell: () => ({ 'data-rrweb-mask-text': '' }) },
     { title: '关系', dataIndex: 'relationship', key: 'relationship', width: 80 },
     {
       title: '默认',
@@ -375,14 +375,14 @@ const PatientDetailPage: React.FC = () => {
         <Card>
           <ProDescriptions column={2} columns={[
             { key: '0', title: '用户昵称', render: () => patient?.nickname || '微信用户' },
-            { key: '1', title: '姓名', render: () => patient?.name },
-            { key: '2', title: '联系电话', render: () => patient?.phone },
+            { key: '1', title: '姓名', render: () => <span data-rrweb-mask-text>{patient?.name}</span> },
+            { key: '2', title: '联系电话', render: () => <span data-rrweb-mask-text>{patient?.phone}</span> },
             { key: '3', title: '性别', render: () => patient?.gender !== undefined && patient?.gender !== null ? GENDER_MAP[patient.gender] || '-' : '-' },
             { key: '4', title: '省/市/区', render: () => [patient?.province, patient?.city, patient?.district].filter(Boolean).join('/') || '-' },
             { key: '5', title: '街道/社区', render: () => patient?.street || '-' },
             { key: '6', title: '就诊卡编号', render: () => patient?.cardNo || '-' },
             { key: '7', title: '证件类型', render: () => idCardTypeMap[String(patient?.idCardType || '1')] || '-' },
-            { key: '8', title: '证件号', render: () => patient?.idCard || '-' },
+            { key: '8', title: '证件号', render: () => <span data-rrweb-mask-text>{patient?.idCard || '-'}</span> },
             { key: '9', title: '民族', render: () => patient?.ethnicity || '汉族' },
             { key: '10', title: '出生日期', render: () => patient?.birthday || '-' },
             { key: '11', title: '年龄', render: () => patient?.age ?? '-' },
@@ -469,10 +469,10 @@ const PatientDetailPage: React.FC = () => {
                 <Space size="large">
                   <Avatar size={64} icon={<UserOutlined />} />
                   <div>
-                    <Title level={5} style={{ margin: 0 }}>
+                    <Title level={5} style={{ margin: 0 }} data-rrweb-mask-text>
                       {patient?.name}
                     </Title>
-                    <Text type="secondary">
+                    <Text type="secondary" data-rrweb-mask-text>
                       {patient?.gender !== undefined && patient?.gender !== null ? GENDER_MAP[patient.gender] || '' : ''} {patient?.phone}
                     </Text>
                   </div>
@@ -522,6 +522,7 @@ const PatientDetailPage: React.FC = () => {
           width="sm"
           rules={[{ required: true, message: '请输入姓名' }]}
           placeholder="请输入姓名"
+          fieldProps={{ 'data-rrweb-input-mask': true } as any}
         />
         <ProFormText
           name="phone"
@@ -532,6 +533,7 @@ const PatientDetailPage: React.FC = () => {
             phoneRules.pattern,
           ]}
           placeholder="请输入手机号"
+          fieldProps={{ 'data-rrweb-input-mask': true } as any}
         />
       </ProForm.Group>
       <ProForm.Group>
@@ -555,6 +557,7 @@ const PatientDetailPage: React.FC = () => {
           label="身份证号"
           width="sm"
           placeholder="请输入身份证号"
+          fieldProps={{ 'data-rrweb-input-mask': true } as any}
         />
         <ProFormSelect
           name="idCardType"
@@ -611,11 +614,11 @@ const PatientDetailPage: React.FC = () => {
                 <Avatar size={80} icon={<UserOutlined />} />
                 <div>
                   <Space>
-                    <Title level={4} style={{ margin: 0 }}>
+                    <Title level={4} style={{ margin: 0 }} data-rrweb-mask-text>
                       {patient?.name}
                     </Title>
                     <Text>{patient?.gender !== undefined && patient?.gender !== null ? GENDER_MAP[patient.gender] || '' : ''}</Text>
-                    <Text>{patient?.phone}</Text>
+                    <Text data-rrweb-mask-text>{patient?.phone}</Text>
                     <Tag>{SOURCE_MAP[patient?.source || 1]}</Tag>
                     {patient?.isBlacklist && <Tag color="red">黑名单</Tag>}
                   </Space>
@@ -780,6 +783,7 @@ const PatientDetailPage: React.FC = () => {
             width="sm"
             rules={[{ required: true, message: '请输入姓名' }]}
             placeholder="请输入姓名"
+            fieldProps={{ 'data-rrweb-input-mask': true } as any}
           />
           <ProFormText
             name="phone"
@@ -790,6 +794,7 @@ const PatientDetailPage: React.FC = () => {
               phoneRules.pattern,
             ]}
             placeholder="请输入手机号"
+            fieldProps={{ 'data-rrweb-input-mask': true } as any}
           />
         </ProForm.Group>
         <ProForm.Group>
@@ -813,6 +818,7 @@ const PatientDetailPage: React.FC = () => {
             label="身份证号"
             width="sm"
             placeholder="请输入身份证号"
+            fieldProps={{ 'data-rrweb-input-mask': true } as any}
           />
           <ProFormSelect
             name="idCardType"

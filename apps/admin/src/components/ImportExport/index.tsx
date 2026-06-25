@@ -3,7 +3,8 @@ import { Button, Dropdown, Modal, Upload, message, Space, Alert, Table } from 'a
 import { DownloadOutlined, UploadOutlined, FileExcelOutlined, MoreOutlined } from '@ant-design/icons';
 import type { UploadProps, MenuProps } from 'antd';
 import type { RcFile } from 'antd/es/upload';
-import { request } from '@umijs/max';
+import axios from 'axios';
+import { getToken } from '@hospital/shared';
 import { downloadBlob } from '@/utils/download';
 
 export interface ImportExportProps {
@@ -57,6 +58,14 @@ const ImportExport: React.FC<ImportExportProps> = ({
     return name.endsWith('.xlsx') || name.endsWith('.xls');
   };
 
+  // 创建带认证头的 axios 实例（绕过 @hospital/api 的响应拦截器以保留 headers）
+  const createAuthRequest = () => {
+    const token = getToken();
+    return axios.create({
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+  };
+
   // 导出数据
   const handleExport = async () => {
     if (!exportUrl) return;
@@ -70,16 +79,14 @@ const ImportExport: React.FC<ImportExportProps> = ({
         }
       });
 
-      const response = await request(exportUrl, {
-        method: 'GET',
+      const client = createAuthRequest();
+      const response = await client.get(exportUrl, {
         params,
         responseType: 'blob',
-        getResponse: true,
-      }) as any;
+      });
 
       const blob = response.data as Blob;
-      const contentDisposition = response.response?.headers?.get?.('Content-Disposition')
-        ?? (response as any).headers?.['content-disposition'];
+      const contentDisposition = response.headers?.['content-disposition'];
       let filename = `${moduleName}_${new Date().toISOString().slice(0, 10)}.xlsx`;
 
       if (contentDisposition) {
@@ -104,11 +111,10 @@ const ImportExport: React.FC<ImportExportProps> = ({
     if (!templateUrl) return;
 
     try {
-      const response = await request(templateUrl, {
-        method: 'GET',
+      const client = createAuthRequest();
+      const response = await client.get(templateUrl, {
         responseType: 'blob',
-        getResponse: true,
-      }) as any;
+      });
 
       const blob = response.data as Blob;
       downloadBlob(blob, `${moduleName}_导入模板.xlsx`);
@@ -139,22 +145,23 @@ const ImportExport: React.FC<ImportExportProps> = ({
   // 执行导入
   const handleImport = async () => {
     if (!selectedFile || !importUrl) return;
-    
+
     setImporting(true);
     setImportResult(null);
-    
+
     try {
       const formData = new FormData();
       formData.append('file', selectedFile);
-      
-      const result = await request(importUrl, {
-        method: 'POST',
-        data: formData,
-        requestType: 'form',
-      }) as ImportResult;
-      
+
+      const client = createAuthRequest();
+      const response = await client.post(importUrl, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      const result = response.data as ImportResult;
+
       setImportResult(result);
-      
+
       if (result.fail_count === 0) {
         message.success(`导入成功！共导入 ${result.success_count} 条数据`);
         setImportModalVisible(false);

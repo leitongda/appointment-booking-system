@@ -43,10 +43,10 @@ const CheckinQrcodeCard: React.FC<CheckinQrcodeCardProps> = ({ storeId, storeNam
   };
 
   return (
-    <ProCard hoverable style={{ textAlign: 'center', padding: 16 }}>
+    <ProCard hoverable className="store-checkin-card">
       <Spin spinning={qrcodeLoading} tip="加载中..." />
       {qrcodeContent ? (
-        <div id="store-checkin-qrcode">
+        <div id="store-checkin-qrcode" className="store-checkin-qrcode">
           <QRCode
             value={qrcodeContent}
             size={200}

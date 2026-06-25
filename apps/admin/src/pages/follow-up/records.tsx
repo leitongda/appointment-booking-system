@@ -103,7 +103,7 @@ const FollowUpRecordsPage: React.FC = () => {
         },
       },
     },
-    { title: '患者', dataIndex: 'patientName', width: 100, search: false },
+    { title: '患者', dataIndex: 'patientName', width: 100, search: false, onCell: () => ({ 'data-rrweb-mask-text': '' }) },
     { title: '医生', dataIndex: 'doctorName', width: 100, search: false },
     {
       title: '随访日期',
@@ -112,7 +112,7 @@ const FollowUpRecordsPage: React.FC = () => {
       valueType: 'date',
       search: false,
     },
-    { title: '随访内容', dataIndex: 'content', ellipsis: true, search: false },
+    { title: '随访内容', dataIndex: 'content', ellipsis: true, search: false, onCell: () => ({ 'data-rrweb-mask-text': '' }) },
     {
       title: '患者状况',
       dataIndex: 'patientCondition',
@@ -180,7 +180,7 @@ const FollowUpRecordsPage: React.FC = () => {
         <Spin spinning={detailLoading}>
           {currentRecord ? (
             <Descriptions column={2} bordered size="small" items={[
-              { key: 'patient', label: '患者', children: currentRecord.patientName || '-' },
+              { key: 'patient', label: '患者', children: <span data-rrweb-mask-text>{currentRecord.patientName || '-'}</span> },
               { key: 'doctor', label: '医生', children: currentRecord.doctorName || '-' },
               { key: 'date', label: '随访日期', children: currentRecord.followUpDate ? dayjs(currentRecord.followUpDate).format('YYYY-MM-DD') : '-' },
               { key: 'condition', label: '患者状况', children: currentRecord.patientCondition ? (
@@ -188,8 +188,8 @@ const FollowUpRecordsPage: React.FC = () => {
                   {CONDITION_MAP[currentRecord.patientCondition]?.text || currentRecord.patientCondition}
                 </Tag>
               ) : '-' },
-              { key: 'content', label: '随访内容', children: currentRecord.content || '-', span: 2 },
-              { key: 'nextAction', label: '下一步措施', children: currentRecord.nextAction || '-', span: 2 },
+              { key: 'content', label: '随访内容', children: <div className="rrweb-block">{currentRecord.content || '-'}</div>, span: 2 },
+              { key: 'nextAction', label: '下一步措施', children: <div className="rrweb-block">{currentRecord.nextAction || '-'}</div>, span: 2 },
               { key: 'nextDate', label: '下次随访日期', children: currentRecord.nextFollowUpDate || '-' },
               { key: 'createdAt', label: '创建时间', children: currentRecord.createdAt ? dayjs(currentRecord.createdAt).format('YYYY-MM-DD HH:mm:ss') : '-' },
             ]} />

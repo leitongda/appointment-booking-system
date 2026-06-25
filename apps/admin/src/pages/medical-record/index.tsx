@@ -146,6 +146,7 @@ const MedicalRecordPage: React.FC = () => {
       dataIndex: 'patientName',
       width: 100,
       search: false,
+      onCell: () => ({ 'data-rrweb-mask-text': '' }),
     },
     {
       title: '医生',
@@ -247,6 +248,7 @@ const MedicalRecordPage: React.FC = () => {
       >
         <Spin spinning={detailLoading}>
           {currentRecord ? (
+            <div className="rrweb-block">
             <Descriptions column={2} bordered size="small" items={[
               { key: '0', label: '病历号', children: currentRecord.recordNo },
               { key: '1', label: '状态', children: (
@@ -275,6 +277,7 @@ const MedicalRecordPage: React.FC = () => {
               { key: '18', label: '创建时间', children: currentRecord.createdAt ? dayjs(currentRecord.createdAt).format('YYYY-MM-DD HH:mm:ss') : '-' },
               { key: '19', label: '更新时间', children: currentRecord.updatedAt ? dayjs(currentRecord.updatedAt).format('YYYY-MM-DD HH:mm:ss') : '-' },
             ]} />
+            </div>
           ) : null}
         </Spin>
       </Drawer>

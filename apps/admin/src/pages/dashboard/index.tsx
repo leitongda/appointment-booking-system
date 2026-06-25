@@ -10,7 +10,7 @@ import {
   ReloadOutlined,
   SyncOutlined,
 } from '@ant-design/icons';
-import { useEffect, useState, Suspense, lazy, ComponentType } from 'react';
+import { useEffect, useState, useRef, Suspense, lazy, ComponentType } from 'react';
 import { useModel } from '@umijs/max';
 import { statisticsApi } from '@hospital/api';
 import type {
@@ -26,6 +26,7 @@ import type {
   RevisitRateData,
 } from '@hospital/api';
 import StoreSection from './components/StoreSection';
+import './index.less';
 
 const { Statistic } = StatisticCard;
 
@@ -62,7 +63,13 @@ const Dashboard: React.FC = () => {
   const [retentionData, setRetentionData] = useState<RetentionItem[]>([]);
   const [revisitRate, setRevisitRate] = useState<RevisitRateData | null>(null);
 
+  // 并发锁：currentStoreId 抖动(initialState 频繁更新)时避免叠加请求。
+  // 上一次全量加载未完成时,跳过本次触发,等待下一次 currentStoreId 变化再加载。
+  const loadingRef = useRef(false);
+
   const loadData = async () => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
     setLoading(true);
     try {
       const results = await Promise.allSettled([
@@ -92,6 +99,7 @@ const Dashboard: React.FC = () => {
       console.error('加载数据失败', error);
     } finally {
       setLoading(false);
+      loadingRef.current = false;
     }
   };
 
@@ -196,13 +204,13 @@ const Dashboard: React.FC = () => {
   ];
 
   return (
-    <PageContainer>
+    <PageContainer className="dashboard-page">
       <Spin spinning={loading}>
         {/* 核心指标 */}
-        <ProCard title="核心指标" headerBordered style={{ marginBottom: 16 }}>
+        <ProCard title="核心指标" headerBordered className="dashboard-section">
           <Row gutter={[16, 16]}>
             <Col xs={24} sm={12} lg={4}>
-              <ProCard hoverable>
+              <ProCard hoverable className="dashboard-kpi-card">
                 <Statistic
                   title="今日预约"
                   value={overview?.todayAppointments ?? '-'}
@@ -211,7 +219,7 @@ const Dashboard: React.FC = () => {
               </ProCard>
             </Col>
             <Col xs={24} sm={12} lg={4}>
-              <ProCard hoverable>
+              <ProCard hoverable className="dashboard-kpi-card">
                 <Statistic
                   title="今日就诊"
                   value={overview?.todayVisits ?? '-'}
@@ -220,7 +228,7 @@ const Dashboard: React.FC = () => {
               </ProCard>
             </Col>
             <Col xs={24} sm={12} lg={4}>
-              <ProCard hoverable>
+              <ProCard hoverable className="dashboard-kpi-card">
                 <Statistic
                   title="总患者数"
                   value={overview?.totalPatients ?? '-'}
@@ -229,7 +237,7 @@ const Dashboard: React.FC = () => {
               </ProCard>
             </Col>
             <Col xs={24} sm={12} lg={4}>
-              <ProCard hoverable>
+              <ProCard hoverable className="dashboard-kpi-card">
                 <Statistic
                   title="医生数量"
                   value={overview?.totalDoctors ?? '-'}
@@ -238,7 +246,7 @@ const Dashboard: React.FC = () => {
               </ProCard>
             </Col>
             <Col xs={24} sm={12} lg={4}>
-              <ProCard hoverable>
+              <ProCard hoverable className="dashboard-kpi-card">
                 <Statistic
                   title="本月预约"
                   value={overview?.monthAppointments ?? '-'}
@@ -247,7 +255,7 @@ const Dashboard: React.FC = () => {
               </ProCard>
             </Col>
             <Col xs={24} sm={12} lg={4}>
-              <ProCard hoverable>
+              <ProCard hoverable className="dashboard-kpi-card">
                 <Statistic
                   title="本月收入"
                   value={overview?.monthRevenue ?? '-'}
@@ -261,139 +269,159 @@ const Dashboard: React.FC = () => {
         </ProCard>
 
         {/* 趋势 + 状态分布 */}
-        <Row gutter={16} style={{ marginBottom: 16 }}>
-          <Col xs={24} lg={16}>
-            <ProCard title="趋势分析" headerBordered>
+        <Row gutter={[16, 16]} className="dashboard-row">
+          <Col xs={24} lg={16} className="dashboard-col">
+            <ProCard title="趋势分析" headerBordered className="dashboard-chart-card">
               <Tabs
                 items={[
                   {
                     key: 'appointment',
                     label: '预约趋势',
                     children: appointmentTrendConfig ? (
-                      <Suspense fallback={<ChartLoading />}>
-                        <Line {...appointmentTrendConfig} />
-                      </Suspense>
+                      <div className="dashboard-chart-shell">
+                        <Suspense fallback={<ChartLoading />}>
+                          <Line {...appointmentTrendConfig} />
+                        </Suspense>
+                      </div>
                     ) : (
-                      <Empty description="暂无数据" style={{ padding: 40 }} />
+                      <Empty description="暂无数据" className="dashboard-empty" />
                     ),
                   },
                   {
                     key: 'revenue',
                     label: '收入趋势',
                     children: revenueTrendConfig ? (
-                      <Suspense fallback={<ChartLoading />}>
-                        <Line {...revenueTrendConfig} />
-                      </Suspense>
+                      <div className="dashboard-chart-shell">
+                        <Suspense fallback={<ChartLoading />}>
+                          <Line {...revenueTrendConfig} />
+                        </Suspense>
+                      </div>
                     ) : (
-                      <Empty description="暂无数据" style={{ padding: 40 }} />
+                      <Empty description="暂无数据" className="dashboard-empty" />
                     ),
                   },
                 ]}
               />
             </ProCard>
           </Col>
-          <Col xs={24} lg={8}>
-            <ProCard title="预约状态分布" headerBordered style={{ height: '100%' }}>
+          <Col xs={24} lg={8} className="dashboard-col">
+            <ProCard title="预约状态分布" headerBordered className="dashboard-chart-card">
               {statusPieConfig ? (
-                <Suspense fallback={<ChartLoading />}>
-                  <Pie {...statusPieConfig} />
-                </Suspense>
+                <div className="dashboard-chart-shell">
+                  <Suspense fallback={<ChartLoading />}>
+                    <Pie {...statusPieConfig} />
+                  </Suspense>
+                </div>
               ) : (
-                <Empty description="暂无数据" style={{ padding: 40 }} />
+                <Empty description="暂无数据" className="dashboard-empty" />
               )}
             </ProCard>
           </Col>
         </Row>
 
         {/* 时段分布 + 星期分布 */}
-        <Row gutter={16} style={{ marginBottom: 16 }}>
-          <Col xs={24} lg={12}>
-            <ProCard title="时段分布" headerBordered>
+        <Row gutter={[16, 16]} className="dashboard-row">
+          <Col xs={24} lg={12} className="dashboard-col">
+            <ProCard title="时段分布" headerBordered className="dashboard-chart-card">
               {timeSlotConfig ? (
-                <Suspense fallback={<ChartLoading />}>
-                  <Column {...timeSlotConfig} />
-                </Suspense>
+                <div className="dashboard-chart-shell">
+                  <Suspense fallback={<ChartLoading />}>
+                    <Column {...timeSlotConfig} />
+                  </Suspense>
+                </div>
               ) : (
-                <Empty description="暂无数据" style={{ padding: 40 }} />
+                <Empty description="暂无数据" className="dashboard-empty" />
               )}
             </ProCard>
           </Col>
-          <Col xs={24} lg={12}>
-            <ProCard title="星期分布" headerBordered>
+          <Col xs={24} lg={12} className="dashboard-col">
+            <ProCard title="星期分布" headerBordered className="dashboard-chart-card">
               {weekdayConfig ? (
-                <Suspense fallback={<ChartLoading />}>
-                  <Column {...weekdayConfig} />
-                </Suspense>
+                <div className="dashboard-chart-shell">
+                  <Suspense fallback={<ChartLoading />}>
+                    <Column {...weekdayConfig} />
+                  </Suspense>
+                </div>
               ) : (
-                <Empty description="暂无数据" style={{ padding: 40 }} />
+                <Empty description="暂无数据" className="dashboard-empty" />
               )}
             </ProCard>
           </Col>
         </Row>
 
         {/* 留存率 + 复诊率 */}
-        <Row gutter={16} style={{ marginBottom: 16 }}>
-          <Col xs={24} lg={14}>
-            <ProCard title="用户留存率（按月）" headerBordered>
+        <Row gutter={[16, 16]} className="dashboard-row">
+          <Col xs={24} lg={14} className="dashboard-col">
+            <ProCard title="用户留存率（按月）" headerBordered className="dashboard-chart-card">
               {retentionConfig ? (
-                <Suspense fallback={<ChartLoading />}>
-                  <Column {...retentionConfig} />
-                </Suspense>
+                <div className="dashboard-chart-shell">
+                  <Suspense fallback={<ChartLoading />}>
+                    <Column {...retentionConfig} />
+                  </Suspense>
+                </div>
               ) : (
-                <Empty description="暂无数据" style={{ padding: 40 }} />
+                <Empty description="暂无数据" className="dashboard-empty" />
               )}
             </ProCard>
           </Col>
-          <Col xs={24} lg={10}>
-            <ProCard title="复诊率概览" headerBordered style={{ height: '100%' }}>
+          <Col xs={24} lg={10} className="dashboard-col">
+            <ProCard title="复诊率概览" headerBordered className="dashboard-chart-card">
               {revisitRate ? (
-                <Row gutter={[16, 24]}>
-                  <Col span={12}>
-                    <Statistic
-                      title="复诊用户比例"
-                      value={revisitRate.overall.revisitRate}
-                      precision={1}
-                      suffix="%"
-                      prefix={<ReloadOutlined style={{ color: '#722ed1' }} />}
-                    />
-                    <div style={{ color: '#999', fontSize: 12, marginTop: 4 }}>
-                      {revisitRate.overall.revisitUsers} / {revisitRate.overall.totalUsers} 用户
+                <Row gutter={[12, 12]} className="dashboard-revisit-grid">
+                  <Col xs={24} sm={12}>
+                    <div className="dashboard-revisit-item">
+                      <Statistic
+                        title="复诊用户比例"
+                        value={revisitRate.overall.revisitRate}
+                        precision={1}
+                        suffix="%"
+                        prefix={<ReloadOutlined style={{ color: '#722ed1' }} />}
+                      />
+                      <div style={{ color: '#999', fontSize: 12, marginTop: 4 }}>
+                        {revisitRate.overall.revisitUsers} / {revisitRate.overall.totalUsers} 用户
+                      </div>
                     </div>
                   </Col>
-                  <Col span={12}>
-                    <Statistic
-                      title="医生维度复诊率"
-                      value={revisitRate.byDoctor.revisitRate}
-                      precision={1}
-                      suffix="%"
-                      prefix={<SyncOutlined style={{ color: '#1890ff' }} />}
-                    />
-                    <div style={{ color: '#999', fontSize: 12, marginTop: 4 }}>
-                      {revisitRate.byDoctor.revisitPairs} / {revisitRate.byDoctor.totalPairs} 医患对
+                  <Col xs={24} sm={12}>
+                    <div className="dashboard-revisit-item">
+                      <Statistic
+                        title="医生维度复诊率"
+                        value={revisitRate.byDoctor.revisitRate}
+                        precision={1}
+                        suffix="%"
+                        prefix={<SyncOutlined style={{ color: '#1890ff' }} />}
+                      />
+                      <div style={{ color: '#999', fontSize: 12, marginTop: 4 }}>
+                        {revisitRate.byDoctor.revisitPairs} / {revisitRate.byDoctor.totalPairs} 医患对
+                      </div>
                     </div>
                   </Col>
-                  <Col span={12}>
-                    <Statistic
-                      title="复诊占比"
-                      value={revisitRate.visits.revisitRatio}
-                      precision={1}
-                      suffix="%"
-                      prefix={<RiseOutlined style={{ color: '#52c41a' }} />}
-                    />
-                    <div style={{ color: '#999', fontSize: 12, marginTop: 4 }}>
-                      复诊 {revisitRate.visits.revisitVisits} / 总计 {revisitRate.visits.totalVisits} 次
+                  <Col xs={24} sm={12}>
+                    <div className="dashboard-revisit-item">
+                      <Statistic
+                        title="复诊占比"
+                        value={revisitRate.visits.revisitRatio}
+                        precision={1}
+                        suffix="%"
+                        prefix={<RiseOutlined style={{ color: '#52c41a' }} />}
+                      />
+                      <div style={{ color: '#999', fontSize: 12, marginTop: 4 }}>
+                        复诊 {revisitRate.visits.revisitVisits} / 总计 {revisitRate.visits.totalVisits} 次
+                      </div>
                     </div>
                   </Col>
-                  <Col span={12}>
-                    <Statistic
-                      title="统计周期"
-                      value={`${revisitRate.params.startDate} ~ ${revisitRate.params.endDate}`}
-                      valueStyle={{ fontSize: 14 }}
-                    />
+                  <Col xs={24} sm={12}>
+                    <div className="dashboard-revisit-item">
+                      <Statistic
+                        title="统计周期"
+                        value={`${revisitRate.params.startDate} ~ ${revisitRate.params.endDate}`}
+                        valueStyle={{ fontSize: 14 }}
+                      />
+                    </div>
                   </Col>
                 </Row>
               ) : (
-                <Empty description="暂无数据" style={{ padding: 40 }} />
+                <Empty description="暂无数据" className="dashboard-empty" />
               )}
             </ProCard>
           </Col>
@@ -405,24 +433,26 @@ const Dashboard: React.FC = () => {
         {/* 排行榜 */}
         <ProCard title="排行榜" headerBordered>
           <Row gutter={[16, 16]}>
-            <Col xs={24} lg={12}>
-              <ProCard title="科室排行 TOP10" headerBordered collapsible defaultCollapsed={false}>
+            <Col xs={24} lg={12} className="dashboard-col">
+              <ProCard title="科室排行 TOP10" headerBordered collapsible defaultCollapsed={false} className="dashboard-table-card">
                 <Table
                   columns={deptColumns}
                   dataSource={deptRanking.map((item) => ({ ...item, key: item.departmentId }))}
                   pagination={false}
                   size="small"
+                  scroll={{ x: 360 }}
                   locale={{ emptyText: <Empty description="暂无数据" /> }}
                 />
               </ProCard>
             </Col>
-            <Col xs={24} lg={12}>
-              <ProCard title="医生排行 TOP10" headerBordered collapsible defaultCollapsed={false}>
+            <Col xs={24} lg={12} className="dashboard-col">
+              <ProCard title="医生排行 TOP10" headerBordered collapsible defaultCollapsed={false} className="dashboard-table-card">
                 <Table
                   columns={doctorColumns}
                   dataSource={doctorRanking.map((item) => ({ ...item, key: item.doctorId }))}
                   pagination={false}
                   size="small"
+                  scroll={{ x: 520 }}
                   locale={{ emptyText: <Empty description="暂无数据" /> }}
                 />
               </ProCard>

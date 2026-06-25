@@ -215,16 +215,27 @@ export function useFormDraft(
     }
   }, [checkDraft]);
 
+  // 稳定 excludeFields 引用，避免每次渲染重建 debounce
+  const excludeFieldsRef = useRef(excludeFields);
+  excludeFieldsRef.current = excludeFields;
+
   // 保存草稿（防抖）
   const saveDraftInternal = useMemo(
     () =>
       debounce((values: any) => {
-        const filtered = filterExcludeFields(values, excludeFields);
+        const filtered = filterExcludeFields(values, excludeFieldsRef.current);
         saveDraft(key, filtered);
         setHasDraft(true);
       }, debounceMs),
-    [key, debounceMs, excludeFields]
+    [key, debounceMs]
   );
+
+  // 组件卸载时取消 debounce，防止更新已卸载组件的 state
+  useEffect(() => {
+    return () => {
+      saveDraftInternal.cancel();
+    };
+  }, [saveDraftInternal]);
 
   // 处理表单值变化
   const handleValuesChange = useCallback(

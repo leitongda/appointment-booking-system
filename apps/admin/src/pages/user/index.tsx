@@ -46,6 +46,7 @@ const UserManagePage: React.FC = () => {
       title: '手机号',
       dataIndex: 'phone',
       width: 120,
+      onCell: () => ({ 'data-rrweb-mask-text': '' }),
     },
     {
       title: '就诊卡数量',

@@ -180,12 +180,14 @@ const AppointmentListPage: React.FC = () => {
       dataIndex: 'patientName',
       width: 80,
       search: false,
+      onCell: () => ({ 'data-rrweb-mask-text': '' }),
     },
     {
       title: '手机号',
       dataIndex: 'patientPhone',
       width: 120,
       search: false,
+      onCell: () => ({ 'data-rrweb-mask-text': '' }),
     },
     {
       title: '医生',

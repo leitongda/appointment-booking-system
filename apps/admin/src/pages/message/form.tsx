@@ -14,6 +14,12 @@ const SEND_MODE_OPTIONS = [
   { label: '按规则发送', value: 'rule' },
 ];
 
+async function batchExecute<T>(items: T[], fn: (item: T) => Promise<any>, batchSize = 10) {
+  for (let i = 0; i < items.length; i += batchSize) {
+    await Promise.all(items.slice(i, i + batchSize).map(fn));
+  }
+}
+
 const MessageFormPage: React.FC = () => {
   const { message } = App.useApp();
   const { options: messageTypeOptions } = useDict('message_type');
@@ -71,10 +77,8 @@ const MessageFormPage: React.FC = () => {
         message.success(`按规则发送完成，${(result as any)?.message || ''}`);
       } else if (sendMode === 'batch') {
         const userIds = (values.userId as string).split('\n').map((s: string) => s.trim()).filter(Boolean);
-        await Promise.all(
-          userIds.map((id: string) =>
-            messageApi.sendUnified({ ...baseParams, recipientId: id })
-          )
+        await batchExecute(userIds, (id: string) =>
+          messageApi.sendUnified({ ...baseParams, recipientId: id })
         );
         message.success(`批量发送成功，共 ${userIds.length} 人`);
       } else {

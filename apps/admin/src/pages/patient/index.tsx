@@ -91,9 +91,17 @@ const PatientPage: React.FC = () => {
     }
   };
 
+  // rrweb 文本遮蔽单元格（仅遮蔽展示文本，不遮蔽整块录制）
+  const maskTextCell = () => ({ 'data-rrweb-mask-text': '' });
+
   const columns: ProColumns<PatientListItem>[] = [
     { title: '卡号', dataIndex: 'cardNo', width: 150, ellipsis: true },
-    { title: '姓名', dataIndex: 'name', width: 80 },
+    {
+      title: '姓名',
+      dataIndex: 'name',
+      width: 80,
+      onCell: maskTextCell,
+    },
     {
       title: '性别',
       dataIndex: 'gender',
@@ -102,7 +110,12 @@ const PatientPage: React.FC = () => {
       render: (val) => GENDER_MAP[val as number] || '-',
     },
     { title: '年龄', dataIndex: 'age', width: 60, search: false, render: (val) => val ?? '-' },
-    { title: '手机号', dataIndex: 'phone', width: 120 },
+    {
+      title: '手机号',
+      dataIndex: 'phone',
+      width: 120,
+      onCell: maskTextCell,
+    },
     {
       title: '默认',
       dataIndex: 'isDefault',
@@ -115,6 +128,7 @@ const PatientPage: React.FC = () => {
       dataIndex: 'userNickname',
       width: 120,
       search: false,
+      onCell: maskTextCell,
       render: (_, record) => (
         <Space size={0}>
           <span>{record.userNickname || '微信用户'}</span>
@@ -258,6 +272,7 @@ const PatientPage: React.FC = () => {
             width="sm"
             rules={[{ required: true, message: '请输入姓名' }]}
             placeholder="请输入姓名"
+            fieldProps={{ 'data-rrweb-input-mask': true } as any}
           />
           <ProFormText
             name="phone"
@@ -268,6 +283,7 @@ const PatientPage: React.FC = () => {
               phoneRules.pattern,
             ]}
             placeholder="请输入手机号"
+            fieldProps={{ 'data-rrweb-input-mask': true } as any}
           />
         </ProForm.Group>
         <ProForm.Group>
@@ -294,6 +310,7 @@ const PatientPage: React.FC = () => {
               idCardRules.pattern,
             ]}
             placeholder="请输入身份证号"
+            fieldProps={{ 'data-rrweb-input-mask': true } as any}
           />
           <ProFormSelect
             name="idCardType"
@@ -368,6 +385,7 @@ const PatientPage: React.FC = () => {
             width="sm"
             rules={[{ required: true, message: '请输入姓名' }]}
             placeholder="请输入姓名"
+            fieldProps={{ 'data-rrweb-input-mask': true } as any}
           />
           <ProFormText
             name="phone"
@@ -378,6 +396,7 @@ const PatientPage: React.FC = () => {
               phoneRules.pattern,
             ]}
             placeholder="请输入手机号"
+            fieldProps={{ 'data-rrweb-input-mask': true } as any}
           />
         </ProForm.Group>
         <ProForm.Group>
@@ -401,6 +420,7 @@ const PatientPage: React.FC = () => {
             label="身份证号"
             width="sm"
             placeholder="请输入身份证号"
+            fieldProps={{ 'data-rrweb-input-mask': true } as any}
           />
           <ProFormSelect
             name="idCardType"

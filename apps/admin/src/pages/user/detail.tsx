@@ -177,7 +177,7 @@ const UserDetailPage: React.FC = () => {
   // 就诊卡列表列定义
   const cardColumns = [
     { title: '卡号', dataIndex: 'cardNo', key: 'cardNo', width: 150, ellipsis: true },
-    { title: '姓名', dataIndex: 'name', key: 'name', width: 80 },
+    { title: '姓名', dataIndex: 'name', key: 'name', width: 80, onCell: () => ({ 'data-rrweb-mask-text': '' }) },
     {
       title: '性别',
       dataIndex: 'gender',
@@ -186,7 +186,7 @@ const UserDetailPage: React.FC = () => {
       render: (val: number) => GENDER_MAP[val] || '-',
     },
     { title: '年龄', dataIndex: 'age', key: 'age', width: 60, render: (val: number) => val ?? '-' },
-    { title: '手机号', dataIndex: 'phone', key: 'phone', width: 120 },
+    { title: '手机号', dataIndex: 'phone', key: 'phone', width: 120, onCell: () => ({ 'data-rrweb-mask-text': '' }) },
     { title: '关系', dataIndex: 'relationship', key: 'relationship', width: 80 },
     {
       title: '默认',
@@ -240,6 +240,7 @@ const UserDetailPage: React.FC = () => {
           width="sm"
           rules={[{ required: true, message: '请输入姓名' }]}
           placeholder="请输入姓名"
+          fieldProps={{ 'data-rrweb-input-mask': true } as any}
         />
         <ProFormText
           name="phone"
@@ -250,6 +251,7 @@ const UserDetailPage: React.FC = () => {
             phoneRules.pattern,
           ]}
           placeholder="请输入手机号"
+          fieldProps={{ 'data-rrweb-input-mask': true } as any}
         />
       </ProForm.Group>
       <ProForm.Group>
@@ -273,6 +275,7 @@ const UserDetailPage: React.FC = () => {
           label="身份证号"
           width="sm"
           placeholder="请输入身份证号"
+          fieldProps={{ 'data-rrweb-input-mask': true } as any}
         />
         <ProFormSelect
           name="idCardType"
@@ -328,7 +331,7 @@ const UserDetailPage: React.FC = () => {
                     </Title>
                     {user?.gender === 1 && <ManOutlined style={{ color: '#1890ff' }} />}
                     {user?.gender === 2 && <WomanOutlined style={{ color: '#eb2f96' }} />}
-                    <Text type="secondary">{user?.phone}</Text>
+                    <Text type="secondary"><span data-rrweb-mask-text>{user?.phone}</span></Text>
                     <Tag color={user?.status === 1 ? 'green' : 'red'}>
                       {user?.status === 1 ? '正常' : '禁用'}
                     </Tag>
@@ -387,7 +390,7 @@ const UserDetailPage: React.FC = () => {
         <Card title="基本信息" style={{ marginBottom: 16 }}>
           <ProDescriptions column={3} columns={[
             { key: '0', title: '用户ID', render: () => user?.id },
-            { key: '1', title: '手机号', render: () => user?.phone },
+            { key: '1', title: '手机号', render: () => <span data-rrweb-mask-text>{user?.phone}</span> },
             { key: '2', title: '微信昵称', render: () => user?.nickname || '微信用户' },
             { key: '3', title: '性别', render: () => user?.gender !== undefined && user?.gender !== null ? GENDER_MAP[user.gender] || '未知' : '未知' },
             { key: '4', title: 'OpenID', render: () => (
@@ -489,6 +492,7 @@ const UserDetailPage: React.FC = () => {
             phoneRules.pattern,
           ]}
           placeholder="请输入手机号"
+          fieldProps={{ 'data-rrweb-input-mask': true } as any}
         />
         <ProFormSelect
           name="gender"

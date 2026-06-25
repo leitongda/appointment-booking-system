@@ -65,8 +65,8 @@ const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
       className="appointment-detail-modal"
     >
       <Descriptions column={1} bordered size="small" items={[
-        { key: '0', label: '患者姓名', children: maskName(appointment.patientName || '') },
-        { key: '1', label: '手机号', children: maskPhone(appointment.patientPhone || '') },
+        { key: '0', label: '患者姓名', children: <span data-rrweb-mask-text>{maskName(appointment.patientName || '')}</span> },
+        { key: '1', label: '手机号', children: <span data-rrweb-mask-text>{maskPhone(appointment.patientPhone || '')}</span> },
         { key: '2', label: '预约日期', children: appointment.scheduleDate || '-' },
         { key: '3', label: '预约时段', children: (
           appointment.timeSlot === 'morning' ? '上午' :

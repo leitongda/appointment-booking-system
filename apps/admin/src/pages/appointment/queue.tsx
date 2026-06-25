@@ -166,6 +166,7 @@ const AppointmentQueuePage: React.FC = () => {
       dataIndex: 'patientName',
       key: 'patientName',
       width: 100,
+      onCell: () => ({ 'data-rrweb-mask-text': '' }),
     },
     {
       title: '医生',

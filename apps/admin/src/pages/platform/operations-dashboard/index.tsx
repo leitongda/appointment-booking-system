@@ -11,6 +11,7 @@ import {
   type PlatformTrendPoint,
 } from '@hospital/api';
 import { downloadBlob } from '@/utils/download';
+import './index.less';
 
 const { Statistic } = StatisticCard;
 const { RangePicker } = DatePicker;
@@ -152,35 +153,37 @@ const OperationsDashboard: React.FC = () => {
 
   return (
     <PageContainer
+      className="platform-operations-dashboard"
       header={{
         title: '平台经营看板',
         subTitle: '全平台租户/门店经营对比（数据 T+1 预聚合，按就诊日统计）',
       }}
-      extra={[
-        <RangePicker
-          key="range"
-          value={dateRange}
-          onChange={(v) => v && v[0] && v[1] && setDateRange([v[0], v[1]])}
-        />,
-        <Button key="reload" icon={<ReloadOutlined />} onClick={loadData}>
-          刷新
-        </Button>,
-        <Button
-          key="export"
-          type="primary"
-          icon={<DownloadOutlined />}
-          loading={exporting}
-          onClick={handleExport}
-        >
-          导出门店明细
-        </Button>,
-      ]}
+      extra={
+        <div className="platform-dashboard-actions">
+          <RangePicker
+            value={dateRange}
+            onChange={(v) => v && v[0] && v[1] && setDateRange([v[0], v[1]])}
+          />
+          <Button icon={<ReloadOutlined />} onClick={loadData}>
+            刷新
+          </Button>
+          <Button
+            type="primary"
+            icon={<DownloadOutlined />}
+            loading={exporting}
+            onClick={handleExport}
+          >
+            导出门店明细
+          </Button>
+        </div>
+      }
     >
       <Spin spinning={loading}>
         {/* KPI 卡片 */}
-        <ProCard gutter={16} style={{ marginBlockStart: 8 }}>
-          <Col>
+        <Row gutter={[16, 16]} className="platform-kpi-section">
+          <Col xs={24} sm={12} xl={8} xxl={5}>
             <StatisticCard
+              className="platform-kpi-card"
               statistic={{
                 title: '涉及租户',
                 value: overview?.tenantCount ?? 0,
@@ -188,8 +191,9 @@ const OperationsDashboard: React.FC = () => {
               }}
             />
           </Col>
-          <Col>
+          <Col xs={24} sm={12} xl={8} xxl={5}>
             <StatisticCard
+              className="platform-kpi-card"
               statistic={{
                 title: '预约总数',
                 value: overview?.appointmentCount ?? 0,
@@ -197,8 +201,9 @@ const OperationsDashboard: React.FC = () => {
               }}
             />
           </Col>
-          <Col>
+          <Col xs={24} sm={12} xl={8} xxl={5}>
             <StatisticCard
+              className="platform-kpi-card"
               statistic={{
                 title: '爽约率',
                 value: overview?.noShowRate == null ? '-' : overview.noShowRate,
@@ -207,8 +212,9 @@ const OperationsDashboard: React.FC = () => {
               }}
             />
           </Col>
-          <Col>
+          <Col xs={24} sm={12} xl={8} xxl={4}>
             <StatisticCard
+              className="platform-kpi-card"
               statistic={{
                 title: '新患者数',
                 value: overview?.newPatientCount ?? 0,
@@ -216,8 +222,9 @@ const OperationsDashboard: React.FC = () => {
               }}
             />
           </Col>
-          <Col>
+          <Col xs={24} sm={12} xl={8} xxl={5}>
             <StatisticCard
+              className="platform-kpi-card"
               statistic={{
                 title: '营收（诊费）',
                 value: overview?.revenue ?? 0,
@@ -227,14 +234,16 @@ const OperationsDashboard: React.FC = () => {
               }}
             />
           </Col>
-        </ProCard>
+        </Row>
 
         {/* 趋势图 */}
-        <ProCard title="经营趋势" style={{ marginBlockStart: 16 }} headerBordered>
+        <ProCard title="经营趋势" className="platform-chart-section" headerBordered>
           {trend.length > 0 ? (
-            <Suspense fallback={<Spin />}>
-              <Line {...trendConfig} />
-            </Suspense>
+            <div className="platform-chart-shell">
+              <Suspense fallback={<Spin />}>
+                <Line {...trendConfig} />
+              </Suspense>
+            </div>
           ) : (
             <Empty description="暂无数据" style={{ padding: 40 }} />
           )}
@@ -243,7 +252,7 @@ const OperationsDashboard: React.FC = () => {
         {/* 租户对比 */}
         <ProCard
           title="租户经营对比"
-          style={{ marginBlockStart: 16 }}
+          className="platform-table-section"
           headerBordered
         >
           <Table
@@ -252,6 +261,7 @@ const OperationsDashboard: React.FC = () => {
             columns={tenantColumns}
             dataSource={tenants}
             pagination={false}
+            scroll={{ x: 900 }}
             locale={{ emptyText: <Empty description="暂无数据" /> }}
           />
         </ProCard>
@@ -259,19 +269,19 @@ const OperationsDashboard: React.FC = () => {
         {/* 门店对比 */}
         <ProCard
           title={
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div className="platform-table-title">
               <span>门店经营对比</span>
               <Select
                 allowClear
                 placeholder="按租户筛选"
-                style={{ width: 200 }}
+                className="platform-table-filter"
                 options={tenantOptions}
                 value={tenantFilter}
                 onChange={(v) => setTenantFilter(v || undefined)}
               />
             </div>
           }
-          style={{ marginBlockStart: 16 }}
+          className="platform-table-section"
           headerBordered
         >
           <Table
@@ -280,6 +290,7 @@ const OperationsDashboard: React.FC = () => {
             columns={storeColumns}
             dataSource={stores}
             pagination={{ pageSize: 10, showSizeChanger: true }}
+            scroll={{ x: 980 }}
             locale={{ emptyText: <Empty description="暂无数据" /> }}
           />
         </ProCard>

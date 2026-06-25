@@ -11,6 +11,16 @@ import { contentApi } from '@hospital/api';
 import type { Notice } from '@hospital/api';
 import { useDict } from '@/hooks/useDict';
 
+/** Minimal XSS sanitizer: strips script/iframe/on* handlers and javascript: URIs */
+function sanitizeHtml(raw: string): string {
+  return raw
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<script[^>]*\/>/gi, '')
+    .replace(/<\/?(?:iframe|object|embed|applet)[^>]*>/gi, '')
+    .replace(/\s+on\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .replace(/((?:href|src|action)\s*=\s*)(?:"javascript:[^"]*"|'javascript:[^']*')/gi, '$1""');
+}
+
 const NoticeDetailPage: React.FC = () => {
   const { id } = useParams();
   const [notice, setNotice] = useState<Notice | null>(null);
@@ -57,7 +67,7 @@ const NoticeDetailPage: React.FC = () => {
               <div
                 className="ql-editor"
                 style={{ padding: 0 }}
-                dangerouslySetInnerHTML={{ __html: notice.content || '' }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(notice.content || '') }}
               />
             </Card>
           </>

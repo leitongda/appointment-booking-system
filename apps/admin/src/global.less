@@ -196,6 +196,25 @@ body,
   height: 100%;
 }
 
+/* 低代码编辑器 - 让左侧 Tabs 内容区撑满并支持内部滚动 */
+.lowcode-editor-tabs {
+  height: 100%;
+}
+
+.lowcode-editor-tabs > .ant-tabs-content-holder {
+  flex: 1;
+  min-height: 0;
+}
+
+.lowcode-editor-tabs > .ant-tabs-content-holder > .ant-tabs-content,
+.lowcode-editor-tabs > .ant-tabs-content-holder > .ant-tabs-content > .ant-tabs-tabpane {
+  height: 100%;
+}
+
+.lowcode-editor-tabs > .ant-tabs-nav {
+  margin: 0;
+}
+
 /* 
  * 注意：不要给 .ant-watermark 容器设置 pointer-events: none
  * 因为 Watermark 组件的根元素包含了内容，设置后会导致内容无法点击

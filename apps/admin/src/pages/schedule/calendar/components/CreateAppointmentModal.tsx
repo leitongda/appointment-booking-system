@@ -148,6 +148,7 @@ const CreateAppointmentModal: React.FC<CreateAppointmentModalProps> = ({
             filterOption={false}
             onSearch={handleSearchPatient}
             notFoundContent={searchLoading ? <Spin size="small" /> : null}
+            data-rrweb-input-mask
             options={patients.map(p => ({
               label: `${p.name} - ${p.phone}`,
               value: p.id,

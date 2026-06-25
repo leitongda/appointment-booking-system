@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Row, Col, Spin } from 'antd';
 import { ProCard } from '@ant-design/pro-components';
 import { useModel } from '@umijs/max';
@@ -8,6 +8,7 @@ import AppointmentStatsCard from './AppointmentStatsCard';
 import UserStatsCard from './UserStatsCard';
 import VisitorStatsCard from './VisitorStatsCard';
 import CheckinQrcodeCard from './CheckinQrcodeCard';
+import './index.less';
 
 const StoreSection: React.FC = () => {
   const { initialState } = useModel('@@initialState');
@@ -18,9 +19,14 @@ const StoreSection: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [storeStats, setStoreStats] = useState<StoreDashboardStats | null>(null);
 
+  // 并发锁:storeId 抖动时避免叠加请求
+  const loadingRef = useRef(false);
+
   useEffect(() => {
     if (!storeId) return;
     const load = async () => {
+      if (loadingRef.current) return;
+      loadingRef.current = true;
       setLoading(true);
       try {
         const data = await statisticsApi.getStoreDashboardStats(storeId);
@@ -29,6 +35,7 @@ const StoreSection: React.FC = () => {
         // 静默失败，不影响其他区域
       } finally {
         setLoading(false);
+        loadingRef.current = false;
       }
     };
     load();
@@ -37,10 +44,10 @@ const StoreSection: React.FC = () => {
   if (!storeId) return null;
 
   return (
-    <ProCard title="门店专属区域" headerBordered style={{ marginBottom: 16 }}>
+    <ProCard title="门店专属区域" headerBordered className="store-section">
       <Spin spinning={loading}>
-        <Row gutter={[16, 16]}>
-          <Col xs={24} lg={18}>
+        <Row gutter={[16, 16]} className="store-section-grid">
+          <Col xs={24} lg={18} className="store-section-main">
             <Row gutter={[16, 16]}>
               <Col xs={24} md={8}>
                 <AppointmentStatsCard stats={storeStats?.appointments} />
@@ -53,7 +60,7 @@ const StoreSection: React.FC = () => {
               </Col>
             </Row>
           </Col>
-          <Col xs={24} lg={6}>
+          <Col xs={24} lg={6} className="store-section-qr">
             <CheckinQrcodeCard storeId={storeId} storeName={storeName} />
           </Col>
         </Row>

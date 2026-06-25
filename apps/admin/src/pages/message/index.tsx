@@ -20,6 +20,12 @@ const TYPE_MAP: Record<string, { text: string; color: string }> = {
   feedback: { text: '反馈', color: 'purple' },
 };
 
+async function batchExecute<T>(items: T[], fn: (item: T) => Promise<any>, batchSize = 10) {
+  for (let i = 0; i < items.length; i += batchSize) {
+    await Promise.all(items.slice(i, i + batchSize).map(fn));
+  }
+}
+
 const MessagePage: React.FC = () => {
   const { actionRef, message } = useListPage();
   const { initialState } = useModel('@@initialState');
@@ -61,7 +67,7 @@ const MessagePage: React.FC = () => {
   const handleBatchRead = useCallback(async () => {
     if (selectedRowKeys.length === 0) return;
     try {
-      await Promise.all(selectedRowKeys.map((id) => messageApi.markAsReadUnified(id)));
+      await batchExecute(selectedRowKeys, (id) => messageApi.markAsReadUnified(id));
       message.success(`已标记 ${selectedRowKeys.length} 条为已读`);
       setSelectedRowKeys([]);
       actionRef.current?.reload();
@@ -73,7 +79,7 @@ const MessagePage: React.FC = () => {
   const handleBatchDelete = useCallback(async () => {
     if (!currentUser?.id || selectedRowKeys.length === 0) return;
     try {
-      await Promise.all(selectedRowKeys.map((id) => messageApi.delete(id, currentUser.id)));
+      await batchExecute(selectedRowKeys, (id) => messageApi.delete(id, currentUser.id));
       message.success(`已删除 ${selectedRowKeys.length} 条消息`);
       setSelectedRowKeys([]);
       actionRef.current?.reload();

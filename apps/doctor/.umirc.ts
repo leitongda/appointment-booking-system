@@ -56,6 +56,7 @@ export default defineConfig({
     { path: '/dashboard', name: '工作台', icon: 'DashboardOutlined', component: '@/pages/dashboard' },
     { path: '/schedule', name: '我的排班', icon: 'CalendarOutlined', component: '@/pages/schedule' },
     { path: '/leave-request', name: '停诊调班', icon: 'ExceptionOutlined', component: '@/pages/leave-request' },
+    { path: '/attendance', name: '我的考勤', icon: 'ClockCircleOutlined', component: '@/pages/attendance/my-records' },
     { path: '/appointment', name: '预约管理', icon: 'UnorderedListOutlined', routes: [
       { path: '/appointment', redirect: '/appointment/today' },
       { path: '/appointment/today', name: '今日预约', component: '@/pages/appointment/today' },
