@@ -187,6 +187,11 @@ class PerformanceMonitor {
 
   /**
    * 发送到分析平台（通过 Tracker 上报自定义事件）
+   *
+   * 采样策略：仅上报异常请求，成功的快速请求按 10% 采样，避免高频上报占用服务器资源。
+   * - 失败 / 超时 / 重试过的请求：100% 上报
+   * - 慢请求（>3s）：100% 上报
+   * - 成功的快速请求：10% 采样
    */
   private sendToAnalytics(metric: PerformanceMetrics): void {
     try {
@@ -195,6 +200,10 @@ class PerformanceMonitor {
       // 动态获取 Tracker 实例（避免循环依赖）
       const tracker = window.__hospital_tracker__;
       if (!tracker?.trackEvent) return;
+
+      // 异常请求全部上报，成功的快速请求按 10% 采样
+      const isAbnormal = !metric.success || metric.isTimeout || metric.isRetried || metric.duration > 3000;
+      if (!isAbnormal && Math.random() > 0.1) return;
 
       tracker.trackEvent('api_performance', {
         url: metric.url,

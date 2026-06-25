@@ -501,35 +501,35 @@ interface RetryFailedEventData {
 
 function trackRetryEvent(data: RetryEventData): void {
   try {
-    if (typeof window !== 'undefined' && (window as any).analytics) {
-      (window as any).analytics.track('api_retry', {
-        url: data.url,
-        method: data.method,
-        retry_count: data.retryCount,
-        max_retries: data.maxRetries,
-        delay: data.delay,
-        error: data.error,
-        timestamp: Date.now(),
-      });
-    }
-  } catch (error) {
-    console.debug('Failed to track retry event:', error);
+    if (typeof window === 'undefined') return;
+    const tracker = window.__hospital_tracker__;
+    if (!tracker?.trackEvent) return;
+    tracker.trackEvent('api_retry', {
+      url: data.url,
+      method: data.method,
+      retry_count: data.retryCount,
+      max_retries: data.maxRetries,
+      delay: data.delay,
+      error: data.error,
+    });
+  } catch {
+    // 静默失败
   }
 }
 
 function trackRetryFailedEvent(data: RetryFailedEventData): void {
   try {
-    if (typeof window !== 'undefined' && (window as any).analytics) {
-      (window as any).analytics.track('api_retry_failed', {
-        url: data.url,
-        method: data.method,
-        retry_count: data.retryCount,
-        error: data.error,
-        timestamp: Date.now(),
-      });
-    }
-  } catch (error) {
-    console.debug('Failed to track retry failed event:', error);
+    if (typeof window === 'undefined') return;
+    const tracker = window.__hospital_tracker__;
+    if (!tracker?.trackEvent) return;
+    tracker.trackEvent('api_retry_failed', {
+      url: data.url,
+      method: data.method,
+      retry_count: data.retryCount,
+      error: data.error,
+    });
+  } catch {
+    // 静默失败
   }
 }
 

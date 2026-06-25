@@ -1,12 +1,17 @@
 /**
- * WebSocket 连接管理 Hook
- * 用于医生端实时接收患者签到、叫号等通知
+ * 医生端 WebSocket Hook
+ * 基于 @hospital/shared 的共享连接管理，添加医生端特有的消息处理和通知
  */
-import { useEffect, useRef, useCallback, useState } from 'react';
-import { getToken } from '@hospital/shared';
-import { message, notification } from 'antd';
+import { useMemo, useCallback } from 'react';
+import {
+  useWebSocketConnection,
+  createWebSocketUrlBuilder,
+  ConnectionStatus,
+} from '@hospital/shared';
+import type { WSMessage, UseWebSocketConnectionReturn } from '@hospital/shared';
+import { notification } from 'antd';
 
-// WebSocket 消息类型
+// 医生端消息类型
 export enum WSMessageType {
   CONNECTED = 'CONNECTED',
   HEARTBEAT = 'HEARTBEAT',
@@ -24,21 +29,9 @@ export enum WSMessageType {
   SYSTEM_MESSAGE = 'SYSTEM_MESSAGE',
 }
 
-// WebSocket 消息结构
-export interface WSMessage<T = any> {
-  type: WSMessageType | string;
-  data: T;
-  timestamp: string;
-}
-
-// 连接状态
-export enum ConnectionStatus {
-  CONNECTING = 'CONNECTING',
-  CONNECTED = 'CONNECTED',
-  DISCONNECTED = 'DISCONNECTED',
-  RECONNECTING = 'RECONNECTING',
-  ERROR = 'ERROR',
-}
+// 重新导出共享类型
+export { ConnectionStatus };
+export type { WSMessage };
 
 // Hook 配置
 interface UseWebSocketOptions {
@@ -55,24 +48,8 @@ interface UseWebSocketOptions {
   showNotifications?: boolean;
 }
 
-// 获取 WebSocket URL
-const getWebSocketUrl = (doctorId: string, token: string): string => {
-  // 优先使用环境变量配置的 WebSocket URL
-  // @ts-ignore
-  const wsUrl = process.env.WS_URL || process.env.WEBSOCKET_URL;
-  
-  if (wsUrl) {
-    return `${wsUrl}/api/v1/ws/doctor/${doctorId}?token=${encodeURIComponent(token)}`;
-  }
-  
-  // 自动从当前页面 URL 推断 WebSocket URL
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const host = window.location.host;
-  return `${protocol}//${host}/api/v1/ws/doctor/${doctorId}?token=${encodeURIComponent(token)}`;
-};
-
 /**
- * WebSocket 连接管理 Hook
+ * 医生端 WebSocket 连接管理 Hook
  */
 export const useWebSocket = (options: UseWebSocketOptions) => {
   const {
@@ -83,60 +60,22 @@ export const useWebSocket = (options: UseWebSocketOptions) => {
     onNewAppointment,
     onLeaveRequestReviewed,
     onSystemMessage,
-    autoReconnect = true,
-    reconnectInterval = 3000,
-    maxReconnectAttempts = 10,
     showNotifications = true,
+    ...connectionOptions
   } = options;
 
-  const [status, setStatus] = useState<ConnectionStatus>(ConnectionStatus.DISCONNECTED);
-  const wsRef = useRef<WebSocket | null>(null);
-  const reconnectAttemptsRef = useRef(0);
-  const reconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const heartbeatTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const isManualCloseRef = useRef(false);
+  // 构建 URL（仅在 doctorId 变化时重建）
+  const buildUrl = useMemo(
+    () => createWebSocketUrlBuilder(`/api/v1/ws/doctor/${doctorId}`),
+    [doctorId]
+  );
 
-  // 发送心跳
-  const sendHeartbeat = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: 'HEARTBEAT', timestamp: new Date().toISOString() }));
-    }
-  }, []);
-
-  // 启动心跳定时器
-  const startHeartbeat = useCallback(() => {
-    if (heartbeatTimerRef.current) {
-      clearInterval(heartbeatTimerRef.current);
-    }
-    heartbeatTimerRef.current = setInterval(sendHeartbeat, 25000); // 每 25 秒发送心跳
-  }, [sendHeartbeat]);
-
-  // 停止心跳定时器
-  const stopHeartbeat = useCallback(() => {
-    if (heartbeatTimerRef.current) {
-      clearInterval(heartbeatTimerRef.current);
-      heartbeatTimerRef.current = null;
-    }
-  }, []);
-
-  // 处理消息
-  const handleMessage = useCallback((event: MessageEvent) => {
-    try {
-      const msg: WSMessage = JSON.parse(event.data);
-      
-      // 调用通用消息回调
+  // 消息处理：分发到各业务回调 + 通知
+  const handleMessage = useCallback(
+    (msg: WSMessage) => {
       onMessage?.(msg);
 
-      // 根据消息类型处理
       switch (msg.type) {
-        case WSMessageType.CONNECTED:
-          console.log('WebSocket 连接成功');
-          break;
-
-        case WSMessageType.HEARTBEAT:
-          // 心跳响应，无需处理
-          break;
-
         case WSMessageType.PATIENT_SIGNED_IN:
           onPatientSignedIn?.(msg.data);
           if (showNotifications) {
@@ -198,138 +137,18 @@ export const useWebSocket = (options: UseWebSocketOptions) => {
         default:
           console.log('收到未知消息类型:', msg.type, msg.data);
       }
-    } catch (e) {
-      console.error('解析 WebSocket 消息失败:', e);
-    }
-  }, [onMessage, onPatientSignedIn, onQueueUpdated, onNewAppointment, onLeaveRequestReviewed, onSystemMessage, showNotifications]);
+    },
+    [onMessage, onPatientSignedIn, onQueueUpdated, onNewAppointment, onLeaveRequestReviewed, onSystemMessage, showNotifications]
+  );
 
-  // 连接 WebSocket
-  const connect = useCallback(() => {
-    if (!doctorId) {
-      console.warn('WebSocket: doctorId 为空，跳过连接');
-      return;
-    }
+  const connection = useWebSocketConnection({
+    buildUrl,
+    onMessage: handleMessage,
+    logPrefix: '[DoctorWS]',
+    ...connectionOptions,
+  });
 
-    const token = getToken();
-    if (!token) {
-      console.warn('WebSocket: token 为空，跳过连接');
-      return;
-    }
-
-    // 如果已经连接或正在连接，跳过
-    if (wsRef.current?.readyState === WebSocket.OPEN || 
-        wsRef.current?.readyState === WebSocket.CONNECTING) {
-      return;
-    }
-
-    setStatus(ConnectionStatus.CONNECTING);
-    isManualCloseRef.current = false;
-
-    const url = getWebSocketUrl(doctorId, token);
-    console.log('WebSocket 连接中...', url.replace(/token=.*/, 'token=***'));
-
-    try {
-      const ws = new WebSocket(url);
-
-      ws.onopen = () => {
-        console.log('WebSocket 已连接');
-        setStatus(ConnectionStatus.CONNECTED);
-        reconnectAttemptsRef.current = 0;
-        startHeartbeat();
-      };
-
-      ws.onmessage = handleMessage;
-
-      ws.onclose = (event) => {
-        console.log('WebSocket 已断开:', event.code, event.reason);
-        setStatus(ConnectionStatus.DISCONNECTED);
-        stopHeartbeat();
-
-        // 如果不是手动关闭且需要自动重连（指数退避 + 抖动）
-        if (!isManualCloseRef.current && autoReconnect) {
-          if (reconnectAttemptsRef.current < maxReconnectAttempts) {
-            reconnectAttemptsRef.current++;
-            const attempt = reconnectAttemptsRef.current;
-            const baseDelay = reconnectInterval * Math.pow(2, attempt - 1);
-            const cappedDelay = Math.min(baseDelay, 30000);
-            const jitter = cappedDelay * (0.5 + Math.random() * 0.5);
-            setStatus(ConnectionStatus.RECONNECTING);
-            console.log(`WebSocket 将在 ${Math.round(jitter)}ms 后尝试第 ${attempt} 次重连...`);
-
-            reconnectTimerRef.current = setTimeout(() => {
-              connect();
-            }, jitter);
-          } else {
-            console.error('WebSocket 重连次数已达上限');
-            setStatus(ConnectionStatus.ERROR);
-          }
-        }
-      };
-
-      ws.onerror = (error) => {
-        console.error('WebSocket 错误:', error);
-        setStatus(ConnectionStatus.ERROR);
-      };
-
-      wsRef.current = ws;
-    } catch (error) {
-      console.error('WebSocket 创建失败:', error);
-      setStatus(ConnectionStatus.ERROR);
-    }
-  }, [doctorId, handleMessage, autoReconnect, reconnectInterval, maxReconnectAttempts, startHeartbeat, stopHeartbeat]);
-
-  // 断开连接
-  const disconnect = useCallback(() => {
-    isManualCloseRef.current = true;
-    
-    if (reconnectTimerRef.current) {
-      clearTimeout(reconnectTimerRef.current);
-      reconnectTimerRef.current = null;
-    }
-    
-    stopHeartbeat();
-    
-    if (wsRef.current) {
-      wsRef.current.close();
-      wsRef.current = null;
-    }
-    
-    setStatus(ConnectionStatus.DISCONNECTED);
-    reconnectAttemptsRef.current = 0;
-  }, [stopHeartbeat]);
-
-  // 重新连接
-  const reconnect = useCallback(() => {
-    disconnect();
-    reconnectAttemptsRef.current = 0;
-    setTimeout(connect, 100);
-  }, [disconnect, connect]);
-
-  // 发送消息
-  const send = useCallback((data: any) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify(data));
-    } else {
-      console.warn('WebSocket 未连接，无法发送消息');
-    }
-  }, []);
-
-  // 组件挂载时连接
-  useEffect(() => {
-    connect();
-    return () => {
-      disconnect();
-    };
-  }, [doctorId]); // 当 doctorId 变化时重新连接
-
-  return {
-    status,
-    isConnected: status === ConnectionStatus.CONNECTED,
-    connect,
-    disconnect,
-    reconnect,
-    send,
-  };
+  return connection;
 };
 
 export default useWebSocket;

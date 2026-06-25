@@ -4,7 +4,7 @@
  * 提供统一的错误处理机制，确保所有错误都能得到正确的提示和处理
  */
 import { App } from 'antd';
-import { ApiError } from '@hospital/api';
+import { ApiError, handleStructuredErrorCode as handleStructuredErrorCodeShared } from '@hospital/api';
 
 /**
  * 错误级别
@@ -102,35 +102,12 @@ export class ErrorHandler {
       return;
     }
 
-    // Structured error codes: handle specific codes with appropriate UI
-    if (error.errorCode) {
-      switch (error.errorCode) {
-        case 'SCHEDULE_CONFLICT': {
-          const conflicts = error.errorDetails?.conflicts as Array<{ message?: string }> | undefined;
-          const conflictMessages = conflicts?.map(c => c.message).filter(Boolean);
-          notifApi?.warning({
-            message: '排班冲突',
-            description: conflictMessages?.length
-              ? conflictMessages.join('\n')
-              : error.message || '存在排班冲突',
-            duration: 6,
-          });
-          return;
-        }
-        case 'RATE_LIMITED': {
-          notifApi?.warning({
-            message: '请求过于频繁',
-            description: error.message || '请稍后再试',
-            duration: 4,
-          });
-          return;
-        }
-        case 'PERMISSION_DENIED': {
-          messageApi.error(error.message || '权限不足，请联系管理员');
-          return;
-        }
-        // Other codes fall through to generic handling below
-      }
+    // 结构化错误码处理（使用共享逻辑）
+    if (handleStructuredErrorCodeShared(error, {
+      showError: (msg: string) => messageApi.error(msg),
+      showWarning: (opts) => notifApi?.warning(opts),
+    })) {
+      return;
     }
 
     // 403 禁止访问

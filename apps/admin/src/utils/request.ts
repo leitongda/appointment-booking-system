@@ -1,107 +1,21 @@
 /**
  * API 请求配置
  * 配置 @hospital/api 包的请求和响应拦截器
- *
- * Structured error codes from the server are handled here:
- *   SCHEDULE_CONFLICT  → show conflict details in notification
- *   PERMISSION_DENIED  → redirect to unauthorized page
- *   RATE_LIMITED       → show rate-limit warning
- *   VALIDATION_ERROR   → show field-level errors
  */
-import { setRequestInterceptor, setResponseInterceptor, ApiError } from '@hospital/api';
+import {
+  setRequestInterceptor,
+  setResponseInterceptor,
+  ApiError,
+  ERROR_MESSAGES,
+  getRequestPath,
+  shouldAddToken,
+  handleStructuredErrorCode,
+  isRsaDecryptError,
+  handleNetworkError,
+} from '@hospital/api';
 import { getToken, getStorage, STORAGE_KEYS, handleTokenExpired, markAuthExpired, shouldSilenceAuthExpiredFeedback, parseTenantError, markTenantSuspended } from '@hospital/shared';
 import { message, Modal, notification } from 'antd';
 import type { InternalAxiosRequestConfig } from 'axios';
-
-/**
- * 错误消息映射
- * 根据错误码返回用户友好的提示信息
- */
-const ERROR_MESSAGES: Record<number, string> = {
-  400: '请求参数错误',
-  401: '登录已过期，请重新登录',
-  403: '没有权限访问该资源',
-  404: '请求的资源不存在',
-  405: '请求方法不被允许',
-  408: '请求超时，请稍后重试',
-  429: '请求过于频繁，请稍后重试',
-  500: '服务器错误，请稍后重试',
-  502: '网关错误，请稍后重试',
-  503: '服务暂时不可用，请稍后重试',
-  504: '网关超时，请稍后重试',
-};
-
-/**
- * Handle structured error codes from the server's ErrorResponse envelope.
- *
- * Returns `true` if the error was fully handled (caller should return), or
- * `false` if the caller should continue with generic error handling.
- */
-const handleStructuredErrorCode = (error: ApiError): boolean => {
-  const { errorCode, errorDetails, message: errorMessage } = error;
-
-  if (!errorCode) return false;
-
-  switch (errorCode) {
-    // ── Schedule conflict: show details in a notification ──
-    case 'SCHEDULE_CONFLICT': {
-      const conflicts = errorDetails?.conflicts as Array<{ message?: string }> | undefined;
-      const conflictMessages = conflicts?.map(c => c.message).filter(Boolean);
-      notification.warning({
-        message: '排班冲突',
-        description: conflictMessages?.length
-          ? conflictMessages.join('\n')
-          : errorMessage || '存在排班冲突，请调整后重试',
-        duration: 6,
-      });
-      return true;
-    }
-
-    // ── Permission denied: redirect to unauthorized ──
-    case 'PERMISSION_DENIED': {
-      message.error(errorMessage || '权限不足，请联系管理员');
-      // Optionally redirect: window.location.href = '/unauthorized';
-      return true;
-    }
-
-    // ── Rate limited: show warning ──
-    case 'RATE_LIMITED': {
-      notification.warning({
-        message: '请求过于频繁',
-        description: errorMessage || '请稍后再试',
-        duration: 4,
-      });
-      return true;
-    }
-
-    // ── Validation error: show field-level errors ──
-    case 'VALIDATION_ERROR': {
-      const fields = errorDetails?.fields as Array<{ field?: string; message?: string }> | undefined;
-      if (fields?.length) {
-        const fieldMsgs = fields.map(f => `${f.field}: ${f.message}`).join('\n');
-        notification.error({
-          message: '参数校验失败',
-          description: fieldMsgs,
-          duration: 6,
-        });
-      } else {
-        message.error(errorMessage || '请求参数错误');
-      }
-      return true;
-    }
-
-    // ── Tenant status errors ──
-    case 'TENANT_SUSPENDED':
-    case 'TENANT_OVERDUE': {
-      // Already handled by parseTenantError in the 403 branch; skip generic toast.
-      return true;
-    }
-
-    default:
-      // Not a recognized structured code — fall through to generic handling.
-      return false;
-  }
-};
 
 /**
  * 不需要自动添加 token 的接口路径
@@ -120,26 +34,13 @@ const EXCLUDE_TOKEN_PATHS = [
   '/doctors/login',
 ];
 
-const getRequestPath = (url: string): string => {
-  try {
-    return new URL(url, window.location.origin).pathname;
-  } catch {
-    return url.split('?')[0];
-  }
-};
-
 /**
- * 检查是否需要添加 token
- * 使用精确路径匹配，避免 /admin/login 错误匹配 /admin/login-history
+ * 结构化错误码处理的 UI 依赖
  */
-const shouldAddToken = (url: string): boolean => {
-  const requestPath = getRequestPath(url);
-  return !EXCLUDE_TOKEN_PATHS.some(path => {
-    // 精确匹配：路径完全相等，或者路径以 path/ 开头（带参数的情况）
-    // 例如：/admin/login 匹配 /admin/login 或 /admin/login?xxx
-    // 但不匹配 /admin/login-history
-    return requestPath === path || requestPath.startsWith(path + '/');
-  });
+const errorDeps = {
+  showError: (msg: string) => message.error(msg),
+  showWarning: (opts: { message: string; description?: string; duration?: number }) =>
+    notification.warning(opts),
 };
 
 /**
@@ -151,7 +52,7 @@ export const setupRequestInterceptor = () => {
   setRequestInterceptor(
     (config: InternalAxiosRequestConfig) => {
       // 登录相关接口不添加 token
-      if (config.url && shouldAddToken(config.url)) {
+      if (config.url && shouldAddToken(config.url, EXCLUDE_TOKEN_PATHS)) {
         const token = getToken();
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
@@ -159,7 +60,6 @@ export const setupRequestInterceptor = () => {
       }
 
       // 添加租户上下文 Header：从 localStorage 读取当前租户 ID
-      // 如果不存在，则不添加，后端可通过子域名/路径前缀等其他方式识别租户
       const currentTenantId = getStorage<string>(STORAGE_KEYS.CURRENT_TENANT_ID);
       if (currentTenantId) {
         config.headers['X-Tenant-ID'] = currentTenantId;
@@ -186,15 +86,15 @@ export const setupResponseInterceptor = () => {
       if (error instanceof ApiError) {
         const { code, message: errorMessage } = error;
 
-        // Structured error codes: handle specific codes before generic HTTP status handling
-        if (handleStructuredErrorCode(error)) {
+        // 结构化错误码处理
+        if (handleStructuredErrorCode(error, errorDeps)) {
           return Promise.reject(error);
         }
 
         // 401 未授权 - 弹框确认后跳转登录页
         if (error.isUnauthorized()) {
           const requestUrl = error.url || '';
-          const isProtectedRequest = !requestUrl || shouldAddToken(requestUrl);
+          const isProtectedRequest = !requestUrl || shouldAddToken(requestUrl, EXCLUDE_TOKEN_PATHS);
 
           if (!isProtectedRequest) {
             return Promise.reject(error);
@@ -223,7 +123,7 @@ export const setupResponseInterceptor = () => {
           });
           return Promise.reject(error);
         }
-        
+
         // 403 禁止访问
         if (error.isForbidden()) {
           const tenantReason = parseTenantError(error);
@@ -235,64 +135,55 @@ export const setupResponseInterceptor = () => {
           message.error(errorMessage || ERROR_MESSAGES[403]);
           return Promise.reject(error);
         }
-        
+
         // 404 未找到
         if (error.isNotFound()) {
           message.error(errorMessage || ERROR_MESSAGES[404]);
           return Promise.reject(error);
         }
-        
+
         // 服务器错误 (5xx)
         if (error.isServerError()) {
           message.error(ERROR_MESSAGES[code] || ERROR_MESSAGES[500]);
           return Promise.reject(error);
         }
-        
+
         // 密码解密错误（400状态码 + 解密失败消息）- 登录接口会自动重试，不显示错误
-        if (code === 400 && errorMessage && (
-          errorMessage.includes('解密失败') ||
-          errorMessage.includes('密码解密失败') ||
-          errorMessage.includes('RSA密钥不匹配') ||
-          errorMessage.includes('Base64解码失败') ||
-          errorMessage.includes('无法解码为UTF-8字符串')
-        )) {
-          // 如果是登录接口，静默处理，让登录函数自动重试
+        if (code === 400 && errorMessage && isRsaDecryptError(errorMessage)) {
           const requestUrl = error.url || '';
           if (requestUrl.includes('/admin/login') || requestUrl.includes('/admin/phone-login')) {
-            // 不显示错误消息，直接返回错误让登录函数处理重试
             return Promise.reject(error);
           }
         }
-        
+
         // 其他业务错误，显示后端返回的消息
         if (errorMessage) {
           message.error(errorMessage);
         }
-        
+
         return Promise.reject(error);
       }
-      
+
       // 处理原始 Axios 错误（带 response 的 HTTP 错误）
       const response = error?.response;
       if (response) {
         const { status, data } = response;
         const errorMsg = data?.detail || data?.message || ERROR_MESSAGES[status] || '请求失败';
-        // 获取请求 URL（可能是相对路径或完整路径）
         const requestUrl = error?.config?.url || error?.request?.responseURL || '';
-        // Extract structured error envelope
+        // 提取结构化错误信息
         const structuredError = data?.error;
         const errorCode = structuredError?.code || data?.error_code;
         const errorDetails = structuredError?.details;
 
-        // Structured error codes: handle specific codes before generic HTTP status handling
+        // 构建 ApiError 以复用结构化错误处理
         const apiError = new ApiError(status, errorMsg, data, requestUrl, errorCode, errorDetails);
-        if (handleStructuredErrorCode(apiError)) {
+        if (handleStructuredErrorCode(apiError, errorDeps)) {
           return Promise.reject(apiError);
         }
 
         // 401 未授权
         if (status === 401) {
-          const isProtectedRequest = !requestUrl || shouldAddToken(requestUrl);
+          const isProtectedRequest = !requestUrl || shouldAddToken(requestUrl, EXCLUDE_TOKEN_PATHS);
 
           if (!isProtectedRequest) {
             return Promise.reject(new ApiError(status, errorMsg, data, requestUrl, errorCode, errorDetails));
@@ -321,22 +212,13 @@ export const setupResponseInterceptor = () => {
           return Promise.reject(new ApiError(status, errorMsg, data, requestUrl, errorCode, errorDetails));
         }
 
-        // 密码解密错误（400状态码 + 解密失败消息）- 登录接口会自动重试，不显示错误
-        if (status === 400 && errorMsg && (
-          errorMsg.includes('解密失败') ||
-          errorMsg.includes('密码解密失败') ||
-          errorMsg.includes('RSA密钥不匹配') ||
-          errorMsg.includes('Base64解码失败') ||
-          errorMsg.includes('无法解码为UTF-8字符串')
-        )) {
-          // 如果是登录接口，静默处理，让登录函数自动重试
+        // 密码解密错误 - 登录接口自动重试
+        if (status === 400 && errorMsg && isRsaDecryptError(errorMsg)) {
           if (requestUrl.includes('/admin/login') || requestUrl.includes('/admin/phone-login')) {
-            // 不显示错误消息，直接返回错误让登录函数处理重试
             return Promise.reject(new ApiError(status, errorMsg, data, requestUrl, errorCode, errorDetails));
           }
         }
 
-        // 显示错误消息
         // 403 — 检查是否为租户暂停
         if (status === 403) {
           const tenantReason = parseTenantError(data);
@@ -349,18 +231,13 @@ export const setupResponseInterceptor = () => {
         message.error(errorMsg);
         return Promise.reject(new ApiError(status, errorMsg, data, requestUrl, errorCode, errorDetails));
       }
-      
+
       // 网络错误或其他错误
       if (error instanceof Error) {
-        // 网络错误
-        if (error.message === 'Network Error') {
-          message.error('网络连接失败，请检查网络设置');
-        } else if (error.message.includes('timeout')) {
-          message.error('请求超时，请稍后重试');
-        }
+        handleNetworkError(error, (msg) => message.error(msg));
         return Promise.reject(error);
       }
-      
+
       return Promise.reject(error);
     }
   );

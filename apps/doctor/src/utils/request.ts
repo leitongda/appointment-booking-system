@@ -2,28 +2,18 @@
  * API 请求配置 - 医生端
  * 配置 @hospital/api 包的请求和响应拦截器
  */
-import { setRequestInterceptor, setResponseInterceptor, ApiError } from '@hospital/api';
-import { getToken, handleTokenExpired, markAuthExpired, shouldSilenceAuthExpiredFeedback } from '@hospital/shared';
+import {
+  setRequestInterceptor,
+  setResponseInterceptor,
+  ApiError,
+  ERROR_MESSAGES,
+  shouldAddToken,
+  handleNetworkError,
+} from '@hospital/api';
+import { getToken, handleTokenExpired, markAuthExpired, shouldSilenceAuthExpiredFeedback, parseTenantError, markTenantSuspended } from '@hospital/shared';
 import { history } from 'umi';
 import { message, Modal } from 'antd';
 import type { InternalAxiosRequestConfig } from 'axios';
-
-/**
- * 错误消息映射
- */
-const ERROR_MESSAGES: Record<number, string> = {
-  400: '请求参数错误',
-  401: '登录已过期，请重新登录',
-  403: '没有权限访问该资源',
-  404: '请求的资源不存在',
-  405: '请求方法不被允许',
-  408: '请求超时，请稍后重试',
-  429: '请求过于频繁，请稍后重试',
-  500: '服务器错误，请稍后重试',
-  502: '网关错误，请稍后重试',
-  503: '服务暂时不可用，请稍后重试',
-  504: '网关超时，请稍后重试',
-};
 
 /**
  * 不需要自动添加 token 的接口路径
@@ -35,34 +25,12 @@ const EXCLUDE_TOKEN_PATHS = [
 ];
 
 /**
- * 从 URL 中提取 pathname，用于精确路径匹配
- */
-const getRequestPath = (url: string): string => {
-  try {
-    return new URL(url, window.location.origin).pathname;
-  } catch {
-    return url.split('?')[0];
-  }
-};
-
-/**
- * 检查是否需要添加 token
- * 使用精确路径匹配，避免 /auth/login 错误匹配 /auth/login-history
- */
-const shouldAddToken = (url: string): boolean => {
-  const requestPath = getRequestPath(url);
-  return !EXCLUDE_TOKEN_PATHS.some(path =>
-    requestPath === path || requestPath.startsWith(path + '/')
-  );
-};
-
-/**
  * 配置请求拦截器
  */
 export const setupRequestInterceptor = () => {
   setRequestInterceptor(
     (config: InternalAxiosRequestConfig) => {
-      if (config.url && shouldAddToken(config.url)) {
+      if (config.url && shouldAddToken(config.url, EXCLUDE_TOKEN_PATHS)) {
         const token = getToken();
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
@@ -80,7 +48,7 @@ export const setupRequestInterceptor = () => {
  * 处理 401 错误的通用逻辑
  */
 const handle401 = (errorMessage: string, requestUrl?: string) => {
-  const isProtectedRequest = !requestUrl || shouldAddToken(requestUrl);
+  const isProtectedRequest = !requestUrl || shouldAddToken(requestUrl, EXCLUDE_TOKEN_PATHS);
   if (!isProtectedRequest) {
     return;
   }
@@ -125,6 +93,13 @@ export const setupResponseInterceptor = () => {
         }
 
         if (error.isForbidden()) {
+          // 检查是否为租户暂停
+          const tenantReason = parseTenantError(error);
+          if (tenantReason) {
+            markTenantSuspended(tenantReason);
+            window.location.href = '/tenant-suspended';
+            return Promise.reject(error);
+          }
           message.error(errorMessage || ERROR_MESSAGES[403]);
           return Promise.reject(error);
         }
@@ -159,6 +134,13 @@ export const setupResponseInterceptor = () => {
         }
 
         if (status === 403) {
+          // 检查是否为租户暂停
+          const tenantReason = parseTenantError(data);
+          if (tenantReason) {
+            markTenantSuspended(tenantReason);
+            window.location.href = '/tenant-suspended';
+            return Promise.reject(new ApiError(status, errorMsg, data, requestUrl));
+          }
           message.error(errorMsg);
           return Promise.reject(new ApiError(status, errorMsg, data, requestUrl));
         }
@@ -179,11 +161,7 @@ export const setupResponseInterceptor = () => {
 
       // 网络错误
       if (error instanceof Error) {
-        if (error.message === 'Network Error') {
-          message.error('网络连接失败，请检查网络设置');
-        } else if (error.message.includes('timeout')) {
-          message.error('请求超时，请稍后重试');
-        }
+        handleNetworkError(error, (msg) => message.error(msg));
         return Promise.reject(error);
       }
 
