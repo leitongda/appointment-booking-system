@@ -111,13 +111,40 @@ PERMISSIONS = [
     {"code": "content:banner:create", "name": "新增轮播图", "type": "button", "parent_code": "content:banner", "sort": 1},
     {"code": "content:banner:update", "name": "编辑轮播图", "type": "button", "parent_code": "content:banner", "sort": 2},
     {"code": "content:banner:delete", "name": "删除轮播图", "type": "button", "parent_code": "content:banner", "sort": 3},
-    
+
+    # ========== 内容站点 CMS ==========
+    {"code": "cms", "name": "内容站点", "type": "menu", "parent_code": None, "icon": "global", "sort": 15},
+    {"code": "cms:site", "name": "站点管理", "type": "button", "parent_code": "cms", "sort": 1},
+    {"code": "cms:site:create", "name": "新增站点", "type": "button", "parent_code": "cms:site", "sort": 1},
+    {"code": "cms:site:update", "name": "编辑站点", "type": "button", "parent_code": "cms:site", "sort": 2},
+    {"code": "cms:site:delete", "name": "删除站点", "type": "button", "parent_code": "cms:site", "sort": 3},
+    {"code": "cms:category", "name": "栏目管理", "type": "button", "parent_code": "cms", "sort": 2},
+    {"code": "cms:category:create", "name": "新增栏目", "type": "button", "parent_code": "cms:category", "sort": 1},
+    {"code": "cms:category:update", "name": "编辑栏目", "type": "button", "parent_code": "cms:category", "sort": 2},
+    {"code": "cms:category:delete", "name": "删除栏目", "type": "button", "parent_code": "cms:category", "sort": 3},
+    {"code": "cms:article", "name": "文章管理", "type": "button", "parent_code": "cms", "sort": 3},
+    {"code": "cms:article:create", "name": "新增文章", "type": "button", "parent_code": "cms:article", "sort": 1},
+    {"code": "cms:article:update", "name": "编辑文章", "type": "button", "parent_code": "cms:article", "sort": 2},
+    {"code": "cms:article:delete", "name": "删除文章", "type": "button", "parent_code": "cms:article", "sort": 3},
+
     # ========== 统计分析 ==========
     {"code": "statistics", "name": "统计分析", "type": "menu", "parent_code": None, "icon": "barChart", "sort": 12},
     {"code": "statistics:view", "name": "查看统计分析", "type": "button", "parent_code": "statistics", "sort": 1},
-    
+
+    # ========== 页面搭建（低代码） ==========
+    {"code": "lowcode", "name": "页面搭建", "type": "menu", "parent_code": None, "icon": "appstore", "sort": 13},
+    {"code": "lowcode:page", "name": "页面管理", "type": "button", "parent_code": "lowcode", "sort": 1},
+    {"code": "lowcode:page:list", "name": "查看页面列表", "type": "button", "parent_code": "lowcode:page", "sort": 1},
+    {"code": "lowcode:page:create", "name": "新增页面", "type": "button", "parent_code": "lowcode:page", "sort": 2},
+    {"code": "lowcode:page:update", "name": "编辑页面", "type": "button", "parent_code": "lowcode:page", "sort": 3},
+    {"code": "lowcode:page:delete", "name": "删除页面", "type": "button", "parent_code": "lowcode:page", "sort": 4},
+    {"code": "lowcode:page:publish", "name": "发布页面", "type": "button", "parent_code": "lowcode:page", "sort": 5},
+    {"code": "lowcode:marketplace", "name": "模板市场", "type": "button", "parent_code": "lowcode", "sort": 2},
+    {"code": "lowcode:marketplace:view", "name": "查看模板市场", "type": "button", "parent_code": "lowcode:marketplace", "sort": 1},
+    {"code": "lowcode:marketplace:publish", "name": "发布模板", "type": "button", "parent_code": "lowcode:marketplace", "sort": 2},
+
     # ========== 系统设置 ==========
-    {"code": "system", "name": "系统设置", "type": "menu", "parent_code": None, "icon": "setting", "sort": 13},
+    {"code": "system", "name": "系统设置", "type": "menu", "parent_code": None, "icon": "setting", "sort": 14},
     {"code": "system:role", "name": "角色管理", "type": "button", "parent_code": "system", "sort": 1},
     {"code": "system:role:create", "name": "新增角色", "type": "button", "parent_code": "system:role", "sort": 1},
     {"code": "system:role:update", "name": "编辑角色", "type": "button", "parent_code": "system:role", "sort": 2},

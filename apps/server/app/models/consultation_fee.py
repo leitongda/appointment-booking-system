@@ -66,6 +66,13 @@ class DoctorConsultationFee(Base, AuditMixin):
     """医生诊费配置模型"""
     __tablename__ = "doctor_consultation_fees"
     
+    __table_args__ = (
+        UniqueConstraint(
+            'doctor_id', 'store_id', 'department_id', 'fee_type_id',
+            name='uq_doctor_consultation_fees_doctor_store_dept_type',
+        ),
+    )
+
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     doctor_id = Column(String(36), ForeignKey("doctors.id"), nullable=False, comment="医生ID")
     store_id = Column(String(36), ForeignKey("stores.id"), nullable=False, comment="门店ID")
@@ -73,6 +80,7 @@ class DoctorConsultationFee(Base, AuditMixin):
     fee_type_id = Column(String(36), ForeignKey("consultation_fee_types.id"), nullable=False, comment="诊费类型ID")
     initial_fee = Column(Numeric(10, 2), default=0, comment="初诊金额")
     follow_up_fee = Column(Numeric(10, 2), default=0, comment="复诊金额")
+    use_template = Column(Integer, default=1, comment="是否使用诊费模板: 0否 1是")
     status = Column(Integer, default=1, comment="状态: 0禁用 1启用")
     
     # 关联关系

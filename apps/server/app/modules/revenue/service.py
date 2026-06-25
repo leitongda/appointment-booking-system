@@ -1,7 +1,7 @@
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
@@ -60,17 +60,31 @@ class RevenueService:
             return Decimal("0")
 
         # 获取医生的诊费配置
-        doctor_fee_result = await self.db.execute(
+        # 注意：DoctorConsultationFee 的自然键为 (doctor_id, store_id, department_id, fee_type_id)，
+        # 表上没有唯一约束，同一 (doctor_id, store_id, fee_type_id) 可能存在多条（不同科室）记录。
+        # 因此必须按 schedule.store_id 收窄，并优先匹配 schedule/医生所属科室，使用 first() 容错。
+        store_id = schedule.store_id or doctor.store_id
+        department_id = doctor.department_id
+
+        doctor_fee_stmt = (
             select(DoctorConsultationFee)
             .where(
-                and_(
-                    DoctorConsultationFee.doctor_id == doctor.id,
-                    DoctorConsultationFee.fee_type_id == fee_type.id,
-                    DoctorConsultationFee.status == 1
-                )
+                DoctorConsultationFee.doctor_id == doctor.id,
+                DoctorConsultationFee.fee_type_id == fee_type.id,
+                DoctorConsultationFee.store_id == store_id,
+                DoctorConsultationFee.status == 1,
             )
+            # 优先返回所属科室的记录，避免在多科室场景下取错行
+            .order_by(
+                case(
+                    (DoctorConsultationFee.department_id == department_id, 0),
+                    else_=1,
+                ),
+                DoctorConsultationFee.created_at.desc(),
+            )
+            .limit(1)
         )
-        doctor_fee = doctor_fee_result.scalar_one_or_none()
+        doctor_fee = (await self.db.execute(doctor_fee_stmt)).scalar_one_or_none()
 
         if not doctor_fee:
             return Decimal("0")

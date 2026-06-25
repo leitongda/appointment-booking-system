@@ -164,6 +164,11 @@ class ScheduleMutationMixin:
                 schedule_id=schedule.id,
             )
 
+        # 如果排班直接以 published 状态创建，生成预期考勤记录
+        if schedule.schedule_status == ScheduleStatus.PUBLISHED:
+            from app.modules.attendance_records.service import AttendanceRecordService
+            await AttendanceRecordService.create_expected_records(self.db, schedule)
+
         return schedule
 
     async def batch_create(self, data: ScheduleBatchCreate, operator_id: str | None = None) -> int:
@@ -177,6 +182,7 @@ class ScheduleMutationMixin:
 
         store_id = doctor.store_id
         created_count = 0
+        created_schedules = []
         current_date = data.start_date
 
         while current_date <= data.end_date:
@@ -221,10 +227,17 @@ class ScheduleMutationMixin:
                         )
                         set_create_audit(schedule, operator_id)
                         self.db.add(schedule)
+                        created_schedules.append(schedule)
                         created_count += 1
             current_date = current_date.fromordinal(current_date.toordinal() + 1)
 
         await self.db.commit()
+
+        # 为批量创建的排班生成预期考勤记录
+        if created_schedules:
+            from app.modules.attendance_records.service import AttendanceRecordService
+            for schedule in created_schedules:
+                await AttendanceRecordService.create_expected_records(self.db, schedule)
 
         if created_count > 0:
             await self._send_schedule_notification_to_doctor(
@@ -430,6 +443,7 @@ class ScheduleMutationMixin:
 
                 copied = 0
                 failed = 0
+                copied_schedules = []
 
                 for src, target_date in to_create:
                     try:
@@ -472,6 +486,7 @@ class ScheduleMutationMixin:
                         )
                         self.db.add(audit_log)
 
+                        copied_schedules.append(new_schedule)
                         copied += 1
                     except Exception as e:
                         logger.warning(f"复制排班失败 (source_id={src.id}, target_date={target_date}): {e}")
@@ -479,6 +494,12 @@ class ScheduleMutationMixin:
 
                 if copied > 0 or overwritten > 0:
                     await self.db.commit()
+
+                    # 为复制的排班创建预期考勤记录
+                    if copied_schedules:
+                        from app.modules.attendance_records.service import AttendanceRecordService
+                        for schedule in copied_schedules:
+                            await AttendanceRecordService.create_expected_records(self.db, schedule)
 
         except RuntimeError:
             return ScheduleBatchCopyResult(
@@ -1343,6 +1364,11 @@ class ScheduleMutationMixin:
 
         await self.db.commit()
         await self.db.refresh(schedule)
+
+        # 创建预期考勤记录
+        from app.modules.attendance_records.service import AttendanceRecordService
+        await AttendanceRecordService.create_expected_records(self.db, schedule)
+
         return schedule
 
     async def batch_publish(
@@ -1419,6 +1445,12 @@ class ScheduleMutationMixin:
 
         if success_ids:
             await self.db.commit()
+
+            # 为已发布的排班创建预期考勤记录
+            from app.modules.attendance_records.service import AttendanceRecordService
+            for schedule in schedules:
+                if schedule.id in success_ids:
+                    await AttendanceRecordService.create_expected_records(self.db, schedule)
 
         return {
             "success_count": len(success_ids),

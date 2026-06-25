@@ -53,13 +53,20 @@ class ConsultationFeeDoctorMixin:
         return result.scalar_one_or_none()
 
     async def get_doctor_fee_unique(
-        self, doctor_id: str, store_id: str, fee_type_id: str
+        self,
+        doctor_id: str,
+        store_id: str,
+        department_id: str,
+        fee_type_id: str,
     ) -> DoctorConsultationFee | None:
+        # 自然键为 (doctor_id, store_id, department_id, fee_type_id)，已有唯一约束保证唯一。
         result = await self.db.execute(
-            select(DoctorConsultationFee).where(
+            select(DoctorConsultationFee)
+            .where(
                 and_(
                     DoctorConsultationFee.doctor_id == doctor_id,
                     DoctorConsultationFee.store_id == store_id,
+                    DoctorConsultationFee.department_id == department_id,
                     DoctorConsultationFee.fee_type_id == fee_type_id,
                 )
             )
@@ -73,6 +80,7 @@ class ConsultationFeeDoctorMixin:
             id=str(uuid.uuid4()),
             doctor_id=data.doctor_id,
             store_id=data.store_id,
+            department_id=data.department_id,
             fee_type_id=data.fee_type_id,
             initial_fee=data.initial_fee,
             follow_up_fee=data.follow_up_fee,
@@ -107,12 +115,14 @@ class ConsultationFeeDoctorMixin:
     ) -> list[DoctorConsultationFee]:
         result = []
         for item in data.fees:
-            existing = await self.get_doctor_fee_unique(data.doctor_id, data.store_id, item.fee_type_id)
+            existing = await self.get_doctor_fee_unique(
+                data.doctor_id, data.store_id, data.department_id, item.fee_type_id
+            )
             if existing:
                 existing.initial_fee = item.initial_fee
                 existing.follow_up_fee = item.follow_up_fee
-                existing.use_template = item.use_template
-                existing.status = item.status
+                # 手动填写的金额 → 不沿用模板
+                existing.use_template = 0
                 set_update_audit(existing, operator_id)
                 fee = existing
             else:
@@ -120,11 +130,12 @@ class ConsultationFeeDoctorMixin:
                     id=str(uuid.uuid4()),
                     doctor_id=data.doctor_id,
                     store_id=data.store_id,
+                    department_id=data.department_id,
                     fee_type_id=item.fee_type_id,
                     initial_fee=item.initial_fee,
                     follow_up_fee=item.follow_up_fee,
-                    use_template=item.use_template,
-                    status=item.status,
+                    use_template=0,
+                    status=1,
                 )
                 set_create_audit(fee, operator_id)
                 self.db.add(fee)

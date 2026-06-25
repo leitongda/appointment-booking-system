@@ -38,7 +38,7 @@ class ContactInfo(NamedTuple):
 
 
 async def _get_user_contact_info(db: AsyncSession, user_id: str) -> ContactInfo:
-    """获取用户联系方式 (phone, openid, email)，Account 表优先"""
+    """获取用户联系方式 (phone, openid, email)，Account 表优先，ContactChannel 兜底"""
     try:
         from app.models.account import Account, AccountUser
         result = await db.execute(
@@ -59,6 +59,43 @@ async def _get_user_contact_info(db: AsyncSession, user_id: str) -> ContactInfo:
     user_info = user_result.first()
     if user_info:
         return ContactInfo(phone=user_info[0], openid=user_info[1], email=user_info[2])
+
+    # fallback 到通讯录 ContactChannel
+    try:
+        from app.models.contact import Contact, ContactChannel
+        contact_result = await db.execute(
+            select(Contact.id).where(
+                Contact.account_id == user_id,
+                Contact.deleted_at.is_(None),
+            ).limit(1)
+        )
+        contact_row = contact_result.first()
+        if contact_row:
+            contact_id = contact_row[0]
+            channel_result = await db.execute(
+                select(ContactChannel.channel_type, ContactChannel.channel_value)
+                .where(
+                    ContactChannel.contact_id == contact_id,
+                    ContactChannel.channel_type.in_(["phone", "email", "wechat"]),
+                )
+                .order_by(ContactChannel.is_primary.desc())
+            )
+            channels = channel_result.all()
+            phone = None
+            email = None
+            openid = None
+            for ch_type, ch_value in channels:
+                if ch_type == "phone" and not phone:
+                    phone = ch_value
+                elif ch_type == "email" and not email:
+                    email = ch_value
+                elif ch_type == "wechat" and not openid:
+                    openid = ch_value
+            if phone or email or openid:
+                return ContactInfo(phone=phone, openid=openid, email=email)
+    except Exception:
+        pass
+
     return ContactInfo(None, None, None)
 
 

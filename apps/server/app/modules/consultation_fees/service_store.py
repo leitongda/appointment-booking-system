@@ -6,7 +6,7 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from app.models.consultation_fee import StoreFeeTemplate
+from app.models.consultation_fee import DoctorConsultationFee, StoreFeeTemplate
 from app.schemas.consultation_fee import StoreFeeTemplateBatchCreate
 from app.utils.audit import set_create_audit, set_update_audit
 
@@ -139,33 +139,45 @@ class ConsultationFeeStoreMixin:
         self,
         doctor_id: str,
         store_id: str,
-        fee_type_id: str,
+        department_id: str,
         operator_id: str | None = None,
-    ) -> bool:
-        effective = await self.get_effective_template(store_id, fee_type_id)
-        if not effective["template"]:
-            return False
+    ) -> list[DoctorConsultationFee]:
+        """一键带入模板：将该门店可用诊费类型的模板金额应用到医生诊费配置。
 
-        existing = await self.get_doctor_fee_unique(doctor_id, store_id, fee_type_id)
-        if existing:
-            existing.initial_fee = effective["initial_fee"]
-            existing.follow_up_fee = effective["follow_up_fee"]
-            set_update_audit(existing, operator_id)
-        else:
-            from app.models.consultation_fee import DoctorConsultationFee
+        对每个诊费类型，优先用门店模板，门店未配置则用全局模板，写入/更新
+        该医生在 (store_id, department_id) 下的诊费配置。返回被写入的配置列表。
+        """
+        # 取该门店可用的所有启用的诊费类型
+        fee_types = await self.get_store_available_fee_types(store_id, status=1)
 
-            fee = DoctorConsultationFee(
-                id=str(uuid.uuid4()),
-                doctor_id=doctor_id,
-                store_id=store_id,
-                fee_type_id=fee_type_id,
-                initial_fee=effective["initial_fee"],
-                follow_up_fee=effective["follow_up_fee"],
-                use_template=1,
-                status=1,
-            )
-            set_create_audit(fee, operator_id)
-            self.db.add(fee)
+        result: list[DoctorConsultationFee] = []
+        for ft in fee_types:
+            effective = await self.get_effective_template(store_id, ft.id)
+            if not effective["template"]:
+                continue
+
+            existing = await self.get_doctor_fee_unique(doctor_id, store_id, department_id, ft.id)
+            if existing:
+                existing.initial_fee = effective["initial_fee"]
+                existing.follow_up_fee = effective["follow_up_fee"]
+                existing.use_template = 1
+                set_update_audit(existing, operator_id)
+                result.append(existing)
+            else:
+                fee = DoctorConsultationFee(
+                    id=str(uuid.uuid4()),
+                    doctor_id=doctor_id,
+                    store_id=store_id,
+                    department_id=department_id,
+                    fee_type_id=ft.id,
+                    initial_fee=effective["initial_fee"],
+                    follow_up_fee=effective["follow_up_fee"],
+                    use_template=1,
+                    status=1,
+                )
+                set_create_audit(fee, operator_id)
+                self.db.add(fee)
+                result.append(fee)
 
         await self.db.commit()
-        return True
+        return result

@@ -10,6 +10,68 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime
 
 
+class TestGuideTourRouter:
+    """用户端指引路由测试。"""
+
+    @pytest.fixture
+    def account(self):
+        from app.common.auth_types import AccountInfo, RoleType
+
+        return AccountInfo(id="admin-1", role_type=RoleType.ADMIN)
+
+    @pytest.mark.asyncio
+    async def test_get_active_tours_uses_account_info_id(self, account):
+        """获取已发布指引时支持统一认证返回的 AccountInfo。"""
+        from app.modules.guide_tours.router import get_active_tours
+
+        db = AsyncMock()
+        items = [{"id": "tour-1"}]
+        with patch("app.modules.guide_tours.router.GuideTourService") as service_cls:
+            service = service_cls.return_value
+            service.get_active_tours = AsyncMock(return_value=items)
+
+            response = await get_active_tours(db=db, current_admin=account)
+
+        service.get_active_tours.assert_awaited_once_with(admin_id="admin-1")
+        assert response.data == items
+
+    @pytest.mark.asyncio
+    async def test_get_progress_uses_account_info_id(self, account):
+        """获取指引进度时支持统一认证返回的 AccountInfo。"""
+        from app.modules.guide_tours.router import get_progress
+
+        db = AsyncMock()
+        progress = MagicMock(current_step=2, status=1)
+        with patch("app.modules.guide_tours.router.GuideTourService") as service_cls:
+            service = service_cls.return_value
+            service.get_progress = AsyncMock(return_value=progress)
+
+            response = await get_progress("tour-1", db=db, current_admin=account)
+
+        service.get_progress.assert_awaited_once_with(tour_id="tour-1", admin_id="admin-1")
+        assert response.data == {"currentStep": 2, "status": 1}
+
+    @pytest.mark.asyncio
+    async def test_update_progress_uses_account_info_id(self, account):
+        """更新指引进度时支持统一认证返回的 AccountInfo。"""
+        from app.modules.guide_tours.router import update_progress
+        from app.modules.guide_tours.schemas import ProgressUpdate
+
+        db = AsyncMock()
+        data = ProgressUpdate(currentStep=3, status=1)
+        progress = MagicMock(current_step=3, status=1)
+        with patch("app.modules.guide_tours.router.GuideTourService") as service_cls:
+            service = service_cls.return_value
+            service.update_progress = AsyncMock(return_value=progress)
+
+            response = await update_progress("tour-1", data=data, db=db, current_admin=account)
+
+        service.update_progress.assert_awaited_once_with(
+            tour_id="tour-1", admin_id="admin-1", data=data
+        )
+        assert response.data == {"currentStep": 3, "status": 1}
+
+
 class TestGuideTourService:
     """用户端指引服务测试。"""
 

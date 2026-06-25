@@ -6,14 +6,30 @@ import { setToken, STORAGE_KEYS, setStorage, getStorage, removeStorage, removeTo
 import { adminApi } from '@hospital/api';
 import defaultSettings from '@config/defaultSettings';
 import { APP_TITLE } from '@config/appConfig';
+import access from '@/access';
+import { getDefaultRoute, isSafeReturnPath } from '@/utils/getDefaultRoute';
 import {
   AccountLogin, UserOutlined,
   PhoneLogin, MobileOutlined,
-  WechatLogin, WechatOutlined
+  WechatLogin, WechatOutlined,
+  IntegrationLogin,
+  IntegrationBindPhoneModal,
+  type BindPhoneInfo,
 } from './components';
 import styles from './index.less';
 
-type LoginType = 'wechat' | 'phone' | 'account';
+type LoginType = 'wechat' | 'phone' | 'account' | 'dingtalk' | 'wecom' | 'feishu';
+
+// 第三方集成登录平台元信息
+const INTEGRATION_TABS: Array<{
+  key: 'dingtalk' | 'wecom' | 'feishu';
+  label: string;
+  icon: React.ReactNode;
+}> = [
+  { key: 'dingtalk', label: '钉钉', icon: <MedicineBoxOutlined /> },
+  { key: 'wecom', label: '企业微信', icon: <MedicineBoxOutlined /> },
+  { key: 'feishu', label: '飞书', icon: <MedicineBoxOutlined /> },
+];
 
 const Login: React.FC = () => {
   const { message } = App.useApp();
@@ -26,6 +42,11 @@ const Login: React.FC = () => {
 
   // 延迟启用动画，避免初始化时的切换效果
   const [enableAnimation, setEnableAnimation] = useState(false);
+
+  // 第三方登录绑定手机号弹窗
+  const [bindPhoneOpen, setBindPhoneOpen] = useState(false);
+  const [bindPhoneInfo, setBindPhoneInfo] = useState<BindPhoneInfo | null>(null);
+  const [bindPhoneLabel, setBindPhoneLabel] = useState('');
 
   // 组件挂载后启用动画
   useEffect(() => {
@@ -100,12 +121,25 @@ const Login: React.FC = () => {
     const lastPath = getStorage<string>(STORAGE_KEYS.LAST_PATH);
     // 清除存储的路径（只使用一次）
     removeStorage(STORAGE_KEYS.LAST_PATH);
-    
+
+    // 计算当前用户的 access 对象，用于决定安全的落地路由
+    const accessMap = access({ currentUser: currentUser as any });
+
+    // 默认落地路由：基于当前用户权限选出第一个可访问的叶子路由。
+    // 避免硬编码 /dashboard —— 若用户无 dashboard 权限会陷入
+    // 「/dashboard 无权限 → onUnAccessible 跳回 /dashboard」的死循环。
+    const defaultPath = getDefaultRoute(accessMap);
+
+    // lastPath 仅在用户对该路径有明确权限时才回跳，否则用默认路由。
+    // 防止回跳到「上次因无权限被踢出的页面」或 redirect 跳板，避免死循环。
+    const safeLastPath = lastPath && lastPath !== '/' && isSafeReturnPath(accessMap, lastPath)
+      ? lastPath
+      : defaultPath;
+
     // 使用 history.push 进行路由跳转，不会触发整页刷新
     // 使用 setTimeout 确保状态更新完成后再跳转
-    const targetPath = lastPath && lastPath !== '/' ? lastPath : '/dashboard';
     setTimeout(() => {
-      history.push(targetPath);
+      history.push(safeLastPath);
     }, 0);
   }, [message, setInitialState]);
 
@@ -140,6 +174,28 @@ const Login: React.FC = () => {
       ),
       children: <AccountLogin onSuccess={handleLoginSuccess} />,
     },
+    ...INTEGRATION_TABS.map((tab) => ({
+      key: tab.key,
+      label: (
+        <span>
+          {tab.icon}
+          {tab.label}登录
+        </span>
+      ),
+      children: (
+        <IntegrationLogin
+          provider={tab.key}
+          label={tab.label}
+          icon={tab.icon}
+          onSuccess={handleLoginSuccess}
+          onNeedBindPhone={(info) => {
+            setBindPhoneInfo(info);
+            setBindPhoneLabel(tab.label);
+            setBindPhoneOpen(true);
+          }}
+        />
+      ),
+    })),
   ];
 
   return (
@@ -167,14 +223,24 @@ const Login: React.FC = () => {
         </div>
       </div>
       <div className={styles.footer}>
-        <a 
-          href="https://beian.miit.gov.cn/" 
-          target="_blank" 
+        <a
+          href="https://beian.miit.gov.cn/"
+          target="_blank"
           rel="noopener noreferrer"
         >
           蜀ICP备2022022726号-2
         </a>
       </div>
+      <IntegrationBindPhoneModal
+        open={bindPhoneOpen}
+        info={bindPhoneInfo}
+        label={bindPhoneLabel}
+        onSuccess={(result) => {
+          setBindPhoneOpen(false);
+          handleLoginSuccess(result);
+        }}
+        onCancel={() => setBindPhoneOpen(false)}
+      />
     </div>
   );
 };

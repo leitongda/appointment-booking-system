@@ -127,7 +127,7 @@ async def create_news(
         store_id = current_admin.get("current_store_id") or current_admin.get("store_id")
 
     service = NewsService(db)
-    news = await service.create(data.model_dump(), store_id=store_id)
+    news = await service.create(data.model_dump(), store_id=store_id, operator_id=current_admin.get("id"))
     return NewsResponse.model_validate(news)
 
 
@@ -140,7 +140,7 @@ async def update_news(
     _: None = Depends(require_permission("content:news:update")),
 ):
     service = NewsService(db)
-    news = await service.update(news_id, data.model_dump())
+    news = await service.update(news_id, data.model_dump(), operator_id=current_admin.get("id"))
     if not news:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="新闻不存在，请检查后重试")
     return NewsResponse.model_validate(news)
@@ -304,7 +304,7 @@ async def create_notice(
         store_id = current_admin.get("current_store_id") or current_admin.get("store_id")
 
     service = NoticeService(db)
-    notice = await service.create(data.model_dump(), store_id=store_id)
+    notice = await service.create(data.model_dump(), store_id=store_id, operator_id=current_admin.get("id"))
     return NoticeResponse.model_validate(notice)
 
 
@@ -317,7 +317,7 @@ async def update_notice(
     _: None = Depends(require_permission("content:notice:update")),
 ):
     service = NoticeService(db)
-    notice = await service.update(notice_id, data.model_dump())
+    notice = await service.update(notice_id, data.model_dump(), operator_id=current_admin.get("id"))
     if not notice:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="公告不存在，请检查后重试")
     return NoticeResponse.model_validate(notice)
@@ -477,7 +477,7 @@ async def create_banner(
         store_id = current_admin.get("current_store_id") or current_admin.get("store_id")
 
     service = BannerService(db)
-    banner = await service.create(data.model_dump(), store_id=store_id)
+    banner = await service.create(data.model_dump(), store_id=store_id, operator_id=current_admin.get("id"))
     return BannerResponse.model_validate(banner)
 
 
@@ -490,7 +490,7 @@ async def update_banner(
     _: None = Depends(require_permission("content:banner:update")),
 ):
     service = BannerService(db)
-    banner = await service.update(banner_id, data.model_dump())
+    banner = await service.update(banner_id, data.model_dump(), operator_id=current_admin.get("id"))
     if not banner:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="轮播图不存在，请检查后重试")
     return BannerResponse.model_validate(banner)

@@ -3,7 +3,7 @@ import json
 import uuid
 from datetime import datetime
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.content import Banner, News, Notice
@@ -201,11 +201,11 @@ class NewsService:
         return True
 
     async def increment_view(self, news_id: str) -> None:
-        """增加浏览量"""
-        news = await self.get_by_id(news_id)
-        if news:
-            news.view_count = (news.view_count or 0) + 1
-            await self.db.commit()
+        """增加浏览量（原子递增，避免并发竞态）"""
+        await self.db.execute(
+            update(News).where(News.id == news_id).values(view_count=News.view_count + 1)
+        )
+        await self.db.commit()
 
     async def batch_delete(self, ids: list[str]) -> int:
         """批量软删除新闻，返回实际删除数量"""
@@ -390,11 +390,11 @@ class NoticeService:
         return True
 
     async def increment_view(self, notice_id: str) -> None:
-        """增加浏览量"""
-        notice = await self.get_by_id(notice_id)
-        if notice:
-            notice.view_count = (notice.view_count or 0) + 1
-            await self.db.commit()
+        """增加浏览量（原子递增，避免并发竞态）"""
+        await self.db.execute(
+            update(Notice).where(Notice.id == notice_id).values(view_count=Notice.view_count + 1)
+        )
+        await self.db.commit()
 
     async def batch_delete(self, ids: list[str]) -> int:
         """批量软删除公告，返回实际删除数量"""

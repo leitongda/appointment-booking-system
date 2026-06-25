@@ -1,6 +1,7 @@
 """Admin authentication and profile router - 聚合路由"""
 from fastapi import APIRouter
 
+from .router_auth_integration import router as integration_router
 from .router_auth_login import router as login_router
 from .router_auth_password import router as password_router
 from .router_auth_token import router as token_router
@@ -11,3 +12,4 @@ router = APIRouter()
 router.include_router(login_router, tags=["登录"])
 router.include_router(token_router, tags=["Token管理"])
 router.include_router(password_router, tags=["密码管理"])
+router.include_router(integration_router, tags=["第三方登录"])
