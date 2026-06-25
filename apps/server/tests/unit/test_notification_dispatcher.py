@@ -467,12 +467,15 @@ class TestNotificationDispatcherPreferenceFilter:
     @pytest.mark.asyncio
     async def test_filter_by_preference_message_type_disabled(self, mock_db, sample_event):
         """测试偏好过滤：消息类型被禁用"""
-        # 模拟 SQLAlchemy Row 对象，appointment_enabled=False
+        # 模拟 get_user_preferences 返回的行（列顺序需与该函数的 SELECT 一致）
         mock_row = (
             True,   # sms_enabled
             True,   # email_enabled
             True,   # wechat_enabled
             True,   # in_app_enabled
+            True,   # dingtalk_enabled
+            True,   # wecom_enabled
+            True,   # feishu_enabled
             False,  # appointment_enabled (禁用)
             True,   # reminder_enabled
             True,   # stop_clinic_enabled
@@ -520,12 +523,15 @@ class TestNotificationDispatcherQuietHours:
     @pytest.mark.asyncio
     async def test_filter_by_quiet_hours(self, mock_db, sample_event):
         """测试免打扰时段过滤：仅保留 in_app"""
-        # 模拟 SQLAlchemy Row 对象，设置免打扰时段
+        # 模拟 get_user_preferences 返回的行（列顺序需与该函数的 SELECT 一致）
         mock_row = (
             True,    # sms_enabled
             True,    # email_enabled
             True,    # wechat_enabled
             True,    # in_app_enabled
+            True,    # dingtalk_enabled
+            True,    # wecom_enabled
+            True,    # feishu_enabled
             True,    # appointment_enabled
             True,    # reminder_enabled
             True,    # stop_clinic_enabled
