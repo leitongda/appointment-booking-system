@@ -52,6 +52,10 @@ const NotificationSettingsPage: React.FC = () => {
       const data = await notificationPreferenceApi.get();
       form.setFieldsValue({
         appointmentEnabled: data.appointmentEnabled,
+        reminderEnabled: data.reminderEnabled,
+        queueCallEnabled: data.queueCallEnabled,
+        stopClinicEnabled: data.stopClinicEnabled,
+        wechatEnabled: data.wechatEnabled,
         systemEnabled: data.systemEnabled,
         smsEnabled: data.smsEnabled,
         inAppEnabled: data.inAppEnabled,
@@ -80,6 +84,10 @@ const NotificationSettingsPage: React.FC = () => {
 
       const updates: Partial<NotificationPreference> = {
         appointmentEnabled: values.appointmentEnabled,
+        reminderEnabled: values.reminderEnabled,
+        queueCallEnabled: values.queueCallEnabled,
+        stopClinicEnabled: values.stopClinicEnabled,
+        wechatEnabled: values.wechatEnabled,
         systemEnabled: values.systemEnabled,
         smsEnabled: values.smsEnabled,
         inAppEnabled: values.inAppEnabled,
@@ -141,6 +149,82 @@ const NotificationSettingsPage: React.FC = () => {
             </Form.Item>
             <Text type="secondary" style={{ fontSize: 14 }}>
               接收新预约、预约变更等通知
+            </Text>
+
+            <Divider style={{ margin: '16px 0' }} />
+
+            <Form.Item
+              name="reminderEnabled"
+              label="预约提醒"
+              valuePropName="checked"
+            >
+              <Switch
+                checkedChildren="开启"
+                unCheckedChildren="关闭"
+                onChange={(checked) =>
+                  form.setFieldValue('reminderEnabled', checked)
+                }
+              />
+            </Form.Item>
+            <Text type="secondary" style={{ fontSize: 14 }}>
+              接收就诊前提醒通知
+            </Text>
+
+            <Divider style={{ margin: '16px 0' }} />
+
+            <Form.Item
+              name="queueCallEnabled"
+              label="排队叫号"
+              valuePropName="checked"
+            >
+              <Switch
+                checkedChildren="开启"
+                unCheckedChildren="关闭"
+                onChange={(checked) =>
+                  form.setFieldValue('queueCallEnabled', checked)
+                }
+              />
+            </Form.Item>
+            <Text type="secondary" style={{ fontSize: 14 }}>
+              接收排队叫号通知
+            </Text>
+
+            <Divider style={{ margin: '16px 0' }} />
+
+            <Form.Item
+              name="stopClinicEnabled"
+              label="停诊通知"
+              valuePropName="checked"
+            >
+              <Switch
+                checkedChildren="开启"
+                unCheckedChildren="关闭"
+                onChange={(checked) =>
+                  form.setFieldValue('stopClinicEnabled', checked)
+                }
+              />
+            </Form.Item>
+            <Text type="secondary" style={{ fontSize: 14 }}>
+              接收停诊、复诊等通知
+            </Text>
+
+            <Divider style={{ margin: '16px 0' }} />
+
+            <Form.Item
+              name="wechatEnabled"
+              label="微信通知"
+              valuePropName="checked"
+            >
+              <Switch
+                checkedChildren="开启"
+                unCheckedChildren="关闭"
+                onChange={(checked) =>
+                  form.setFieldValue('wechatEnabled', checked)
+                }
+              />
+            </Form.Item>
+            <Text type="secondary" style={{ fontSize: 14 }}>
+              通过微信接收通知
             </Text>
 
             <Divider style={{ margin: '16px 0' }} />

@@ -1,10 +1,11 @@
-from app.schemas.response import to_camel
-
 """Shared admin DTOs."""
 
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
+
+from app.schemas.base import BaseSchema
+from app.schemas.response import to_camel
 
 
 class PermissionResponse(BaseModel):
@@ -292,3 +293,55 @@ class LoginHistoryResponse(BaseModel):
 
     class Config:
         populate_by_name = True
+
+
+# ==================== 账号使用统计 schemas ====================
+
+
+class AccountStatsSummary(BaseSchema):
+    """账号统计概览"""
+
+    total_logins: int = Field(..., description="总登录次数")
+    active_accounts: int = Field(..., description="活跃账号数")
+    avg_duration_minutes: float = Field(..., description="平均使用时长(分钟)")
+    total_duration_hours: float = Field(..., description="总使用时长(小时)")
+
+
+class DeviceDistribution(BaseSchema):
+    """设备/浏览器分布"""
+
+    device_type: str
+    count: int
+    percentage: float
+
+
+class HourlyDistribution(BaseSchema):
+    """时段分布"""
+
+    hour: int
+    count: int
+
+
+class AccountStatsDetail(BaseSchema):
+    """单账号统计明细"""
+
+    admin_id: str
+    username: str
+    name: str | None = None
+    role_name: str | None = None
+    login_count: int
+    total_duration_seconds: int | None = None
+    last_login_at: str | None = None
+    last_login_ip: str | None = None
+    primary_device: str | None = None
+    primary_browser: str | None = None
+
+
+class AccountStatsResponse(BaseSchema):
+    """账号统计完整响应"""
+
+    summary: AccountStatsSummary
+    device_distribution: list[DeviceDistribution]
+    browser_distribution: list[DeviceDistribution]
+    hourly_distribution: list[HourlyDistribution]
+    daily_trend: list[dict]

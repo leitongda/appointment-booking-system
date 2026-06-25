@@ -27,6 +27,10 @@ class NotificationPreference(Base):
     email_enabled = Column(Boolean, default=True, comment="邮件通知")
     wechat_enabled = Column(Boolean, default=True, comment="微信推送")
     in_app_enabled = Column(Boolean, default=True, comment="站内消息")
+    # 第三方集成平台（钉钉/企业微信/飞书）
+    dingtalk_enabled = Column(Boolean, default=True, comment="钉钉推送")
+    wecom_enabled = Column(Boolean, default=True, comment="企业微信推送")
+    feishu_enabled = Column(Boolean, default=True, comment="飞书推送")
     quiet_hours_start = Column(String(5), nullable=True, comment="免打扰开始时间 HH:MM")
     quiet_hours_end = Column(String(5), nullable=True, comment="免打扰结束时间 HH:MM")
     created_at = Column(DateTime, default=datetime.utcnow, comment="创建时间")

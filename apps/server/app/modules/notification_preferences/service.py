@@ -2,22 +2,17 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.constants.notification import CHANNEL_FIELD_MAP as _CHANNEL_FIELD_MAP
+from app.constants.notification import TYPE_FIELD_MAP as _TYPE_FIELD_MAP_SHARED
 from app.models.notification_preference import NotificationPreference
 from app.schemas.notification_preference import NotificationPreferenceUpdate
 
+# 本模块的类型映射：与共享常量大部分一致，但保留差异键以维持现有行为
 _TYPE_FIELD_MAP = {
-    "appointment": "appointment_enabled",
-    "reminder": "reminder_enabled",
-    "queue_call": "queue_call_enabled",
-    "stop_clinic": "stop_clinic_enabled",
-    "system": "system_enabled",
-}
-
-_CHANNEL_FIELD_MAP = {
-    "sms": "sms_enabled",
-    "email": "email_enabled",
-    "wechat": "wechat_enabled",
-    "in_app": "in_app_enabled",
+    **_TYPE_FIELD_MAP_SHARED,
+    # 以下键覆盖或补充共享映射
+    "reminder": "reminder_enabled",        # 本模块特有别名
+    "queue_call": "queue_call_enabled",    # 共享映射为 appointment_enabled，本模块使用 queue_call_enabled
 }
 
 
