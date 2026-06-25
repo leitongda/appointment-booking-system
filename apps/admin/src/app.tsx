@@ -20,6 +20,8 @@ import { handleCrossTabEvent } from '@/utils/crossTab';
 import { initVisibilityAuthCheck } from '@/utils/visibilityAuth';
 import { initApp } from '@/utils/initApp';
 import { applySpacingCSSVariables, getSpacingMode } from '@/utils/spacing';
+import { getDefaultRoute } from '@/utils/getDefaultRoute';
+import access from '@/access';
 import { LOGIN_PATH } from '@/constants/paths';
 
 // PWA Service Worker 注册
@@ -236,7 +238,19 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }: a
     },
     unAccessible: <div />,
     onUnAccessible: () => {
-      history.replace('/dashboard');
+      const { pathname } = history.location;
+      // 基于当前用户权限选出第一个可访问的叶子路由作为兜底。
+      // 避免硬编码 /dashboard —— 若用户无 dashboard 权限，再跳 /dashboard 会
+      // 再次触发 onUnAccessible，形成死循环。
+      const defaultPath = getDefaultRoute(access(initialState));
+
+      // 若默认路由与当前路径相同（说明连默认路由都无权限，或当前已是默认路由），
+      // 再 replace 会陷入死循环 —— 跳到 404（layout:false，不触发 access 检查）终止跳转。
+      if (pathname === defaultPath) {
+        history.replace('/404');
+        return;
+      }
+      history.replace(defaultPath);
     },
     menuHeaderRender: undefined,
     menuProps: {
@@ -263,5 +277,3 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }: a
   };
 };
 /* eslint-enable react-hooks/rules-of-hooks */
-
-export { umiRequestConfig as request } from '@/utils/requestInterceptors';

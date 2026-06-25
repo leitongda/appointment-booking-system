@@ -75,6 +75,21 @@ class Settings(BaseSettings):
     WECHAT_APP_SECRET: str | None = None
     # 微信回调 Token（用于验证回调签名，与微信后台配置一致）
     WECHAT_CALLBACK_TOKEN: str | None = None
+
+    # 第三方集成默认凭证（钉钉/企业微信/飞书）
+    # 注：租户级凭证存于 integrations 表，此处为全局默认值/自部署兜底。
+    # 敏感 Secret 仅放环境变量，DB 以 env: 引用。
+    # 钉钉
+    DINGTALK_APP_KEY: str | None = None
+    DINGTALK_APP_SECRET: str | None = None
+    DINGTALK_AGENT_ID: str | None = None
+    # 企业微信
+    WECOM_CORP_ID: str | None = None
+    WECOM_APP_SECRET: str | None = None
+    WECOM_AGENT_ID: str | None = None
+    # 飞书
+    FEISHU_APP_ID: str | None = None
+    FEISHU_APP_SECRET: str | None = None
     
     # 预约提醒配置
     APPOINTMENT_REMINDER_HOURS: int = 24  # 提前多少小时发送提醒
@@ -186,6 +201,13 @@ class Settings(BaseSettings):
 
     # 新用户默认密码（管理员代创建用户时使用）
     DEFAULT_USER_PASSWORD: str = "Hosp!t@l#2024$xQ"
+
+    # 登录历史保留天数（超过此天数的记录将被定时清理）
+    LOGIN_HISTORY_RETENTION_DAYS: int = 180
+
+    # 考勤数据保留天数
+    ATTENDANCE_RECORD_RETENTION_DAYS: int = 365   # 打卡记录保留天数
+    ATTENDANCE_STAT_RETENTION_DAYS: int = 730     # 每日统计保留天数
     
     model_config = SettingsConfigDict(
         env_file=_get_env_file(),

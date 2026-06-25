@@ -83,6 +83,7 @@ class RedisCache:
     PREFIX_CACHE = "cache:"                # 通用缓存
     PREFIX_LOCK = "lock:"                  # 分布式锁
     PREFIX_RULE_PERF = "rule_engine:"      # 规则引擎性能监控
+    PREFIX_INTEGRATION_TOKEN = "integration:token:"  # 第三方平台 access_token
     
     @staticmethod
     async def set(key: str, value: Any, expire: int = None) -> bool:
@@ -170,6 +171,16 @@ class RedisCache:
         except Exception as e:
             logger.error(f"Redis INCR 失败: {key}, 错误: {e}")
             return 0
+
+    @staticmethod
+    async def expire(key: str, ttl: int) -> bool:
+        """设置键的过期时间（秒）"""
+        try:
+            client = await get_redis()
+            return await client.expire(key, ttl)
+        except Exception as e:
+            logger.error(f"Redis EXPIRE 失败: {key}, 错误: {e}")
+            return False
 
     @staticmethod
     async def zadd(key: str, mapping: dict, expire: int = None) -> int:
@@ -530,7 +541,44 @@ class RedisCache:
         """
         key = cls._build_wechat_token_key(app_id, tenant_id)
         return await cls.get(key)
-    
+
+    # ==================== 第三方集成 Token 缓存 ====================
+
+    @staticmethod
+    def _build_integration_token_key(provider: str, app_id: str, tenant_id: str | None = None) -> str:
+        """构建第三方平台 access_token 的 Redis 键（多租户隔离）
+
+        格式: integration:token:{tenant_id}:{provider}:{app_id}
+        """
+        effective_tenant_id = tenant_id or get_current_tenant_id()
+        if effective_tenant_id:
+            return f"{RedisCache.PREFIX_INTEGRATION_TOKEN}{effective_tenant_id}:{provider}:{app_id}"
+        return f"{RedisCache.PREFIX_INTEGRATION_TOKEN}{provider}:{app_id}"
+
+    @classmethod
+    async def set_integration_token(
+        cls,
+        provider: str,
+        app_id: str,
+        token: str,
+        expire: int = 7000,
+        tenant_id: str | None = None,
+    ) -> bool:
+        """缓存第三方平台 access_token（钉钉/企业微信/飞书）"""
+        key = cls._build_integration_token_key(provider, app_id, tenant_id)
+        return await cls.set(key, token, expire)
+
+    @classmethod
+    async def get_integration_token(
+        cls,
+        provider: str,
+        app_id: str,
+        tenant_id: str | None = None,
+    ) -> str | None:
+        """获取第三方平台 access_token"""
+        key = cls._build_integration_token_key(provider, app_id, tenant_id)
+        return await cls.get(key)
+
     # ==================== 扫码登录相关 ====================
     
     @classmethod

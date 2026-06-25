@@ -47,6 +47,15 @@ ROUTER_REGISTRATIONS = [
     RouterRegistration("app.modules.store_visit_type_configs.router", "/visit-type-configs", ["复诊规则配置"]),
 
     # --------------------------------------------------------------- #
+    #  考勤管理 — 长期保留
+    # --------------------------------------------------------------- #
+    RouterRegistration("app.modules.attendance_shifts.router", "/attendance/shifts", ["考勤-班次管理"]),
+    RouterRegistration("app.modules.attendance_groups.router", "/attendance/groups", ["考勤-签到组"]),
+    RouterRegistration("app.modules.attendance_rules.router", "/attendance/rules", ["考勤-规则"]),
+    RouterRegistration("app.modules.attendance_records.router", "/attendance/records", ["考勤-打卡记录"]),
+    RouterRegistration("app.modules.attendance_leave.router", "/attendance/leave", ["考勤-假期管理"]),
+
+    # --------------------------------------------------------------- #
     #  患者相关 — 长期保留
     # --------------------------------------------------------------- #
     RouterRegistration("app.modules.medical_records.router", "/medical-records", ["病历"]),
@@ -70,9 +79,25 @@ ROUTER_REGISTRATIONS = [
     RouterRegistration("app.modules.platform_announcements.router", "/platform-announcements", ["平台公告"]),
 
     # --------------------------------------------------------------- #
+    #  内容站点 CMS — 长期保留
+    # --------------------------------------------------------------- #
+    RouterRegistration("app.modules.cms.router_sites", "/cms/sites", ["CMS-站点管理"]),
+    RouterRegistration("app.modules.cms.router_categories", "/cms/categories", ["CMS-栏目管理"]),
+    RouterRegistration("app.modules.cms.router_articles", "/cms/articles", ["CMS-文章管理"]),
+
+    # --------------------------------------------------------------- #
+    #  通讯录 — 长期保留
+    # --------------------------------------------------------------- #
+    RouterRegistration("app.modules.contacts.router", "/contacts", ["通讯录"]),
+    RouterRegistration("app.modules.contacts.router_groups", "/contact-groups", ["联系人分组"]),
+    RouterRegistration("app.modules.contacts.router_tags", "/contact-tags", ["联系人标签"]),
+    RouterRegistration("app.modules.contacts.router_channels", "/channel-accounts", ["渠道账号"]),
+
+    # --------------------------------------------------------------- #
     #  数据与统计 — 长期保留
     # --------------------------------------------------------------- #
     RouterRegistration("app.modules.analytics.router", "/analytics", ["用户行为分析"]),
+    RouterRegistration("app.modules.session_events.router", "/session-events", ["会话回放/热力图"]),
     RouterRegistration("app.modules.audit_logs.router", "/audit-logs", ["审计日志"]),
     RouterRegistration("app.modules.export.router", "/export", ["数据导出"]),
     RouterRegistration("app.modules.import_export.router", "/data", ["数据导入导出"]),
@@ -111,6 +136,8 @@ ROUTER_REGISTRATIONS = [
     RouterRegistration("app.modules.feedbacks.router", "/feedbacks", ["用户反馈"]),
     RouterRegistration("app.modules.guide_tours.router", "/guide-tours", ["操作指引"]),
     RouterRegistration("app.modules.guide_tours.router_admin", "/admin/guide-tours", ["操作指引管理"]),
+    RouterRegistration("app.modules.integration.router", "/integration", ["第三方集成"]),
+    RouterRegistration("app.modules.integration_gateway.router", "/integration-gateway", ["第三方回调"]),
 
     # --------------------------------------------------------------- #
     #  低代码 / 小程序平台 — 长期保留

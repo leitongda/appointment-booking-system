@@ -59,10 +59,13 @@ celery_app.conf.update(
         "app.tasks.email_hook_task.*": {"queue": "notification"},
         "app.tasks.wechat_task.*": {"queue": "default"},
         "app.tasks.cleanup_task.*": {"queue": "scheduled"},
+        "app.tasks.cleanup_login_history.*": {"queue": "scheduled"},
         "app.tasks.unified_message_cleanup_task.*": {"queue": "scheduled"},
         "app.tasks.unified_message_retry_task.*": {"queue": "notification"},
         "app.tasks.operation_log_task.*": {"queue": "default"},
         "app.tasks.behavior_log_task.*": {"queue": "default"},
+        "app.tasks.session_event_task.*": {"queue": "scheduled"},
+        "app.tasks.screenshot_task.*": {"queue": "scheduled"},
         "app.tasks.payment_task.*": {"queue": "scheduled"},
         "app.tasks.payment_reconciliation.*": {"queue": "scheduled"},
         "app.tasks.refund_sync.*": {"queue": "scheduled"},
@@ -74,6 +77,9 @@ celery_app.conf.update(
         "app.tasks.follow_up_task.mark_overdue_task": {"queue": "scheduled"},
         "app.tasks.follow_up_task.send_follow_up_reminders": {"queue": "notification"},
         "app.tasks.lowcode_deploy_task.*": {"queue": "default"},
+        "app.tasks.attendance_stat_task.*": {"queue": "scheduled"},
+        "app.tasks.attendance_alert_task.*": {"queue": "scheduled"},
+        "app.tasks.attendance_cleanup_task.*": {"queue": "scheduled"},
     },
     
     # Beat 调度器配置（定时任务）
@@ -124,6 +130,13 @@ celery_app.conf.update(
         "data-cleanup": {
             "task": "app.tasks.cleanup_task.cleanup_expired_data_task",
             "schedule": crontab(hour=3, minute=0),  # 每天凌晨3:00
+            "options": {"queue": "scheduled"},
+        },
+
+        # 登录历史清理 - 每天凌晨3:15（与数据清理错开）
+        "login-history-cleanup": {
+            "task": "cleanup_login_history",
+            "schedule": crontab(hour=3, minute=15),  # 每天凌晨3:15
             "options": {"queue": "scheduled"},
         },
 
@@ -225,6 +238,20 @@ celery_app.conf.update(
             "options": {"queue": "scheduled"},
         },
 
+        # 会话回放批次段过期清理 - 每天凌晨 3:25（与行为日志清理错开 5 分钟）
+        "session-events-cleanup": {
+            "task": "app.tasks.session_event_task.cleanup_session_events",
+            "schedule": crontab(hour=3, minute=25),
+            "options": {"queue": "scheduled"},
+        },
+
+        # 热力图点位过期清理 - 每天凌晨 3:30
+        "heatmap-points-cleanup": {
+            "task": "app.tasks.session_event_task.cleanup_heatmap_points",
+            "schedule": crontab(hour=3, minute=30),
+            "options": {"queue": "scheduled"},
+        },
+
         # 随访逾期标记 - 每天凌晨 4:30
         "follow-up-mark-overdue": {
             "task": "app.tasks.follow_up_task.mark_overdue_task",
@@ -245,6 +272,56 @@ celery_app.conf.update(
             "schedule": crontab(hour=17, minute=0),
             "options": {"queue": "scheduled"},
         },
+
+        # 定期 admin 网页截图 - 每天凌晨 2:15
+        # （与 2:00 的 schedule-auto-generate / tenant-check-subscription-expiry 错开）
+        "admin-periodic-screenshot": {
+            "task": "app.tasks.screenshot_task.capture_admin_screenshots",
+            "schedule": crontab(hour=2, minute=15),
+            "options": {"queue": "scheduled"},
+        },
+
+        # 平台公告定时发布 - 每分钟检查
+        "announcement-publish-scheduled": {
+            "task": "app.tasks.announcement_task.publish_scheduled_announcements",
+            "schedule": crontab(minute="*/1"),
+            "options": {"queue": "scheduled"},
+        },
+
+        # 统一通知系统重试 - 每5分钟
+        "unified-notification-retry": {
+            "task": "app.tasks.unified_notification_retry_task.retry_failed_deliveries",
+            "schedule": crontab(minute="*/5"),
+            "options": {"queue": "notification"},
+        },
+
+        # 考勤每日统计 - 每天凌晨 1:30（与租户用量统计错开 30 分钟）
+        "attendance-daily-stat": {
+            "task": "attendance_daily_stat",
+            "schedule": crontab(hour=1, minute=30),
+            "options": {"queue": "scheduled"},
+        },
+
+        # 考勤异常告警 - 每天早上 8:30（在 daily-stat 1:30 之后执行，确保统计数据已生成）
+        "attendance-alert": {
+            "task": "attendance_alert",
+            "schedule": crontab(hour=8, minute=30),
+            "options": {"queue": "scheduled"},
+        },
+
+        # 考勤数据归档清理 - 每周日凌晨 4:00（与 daily-stat 1:30 和日常清理 3:15 错开）
+        "attendance-cleanup": {
+            "task": "app.tasks.attendance_cleanup_task.attendance_cleanup",
+            "schedule": crontab(hour=4, minute=0, day_of_week=0),  # 每周日凌晨 4:00
+            "options": {"queue": "scheduled"},
+        },
+
+        # 第三方集成组织架构同步 - 每6小时（钉钉/企业微信/飞书通讯录）
+        "integration-org-sync": {
+            "task": "app.tasks.integration_sync_task.sync_all_tenants_task",
+            "schedule": crontab(minute=0, hour="*/6"),  # 每6小时整点
+            "options": {"queue": "scheduled"},
+        },
     },
 )
 
@@ -259,8 +336,11 @@ celery_app.autodiscover_tasks([
     "app.tasks.email_hook_task",
     "app.tasks.wechat_task",
     "app.tasks.cleanup_task",
+    "app.tasks.cleanup_login_history",
     "app.tasks.operation_log_task",
     "app.tasks.behavior_log_task",
+    "app.tasks.session_event_task",
+    "app.tasks.screenshot_task",
     "app.tasks.tenant_usage_task",
     "app.tasks.payment_task",
     "app.tasks.payment_reconciliation",
@@ -271,6 +351,11 @@ celery_app.autodiscover_tasks([
     "app.tasks.follow_up_task",
     "app.tasks.freelance_task",
     "app.tasks.lowcode_deploy_task",
+    "app.tasks.announcement_task",
+    "app.tasks.unified_notification_retry_task",
+    "app.tasks.attendance_stat_task",
+    "app.tasks.attendance_alert_task",
+    "app.tasks.attendance_cleanup_task",
 ])
 
 # Flower 监控配置

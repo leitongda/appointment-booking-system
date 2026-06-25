@@ -3,7 +3,7 @@
  *
  * 子菜单：
  *   - 角色权限（canRoleManagement）
- *   - 系统配置（canSystemConfig，含 hospital-info / wechat / email-config / image-config / email-templates / email-recipients）
+ *   - 系统配置（canSystemConfig，含 hospital-info / wechat / email-config / image-config / email-templates / email-recipients / integrations）
  *   - 黑名单管理（canBlacklistSettings）
  *   - 系统监控（canSystemMonitoring，含 log / notification-logs / notification-quota / checkin-audit-logs / online-users）
  *   - 数据管理（canSystemMonitoring，含 import-export / backup）
@@ -56,6 +56,7 @@ const system = [
             ],
           },
           { path: '/system/config/email-recipients', name: '邮件接收人', icon: 'contacts', component: './system/email-recipients', access: 'canEmailRecipients' },
+          { path: '/system/config/integrations', name: '第三方集成', icon: 'api', component: './system/integrations', access: 'canIntegrationSettings' },
         ],
       },
       {
@@ -77,6 +78,7 @@ const system = [
           { path: '/system/monitoring/notification-quota', name: '通知配额', icon: 'alert', component: './system/notification-quota', access: 'canSystemLogs' },
           { path: '/system/monitoring/checkin-audit-logs', name: '签到审计', icon: 'audit', component: './system/checkin-audit-logs', access: 'canCheckinAuditLogs' },
           { path: '/system/monitoring/online-users', name: '在线用户', icon: 'team', component: './system/online-users', access: 'canOnlineUsers' },
+          { path: '/system/monitoring/account-stats', name: '账号统计', icon: 'barChart', component: './system/account-stats', access: 'canAccountStats' },
         ],
       },
       {

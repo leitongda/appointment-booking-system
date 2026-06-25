@@ -22,8 +22,13 @@ import medicalServices from './medical-services';
 import finance from './finance';
 import organization from './organization';
 import operations from './operations';
+import cms from './cms';
+import contacts from './contacts';
+import attendance from './attendance';
 import approval from './approval';
 import system from './system';
+import sessionReplay from './session-replay';
+import heatmap from './heatmap';
 import redirects from './redirects';
 import account from './account';
 import fallbacks from './fallbacks';
@@ -38,9 +43,14 @@ const routes = [
   ...medicalServices,
   ...finance,
   ...organization,
+  ...contacts,
+  ...attendance,
   ...operations,
+  ...cms,
   ...approval,
   ...system,
+  ...sessionReplay,
+  ...heatmap,
   ...redirects,
   ...account,
   ...fallbacks, // 必须放最后：'/' 与 '*'

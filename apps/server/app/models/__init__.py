@@ -1,5 +1,16 @@
 # Models module
 from app.models.account import Account, AccountAdmin, AccountDoctor, AccountUser
+from app.models.attendance import (
+    AttendanceGroup,
+    AttendanceGroupMember,
+    AttendanceLeaveBalance,
+    AttendanceLeaveRequest,
+    AttendanceLeaveType,
+    AttendanceRecord,
+    AttendanceRule,
+    AttendanceShift,
+    AttendanceStatDaily,
+)
 from app.models.admin import Admin, AdminLoginHistory, OperationLog, Role
 from app.models.appointment import Appointment
 from app.models.appointment_satisfaction import AppointmentSatisfaction
@@ -19,6 +30,16 @@ from app.models.consultation_fee import (
     DoctorConsultationFee,
     StoreFeeTemplate,
 )
+from app.models.contact import (
+    ChannelAccount,
+    Contact,
+    ContactChannel,
+    ContactGroup,
+    ContactTag,
+    contact_group_members,
+    contact_tag_members,
+)
+from app.models.cms import CmsArticle, CmsCategory, CmsSite
 from app.models.content import Banner, News, Notice
 from app.models.content_version import ContentVersion
 from app.models.data_scope import DataScope
@@ -43,6 +64,7 @@ from app.models.freelance import (
     FreelanceSettlementItem,
     FreelanceTask,
 )
+from app.models.integration import Integration, IntegrationBinding
 from app.models.leave_request import LeaveRequest
 from app.models.lowcode_page import LowCodePage
 from app.models.lowcode_page_version import LowCodePageVersion
@@ -86,6 +108,7 @@ from app.models.schedule_holiday import ScheduleHoliday
 from app.models.schedule_room import ScheduleRoom
 from app.models.schedule_suspension import ScheduleSuspension
 from app.models.schedule_template import ScheduleTemplate
+from app.models.session_event import HeatmapPoint, SessionEvent
 from app.models.settings import SystemSetting
 from app.models.shift_type import ShiftType
 from app.models.store import Store

@@ -389,6 +389,18 @@ def _build_openapi_tags():
             "description": "新闻公告、轮播图等内容管理",
         },
         {
+            "name": "CMS-站点管理",
+            "description": "多站点 CMS：站点、栏目、文章管理",
+        },
+        {
+            "name": "CMS-栏目管理",
+            "description": "CMS 栏目（树形）管理",
+        },
+        {
+            "name": "CMS-文章管理",
+            "description": "CMS 文章管理（草稿/发布/下线、版本历史）",
+        },
+        {
             "name": "消息中心",
             "description": "站内消息发送、模板管理、已读状态",
         },

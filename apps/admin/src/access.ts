@@ -79,6 +79,23 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
     'content:notice:create',
     'content:banner:create',
   ]);
+  // 内容站点 CMS
+  const canCmsSite = hasModuleAccess('cms:site', [
+    'cms:site:create',
+    'cms:site:update',
+    'cms:site:delete',
+  ]);
+  const canCmsCategory = hasModuleAccess('cms:category', [
+    'cms:category:create',
+    'cms:category:update',
+    'cms:category:delete',
+  ]);
+  const canCmsArticle = hasModuleAccess('cms:article', [
+    'cms:article:create',
+    'cms:article:update',
+    'cms:article:delete',
+  ]);
+  const canCms = hasPermission('cms') || canCmsSite || canCmsCategory || canCmsArticle;
   const canRoleManagement =
     isSuperAdmin &&
     hasAnyPermission([
@@ -98,6 +115,7 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
   const canSystemLogs = isSuperAdmin || hasPermission('system:log');
   const canCheckinAuditLogs = canSystemLogs;
   const canOnlineUsers = canSystemLogs;
+  const canAccountStats = canSystemLogs;
   const canAnalytics = isSuperAdmin || hasAnyPermission(['statistics', 'statistics:view', 'system:log']);
   const canBookingRules = hasPermission('system:settings');
   const canBlacklistSettings = hasAnyPermission(['blacklist:list', 'blacklist:create', 'blacklist:delete']);
@@ -111,6 +129,8 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
   const canSecuritySettings = hasPermission('settings:edit');
   const canSourceReleaseSettings = hasPermission('settings:edit');
   const canWechatSettings = isSuperAdmin || hasAnyPermission(['settings:wechat', 'settings:edit']);
+  const canIntegrationSettings =
+    isSuperAdmin || hasAnyPermission(['settings:integration', 'settings:edit']);
   const canShiftTypes = isSuperAdmin || hasPermission('system:settings');
   const canRuleSets = isSuperAdmin;
   const canConsultationFee = isSuperAdmin || hasPermission('system:consultation-fee');
@@ -148,6 +168,15 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
   ]);
   const canTenantUsage = canTenant;
   const canFreelance = hasModuleAccess('freelance', ['freelance:list', 'freelance:create', 'freelance:update', 'freelance:delete', 'freelance:settle']);
+  const canAttendance = isSuperAdmin || hasPermission('attendance');
+  const canAttendanceShifts = isSuperAdmin || hasPermission('attendance:shift');
+  const canAttendanceGroups = isSuperAdmin || hasPermission('attendance:group');
+  const canAttendanceRules = isSuperAdmin || hasPermission('attendance:rule');
+  const canAttendanceRecords = isSuperAdmin || hasPermission('attendance:record');
+  const canAttendanceLeave = isSuperAdmin || hasPermission('attendance:leave');
+  const canApproval = hasModuleAccess('approval-flow', ['approval-flow:list', 'approval-flow:create', 'approval-flow:update', 'approval-flow:manage', 'approval-flow:delete']);
+  const canContacts = hasModuleAccess('contact', ['contact:view', 'contact:create', 'contact:edit', 'contact:delete']);
+  const canApprovalFlowManage = hasAnyPermission(['approval-flow:create', 'approval-flow:update', 'approval-flow:manage', 'approval-flow:delete']);
 
   const canMedicalConfig =
     canShiftTypes ||
@@ -194,7 +223,8 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
     canBlacklistSettings ||
     canSystemLogs ||
     canCheckinAuditLogs ||
-    canOnlineUsers;
+    canOnlineUsers ||
+    canIntegrationSettings;
   const canSystemMonitoring =
     canSystemLogs ||
     canCheckinAuditLogs ||
@@ -237,6 +267,10 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
     canFeedback,
     canMessage,
     canContent,
+    canCms,
+    canCmsSite,
+    canCmsCategory,
+    canCmsArticle,
     canSystem: canOrganizationManagement || canSystemManagement,
     canManageRoles: canRoleManagement,
     canManageUsers: canUserManagement,
@@ -245,6 +279,7 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
     canSystemLogs,
     canCheckinAuditLogs,
     canOnlineUsers,
+    canAccountStats,
     canAnalytics,
     canBookingRules,
     canBlacklistSettings,
@@ -258,6 +293,7 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
     canSecuritySettings,
     canSourceReleaseSettings,
     canWechatSettings,
+    canIntegrationSettings,
     canShiftTypes,
     canRuleSets,
     canConsultationFee,
@@ -270,5 +306,14 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
     canFreelance,
     canLowcode,
     canLowcodeMarketplace,
+    canAttendance,
+    canAttendanceShifts,
+    canAttendanceGroups,
+    canAttendanceRules,
+    canAttendanceRecords,
+    canAttendanceLeave,
+    canApproval,
+    canApprovalFlowManage,
+    canContacts,
   };
 }
