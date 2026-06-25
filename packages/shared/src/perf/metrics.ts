@@ -3,6 +3,8 @@
  * 使用 PerformanceObserver API 采集 Core Web Vitals
  */
 
+import { reportMetric } from './reporter';
+
 /**
  * 性能指标类型
  */
@@ -228,14 +230,17 @@ class MetricsCollector {
 
   /**
    * 观察 INP
+   * 仅在最大值变化时记录指标，避免每次交互都上报
+   * durationThreshold=40 过滤掉 <40ms 的快速交互，减少回调频率
    */
   private observeINP(): void {
     let inpValue = 0;
-    let entries: any[] = [];
+    let recordedValue = 0;
+    let interactionCount = 0;
 
     const observer = new PerformanceObserver((list) => {
       for (const entry of list.getEntries() as any[]) {
-        entries.push(entry);
+        interactionCount++;
 
         // 计算所有交互的延迟
         const interactionDelay = entry.processingStart - entry.startTime;
@@ -244,22 +249,25 @@ class MetricsCollector {
         }
       }
 
-      // 记录当前最大 INP
-      if (inpValue > 0) {
+      // 仅在最大值变化时记录（避免每次交互都上报）
+      if (inpValue > 0 && inpValue > recordedValue) {
+        recordedValue = inpValue;
         this.recordMetric({
           type: 'INP',
           value: inpValue,
           rating: getRating('INP', inpValue),
           timestamp: Date.now(),
           metadata: {
-            interactionCount: entries.length,
+            interactionCount,
           },
         });
       }
     });
 
     try {
-      observer.observe({ type: 'event', buffered: true } as any);
+      // durationThreshold=40: 浏览器仅在交互延迟 >= 40ms 时才通知 observer，
+      // 过滤掉大量快速交互，减少回调频率和处理开销
+      observer.observe({ type: 'event', buffered: true, durationThreshold: 40 } as any);
       this.observers.push(observer);
     } catch (e) {
       console.debug('[Perf] Failed to observe INP:', e);
@@ -299,7 +307,7 @@ class MetricsCollector {
   }
 
   /**
-   * 记录指标
+   * 记录指标（同时推送到 Reporter 上报队列）
    */
   private recordMetric(metric: PerformanceMetric): void {
     this.metrics.push(metric);
@@ -307,6 +315,13 @@ class MetricsCollector {
     // 限制存储数量
     if (this.metrics.length > 100) {
       this.metrics.shift();
+    }
+
+    // 桥接：将指标推送到 PerformanceReporter 上报队列
+    try {
+      reportMetric(metric);
+    } catch {
+      // Reporter 未初始化时静默失败
     }
   }
 

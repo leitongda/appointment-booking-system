@@ -77,7 +77,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [folder, generateThumbnails, onChange, onThumbnailsChange, message, onUpload, getUploadApi]);
+  }, [folder, onChange, onThumbnailsChange, message, onUpload]);
 
   // 处理文件选择（开始剪裁或直接上传）
   const handleFileSelect = useCallback((file: File) => {
@@ -138,13 +138,10 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
 
     setUrlTransferring(true);
     try {
-      let result: { url: string };
-      if (onTransferUrl) {
-        result = await onTransferUrl(urlInput.trim(), folder);
-      } else {
-        const api = await getUploadApi();
-        result = await api.transfer(urlInput.trim(), folder);
+      if (!onTransferUrl) {
+        throw new Error('请提供 onTransferUrl 属性');
       }
+      const result = await onTransferUrl(urlInput.trim(), folder);
       onChange?.(result.url);
       setUrlInputVisible(false);
       setUrlInput('');
@@ -154,7 +151,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
     } finally {
       setUrlTransferring(false);
     }
-  }, [urlInput, folder, onChange, message, onTransferUrl, getUploadApi]);
+  }, [urlInput, folder, onChange, message, onTransferUrl]);
 
   // 删除图片
   const handleDelete = useCallback(() => {

@@ -169,6 +169,44 @@ export interface WechatCheckResult {
   admin?: Admin;
 }
 
+// ========== 第三方集成扫码登录（钉钉/企业微信/飞书） ==========
+export type IntegrationLoginProvider = 'dingtalk' | 'wecom' | 'feishu';
+
+export interface IntegrationQrcodeResult {
+  provider: IntegrationLoginProvider;
+  qrcodeUrl: string;
+  state: string;
+  expireSeconds: number;
+}
+
+export interface IntegrationLoginResult {
+  isNewUser?: boolean;
+  needBindPhone?: boolean;
+  provider: IntegrationLoginProvider;
+  externalId?: string;
+  unionId?: string;
+  name?: string;
+  accessToken?: string;
+  refreshToken?: string;
+  expiresIn?: number;
+  admin?: Admin;
+}
+
+export interface IntegrationBindPhoneParams {
+  provider: IntegrationLoginProvider;
+  externalId: string;
+  unionId?: string;
+  name?: string;
+  phone: string;
+}
+
+export interface IntegrationBindingItem {
+  id: string;
+  provider: IntegrationLoginProvider;
+  external_id: string;
+  name?: string;
+}
+
 // ========== 操作日志 ==========
 export interface OperationLog {
   id: string;
@@ -252,6 +290,54 @@ export interface LoginHistoryResult {
   total: number;
   page: number;
   pageSize: number;
+}
+
+// ========== 账号统计 ==========
+export interface AccountStatsSummary {
+  totalLogins: number;
+  activeAccounts: number;
+  avgDurationMinutes: number;
+  totalDurationHours: number;
+}
+
+export interface DeviceDistribution {
+  deviceType: string;
+  count: number;
+  percentage: number;
+}
+
+export interface HourlyDistribution {
+  hour: number;
+  count: number;
+}
+
+export interface AccountStatsDetail {
+  adminId: string;
+  username: string;
+  name?: string;
+  roleName?: string;
+  loginCount: number;
+  totalDurationSeconds?: number;
+  lastLoginAt?: string;
+  lastLoginIp?: string;
+  primaryDevice?: string;
+  primaryBrowser?: string;
+}
+
+export interface AccountStatsResponse {
+  summary: AccountStatsSummary;
+  deviceDistribution: DeviceDistribution[];
+  browserDistribution: DeviceDistribution[];
+  hourlyDistribution: HourlyDistribution[];
+  dailyTrend: Array<{ date: string; count: number }>;
+}
+
+export interface AccountStatsQueryParams {
+  startDate?: string;
+  endDate?: string;
+  adminId?: string;
+  page?: number;
+  pageSize?: number;
 }
 
 const PREFIX = '/admin';
@@ -472,6 +558,47 @@ export const adminApi = {
     );
   },
 
+  // ========== 第三方集成扫码登录（钉钉/企业微信/飞书） ==========
+  // 获取扫码授权 URL（前端渲染二维码或跳转平台扫码页）
+  getIntegrationQrcode: (
+    provider: IntegrationLoginProvider,
+    redirectUri: string,
+  ): Promise<IntegrationQrcodeResult> => {
+    return request.get(`${PREFIX}/integration/qrcode`, {
+      params: { provider, redirect_uri: redirectUri },
+    });
+  },
+
+  // 用平台 OAuth code 换登录态
+  integrationLogin: (
+    provider: IntegrationLoginProvider,
+    code: string,
+    state?: string,
+  ): Promise<IntegrationLoginResult> => {
+    return request.post(`${PREFIX}/integration/login?provider=${provider}`, { code, state });
+  },
+
+  // 新用户绑定手机号完成登录
+  integrationBindPhone: (
+    data: IntegrationBindPhoneParams,
+  ): Promise<IntegrationLoginResult> => {
+    return request.post(`${PREFIX}/integration/bind-phone`, data);
+  },
+
+  // 已登录用户主动绑定第三方账号
+  bindIntegration: (
+    provider: IntegrationLoginProvider,
+    code: string,
+    state?: string,
+  ): Promise<{ message: string; external_id: string }> => {
+    return request.post(`${PREFIX}/integration/bind?provider=${provider}`, { code, state });
+  },
+
+  // 获取当前管理员的第三方账号绑定
+  listIntegrationBindings: (): Promise<IntegrationBindingItem[]> => {
+    return request.get(`${PREFIX}/integration/bindings`);
+  },
+
   // ========== 角色管理 ==========
   getRoles: (params?: { 
     status?: number; 
@@ -661,5 +788,16 @@ export const adminApi = {
   // 切换当前租户（仅平台管理员）
   switchTenant: (tenantId: string): Promise<{ message: string; tenant: { id: string; name: string; tenantCode: string } }> => {
     return request.put(`${PREFIX}/me/current-tenant`, { tenant_id: tenantId });
+  },
+
+  // ========== 账号统计 ==========
+  // 获取账号统计数据概览
+  getAccountStats: (params?: AccountStatsQueryParams): Promise<AccountStatsResponse> => {
+    return request.get(`${PREFIX}/account-stats/summary`, { params });
+  },
+
+  // 获取账号统计详情列表
+  getAccountStatsDetails: (params?: AccountStatsQueryParams): Promise<PageResult<AccountStatsDetail>> => {
+    return request.get(`${PREFIX}/account-stats/details`, { params });
   },
 };

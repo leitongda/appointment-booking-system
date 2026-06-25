@@ -9,3 +9,4 @@ export * from './tenantStatus';
 export * from './tenantSuspend';
 export * from './parseTenantError';
 export * from './expression-engine';
+export * from './websocket';

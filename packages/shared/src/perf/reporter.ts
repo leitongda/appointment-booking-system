@@ -129,13 +129,9 @@ class PerformanceReporter {
       this.flush();
     }, this.config.flushInterval);
 
-    // 页面卸载时上报剩余数据
+    // 页面隐藏/卸载时使用 sendBeacon 上报剩余数据
+    // 统一使用 pagehide + sendBeacon，避免与 Tracker 的 beforeunload 产生冗余请求
     if (typeof window !== 'undefined') {
-      window.addEventListener('beforeunload', () => {
-        this.flushSync();
-      });
-
-      // 页面隐藏时上报（使用 sendBeacon）
       window.addEventListener('pagehide', () => {
         this.flushBeacon();
       });
@@ -199,25 +195,7 @@ class PerformanceReporter {
   }
 
   /**
-   * 同步上报（用于页面卸载）
-   */
-  private flushSync(): void {
-    if (!this.config.enabled) return;
-    if (this.pendingMetrics.length === 0 && this.pendingRouteMetrics.length === 0) return;
-
-    const report = this.buildReport();
-    this.pendingMetrics = [];
-    this.pendingRouteMetrics = [];
-
-    try {
-      this.sendReportSync(report);
-    } catch (error) {
-      console.debug('[Perf] Failed to send sync report:', error);
-    }
-  }
-
-  /**
-   * 使用 sendBeacon 上报（用于页面隐藏）
+   * 使用 sendBeacon 上报（用于页面隐藏/卸载）
    */
   private flushBeacon(): void {
     if (!this.config.enabled) return;
@@ -276,22 +254,6 @@ class PerformanceReporter {
 
     if (!response.ok) {
       throw new Error(`Report failed: ${response.status}`);
-    }
-  }
-
-  /**
-   * 同步发送上报数据
-   */
-  private sendReportSync(report: PerformanceReport): void {
-    if (typeof XMLHttpRequest === 'undefined') return;
-
-    try {
-      const xhr = new XMLHttpRequest();
-      xhr.open('POST', this.config.endpoint, false);
-      xhr.setRequestHeader('Content-Type', 'application/json');
-      xhr.send(JSON.stringify(report));
-    } catch {
-      // 同步 XHR 在某些环境下可能失败，静默处理
     }
   }
 

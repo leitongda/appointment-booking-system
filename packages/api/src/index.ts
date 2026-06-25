@@ -11,6 +11,18 @@ export {
 } from './request';
 export type { HttpClient } from './request';
 
+// 导出共享错误处理工具
+export {
+  ERROR_MESSAGES,
+  getRequestPath,
+  shouldAddToken,
+  DEFAULT_EXCLUDE_TOKEN_PATHS,
+  handleStructuredErrorCode,
+  isRsaDecryptError,
+  handleNetworkError,
+} from './utils/error-handling';
+export type { ErrorHandlingDeps } from './utils/error-handling';
+
 // 导出性能监控和重试工具
 export {
   getPerformanceMonitor,
@@ -56,8 +68,27 @@ export { departmentApi } from './modules/department';
 export { doctorApi } from './modules/doctor';
 export { scheduleApi } from './modules/schedule';
 export { appointmentApi } from './modules/appointment';
+export { attendanceApi } from './modules/attendance';
+export type {
+  CheckInData,
+  CheckOutData,
+  AttendanceRecord,
+  AttendanceRecordListParams,
+  DailyStat,
+  AttendanceShift,
+  AttendanceShiftCreateData,
+  AttendanceShiftUpdateData,
+  AttendanceGroup,
+  AttendanceGroupCreateData,
+  AttendanceGroupUpdateData,
+  GroupMember,
+  AttendanceRule,
+  AttendanceRuleCreateData,
+  AttendanceRuleUpdateData,
+} from './modules/attendance';
 export { medicalRecordApi } from './modules/medical-record';
 export { contentApi } from './modules/content';
+export { siteApi, categoryApi, articleApi } from './modules/cms';
 export { commonServiceApi } from './modules/common-service';
 export type { CommonServiceItem, CommonServiceListResponse, HealthReminderConfig, UserHealthReminder } from './modules/common-service';
 export { statisticsApi } from './modules/statistics';
@@ -72,6 +103,15 @@ export type {
 } from './modules/platform-metrics';
 export { adminApi } from './modules/admin';
 export { settingsApi } from './modules/settings';
+export { integrationApi } from './modules/integration';
+export type {
+  IntegrationProvider,
+  IntegrationConfig,
+  IntegrationUpsertInput,
+  ProviderInfo as IntegrationProviderInfo,
+  IntegrationBinding,
+  TestConnectionResult,
+} from './modules/integration';
 export { patientApi } from './modules/patient';
 export { exportApi } from './modules/export';
 export { storeApi } from './modules/store';
@@ -105,8 +145,6 @@ export { storeVisitTypeConfigApi } from './modules/store-visit-type-config';
 export { ruleSetApi, shiftTypeApi } from './modules/rule-set';
 export { auditLogApi } from './modules/audit-log';
 export { storeEmailRecipientApi } from './modules/store-email-recipient';
-export { WSMessageType, ConnectionStatus, PATIENT_MESSAGE_TYPES, DOCTOR_MESSAGE_TYPES } from './modules/websocket';
-export type { WSMessage } from './modules/websocket';
 export { tenantApi } from './modules/tenant';
 export { analyticsApi } from './modules/analytics';
 export type { BehaviorLog, BehaviorLogListParams, BehaviorOverview, TenantActivity, DailyBehaviorItem, DailyActivityItem } from './modules/analytics';
@@ -221,10 +259,34 @@ export type {
   StoreInfo,
   MyStoresResult,
   SwitchStoreResult,
+  AccountStatsSummary,
+  DeviceDistribution,
+  HourlyDistribution,
+  AccountStatsDetail,
+  AccountStatsResponse,
+  AccountStatsQueryParams,
+  IntegrationLoginProvider,
+  IntegrationQrcodeResult,
+  IntegrationLoginResult,
+  IntegrationBindPhoneParams,
+  IntegrationBindingItem,
 } from './modules/admin';
 
 // Content types
 export type { Banner, News, Notice } from './modules/content';
+// CMS types
+export type {
+  CmsSite,
+  CmsSiteCreateData,
+  CmsSiteUpdateData,
+  CmsCategory,
+  CmsCategoryTreeNode,
+  CmsCategoryCreateData,
+  CmsCategoryUpdateData,
+  CmsArticle,
+  CmsArticleCreateData,
+  CmsArticleUpdateData,
+} from './modules/cms';
 
 // Patient types
 export type {
@@ -497,6 +559,8 @@ export type {
   PreviewQrResponse,
   RollbackDeployResponse,
   DeployHistoryItem,
+  VersionItem,
+  VersionListResponse,
 } from './modules/lowcode';
 
 // LowCode Template Marketplace
@@ -520,3 +584,27 @@ export type { GuideTourItem, TourStep, GuideTourProgress, LocaleMap } from './mo
 
 export { adminGuideToursApi } from './modules/admin-guide-tours';
 export type { GuideTourDetail, GuideTourListItem, GuideTourFormData } from './modules/admin-guide-tours';
+
+// Contact types
+export { contactApi } from './modules/contact';
+export type {
+  ContactListItem,
+  ContactDetail,
+  ContactChannel,
+  ContactGroup,
+  ContactGroupItem,
+  ContactTag,
+  ContactTagItem,
+  ContactListParams,
+  ContactCreateData,
+  ContactUpdateData,
+  ContactGroupCreateData,
+  ContactGroupUpdateData,
+  ContactTagCreateData,
+  ContactTagUpdateData,
+  ContactBatchMoveData,
+  ContactBatchTagData,
+  ContactBatchDeleteData,
+  ContactType,
+  ContactStatus,
+} from './modules/contact';

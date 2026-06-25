@@ -1,4 +1,5 @@
 import { request } from '../request';
+import { createTTLCache } from '../utils/cache';
 
 export interface OverviewData {
   todayAppointments: number;
@@ -123,11 +124,17 @@ export interface RevisitRateData {
   };
 }
 
+const OVERVIEW_CACHE_KEY = 'overview';
+const overviewCache = createTTLCache<OverviewData>({ ttl: 30_000 });
+
 export const statisticsApi = {
   /**
    * 获取概览数据
    */
-  getOverview: () => request.get<OverviewData>('/statistics/overview'),
+  getOverview: () =>
+    overviewCache.getOrFetch(OVERVIEW_CACHE_KEY, () =>
+      request.get<OverviewData>('/statistics/overview'),
+    ),
 
   /**
    * 获取预约趋势
@@ -213,4 +220,3 @@ export const statisticsApi = {
   getRevisitRate: (params?: { startDate?: string; endDate?: string; storeId?: string; doctorId?: string; departmentId?: string }) =>
     request.get<RevisitRateData>('/statistics/revisit-rate', { params }),
 };
-

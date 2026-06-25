@@ -78,6 +78,9 @@ export class Tracker {
   private flushTimer: any = null;
   private pageEnterTime: number = 0;
   private currentPagePath: string = '';
+  /** 错误去重：相同错误消息在窗口期内只上报一次 */
+  private recentErrors: Map<string, number> = new Map();
+  private errorDedupWindow = 5000; // 5 秒内相同错误不重复上报
 
   constructor(config: TrackerConfig) {
     this.config = {
@@ -118,12 +121,16 @@ export class Tracker {
       // 忽略资源加载错误（img/script/css），这些不适合用行为日志追踪
       if (event.target && (event.target as HTMLElement).tagName) return;
 
+      const message = event.message?.slice(0, 500) || '';
+      // 去重：相同错误消息在窗口期内只上报一次
+      if (this.isDuplicateError(message)) return;
+
       this.addEvent({
         event_type: 'custom',
         event_name: 'js_error',
         page_path: window.location.pathname,
         extra_data: {
-          message: event.message?.slice(0, 500),
+          message,
           filename: event.filename?.slice(0, 200),
           lineno: event.lineno,
           colno: event.colno,
@@ -135,6 +142,8 @@ export class Tracker {
     window.addEventListener('unhandledrejection', (event) => {
       const reason = event.reason;
       const message = reason instanceof Error ? reason.message : String(reason).slice(0, 500);
+      // 去重：相同错误消息在窗口期内只上报一次
+      if (this.isDuplicateError(message)) return;
 
       this.addEvent({
         event_type: 'custom',
@@ -146,9 +155,35 @@ export class Tracker {
   }
 
   /**
+   * 错误去重检查：相同错误消息在窗口期内只上报一次
+   */
+  private isDuplicateError(key: string): boolean {
+    const now = Date.now();
+    const lastSeen = this.recentErrors.get(key);
+    if (lastSeen && now - lastSeen < this.errorDedupWindow) {
+      return true;
+    }
+    this.recentErrors.set(key, now);
+
+    // 定期清理过期条目，防止内存泄漏
+    if (this.recentErrors.size > 100) {
+      for (const [k, v] of this.recentErrors) {
+        if (now - v > this.errorDedupWindow) {
+          this.recentErrors.delete(k);
+        }
+      }
+    }
+    return false;
+  }
+
+  /**
    * 追踪 API 错误（由请求拦截器调用）
+   * 去重：相同 url + status 在 10s 窗口内只上报一次
    */
   trackApiError(url: string, status: number, message: string): void {
+    const dedupKey = `api:${url}:${status}`;
+    if (this.isDuplicateError(dedupKey)) return;
+
     this.addEvent({
       event_type: 'custom',
       event_name: 'api_error',
@@ -268,6 +303,11 @@ export class Tracker {
    * @param title 页面标题
    */
   trackPageView(path?: string, title?: string): void {
+    const pagePath = path || (typeof window !== 'undefined' ? window.location.pathname : '');
+
+    // 去重：相同路径不重复上报（避免 React 重渲染、query 参数变化等导致的重复）
+    if (pagePath === this.currentPagePath) return;
+
     // 如果有上一个页面，记录离开事件
     if (this.currentPagePath && this.pageEnterTime > 0) {
       const duration = Date.now() - this.pageEnterTime;
@@ -279,9 +319,8 @@ export class Tracker {
     }
 
     // 记录当前页面
-    const pagePath = path || (typeof window !== 'undefined' ? window.location.pathname : '');
     const pageTitle = title || getPageTitle();
-    
+
     this.currentPagePath = pagePath;
     this.pageEnterTime = Date.now();
 
