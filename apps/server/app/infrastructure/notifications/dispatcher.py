@@ -4,6 +4,12 @@ from datetime import datetime, time
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.constants.notification import (
+    CHANNEL_FIELD_MAP,
+    DEFAULT_CHANNEL_STRATEGY,
+    DEDUP_TTL,
+    TYPE_FIELD_MAP,
+)
 from app.core.redis import get_redis
 from app.infrastructure.notifications.registry import channel_registry, register_channels
 from app.schemas.notification import (
@@ -16,45 +22,11 @@ from app.schemas.notification import (
 
 logger = logging.getLogger(__name__)
 
-# 渠道字段映射（与 MessageService 保持一致）
-_CHANNEL_FIELD_MAP = {
-    "in_app": "in_app_enabled",
-    "sms": "sms_enabled",
-    "wechat": "wechat_enabled",
-    "email": "email_enabled",
-    "websocket": "in_app_enabled",  # WebSocket 复用站内信偏好
-}
-
-# 消息类型字段映射（与 MessageService 保持一致）
-_TYPE_FIELD_MAP = {
-    "appointment": "appointment_enabled",
-    "appointment_success": "appointment_enabled",
-    "appointment_reminder": "reminder_enabled",
-    "appointment_cancelled": "appointment_enabled",
-    "schedule": "reminder_enabled",
-    "stop_clinic": "stop_clinic_enabled",
-    "system": "system_enabled",
-    "consultation": "consultation_enabled",
-    "feedback": "feedback_enabled",
-    "queue_call": "appointment_enabled",
-}
-
-# 默认渠道策略（按消息类型，按降级优先级排序）
-_DEFAULT_CHANNEL_STRATEGY = {
-    "appointment": ["wechat", "sms", "in_app"],
-    "appointment_success": ["wechat", "sms", "in_app"],
-    "appointment_reminder": ["wechat", "sms", "in_app"],
-    "appointment_cancelled": ["wechat", "sms", "in_app"],
-    "schedule": ["websocket", "in_app"],
-    "stop_clinic": ["wechat", "sms", "in_app"],
-    "system": ["email", "in_app"],
-    "consultation": ["in_app"],
-    "feedback": ["in_app"],
-    "queue_call": ["websocket", "in_app"],
-}
-
-# 去重缓存过期时间（秒）
-_DEDUP_TTL = 86400  # 24 小时
+# 向后兼容别名
+_CHANNEL_FIELD_MAP = CHANNEL_FIELD_MAP
+_TYPE_FIELD_MAP = TYPE_FIELD_MAP
+_DEFAULT_CHANNEL_STRATEGY = DEFAULT_CHANNEL_STRATEGY
+_DEDUP_TTL = DEDUP_TTL
 
 # 短信内容最大长度
 _SMS_MAX_CONTENT_LENGTH = 500

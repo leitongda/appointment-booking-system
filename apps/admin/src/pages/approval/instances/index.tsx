@@ -142,8 +142,9 @@ const ApprovalInstancesPage: React.FC = () => {
       title: '申请时间',
       dataIndex: 'createdAt',
       valueType: 'dateTime',
-      width: 160,
+      width: 180,
       search: false,
+      sorter: true,
     },
     {
       title: '操作',

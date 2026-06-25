@@ -154,3 +154,58 @@ export interface FlowDefinitionListItem {
   createdAt?: string;
   updatedAt?: string;
 }
+
+// ──── 监听器类型 ────
+
+/** 监听器动作类型 */
+export type ListenerActionType = 'webhook' | 'notification' | 'sms' | 'callback';
+
+/** 执行监听事件类型（节点级） */
+export type ExecutionEvent = 'start' | 'end' | 'take';
+
+/** 任务监听事件类型（审批节点专用） */
+export type TaskEvent = 'create' | 'assignment' | 'complete' | 'timeout';
+
+/** 全局监听事件类型（流程级） */
+export type GlobalEvent = 'process.start' | 'process.end' | 'process.cancel' | 'process.reject';
+
+/** 监听器事件类型 */
+export type ListenerEvent = ExecutionEvent | TaskEvent | GlobalEvent;
+
+/** Webhook 配置 */
+export interface WebhookConfig {
+  url: string;
+  headers?: Record<string, string>;
+  bodyTemplate?: string;
+  timeout?: number;
+  retryCount?: number;
+}
+
+/** 站内通知配置 */
+export interface NotificationConfig {
+  targetType: 'role' | 'user';
+  targetIds: string[];
+  titleTemplate?: string;
+  contentTemplate?: string;
+}
+
+/** 短信配置 */
+export interface SmsConfig {
+  phoneField: string;
+  templateCode?: string;
+  templateParams?: Record<string, string>;
+}
+
+/** 回调函数配置 */
+export interface CallbackConfig {
+  callbackName: string;
+}
+
+/** 单个监听器配置 */
+export interface ListenerConfig {
+  id: string;
+  event: ListenerEvent;
+  actionType: ListenerActionType;
+  actionConfig: WebhookConfig | NotificationConfig | SmsConfig | CallbackConfig;
+  label?: string;
+}

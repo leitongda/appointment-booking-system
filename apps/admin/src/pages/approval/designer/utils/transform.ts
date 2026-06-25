@@ -1,7 +1,7 @@
 import type { Node, Edge } from '@xyflow/react';
 
 /** 后端 flowDef → React Flow nodes + edges */
-export function fromFlowSchema(flowDef: any): { nodes: Node[]; edges: Edge[] } {
+export function fromFlowSchema(flowDef: any): { nodes: Node[]; edges: Edge[]; globalListeners: any[] } {
   const nodes: Node[] = (flowDef.nodes || []).map((n: any) => ({
     id: n.nodeKey,
     type: _nodeTypeMap(n.nodeType),
@@ -21,7 +21,9 @@ export function fromFlowSchema(flowDef: any): { nodes: Node[]; edges: Edge[] } {
         operator: c.operator,
         value: c.value,
         priority: c.priority,
+        groupId: c.groupId ?? null,
       })),
+      listeners: n.listeners || [],
     },
   }));
 
@@ -66,11 +68,11 @@ export function fromFlowSchema(flowDef: any): { nodes: Node[]; edges: Edge[] } {
     }
   });
 
-  return { nodes, edges };
+  return { nodes, edges, globalListeners: flowDef.global_listeners || [] };
 }
 
 /** React Flow nodes + edges → 后端 API 格式 */
-export function toFlowSchema(nodes: Node[], edges: Edge[]): { nodes: any[]; edges: any[] } {
+export function toFlowSchema(nodes: Node[], edges: Edge[], globalListeners: any[] = []): { nodes: any[]; edges: any[]; global_listeners: any[] } {
   const apiNodes = nodes.map((n, i) => ({
     nodeKey: n.id,
     nodeName: (n.data as any).label || n.id,
@@ -84,6 +86,7 @@ export function toFlowSchema(nodes: Node[], edges: Edge[]): { nodes: any[]; edge
     positionX: n.position.x,
     positionY: n.position.y,
     conditions: (n.data as any).conditions || [],
+    listeners: (n.data as any).listeners || [],
   }));
 
   const apiEdges = edges.map((e) => ({
@@ -94,7 +97,7 @@ export function toFlowSchema(nodes: Node[], edges: Edge[]): { nodes: any[]; edge
     targetHandle: e.targetHandle,
   }));
 
-  return { nodes: apiNodes, edges: apiEdges };
+  return { nodes: apiNodes, edges: apiEdges, global_listeners: globalListeners || [] };
 }
 
 function _nodeTypeMap(nodeType: string): string {

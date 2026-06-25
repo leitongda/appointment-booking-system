@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.common.auth_deps import get_current_admin
 from app.common.permission_deps import require_permission
 from app.db.session import get_db
 from app.modules.approval_flows.schemas import (
@@ -29,7 +30,8 @@ async def list_instances(
     store_id: str | None = None,
     view: str = Query("pending", description="pending=我的待办, done=我的已办, initiated=我发起的"),
     db: AsyncSession = Depends(get_db),
-    account=Depends(require_permission("approval:read")),
+    _=Depends(require_permission("approval:read")),
+    current_admin: dict = Depends(get_current_admin),
 ):
     query = ApprovalQuery(
         page=page,
@@ -40,7 +42,7 @@ async def list_instances(
     )
     service = ApprovalInstanceService(db)
 
-    items, total = await service.get_list(query, account.id, view)
+    items, total = await service.get_list(query, current_admin["id"], view)
 
     return {
         "items": [ApprovalInstanceListResponse.model_validate(item) for item in items],
@@ -57,7 +59,8 @@ async def list_my_pending_instances(
     business_type: str | None = None,
     store_id: str | None = None,
     db: AsyncSession = Depends(get_db),
-    account=Depends(require_permission("approval:read")),
+    _=Depends(require_permission("approval:read")),
+    current_admin: dict = Depends(get_current_admin),
 ):
     query = ApprovalQuery(
         page=page,
@@ -66,7 +69,7 @@ async def list_my_pending_instances(
         store_id=store_id,
     )
     service = ApprovalInstanceService(db)
-    items, total = await service.get_list(query, account.id, "pending")
+    items, total = await service.get_list(query, current_admin["id"], "pending")
 
     return {
         "items": [ApprovalInstanceListResponse.model_validate(item) for item in items],
@@ -79,10 +82,11 @@ async def list_my_pending_instances(
 @router.get("/pending-count", summary="获取待办数量")
 async def get_pending_count(
     db: AsyncSession = Depends(get_db),
-    account=Depends(require_permission("approval:read")),
+    _=Depends(require_permission("approval:read")),
+    current_admin: dict = Depends(get_current_admin),
 ):
     service = ApprovalInstanceService(db)
-    count = await service.get_pending_count(account.id)
+    count = await service.get_pending_count(current_admin["id"])
     return {"count": count}
 
 
@@ -129,12 +133,13 @@ async def approve_instance(
     instance_id: str,
     data: ApprovalActionRequest = ApprovalActionRequest(),
     db: AsyncSession = Depends(get_db),
-    account=Depends(require_permission("approval:approve")),
+    _=Depends(require_permission("approval:approve")),
+    current_admin: dict = Depends(get_current_admin),
 ):
     service = ApprovalInstanceService(db)
     try:
         instance = await service.approve(
-            instance_id, account.id, account.name or "", data.comment
+            instance_id, current_admin["id"], current_admin.get("name") or "", data.comment
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -147,12 +152,13 @@ async def reject_instance(
     instance_id: str,
     data: ApprovalActionRequest = ApprovalActionRequest(),
     db: AsyncSession = Depends(get_db),
-    account=Depends(require_permission("approval:approve")),
+    _=Depends(require_permission("approval:approve")),
+    current_admin: dict = Depends(get_current_admin),
 ):
     service = ApprovalInstanceService(db)
     try:
         instance = await service.reject(
-            instance_id, account.id, account.name or "", data.comment
+            instance_id, current_admin["id"], current_admin.get("name") or "", data.comment
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -165,12 +171,13 @@ async def delegate_instance(
     instance_id: str,
     data: ApprovalDelegateRequest,
     db: AsyncSession = Depends(get_db),
-    account=Depends(require_permission("approval:approve")),
+    _=Depends(require_permission("approval:approve")),
+    current_admin: dict = Depends(get_current_admin),
 ):
     service = ApprovalInstanceService(db)
     try:
         instance = await service.delegate(
-            instance_id, account.id, account.name or "",
+            instance_id, current_admin["id"], current_admin.get("name") or "",
             data.target_user_id, data.target_user_name or "", data.comment,
         )
     except ValueError as e:
@@ -183,11 +190,12 @@ async def delegate_instance(
 async def withdraw_instance(
     instance_id: str,
     db: AsyncSession = Depends(get_db),
-    account=Depends(require_permission("approval:read")),
+    _=Depends(require_permission("approval:read")),
+    current_admin: dict = Depends(get_current_admin),
 ):
     service = ApprovalInstanceService(db)
     try:
-        instance = await service.withdraw(instance_id, account.id)
+        instance = await service.withdraw(instance_id, current_admin["id"])
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     await db.commit()
@@ -199,11 +207,12 @@ async def rollback_instance(
     instance_id: str,
     data: ApprovalRollbackRequest,
     db: AsyncSession = Depends(get_db),
-    account=Depends(require_permission("approval-instance:manage")),
+    _=Depends(require_permission("approval-instance:manage")),
+    current_admin: dict = Depends(get_current_admin),
 ):
     service = ApprovalInstanceService(db)
     try:
-        instance = await service.rollback(instance_id, account.id, data.target_node_key, data.comment or "")
+        instance = await service.rollback(instance_id, current_admin["id"], data.target_node_key, data.comment or "")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     await db.commit()
@@ -215,11 +224,12 @@ async def add_signer(
     instance_id: str,
     data: ApprovalAddSignerRequest,
     db: AsyncSession = Depends(get_db),
-    account=Depends(require_permission("approval-instance:manage")),
+    _=Depends(require_permission("approval-instance:manage")),
+    current_admin: dict = Depends(get_current_admin),
 ):
     service = ApprovalInstanceService(db)
     try:
-        instance = await service.add_signer(instance_id, account.id, data.user_ids, data.comment or "")
+        instance = await service.add_signer(instance_id, current_admin["id"], data.user_ids, data.comment or "")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     await db.commit()
@@ -231,11 +241,12 @@ async def jump_instance(
     instance_id: str,
     data: ApprovalJumpRequest,
     db: AsyncSession = Depends(get_db),
-    account=Depends(require_permission("approval-instance:manage")),
+    _=Depends(require_permission("approval-instance:manage")),
+    current_admin: dict = Depends(get_current_admin),
 ):
     service = ApprovalInstanceService(db)
     try:
-        instance = await service.jump(instance_id, account.id, data.target_node_key, data.comment or "")
+        instance = await service.jump(instance_id, current_admin["id"], data.target_node_key, data.comment or "")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     await db.commit()

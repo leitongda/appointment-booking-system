@@ -154,6 +154,9 @@ class ApprovalEngine:
         self.db.add(instance)
         await self.db.flush()
 
+        # 触发全局监听: process.start
+        await self._fire_global_listeners("process.start", flow_def, instance)
+
         # 解析审批人并创建任务
         await self._create_tasks_for_node(first_approval_node, instance, tenant_id, store_id)
 
@@ -239,6 +242,8 @@ class ApprovalEngine:
 
         if should_advance:
             await self._cancel_pending_tasks(instance.id, current_node.node_key)
+            # 触发执行监听: end (当前节点完成)
+            await self._fire_node_listeners("end", current_node, instance)
             await self._advance(instance, current_node)
 
         instance.updated_by = approver_id
@@ -326,6 +331,11 @@ class ApprovalEngine:
 
         await self.db.flush()
 
+        # 触发全局监听: process.reject
+        flow_def = await self._get_flow_def(instance.flow_def_id)
+        if flow_def:
+            await self._fire_global_listeners("process.reject", flow_def, instance)
+
         # 执行回调
         logger.info(
             "callback_started",
@@ -345,7 +355,21 @@ class ApprovalEngine:
                 callback="on_rejected",
                 error=str(e),
             )
-            raise
+            # 写入回调失败记录（不阻塞主流程）
+            try:
+                fail_record = ApprovalRecord(
+                    instance_id=instance.id,
+                    node_key=instance.current_node_key or "",
+                    node_name="系统",
+                    approver_id="system",
+                    approver_name="系统",
+                    action="callback_failed",
+                    comment=f"回调 on_rejected 执行失败: {str(e)[:200]}",
+                )
+                self.db.add(fail_record)
+                await self.db.flush()
+            except Exception:
+                logger.exception("写入回调失败记录时出错")
 
         # 通知申请人
         await self._notify_applicant(instance, "rejected")
@@ -366,7 +390,28 @@ class ApprovalEngine:
         target_user_name: str = "",
         comment: str | None = None,
     ) -> ApprovalInstance:
-        """转交给他人审批"""
+        """转交给他人审批（带 Redis 分布式锁）"""
+        from app.core.redis import RedisCache
+
+        lock_name = f"approval:instance:{instance_id}"
+        lock_value = await RedisCache.acquire_lock(lock_name, timeout=10, retry_times=3, retry_delay=0.1)
+        if not lock_value:
+            raise ValueError("操作过于频繁，请稍后重试")
+        try:
+            return await self._do_delegate(instance_id, approver_id, approver_name, target_user_id, target_user_name, comment)
+        finally:
+            await RedisCache.release_lock(lock_name, lock_value)
+
+    async def _do_delegate(
+        self,
+        instance_id: str,
+        approver_id: str,
+        approver_name: str,
+        target_user_id: str,
+        target_user_name: str = "",
+        comment: str | None = None,
+    ) -> ApprovalInstance:
+        """转交给他人审批（内部实现）"""
         instance = await self._get_instance(instance_id)
         self._validate_instance_pending(instance)
 
@@ -442,7 +487,24 @@ class ApprovalEngine:
         instance_id: str,
         user_id: str,
     ) -> ApprovalInstance:
-        """撤回审批（仅发起人可操作）"""
+        """撤回审批（仅发起人可操作，带 Redis 分布式锁）"""
+        from app.core.redis import RedisCache
+
+        lock_name = f"approval:instance:{instance_id}"
+        lock_value = await RedisCache.acquire_lock(lock_name, timeout=10, retry_times=3, retry_delay=0.1)
+        if not lock_value:
+            raise ValueError("操作过于频繁，请稍后重试")
+        try:
+            return await self._do_withdraw(instance_id, user_id)
+        finally:
+            await RedisCache.release_lock(lock_name, lock_value)
+
+    async def _do_withdraw(
+        self,
+        instance_id: str,
+        user_id: str,
+    ) -> ApprovalInstance:
+        """撤回审批（内部实现）"""
         instance = await self._get_instance(instance_id)
 
         if instance.applicant_id != user_id:
@@ -472,6 +534,11 @@ class ApprovalEngine:
 
         await self.db.flush()
 
+        # 触发全局监听: process.cancel
+        flow_def = await self._get_flow_def(instance.flow_def_id)
+        if flow_def:
+            await self._fire_global_listeners("process.cancel", flow_def, instance)
+
         # 执行回调
         logger.info(
             "callback_started",
@@ -491,7 +558,21 @@ class ApprovalEngine:
                 callback="on_cancelled",
                 error=str(e),
             )
-            raise
+            # 写入回调失败记录（不阻塞主流程）
+            try:
+                fail_record = ApprovalRecord(
+                    instance_id=instance.id,
+                    node_key=instance.current_node_key or "",
+                    node_name="系统",
+                    approver_id="system",
+                    approver_name="系统",
+                    action="callback_failed",
+                    comment=f"回调 on_cancelled 执行失败: {str(e)[:200]}",
+                )
+                self.db.add(fail_record)
+                await self.db.flush()
+            except Exception:
+                logger.exception("写入回调失败记录时出错")
 
         logger.info("approval_withdrawn", instance_id=instance_id, user_id=user_id)
         return instance
@@ -507,7 +588,26 @@ class ApprovalEngine:
         target_node_key: str,
         comment: str = "",
     ) -> ApprovalInstance:
-        """回退到指定节点"""
+        """回退到指定节点（带 Redis 分布式锁）"""
+        from app.core.redis import RedisCache
+
+        lock_name = f"approval:instance:{instance_id}"
+        lock_value = await RedisCache.acquire_lock(lock_name, timeout=10, retry_times=3, retry_delay=0.1)
+        if not lock_value:
+            raise ValueError("操作过于频繁，请稍后重试")
+        try:
+            return await self._do_rollback(instance_id, operator_id, target_node_key, comment)
+        finally:
+            await RedisCache.release_lock(lock_name, lock_value)
+
+    async def _do_rollback(
+        self,
+        instance_id: str,
+        operator_id: str,
+        target_node_key: str,
+        comment: str = "",
+    ) -> ApprovalInstance:
+        """回退到指定节点（内部实现）"""
         instance = await self._get_instance(instance_id)
         if instance.status != "pending":
             raise ValueError("实例不存在或不在审批中")
@@ -561,7 +661,26 @@ class ApprovalEngine:
         user_ids: list[str],
         comment: str = "",
     ) -> ApprovalInstance:
-        """加签 — 在当前节点添加额外审批人"""
+        """加签 — 在当前节点添加额外审批人（带 Redis 分布式锁）"""
+        from app.core.redis import RedisCache
+
+        lock_name = f"approval:instance:{instance_id}"
+        lock_value = await RedisCache.acquire_lock(lock_name, timeout=10, retry_times=3, retry_delay=0.1)
+        if not lock_value:
+            raise ValueError("操作过于频繁，请稍后重试")
+        try:
+            return await self._do_add_signer(instance_id, operator_id, user_ids, comment)
+        finally:
+            await RedisCache.release_lock(lock_name, lock_value)
+
+    async def _do_add_signer(
+        self,
+        instance_id: str,
+        operator_id: str,
+        user_ids: list[str],
+        comment: str = "",
+    ) -> ApprovalInstance:
+        """加签（内部实现）"""
         instance = await self._get_instance(instance_id)
         if instance.status != "pending":
             raise ValueError("实例不存在或不在审批中")
@@ -627,7 +746,26 @@ class ApprovalEngine:
         target_node_key: str,
         comment: str = "",
     ) -> ApprovalInstance:
-        """自由跳转到指定节点"""
+        """自由跳转到指定节点（带 Redis 分布式锁）"""
+        from app.core.redis import RedisCache
+
+        lock_name = f"approval:instance:{instance_id}"
+        lock_value = await RedisCache.acquire_lock(lock_name, timeout=10, retry_times=3, retry_delay=0.1)
+        if not lock_value:
+            raise ValueError("操作过于频繁，请稍后重试")
+        try:
+            return await self._do_jump(instance_id, operator_id, target_node_key, comment)
+        finally:
+            await RedisCache.release_lock(lock_name, lock_value)
+
+    async def _do_jump(
+        self,
+        instance_id: str,
+        operator_id: str,
+        target_node_key: str,
+        comment: str = "",
+    ) -> ApprovalInstance:
+        """自由跳转到指定节点（内部实现）"""
         instance = await self._get_instance(instance_id)
         if instance.status != "pending":
             raise ValueError("实例不存在或不在审批中")
@@ -680,7 +818,21 @@ class ApprovalEngine:
                     callback="on_approved",
                     error=str(e),
                 )
-                raise
+                # 写入回调失败记录（不阻塞主流程）
+                try:
+                    fail_record = ApprovalRecord(
+                        instance_id=instance.id,
+                        node_key=instance.current_node_key or "",
+                        node_name="系统",
+                        approver_id="system",
+                        approver_name="系统",
+                        action="callback_failed",
+                        comment=f"回调 on_approved 执行失败: {str(e)[:200]}",
+                    )
+                    self.db.add(fail_record)
+                    await self.db.flush()
+                except Exception:
+                    logger.exception("写入回调失败记录时出错")
             await self._notify_applicant(instance, "approved")
         else:
             await self._create_tasks_for_node(target_node, instance, instance.tenant_id, instance.store_id)
@@ -1014,6 +1166,8 @@ class ApprovalEngine:
                 await self._create_tasks_for_node(
                     next_next, instance, instance.tenant_id, instance.store_id
                 )
+                # 触发执行监听: start
+                await self._fire_node_listeners("start", next_next, instance)
                 # 检查自动审批
                 await self._try_auto_approve(next_next, instance, form_data)
             else:
@@ -1032,6 +1186,8 @@ class ApprovalEngine:
             await self._create_tasks_for_node(
                 next_node, instance, instance.tenant_id, instance.store_id
             )
+            # 触发执行监听: start
+            await self._fire_node_listeners("start", next_node, instance)
             # 检查自动审批
             await self._try_auto_approve(next_node, instance, form_data)
 
@@ -1060,7 +1216,21 @@ class ApprovalEngine:
                 callback="on_approved",
                 error=str(e),
             )
-            raise
+            # 写入回调失败记录（不阻塞主流程）
+            try:
+                fail_record = ApprovalRecord(
+                    instance_id=instance.id,
+                    node_key=instance.current_node_key or "",
+                    node_name="系统",
+                    approver_id="system",
+                    approver_name="系统",
+                    action="callback_failed",
+                    comment=f"回调 on_approved 执行失败: {str(e)[:200]}",
+                )
+                self.db.add(fail_record)
+                await self.db.flush()
+            except Exception:
+                logger.exception("写入回调失败记录时出错")
         await self._notify_applicant(instance, "approved")
         logger.info("approval_completed", instance_id=instance.id)
 
@@ -1073,7 +1243,7 @@ class ApprovalEngine:
         """找到下一个节点"""
         # 如果当前节点有条件规则，先求值
         if current_node.conditions:
-            target_key = self.condition_evaluator.evaluate_conditions(
+            target_key = self.condition_evaluator.evaluate_condition_groups(
                 current_node.conditions, form_data
             )
             if target_key:
@@ -1289,6 +1459,49 @@ class ApprovalEngine:
                 conditions=conditions,
             ))
         return nodes
+
+    # ============================================================
+    # 内部方法 - 监听器触发
+    # ============================================================
+
+    async def _fire_global_listeners(
+        self,
+        event: str,
+        flow_def: ApprovalFlowDefinition,
+        instance: ApprovalInstance,
+    ):
+        """触发全局监听器，失败只记录日志不阻塞主流程"""
+        try:
+            from .listener_service import ListenerService
+            listener_svc = ListenerService()
+            await listener_svc.fire_global_listeners(event, flow_def, instance, self.db)
+        except Exception as e:
+            logger.warning(
+                "global_listener_failed",
+                event=event,
+                instance_id=instance.id,
+                error=str(e),
+            )
+
+    async def _fire_node_listeners(
+        self,
+        event: str,
+        node: Any,
+        instance: ApprovalInstance,
+    ):
+        """触发节点执行监听器，失败只记录日志不阻塞主流程"""
+        try:
+            from .listener_service import ListenerService
+            listener_svc = ListenerService()
+            await listener_svc.fire_node_listeners(event, node, instance, self.db)
+        except Exception as e:
+            logger.warning(
+                "node_listener_failed",
+                event=event,
+                instance_id=instance.id,
+                node_key=getattr(node, "node_key", None),
+                error=str(e),
+            )
 
     # ============================================================
     # 内部方法 - 通知（Celery 异步）

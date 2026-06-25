@@ -16,6 +16,10 @@ CHANNEL_FIELD_MAP = {
     "wechat": "wechat_enabled",
     "email": "email_enabled",
     "websocket": "in_app_enabled",  # WebSocket 复用站内信偏好
+    # 第三方集成平台
+    "dingtalk": "dingtalk_enabled",
+    "wecom": "wecom_enabled",
+    "feishu": "feishu_enabled",
 }
 
 # 消息类型字段映射
@@ -87,6 +91,7 @@ async def get_user_preferences(
     try:
         stmt = text(
             "SELECT sms_enabled, email_enabled, wechat_enabled, in_app_enabled, "
+            "dingtalk_enabled, wecom_enabled, feishu_enabled, "
             "appointment_enabled, reminder_enabled, stop_clinic_enabled, system_enabled, "
             "consultation_enabled, feedback_enabled, quiet_hours_start, quiet_hours_end "
             "FROM notification_preferences "
@@ -100,6 +105,7 @@ async def get_user_preferences(
 
         return dict(zip(
             ["sms_enabled", "email_enabled", "wechat_enabled", "in_app_enabled",
+             "dingtalk_enabled", "wecom_enabled", "feishu_enabled",
              "appointment_enabled", "reminder_enabled", "stop_clinic_enabled",
              "system_enabled", "consultation_enabled", "feedback_enabled",
              "quiet_hours_start", "quiet_hours_end"],

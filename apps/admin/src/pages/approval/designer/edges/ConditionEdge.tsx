@@ -21,24 +21,18 @@ const ConditionEdge = memo(({
         style={{
           ...style,
           stroke: isDefault ? '#d9d9d9' : '#fa8c16',
-          strokeWidth: isDefault ? 1 : 2,
-          strokeDasharray: isDefault ? '5,5' : undefined,
+          strokeWidth: isDefault ? 1 : 1.5,
+          strokeDasharray: isDefault ? '6,4' : undefined,
+          transition: 'stroke 0.15s ease, stroke-width 0.15s ease',
         }}
       />
       {label && (
         <EdgeLabelRenderer>
           <div
+            className={`rf-edge-label ${isDefault ? '' : 'rf-edge-label--active'}`}
             style={{
               position: 'absolute',
               transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
-              pointerEvents: 'all',
-              background: isDefault ? '#fafafa' : '#fff7e6',
-              border: `1px solid ${isDefault ? '#d9d9d9' : '#fa8c16'}`,
-              borderRadius: 4,
-              padding: '2px 6px',
-              fontSize: 11,
-              color: isDefault ? '#999' : '#d46b08',
-              whiteSpace: 'nowrap',
             }}
           >
             {isDefault ? '默认' : label}

@@ -154,6 +154,116 @@ class TestConditionEvaluatorEdgeCases:
         assert result is None
 
 
+# ==================== ConditionEvaluator (condition groups OR + AND) ====================
+
+@pytest.mark.unit
+class TestConditionEvaluatorGroups:
+    """测试条件组求值：组内 AND，组间 OR"""
+
+    def setup_method(self):
+        self.evaluator = ConditionEvaluator()
+
+    def _make_cond(self, field_name, operator, value, target="t", priority=1, group_id=None):
+        cond = MagicMock()
+        cond.field_name = field_name
+        cond.operator = operator
+        cond.value = value
+        cond.target_node_key = target
+        cond.priority = priority
+        cond.group_id = group_id
+        return cond
+
+    def test_backward_compat_no_group_id(self):
+        """无 group_id 时，行为等价于 evaluate_conditions（单条件独立匹配）"""
+        cond1 = self._make_cond("type", "eq", "a", target="target_a", group_id=None)
+        cond2 = self._make_cond("type", "eq", "b", target="target_b", group_id=None)
+        assert self.evaluator.evaluate_condition_groups([cond1, cond2], {"type": "a"}) == "target_a"
+        assert self.evaluator.evaluate_condition_groups([cond1, cond2], {"type": "b"}) == "target_b"
+        assert self.evaluator.evaluate_condition_groups([cond1, cond2], {"type": "c"}) is None
+
+    def test_same_group_and_logic(self):
+        """同一 group_id 内的条件为 AND 关系"""
+        cond1 = self._make_cond("amount", "gt", "100", target="t", group_id="g0")
+        cond2 = self._make_cond("type", "eq", "special", target="t", group_id="g0")
+        # 两个都满足
+        assert self.evaluator.evaluate_condition_groups(
+            [cond1, cond2], {"amount": 200, "type": "special"}
+        ) == "t"
+        # 只满足一个
+        assert self.evaluator.evaluate_condition_groups(
+            [cond1, cond2], {"amount": 200, "type": "normal"}
+        ) is None
+        assert self.evaluator.evaluate_condition_groups(
+            [cond1, cond2], {"amount": 50, "type": "special"}
+        ) is None
+
+    def test_different_groups_or_logic(self):
+        """不同 group_id 之间为 OR 关系"""
+        cond_g0 = self._make_cond("amount", "gt", "1000", target="t", group_id="g0")
+        cond_g1 = self._make_cond("type", "eq", "vip", target="t", group_id="g1")
+        # 满足组0
+        assert self.evaluator.evaluate_condition_groups(
+            [cond_g0, cond_g1], {"amount": 2000, "type": "normal"}
+        ) == "t"
+        # 满足组1
+        assert self.evaluator.evaluate_condition_groups(
+            [cond_g0, cond_g1], {"amount": 500, "type": "vip"}
+        ) == "t"
+        # 都不满足
+        assert self.evaluator.evaluate_condition_groups(
+            [cond_g0, cond_g1], {"amount": 500, "type": "normal"}
+        ) is None
+
+    def test_mixed_and_or(self):
+        """混合场景：两组条件，组内 AND，组间 OR"""
+        # 组0: amount > 1000 AND type == "large"
+        c0a = self._make_cond("amount", "gt", "1000", target="approval_a", group_id="g0")
+        c0b = self._make_cond("type", "eq", "large", target="approval_a", group_id="g0")
+        # 组1: amount <= 100 AND type == "small"
+        c1a = self._make_cond("amount", "lte", "100", target="approval_a", group_id="g1")
+        c1b = self._make_cond("type", "eq", "small", target="approval_a", group_id="g1")
+
+        conds = [c0a, c0b, c1a, c1b]
+        # 满足组0（大额大件）
+        assert self.evaluator.evaluate_condition_groups(
+            conds, {"amount": 5000, "type": "large"}
+        ) == "approval_a"
+        # 满足组1（小额小件）
+        assert self.evaluator.evaluate_condition_groups(
+            conds, {"amount": 50, "type": "small"}
+        ) == "approval_a"
+        # 中间值：不满足任一组
+        assert self.evaluator.evaluate_condition_groups(
+            conds, {"amount": 500, "type": "medium"}
+        ) is None
+        # 只满足部分条件（组0只满足amount）
+        assert self.evaluator.evaluate_condition_groups(
+            conds, {"amount": 2000, "type": "small"}
+        ) is None
+
+    def test_priority_ordering_among_groups(self):
+        """不同优先级的组，高优先级先评估"""
+        low = self._make_cond("type", "eq", "a", target="low", priority=10, group_id="g_low")
+        high = self._make_cond("type", "eq", "a", target="high", priority=1, group_id="g_high")
+        assert self.evaluator.evaluate_condition_groups([low, high], {"type": "a"}) == "high"
+
+    def test_empty_conditions(self):
+        assert self.evaluator.evaluate_condition_groups([], {"type": "x"}) is None
+
+    def test_mixed_grouped_and_ungrouped(self):
+        """混合有 group_id 和无 group_id 的条件"""
+        ungrouped = self._make_cond("type", "eq", "a", target="t1", group_id=None)
+        grouped = self._make_cond("amount", "gt", "100", target="t2", group_id="g0")
+        # 匹配无分组条件
+        assert self.evaluator.evaluate_condition_groups(
+            [ungrouped, grouped], {"type": "a", "amount": 50}
+        ) == "t1"
+        # 匹配有分组条件
+        assert self.evaluator.evaluate_condition_groups(
+            [ungrouped, grouped], {"type": "b", "amount": 200}
+        ) == "t2"
+
+
 # ==================== CallbackRegistry ====================
 
 @pytest.mark.unit
@@ -195,16 +305,16 @@ class TestCallbackRegistry:
         )
 
     def test_execute_handler_exception(self):
-        """处理器异常不扩散"""
+        """处理器异常自然传播到调用方"""
+        import asyncio
         registry = CallbackRegistry()
         handler = AsyncMock(side_effect=RuntimeError("boom"))
         registry.register("fail_type", handler)
 
-        import asyncio
-        # 不应抛出异常
-        asyncio.get_event_loop().run_until_complete(
-            registry.execute("fail_type", "on_approved", MagicMock(), MagicMock())
-        )
+        with pytest.raises(RuntimeError):
+            asyncio.get_event_loop().run_until_complete(
+                registry.execute("fail_type", "on_approved", MagicMock(), MagicMock())
+            )
 
     def test_multiple_registrations(self):
         """后注册的覆盖先注册的"""

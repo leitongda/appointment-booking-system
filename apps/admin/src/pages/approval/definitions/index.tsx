@@ -1,7 +1,7 @@
 import type { ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
-import { Tag, Button, Space, Modal, message, Drawer, Timeline, Card, Descriptions } from 'antd';
-import { PlusOutlined, CopyOutlined, PlayCircleOutlined, PauseCircleOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
+import { Tag, Button, Space, Modal, message, Drawer, Timeline, Card, Descriptions, Upload } from 'antd';
+import { PlusOutlined, CopyOutlined, PlayCircleOutlined, PauseCircleOutlined, DeleteOutlined, EyeOutlined, DownloadOutlined, UploadOutlined } from '@ant-design/icons';
 import { useState, useRef } from 'react';
 import type { ActionType } from '@ant-design/pro-components';
 import { history } from '@umijs/max';
@@ -31,6 +31,7 @@ const FlowDefinitionsPage: React.FC = () => {
   const actionRef = useRef<ActionType>();
   const [detailOpen, setDetailOpen] = useState(false);
   const [currentFlow, setCurrentFlow] = useState<FlowDefinition | null>(null);
+  const [importModalOpen, setImportModalOpen] = useState(false);
 
   const fetchData = async (params: any) => {
     try {
@@ -99,6 +100,24 @@ const FlowDefinitionsPage: React.FC = () => {
     }
   };
 
+  const handleExport = async (id: string, name: string) => {
+    try {
+      const data = await approvalFlowApi.export(id);
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${name}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      message.success('导出成功');
+    } catch (e: any) {
+      message.error(e.message || '导出失败');
+    }
+  };
+
   const handleDelete = async (id: string) => {
     Modal.confirm({
       title: '确认删除',
@@ -113,6 +132,30 @@ const FlowDefinitionsPage: React.FC = () => {
         }
       },
     });
+  };
+
+  const handleImport = async (file: File) => {
+    try {
+      const text = await file.text();
+      let data: any;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        message.error('JSON 格式错误，请检查文件内容');
+        return;
+      }
+      // 校验必填字段
+      if (!data.name || !data.businessType) {
+        message.error('导入数据缺少必填字段（name, businessType）');
+        return;
+      }
+      await approvalFlowApi.import(data);
+      message.success('导入成功，已创建为草稿状态');
+      setImportModalOpen(false);
+      actionRef.current?.reload();
+    } catch (e: any) {
+      message.error(e.message || '导入失败');
+    }
   };
 
   const columns: ProColumns<FlowDefinitionListItem>[] = [
@@ -175,6 +218,9 @@ const FlowDefinitionsPage: React.FC = () => {
           <Button type="link" size="small" icon={<CopyOutlined />} onClick={() => handleCopy(record.id)}>
             复制
           </Button>
+          <Button type="link" size="small" icon={<DownloadOutlined />} onClick={() => handleExport(record.id, record.name)}>
+            导出
+          </Button>
           {record.status === 'draft' && (
             <Button type="link" size="small" onClick={() => history.push(`/approval/definitions/designer/${record.id}`)}>
               编辑
@@ -211,6 +257,13 @@ const FlowDefinitionsPage: React.FC = () => {
         search={{ labelWidth: 'auto' }}
         scroll={{ x: 1000 }}
         toolBarRender={() => [
+          <Button
+            key="import"
+            icon={<UploadOutlined />}
+            onClick={() => setImportModalOpen(true)}
+          >
+            导入
+          </Button>,
           <Button
             key="create"
             type="primary"
@@ -286,6 +339,32 @@ const FlowDefinitionsPage: React.FC = () => {
           </>
         )}
       </Drawer>
+
+      {/* 导入流程 Modal */}
+      <Modal
+        title="导入流程定义"
+        open={importModalOpen}
+        onCancel={() => setImportModalOpen(false)}
+        footer={null}
+        destroyOnClose
+      >
+        <p style={{ marginBottom: 16, color: '#666' }}>
+          上传从系统导出的 JSON 文件，导入后将创建为草稿状态的流程定义。
+        </p>
+        <Upload.Dragger
+          accept=".json"
+          showUploadList={false}
+          beforeUpload={(file) => {
+            handleImport(file);
+            return false;
+          }}
+        >
+          <p style={{ fontSize: 32, color: '#1890ff' }}>
+            <UploadOutlined />
+          </p>
+          <p>点击或拖拽 JSON 文件到此处</p>
+        </Upload.Dragger>
+      </Modal>
     </PageContainer>
   );
 };

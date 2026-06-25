@@ -22,6 +22,7 @@ import {
   SaveOutlined, CheckCircleOutlined, ArrowLeftOutlined,
   LayoutOutlined, ExclamationCircleOutlined,
   UndoOutlined, RedoOutlined, AppstoreOutlined,
+  SettingOutlined,
 } from '@ant-design/icons';
 import { history, useParams } from '@umijs/max';
 import { approvalFlowApi } from '@hospital/api';
@@ -29,6 +30,8 @@ import { StartNode, ApprovalNode, ConditionNode, CcNode, EndNode } from './nodes
 import { ConditionEdge } from './edges';
 import NodePanel from './NodePanel';
 import PropertyPanel from './PropertyPanel';
+import GlobalListenerDrawer from './GlobalListenerDrawer';
+import type { ListenerConfig } from './ListenerForm';
 import { fromFlowSchema, toFlowSchema } from './utils/transform';
 import { validateFlow } from './utils/validate';
 import { autoLayout } from './utils/layout';
@@ -65,15 +68,15 @@ const LABEL_MAP: Record<string, string> = {
 
 
 const DesignerPageInner: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams() as { id: string };
   const isNew = id === 'new';
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const { screenToFlowPosition } = useReactFlow();
   const nodeIdCounterRef = useRef(0);
   const getNodeId = useCallback((type: string) => `${type}_${++nodeIdCounterRef.current}`, []);
 
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
@@ -82,6 +85,8 @@ const DesignerPageInner: React.FC = () => {
   const [flowName, setFlowName] = useState('新流程');
   const [flowDefId, setFlowDefId] = useState<string | null>(isNew ? null : id!);
   const [templates, setTemplates] = useState<any[]>([]);
+  const [globalDrawerOpen, setGlobalDrawerOpen] = useState(false);
+  const [globalListeners, setGlobalListeners] = useState<ListenerConfig[]>([]);
 
   // Undo/Redo 历史
   const [undoHistory, setUndoHistory] = useState<{ nodes: Node[]; edges: Edge[] }[]>([]);
@@ -145,9 +150,10 @@ const DesignerPageInner: React.FC = () => {
 
   // 从模板加载到画布
   const handleLoadTemplate = useCallback((tpl: any) => {
-    const { nodes: fn, edges: fe } = fromFlowSchema(tpl);
+    const { nodes: fn, edges: fe, globalListeners: gl } = fromFlowSchema(tpl);
     setNodes(fn);
     setEdges(fe);
+    setGlobalListeners(gl);
     setFlowName(tpl.name);
     const maxId = fn.reduce((max: number, n: Node) => {
       const match = n.id.match(/\d+$/);
@@ -166,9 +172,10 @@ const DesignerPageInner: React.FC = () => {
       approvalFlowApi.getDetail(id).then((data: any) => {
         setFlowName(data.name);
         setFlowDefId(data.id);
-        const { nodes: fn, edges: fe } = fromFlowSchema(data);
+        const { nodes: fn, edges: fe, globalListeners: gl } = fromFlowSchema(data);
         setNodes(fn);
         setEdges(fe);
+        setGlobalListeners(gl);
         // 更新 nodeIdCounter 避免冲突
         const maxId = fn.reduce((max: number, n: Node) => {
           const match = n.id.match(/\d+$/);
@@ -319,12 +326,13 @@ const DesignerPageInner: React.FC = () => {
 
     setSaving(true);
     try {
-      const { nodes: apiNodes, edges: apiEdges } = toFlowSchema(nodes, edges);
+      const { nodes: apiNodes, edges: apiEdges, global_listeners } = toFlowSchema(nodes, edges, globalListeners);
 
       if (flowDefId) {
         await approvalFlowApi.update(flowDefId, {
           nodes: apiNodes,
           edges: apiEdges,
+          global_listeners,
         });
         message.success('保存成功');
       } else {
@@ -333,6 +341,7 @@ const DesignerPageInner: React.FC = () => {
           businessType: 'custom',
           nodes: apiNodes,
           edges: apiEdges,
+          global_listeners,
         });
         setFlowDefId(res.id);
         message.success('创建成功');
@@ -342,7 +351,7 @@ const DesignerPageInner: React.FC = () => {
     } finally {
       setSaving(false);
     }
-  }, [nodes, edges, flowDefId, flowName, handleValidate]);
+  }, [nodes, edges, flowDefId, flowName, globalListeners, handleValidate]);
 
   // 激活
   const handleActivate = useCallback(async () => {
@@ -382,6 +391,7 @@ const DesignerPageInner: React.FC = () => {
           <Button onClick={() => setReadonly(!readonly)}>{readonly ? '编辑模式' : '预览模式'}</Button>
           <Button icon={<UndoOutlined />} onClick={undo} disabled={historyIndex <= 0}>撤销</Button>
           <Button icon={<RedoOutlined />} onClick={redo} disabled={historyIndex >= undoHistory.length - 1}>重做</Button>
+          <Button icon={<SettingOutlined />} onClick={() => setGlobalDrawerOpen(true)}>流程设置</Button>
           <Button icon={<LayoutOutlined />} onClick={handleAutoLayout}>自动布局</Button>
           <Button icon={<ExclamationCircleOutlined />} onClick={handleValidate}>校验</Button>
           {isNew && templates.length > 0 && (
@@ -474,6 +484,14 @@ const DesignerPageInner: React.FC = () => {
           ))}
         </div>
       )}
+
+      {/* 流程全局监听器 */}
+      <GlobalListenerDrawer
+        open={globalDrawerOpen}
+        onClose={() => setGlobalDrawerOpen(false)}
+        listeners={globalListeners}
+        onChange={setGlobalListeners}
+      />
     </div>
   );
 };

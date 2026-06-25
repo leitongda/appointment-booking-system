@@ -259,11 +259,13 @@ class FlowDefinitionService:
                         }
                         for c in n.conditions
                     ],
+                    "listeners": n.listeners,
                 }
                 for n in flow_def.nodes
             ]
         }
         snapshot["edges"] = flow_def.edges or []
+        snapshot["global_listeners"] = flow_def.global_listeners
         flow_def.snapshot_json = snapshot
 
         set_update_audit(flow_def, user_id)

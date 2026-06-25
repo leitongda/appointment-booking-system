@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.common.auth_deps import get_current_admin
 from app.common.permission_deps import require_permission
 from app.db.session import get_db
 from app.modules.approval_flows.schemas import (
@@ -160,6 +161,20 @@ async def export_flow(
     return export_data
 
 
+@router.post("/import", summary="导入流程定义")
+async def import_flow(
+    data: FlowDefinitionCreate,
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_permission("approval-flow:create")),
+    current_admin: dict = Depends(get_current_admin),
+):
+    """导入流程定义（接受导出的 JSON 格式，创建为草稿状态）"""
+    service = FlowDefinitionService(db)
+    flow_def = await service.create(data, current_admin["id"])
+    await db.commit()
+    return FlowDefinitionResponse.model_validate(flow_def)
+
+
 @router.get("/{flow_def_id}", summary="获取流程定义详情")
 async def get_flow_definition(
     flow_def_id: str,
@@ -177,10 +192,11 @@ async def get_flow_definition(
 async def create_flow_definition(
     data: FlowDefinitionCreate,
     db: AsyncSession = Depends(get_db),
-    account=Depends(require_permission("approval-flow:create")),
+    _=Depends(require_permission("approval-flow:create")),
+    current_admin: dict = Depends(get_current_admin),
 ):
     service = FlowDefinitionService(db)
-    flow_def = await service.create(data, account.id)
+    flow_def = await service.create(data, current_admin["id"])
     await db.commit()
     return FlowDefinitionResponse.model_validate(flow_def)
 
@@ -190,11 +206,12 @@ async def update_flow_definition(
     flow_def_id: str,
     data: FlowDefinitionUpdate,
     db: AsyncSession = Depends(get_db),
-    account=Depends(require_permission("approval-flow:update")),
+    _=Depends(require_permission("approval-flow:update")),
+    current_admin: dict = Depends(get_current_admin),
 ):
     service = FlowDefinitionService(db)
     try:
-        flow_def = await service.update(flow_def_id, data, account.id)
+        flow_def = await service.update(flow_def_id, data, current_admin["id"])
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     if not flow_def:
@@ -207,11 +224,12 @@ async def update_flow_definition(
 async def activate_flow(
     flow_def_id: str,
     db: AsyncSession = Depends(get_db),
-    account=Depends(require_permission("approval-flow:manage")),
+    _=Depends(require_permission("approval-flow:manage")),
+    current_admin: dict = Depends(get_current_admin),
 ):
     service = FlowDefinitionService(db)
     try:
-        flow_def = await service.activate(flow_def_id, account.id)
+        flow_def = await service.activate(flow_def_id, current_admin["id"])
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     if not flow_def:
@@ -224,10 +242,11 @@ async def activate_flow(
 async def archive_flow(
     flow_def_id: str,
     db: AsyncSession = Depends(get_db),
-    account=Depends(require_permission("approval-flow:manage")),
+    _=Depends(require_permission("approval-flow:manage")),
+    current_admin: dict = Depends(get_current_admin),
 ):
     service = FlowDefinitionService(db)
-    flow_def = await service.archive(flow_def_id, account.id)
+    flow_def = await service.archive(flow_def_id, current_admin["id"])
     if not flow_def:
         raise HTTPException(status_code=404, detail="流程定义不存在")
     await db.commit()
@@ -238,11 +257,12 @@ async def archive_flow(
 async def delete_flow(
     flow_def_id: str,
     db: AsyncSession = Depends(get_db),
-    account=Depends(require_permission("approval-flow:delete")),
+    _=Depends(require_permission("approval-flow:delete")),
+    current_admin: dict = Depends(get_current_admin),
 ):
     service = FlowDefinitionService(db)
     try:
-        result = await service.delete(flow_def_id, account.id)
+        result = await service.delete(flow_def_id, current_admin["id"])
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     if not result:
@@ -255,10 +275,11 @@ async def delete_flow(
 async def copy_flow(
     flow_def_id: str,
     db: AsyncSession = Depends(get_db),
-    account=Depends(require_permission("approval-flow:create")),
+    _=Depends(require_permission("approval-flow:create")),
+    current_admin: dict = Depends(get_current_admin),
 ):
     service = FlowDefinitionService(db)
-    flow_def = await service.copy(flow_def_id, account.id)
+    flow_def = await service.copy(flow_def_id, current_admin["id"])
     if not flow_def:
         raise HTTPException(status_code=404, detail="流程定义不存在")
     await db.commit()

@@ -78,16 +78,8 @@ class DeliveryStatus(str, Enum):
     PERMANENTLY_FAILED = "permanently_failed"
 
 
-class ChannelType(str, Enum):
-    """渠道类型
-
-    来源: modules/unified_message/schemas.py
-    """
-    IN_APP = "in_app"
-    SMS = "sms"
-    EMAIL = "email"
-    WECHAT = "wechat"
-    WEBSOCKET = "websocket"
+# Deprecated: use NotificationChannel instead. Kept for backward compatibility.
+ChannelType = NotificationChannel
 
 
 class Priority(str, Enum):

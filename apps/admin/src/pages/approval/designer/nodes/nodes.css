@@ -1,0 +1,156 @@
+/* ===== 审批流设计器 — 节点样式 ===== */
+
+/* 基础节点 */
+.rf-node {
+  background: #fff;
+  border: 1.5px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 10px 16px;
+  min-width: 100px;
+  text-align: center;
+  font-size: 13px;
+  color: #333;
+  cursor: move;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  position: relative;
+  overflow: visible;
+}
+
+/* 左侧色条 — 用 ::before 伪元素实现 */
+.rf-node::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+  background: var(--node-accent, #d9d9d9);
+  transition: width 0.15s ease;
+}
+
+/* Hover */
+.rf-node:hover {
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+  border-color: #c0c0c0;
+}
+
+.rf-node:hover::before {
+  width: 4px;
+}
+
+/* 选中态 */
+.rf-node[data-selected='true'],
+.react-flow__node-selected .rf-node {
+  border-color: #1677ff;
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.12), 0 3px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* 拖拽中 */
+.rf-node[data-dragging='true'],
+.react-flow__node-dragging .rf-node {
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+  transform: scale(1.02);
+}
+
+/* ---- 各类型色条 ---- */
+
+.rf-node--start {
+  --node-accent: #52c41a;
+  border-radius: 20px;
+}
+
+.rf-node--end {
+  --node-accent: #ff4d4f;
+  border-radius: 20px;
+}
+
+.rf-node--approval {
+  --node-accent: #1677ff;
+}
+
+.rf-node--condition {
+  --node-accent: #fa8c16;
+}
+
+.rf-node--cc {
+  --node-accent: #8c8c8c;
+}
+
+/* ---- 节点内部元素 ---- */
+
+.rf-node__icon {
+  margin-right: 4px;
+  font-size: 14px;
+}
+
+.rf-node__label {
+  font-weight: 500;
+}
+
+.rf-node__meta {
+  font-size: 11px;
+  color: #999;
+  margin-top: 2px;
+}
+
+/* ---- 监听器标识 ---- */
+
+.rf-node__listener-dot {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 8px;
+  height: 8px;
+  background: #722ed1;
+  border-radius: 50%;
+  border: 1.5px solid #fff;
+}
+
+/* ---- Handle 连接点 ---- */
+
+.rf-handle {
+  width: 8px !important;
+  height: 8px !important;
+  background: #fff !important;
+  border: 2px solid #b0b0b0 !important;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease !important;
+}
+
+.rf-handle:hover {
+  background: #1677ff !important;
+  border-color: #1677ff !important;
+  transform: scale(1.4);
+}
+
+.rf-handle::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+}
+
+/* ---- Edge 标签 ---- */
+
+.rf-edge-label {
+  pointer-events: all;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  color: #666;
+  white-space: nowrap;
+  transition: border-color 0.15s ease;
+}
+
+.rf-edge-label:hover {
+  border-color: #1677ff;
+}
+
+.rf-edge-label--active {
+  border-color: #fa8c16;
+  background: #fff7e6;
+  color: #d46b08;
+}

@@ -32,6 +32,7 @@ class ApprovalFlowDefinition(Base, AuditMixin):
     store_id = Column(String(36), ForeignKey("stores.id"), nullable=True, comment="门店级流程")
     snapshot_json = Column(JSON, comment="发布时的流程快照（节点+条件的完整 JSON）")
     edges = Column(JSON, comment="流程连线 [{source, target, sourceHandle, targetHandle}]")
+    global_listeners = Column(JSON, nullable=True, comment="全局监听器列表")
 
     # 关系
     nodes = relationship("ApprovalFlowNode", back_populates="flow_def", cascade="all, delete-orphan", lazy="selectin")
@@ -59,6 +60,7 @@ class ApprovalFlowNode(Base):
     sort_order = Column(Integer, nullable=False, default=0, comment="节点排序")
     position_x = Column(Float, comment="设计器X坐标")
     position_y = Column(Float, comment="设计器Y坐标")
+    listeners = Column(JSON, nullable=True, comment="执行监听器列表")
     created_at = Column(DateTime, default=lambda: __import__('datetime').datetime.utcnow)
     updated_at = Column(DateTime, default=lambda: __import__('datetime').datetime.utcnow,
                         onupdate=lambda: __import__('datetime').datetime.utcnow)
@@ -84,6 +86,7 @@ class ApprovalFlowCondition(Base):
     operator = Column(String(20), nullable=False, comment="操作符: eq/neq/gt/gte/lt/lte/in/contains")
     value = Column(Text, nullable=False, comment="条件值 (JSON 字符串)")
     priority = Column(Integer, nullable=False, default=0, comment="优先级，越小越先匹配")
+    group_id = Column(String(50), nullable=True, comment="条件组 ID: 同组 AND，不同组 OR。None 表示独立条件")
     created_at = Column(DateTime, default=lambda: __import__('datetime').datetime.utcnow)
 
     # 关系

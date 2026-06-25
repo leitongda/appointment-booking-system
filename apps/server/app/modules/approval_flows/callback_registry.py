@@ -67,11 +67,7 @@ class CallbackRegistry:
             logger.debug(f"未找到回调处理器: {business_type}")
             return
 
-        try:
-            await handler(action, instance, db)
-        except Exception as e:
-            logger.error(f"执行回调失败: {business_type} {action}: {e}", exc_info=True)
-            # 回调失败不阻塞主流程，仅记录日志
+        await handler(action, instance, db)
 
 
 # 全局单例

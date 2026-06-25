@@ -53,9 +53,17 @@ def register_channels():
     from app.infrastructure.notifications.channels.sms import SmsChannel
     from app.infrastructure.notifications.channels.websocket import WebSocketChannel
     from app.infrastructure.notifications.channels.wechat import WechatChannel
+    # 第三方集成渠道
+    from app.infrastructure.notifications.channels.dingtalk import DingtalkChannel
+    from app.infrastructure.notifications.channels.feishu import FeishuChannel
+    from app.infrastructure.notifications.channels.wecom import WecomChannel
 
     channel_registry.register(InAppChannel)
     channel_registry.register(WechatChannel)
     channel_registry.register(SmsChannel)
     channel_registry.register(EmailChannel)
     channel_registry.register(WebSocketChannel)
+    # 第三方平台（钉钉/企业微信/飞书）
+    channel_registry.register(DingtalkChannel)
+    channel_registry.register(WecomChannel)
+    channel_registry.register(FeishuChannel)

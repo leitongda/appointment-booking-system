@@ -20,6 +20,7 @@ class FlowConditionCreate(BaseModel):
     operator: str = Field(pattern="^(eq|neq|gt|gte|lt|lte|in|not_in|contains|exists)$")
     value: str
     priority: int = 0
+    group_id: str | None = None
 
 class FlowNodeCreate(BaseModel):
     model_config = CAMEL_CONFIG
@@ -36,6 +37,7 @@ class FlowNodeCreate(BaseModel):
     position_x: float | None = None
     position_y: float | None = None
     conditions: list[FlowConditionCreate] = Field(default_factory=list)
+    listeners: list[dict[str, Any]] | None = Field(None, description="执行监听器列表")
 
 class FlowDefinitionCreate(BaseModel):
     model_config = CAMEL_CONFIG
@@ -46,6 +48,7 @@ class FlowDefinitionCreate(BaseModel):
     form_schema: dict[str, Any] | None = None
     callback_config: dict[str, Any] | None = None
     store_id: str | None = None
+    global_listeners: list[dict[str, Any]] | None = Field(None, description="全局监听器列表")
     nodes: list[FlowNodeCreate] = Field(default_factory=list)
     edges: list[dict[str, Any]] = Field(default_factory=list)
 
@@ -56,6 +59,7 @@ class FlowDefinitionUpdate(BaseModel):
     description: str | None = None
     form_schema: dict[str, Any] | None = None
     callback_config: dict[str, Any] | None = None
+    global_listeners: list[dict[str, Any]] | None = Field(None, description="全局监听器列表")
     nodes: list[FlowNodeCreate] | None = None
     edges: list[dict[str, Any]] | None = None
 
@@ -69,6 +73,7 @@ class FlowConditionResponse(BaseModel):
     operator: str
     value: str
     priority: int
+    group_id: str | None = None
 
 class FlowNodeResponse(BaseModel):
     model_config = CAMEL_CONFIG
@@ -86,6 +91,7 @@ class FlowNodeResponse(BaseModel):
     position_x: float | None = None
     position_y: float | None = None
     conditions: list[FlowConditionResponse] = Field(default_factory=list)
+    listeners: list[dict[str, Any]] | None = Field(None, description="执行监听器列表")
 
 class FlowDefinitionResponse(BaseModel):
     model_config = CAMEL_CONFIG
@@ -99,6 +105,7 @@ class FlowDefinitionResponse(BaseModel):
     form_schema: dict[str, Any] | None = None
     callback_config: dict[str, Any] | None = None
     store_id: str | None = None
+    global_listeners: list[dict[str, Any]] | None = Field(None, description="全局监听器列表")
     snapshot_json: dict[str, Any] | None = None
     edges: list[dict[str, Any]] | None = None
     nodes: list[FlowNodeResponse] = Field(default_factory=list)

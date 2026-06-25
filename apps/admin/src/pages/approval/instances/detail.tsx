@@ -1,5 +1,6 @@
 import { PageContainer } from '@ant-design/pro-components';
-import { Card, Descriptions, Tag, Timeline, Button, Space, Modal, Input, message, Spin, Empty } from 'antd';
+import { Card, Descriptions, Tag, Timeline, Button, Space, Modal, Input, Select, Dropdown, message, Spin, Empty, Steps } from 'antd';
+import type { MenuProps } from 'antd';
 import {
   CheckCircleOutlined,
   CloseCircleOutlined,
@@ -7,11 +8,15 @@ import {
   SwapOutlined,
   UndoOutlined,
   UserOutlined,
+  EllipsisOutlined,
+  RollbackOutlined,
+  UserAddOutlined,
+  FastForwardOutlined,
 } from '@ant-design/icons';
 import { history, useParams, useModel } from '@umijs/max';
 import { useState, useEffect, useCallback } from 'react';
 import { approvalInstanceApi } from '@hospital/api';
-import type { ApprovalInstance, ApprovalRecord, ApprovalInstanceStatus } from '@hospital/shared';
+import type { ApprovalInstance, ApprovalRecord, ApprovalInstanceStatus, ApprovalProgress } from '@hospital/shared';
 
 const STATUS_MAP: Record<ApprovalInstanceStatus, { text: string; color: string }> = {
   pending: { text: '审批中', color: 'processing' },
@@ -42,8 +47,16 @@ const ApprovalInstanceDetailPage: React.FC = () => {
   const [instance, setInstance] = useState<ApprovalInstance | null>(null);
   const [approveModalOpen, setApproveModalOpen] = useState(false);
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [delegateModalOpen, setDelegateModalOpen] = useState(false);
+  const [rollbackModalOpen, setRollbackModalOpen] = useState(false);
+  const [addSignerModalOpen, setAddSignerModalOpen] = useState(false);
+  const [jumpModalOpen, setJumpModalOpen] = useState(false);
   const [comment, setComment] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  const [targetUserId, setTargetUserId] = useState('');
+  const [targetUserName, setTargetUserName] = useState('');
+  const [targetNodeKey, setTargetNodeKey] = useState('');
+  const [progress, setProgress] = useState<ApprovalProgress | null>(null);
 
   const fetchDetail = useCallback(async () => {
     if (!id) return;
@@ -62,7 +75,15 @@ const ApprovalInstanceDetailPage: React.FC = () => {
     fetchDetail();
   }, [fetchDetail]);
 
+  useEffect(() => {
+    if (!id || !instance) return;
+    approvalInstanceApi.getProgress(id).then(setProgress).catch(() => setProgress(null));
+  }, [id, instance]);
+
   const isApplicant = instance?.applicantId === initialState?.currentUser?.id;
+  const isAssignee = instance?.tasks?.some(
+    (t) => t.assigneeId === initialState?.currentUser?.id && t.status === 'pending',
+  ) ?? false;
 
   const handleApprove = async () => {
     if (!id) return;
@@ -117,6 +138,128 @@ const ApprovalInstanceDetailPage: React.FC = () => {
     });
   };
 
+  const handleDelegate = async () => {
+    if (!id) return;
+    if (!targetUserId.trim()) {
+      message.warning('请填写目标用户 ID');
+      return;
+    }
+    setActionLoading(true);
+    try {
+      await approvalInstanceApi.delegate(id, targetUserId, targetUserName || undefined, comment || undefined);
+      message.success('已转交');
+      setDelegateModalOpen(false);
+      setTargetUserId('');
+      setTargetUserName('');
+      setComment('');
+      fetchDetail();
+    } catch (e: any) {
+      message.error(e.message || '操作失败');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleRollback = async () => {
+    if (!id) return;
+    if (!targetNodeKey.trim()) {
+      message.warning('请选择回退目标节点');
+      return;
+    }
+    if (!comment.trim()) {
+      message.warning('请填写回退原因');
+      return;
+    }
+    setActionLoading(true);
+    try {
+      await approvalInstanceApi.rollback(id, targetNodeKey, comment);
+      message.success('已回退');
+      setRollbackModalOpen(false);
+      setTargetNodeKey('');
+      setComment('');
+      fetchDetail();
+    } catch (e: any) {
+      message.error(e.message || '操作失败');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleAddSigner = async () => {
+    if (!id) return;
+    if (!targetUserId.trim()) {
+      message.warning('请填写用户 ID');
+      return;
+    }
+    setActionLoading(true);
+    try {
+      await approvalInstanceApi.addSigner(id, [targetUserId], comment || undefined);
+      message.success('已加签');
+      setAddSignerModalOpen(false);
+      setTargetUserId('');
+      setTargetUserName('');
+      setComment('');
+      fetchDetail();
+    } catch (e: any) {
+      message.error(e.message || '操作失败');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleJump = async () => {
+    if (!id) return;
+    if (!targetNodeKey.trim()) {
+      message.warning('请选择跳转目标节点');
+      return;
+    }
+    if (!comment.trim()) {
+      message.warning('请填写跳转原因');
+      return;
+    }
+    setActionLoading(true);
+    try {
+      await approvalInstanceApi.jump(id, targetNodeKey, comment);
+      message.success('已跳转');
+      setJumpModalOpen(false);
+      setTargetNodeKey('');
+      setComment('');
+      fetchDetail();
+    } catch (e: any) {
+      message.error(e.message || '操作失败');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  /** 从 records 中提取已审批过的节点（去重），用于回退目标 */
+  const getCompletedNodeOptions = () => {
+    if (!instance?.records) return [];
+    const seen = new Set<string>();
+    const options: { label: string; value: string }[] = [];
+    for (const r of instance.records) {
+      if (r.nodeKey && !seen.has(r.nodeKey)) {
+        seen.add(r.nodeKey);
+        options.push({ label: r.nodeName || r.nodeKey, value: r.nodeKey });
+      }
+    }
+    return options;
+  };
+
+  /** 从 tasks 中提取所有节点，用于跳转目标 */
+  const getAllNodeOptions = () => {
+    if (!instance?.tasks) return [];
+    const seen = new Set<string>();
+    const options: { label: string; value: string }[] = [];
+    for (const t of instance.tasks) {
+      if (t.nodeKey && !seen.has(t.nodeKey)) {
+        seen.add(t.nodeKey);
+        options.push({ label: t.nodeName || t.nodeKey, value: t.nodeKey });
+      }
+    }
+    return options;
+  };
+
   if (loading) {
     return (
       <PageContainer title="审批详情">
@@ -156,6 +299,42 @@ const ApprovalInstanceDetailPage: React.FC = () => {
             >
               拒绝
             </Button>
+            {isAssignee && (
+              <Button
+                icon={<SwapOutlined />}
+                onClick={() => setDelegateModalOpen(true)}
+              >
+                转交
+              </Button>
+            )}
+            <Dropdown
+              menu={{
+                items: [
+                  {
+                    key: 'rollback',
+                    icon: <RollbackOutlined />,
+                    label: '回退',
+                    onClick: () => setRollbackModalOpen(true),
+                  },
+                  {
+                    key: 'addSigner',
+                    icon: <UserAddOutlined />,
+                    label: '加签',
+                    onClick: () => setAddSignerModalOpen(true),
+                  },
+                  {
+                    key: 'jump',
+                    icon: <FastForwardOutlined />,
+                    label: '跳转',
+                    onClick: () => setJumpModalOpen(true),
+                  },
+                ] as MenuProps['items'],
+              }}
+            >
+              <Button icon={<EllipsisOutlined />}>
+                更多操作
+              </Button>
+            </Dropdown>
             {isApplicant && (
               <Button onClick={handleWithdraw}>
                 撤回
@@ -193,6 +372,28 @@ const ApprovalInstanceDetailPage: React.FC = () => {
           )}
         </Descriptions>
       </Card>
+
+      {/* 审批进度 */}
+      {progress && progress.approvers && progress.approvers.length > 0 && (
+        <Card title="审批进度" style={{ marginBottom: 16 }}>
+          <Steps
+            current={progress.approvedCount}
+            items={progress.approvers.map((approver, index) => {
+              let stepStatus: 'finish' | 'process' | 'wait' = 'wait';
+              if (approver.approved) {
+                stepStatus = 'finish';
+              } else if (index === progress.approvedCount) {
+                stepStatus = 'process';
+              }
+              return {
+                title: approver.name,
+                description: approver.approved ? '已审批' : index === progress.approvedCount ? '审批中' : '待审批',
+                status: stepStatus,
+              };
+            })}
+          />
+        </Card>
+      )}
 
       {/* 表单数据 */}
       {instance.formData && Object.keys(instance.formData).length > 0 && (
@@ -279,6 +480,130 @@ const ApprovalInstanceDetailPage: React.FC = () => {
           onChange={(e) => setComment(e.target.value)}
           rows={3}
         />
+      </Modal>
+
+      {/* 转交弹窗 */}
+      <Modal
+        title="转交审批"
+        open={delegateModalOpen}
+        onOk={handleDelegate}
+        onCancel={() => {
+          setDelegateModalOpen(false);
+          setTargetUserId('');
+          setTargetUserName('');
+          setComment('');
+        }}
+        confirmLoading={actionLoading}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <Input
+            placeholder="目标用户 ID（必填）"
+            value={targetUserId}
+            onChange={(e) => setTargetUserId(e.target.value)}
+          />
+          <Input
+            placeholder="目标用户姓名（选填）"
+            value={targetUserName}
+            onChange={(e) => setTargetUserName(e.target.value)}
+          />
+          <Input.TextArea
+            placeholder="转交原因（选填）"
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            rows={3}
+          />
+        </div>
+      </Modal>
+
+      {/* 回退弹窗 */}
+      <Modal
+        title="回退到指定节点"
+        open={rollbackModalOpen}
+        onOk={handleRollback}
+        onCancel={() => {
+          setRollbackModalOpen(false);
+          setTargetNodeKey('');
+          setComment('');
+        }}
+        confirmLoading={actionLoading}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <Select
+            placeholder="选择回退目标节点"
+            value={targetNodeKey || undefined}
+            onChange={(val) => setTargetNodeKey(val)}
+            options={getCompletedNodeOptions()}
+            style={{ width: '100%' }}
+          />
+          <Input.TextArea
+            placeholder="回退原因（必填）"
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            rows={3}
+          />
+        </div>
+      </Modal>
+
+      {/* 加签弹窗 */}
+      <Modal
+        title="添加审批人"
+        open={addSignerModalOpen}
+        onOk={handleAddSigner}
+        onCancel={() => {
+          setAddSignerModalOpen(false);
+          setTargetUserId('');
+          setTargetUserName('');
+          setComment('');
+        }}
+        confirmLoading={actionLoading}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <Input
+            placeholder="用户 ID（必填）"
+            value={targetUserId}
+            onChange={(e) => setTargetUserId(e.target.value)}
+          />
+          <Input
+            placeholder="用户姓名（选填）"
+            value={targetUserName}
+            onChange={(e) => setTargetUserName(e.target.value)}
+          />
+          <Input.TextArea
+            placeholder="加签原因（选填）"
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            rows={3}
+          />
+        </div>
+      </Modal>
+
+      {/* 跳转弹窗 */}
+      <Modal
+        title="自由跳转"
+        open={jumpModalOpen}
+        onOk={handleJump}
+        onCancel={() => {
+          setJumpModalOpen(false);
+          setTargetNodeKey('');
+          setComment('');
+        }}
+        confirmLoading={actionLoading}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <Select
+            placeholder="选择跳转目标节点"
+            value={targetNodeKey || undefined}
+            onChange={(val) => setTargetNodeKey(val)}
+            options={getAllNodeOptions()}
+            style={{ width: '100%' }}
+          />
+          <Input.TextArea
+            placeholder="跳转原因（必填）"
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            rows={3}
+          />
+        </div>
       </Modal>
     </PageContainer>
   );

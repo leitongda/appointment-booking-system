@@ -204,8 +204,9 @@ class NotificationQuotaService:
         month_end = (now.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(seconds=1)
         ttl = int((month_end - now).total_seconds())
 
-        await RedisCache.incr(cache_key, 1)
-        await RedisCache.set(cache_key, await RedisCache.get(cache_key), expire=ttl)
+        val = await RedisCache.incr(cache_key, 1)
+        if val == 1:
+            await RedisCache.expire(cache_key, ttl)
 
     async def get_quota_info(self, tenant_id: str) -> dict[str, Any]:
         """获取租户完整的配额信息

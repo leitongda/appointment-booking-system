@@ -148,6 +148,13 @@ export interface FlowDefinitionCreateData {
     sourceHandle?: string;
     targetHandle?: string;
   }>;
+  global_listeners?: Array<{
+    id?: string;
+    label?: string;
+    event: string;
+    actionType: string;
+    config: Record<string, any>;
+  }>;
 }
 
 export const approvalFlowApi = {
@@ -216,5 +223,10 @@ export const approvalFlowApi = {
   /** 导出流程定义 JSON */
   export: (id: string): Promise<any> => {
     return request.post(`/approval-flows/${id}/export`);
+  },
+
+  /** 导入流程定义（接受导出的 JSON 格式，创建为草稿状态） */
+  import: (data: FlowDefinitionCreateData): Promise<FlowDefinition> => {
+    return request.post('/approval-flows/import', data);
   },
 };
