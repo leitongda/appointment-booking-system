@@ -94,18 +94,21 @@ const attendanceRoutes: IRoute[] = [
         access: 'canAttendanceRecords',
         hideInMenu: true,
       },
-      {
-        path: '/attendance/leave',
-        name: '假期管理',
-        component: '@/pages/attendance/leave',
-        access: 'canAttendanceLeave',
-      },
-      {
-        path: '/attendance/leave/requests',
-        name: '假期申请',
-        component: '@/pages/attendance/leave-requests',
-        access: 'canAttendanceLeave',
-      },
+      // NOTE: 假期管理 / 假期申请 pages (pages/attendance/leave, pages/attendance/leave-requests)
+      // were never created — referencing them here breaks umi route resolution and aborts `dev`.
+      // Commented out until the page components exist. See apps/admin/src/access.ts -> canAttendanceLeave.
+      // {
+      //   path: '/attendance/leave',
+      //   name: '假期管理',
+      //   component: '@/pages/attendance/leave',
+      //   access: 'canAttendanceLeave',
+      // },
+      // {
+      //   path: '/attendance/leave/requests',
+      //   name: '假期申请',
+      //   component: '@/pages/attendance/leave-requests',
+      //   access: 'canAttendanceLeave',
+      // },
     ],
   },
 ];
