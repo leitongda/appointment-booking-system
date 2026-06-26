@@ -37,7 +37,7 @@
     "dayjs": "^1.11.10",
     "heatmap.js": "^2.0.5",
     "lodash-es": "^4.17.21",
-    "pinyin-pro": "^3.27.0",
+    "pinyin-pro": "^3.28.1",
     "react-image-crop": "^11.0.7",
     "rrweb": "^2.0.0-alpha.18",
     "rrweb-player": "^2.0.0-alpha.4",
