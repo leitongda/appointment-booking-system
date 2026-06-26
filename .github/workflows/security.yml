@@ -35,7 +35,7 @@ jobs:
           docker build -t hospital-server:security-scan .
 
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: 'hospital-server:security-scan'
           format: 'table'
@@ -44,7 +44,7 @@ jobs:
           ignore-unfixed: true
 
       - name: Run Trivy config scanner
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: 'config'
           scan-ref: 'apps/server/'
