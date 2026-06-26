@@ -41,7 +41,7 @@
     "react-dom": "18.2.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.23.7",
+    "@babel/core": "^7.29.7",
     "@tarojs/cli": "4.1.9",
     "@tarojs/taro-loader": "4.1.9",
     "@tarojs/webpack5-runner": "4.1.9",
