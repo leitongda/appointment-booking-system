@@ -120,7 +120,7 @@ jobs:
 
       # ==================== 10. 传输文件到服务器 ====================
       - name: 📤 Upload dist to Server
-        uses: appleboy/scp-action@v0.1.7
+        uses: appleboy/scp-action@v1.0.0
         with:
           host: ${{ secrets.CVM_HOST }}
           username: ${{ secrets.CVM_USERNAME }}
