@@ -22,7 +22,7 @@ import {
   SaveOutlined, CheckCircleOutlined, ArrowLeftOutlined,
   LayoutOutlined, ExclamationCircleOutlined,
   UndoOutlined, RedoOutlined, AppstoreOutlined,
-  SettingOutlined,
+  SettingOutlined, FileOutlined,
 } from '@ant-design/icons';
 import { history, useParams } from '@umijs/max';
 import { approvalFlowApi } from '@hospital/api';
@@ -147,6 +147,38 @@ const DesignerPageInner: React.FC = () => {
       approvalFlowApi.getTemplates().then(res => setTemplates(res.items || [])).catch(() => {});
     }
   }, [isNew]);
+
+  // BPMN 文件导入
+  const bpmnInputRef = useRef<HTMLInputElement>(null);
+  const [bpmnImporting, setBpmnImporting] = useState(false);
+
+  const handleBpmnFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setBpmnImporting(true);
+    try {
+      const parsed = await approvalFlowApi.parseBpmn(file);
+      const { nodes: fn, edges: fe } = fromFlowSchema(parsed);
+      setNodes(fn);
+      setEdges(fe);
+      setFlowName(parsed.name || '导入的流程');
+      // 更新 nodeIdCounter
+      const maxId = fn.reduce((max: number, n: Node) => {
+        const match = n.id.match(/\d+$/);
+        return match ? Math.max(max, parseInt(match[0])) : max;
+      }, 0);
+      nodeIdCounterRef.current = maxId;
+      setUndoHistory([]);
+      setHistoryIndex(-1);
+      message.success(`已从 BPMN 导入: ${parsed.name}（${fn.length} 个节点）`);
+    } catch (err: any) {
+      message.error(err.message || 'BPMN 解析失败');
+    } finally {
+      setBpmnImporting(false);
+      // 清空 input 允许重复选择同一文件
+      if (bpmnInputRef.current) bpmnInputRef.current.value = '';
+    }
+  }, [setNodes, setEdges]);
 
   // 从模板加载到画布
   const handleLoadTemplate = useCallback((tpl: any) => {
@@ -394,6 +426,8 @@ const DesignerPageInner: React.FC = () => {
           <Button icon={<SettingOutlined />} onClick={() => setGlobalDrawerOpen(true)}>流程设置</Button>
           <Button icon={<LayoutOutlined />} onClick={handleAutoLayout}>自动布局</Button>
           <Button icon={<ExclamationCircleOutlined />} onClick={handleValidate}>校验</Button>
+          <Button icon={<FileOutlined />} loading={bpmnImporting} onClick={() => bpmnInputRef.current?.click()}>导入 BPMN</Button>
+          <input ref={bpmnInputRef} type="file" accept=".bpmn,.xml" style={{ display: 'none' }} onChange={handleBpmnFileChange} />
           {isNew && templates.length > 0 && (
             <Dropdown
               menu={{

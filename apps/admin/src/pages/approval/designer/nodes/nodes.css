@@ -1,98 +1,137 @@
-/* ===== 审批流设计器 — 节点样式 ===== */
+/* ===== 审批流设计器 — 节点样式（极简线性） ===== */
 
 /* 基础节点 */
 .rf-node {
+  /* 由各类型覆盖：主题色 + 浅底色 */
+  --node-accent: #1677ff;
+  --node-soft: rgba(22, 119, 255, 0.1);
+
+  display: flex;
+  align-items: center;
+  gap: 10px;
   background: #fff;
-  border: 1.5px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 10px 16px;
-  min-width: 100px;
-  text-align: center;
+  border: 1px solid #ececec;
+  border-radius: 10px;
+  padding: 12px 16px 12px 14px;
+  min-width: 150px;
+  min-height: 48px;
   font-size: 13px;
-  color: #333;
+  color: #1f1f1f;
   cursor: move;
-  transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  transition: box-shadow 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: visible;
+  user-select: none;
 }
 
-/* 左侧色条 — 用 ::before 伪元素实现 */
+/* 左侧色条 — 用 ::before 伪元素实现（精致细条） */
 .rf-node::before {
   content: '';
   position: absolute;
   left: 0;
-  top: 8px;
-  bottom: 8px;
+  top: 10px;
+  bottom: 10px;
   width: 3px;
-  border-radius: 0 2px 2px 0;
-  background: var(--node-accent, #d9d9d9);
-  transition: width 0.15s ease;
+  border-radius: 0 3px 3px 0;
+  background: var(--node-accent);
+  opacity: 0.85;
+  transition: width 0.15s ease, opacity 0.15s ease;
 }
 
 /* Hover */
 .rf-node:hover {
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
-  border-color: #c0c0c0;
+  border-color: #d9d9d9;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 .rf-node:hover::before {
   width: 4px;
+  opacity: 1;
 }
 
-/* 选中态 */
+/* 选中态 — 主题色外环 */
 .rf-node[data-selected='true'],
 .react-flow__node-selected .rf-node {
-  border-color: #1677ff;
-  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.12), 0 3px 8px rgba(0, 0, 0, 0.1);
+  border-color: var(--node-accent);
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.15), 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 /* 拖拽中 */
 .rf-node[data-dragging='true'],
 .react-flow__node-dragging .rf-node {
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
   transform: scale(1.02);
 }
 
-/* ---- 各类型色条 ---- */
+/* ---- 各类型主题色 + 徽章底色 ---- */
 
 .rf-node--start {
   --node-accent: #52c41a;
-  border-radius: 20px;
+  --node-soft: rgba(82, 196, 26, 0.1);
 }
 
 .rf-node--end {
   --node-accent: #ff4d4f;
-  border-radius: 20px;
+  --node-soft: rgba(255, 77, 79, 0.1);
 }
 
 .rf-node--approval {
   --node-accent: #1677ff;
+  --node-soft: rgba(22, 119, 255, 0.1);
 }
 
 .rf-node--condition {
   --node-accent: #fa8c16;
+  --node-soft: rgba(250, 140, 22, 0.1);
 }
 
 .rf-node--cc {
   --node-accent: #8c8c8c;
+  --node-soft: rgba(140, 140, 140, 0.1);
 }
 
 /* ---- 节点内部元素 ---- */
 
+/* 图标徽章：圆角方块 + 浅色底 */
 .rf-node__icon {
-  margin-right: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  margin-right: 0;
   font-size: 14px;
+  border-radius: 6px;
+  background: var(--node-soft);
+  color: var(--node-accent);
+  transition: transform 0.15s ease;
+}
+
+/* 文本区：标题 + 次要信息 */
+.rf-node__body {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+  text-align: left;
 }
 
 .rf-node__label {
-  font-weight: 500;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f1f1f;
+  line-height: 1.3;
 }
 
 .rf-node__meta {
   font-size: 11px;
-  color: #999;
-  margin-top: 2px;
+  color: #8c8c8c;
+  line-height: 1.2;
 }
 
 /* ---- 监听器标识 ---- */
@@ -106,22 +145,24 @@
   background: #722ed1;
   border-radius: 50%;
   border: 1.5px solid #fff;
+  box-shadow: 0 1px 3px rgba(114, 46, 209, 0.4);
 }
 
 /* ---- Handle 连接点 ---- */
 
 .rf-handle {
-  width: 8px !important;
-  height: 8px !important;
+  width: 10px !important;
+  height: 10px !important;
   background: #fff !important;
-  border: 2px solid #b0b0b0 !important;
-  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease !important;
+  border: 2px solid #d9d9d9 !important;
+  transition: background 0.15s ease, border-color 0.15s ease,
+    transform 0.15s ease !important;
 }
 
 .rf-handle:hover {
   background: #1677ff !important;
   border-color: #1677ff !important;
-  transform: scale(1.4);
+  transform: scale(1.3);
 }
 
 .rf-handle::after {
@@ -136,21 +177,129 @@
 .rf-edge-label {
   pointer-events: all;
   background: #fff;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
+  border: 1px solid #ececec;
+  border-radius: 6px;
   padding: 2px 8px;
   font-size: 11px;
-  color: #666;
+  color: #8c8c8c;
   white-space: nowrap;
-  transition: border-color 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: border-color 0.15s ease, color 0.15s ease;
 }
 
 .rf-edge-label:hover {
   border-color: #1677ff;
+  color: #1677ff;
 }
 
 .rf-edge-label--active {
-  border-color: #fa8c16;
+  border-color: #ffe7ba;
   background: #fff7e6;
   color: #d46b08;
+}
+
+.rf-edge-label--active:hover {
+  border-color: #fa8c16;
+  color: #fa8c16;
+}
+
+/* ===== 流程图查看器 — 节点状态高亮 ===== */
+
+.rf-node-status--completed .rf-node {
+  border-color: #b7eb8f !important;
+  background: #f6ffed !important;
+}
+.rf-node-status--completed .rf-node::before {
+  background: #52c41a;
+  opacity: 1;
+}
+
+.rf-node-status--current .rf-node {
+  border-color: #91caff !important;
+  background: #e6f4ff !important;
+  animation: rf-pulse 2s ease-in-out infinite;
+}
+.rf-node-status--current .rf-node::before {
+  background: #1677ff;
+  opacity: 1;
+}
+
+.rf-node-status--rejected .rf-node {
+  border-color: #ffa39e !important;
+  background: #fff2f0 !important;
+  opacity: 0.65;
+}
+.rf-node-status--rejected .rf-node::before {
+  background: #ff4d4f;
+  opacity: 1;
+}
+
+.rf-node-status--skipped .rf-node {
+  border-color: #d9d9d9 !important;
+  background: #fafafa !important;
+  opacity: 0.5;
+}
+
+.rf-node-status--pending .rf-node {
+  /* 默认样式，不做特殊处理 */
+}
+
+@keyframes rf-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(22, 119, 255, 0.3); }
+  50% { box-shadow: 0 0 0 6px rgba(22, 119, 255, 0.1); }
+}
+
+/* ===== 左侧节点面板 — 节点项样式（极简线性） ===== */
+
+.np-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  background: #fff;
+  border: 1px solid #ececec;
+  border-radius: 8px;
+  cursor: grab;
+  transition: border-color 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.np-item:last-child {
+  margin-bottom: 0;
+}
+
+.np-item:hover {
+  border-color: var(--np-accent, #1677ff);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+.np-item:active {
+  cursor: grabbing;
+  transform: scale(0.98);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* 图标徽章：圆角方块 + 浅色底 */
+.np-item__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  font-size: 13px;
+  border-radius: 6px;
+  transition: transform 0.15s ease;
+}
+
+.np-item:hover .np-item__badge {
+  transform: scale(1.06);
+}
+
+.np-item__label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1f1f1f;
 }

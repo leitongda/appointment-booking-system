@@ -8,8 +8,10 @@ const CcNode = memo(({ data, selected }: NodeProps) => {
   return (
     <div className="rf-node rf-node--cc" data-selected={selected}>
       <Handle type="target" position={Position.Top} className="rf-handle" />
-      <MailOutlined className="rf-node__icon" style={{ color: '#8c8c8c' }} />
-      <span className="rf-node__label">{d.label || '抄送'}</span>
+      <MailOutlined className="rf-node__icon" />
+      <div className="rf-node__body">
+        <span className="rf-node__label">{d.label || '抄送'}</span>
+      </div>
       {(d.listeners?.length > 0) && (
         <div className="rf-node__listener-dot" title={`${d.listeners.length} 个监听器`} />
       )}

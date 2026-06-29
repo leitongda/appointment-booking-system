@@ -12,11 +12,14 @@ import {
   RollbackOutlined,
   UserAddOutlined,
   FastForwardOutlined,
+  BranchesOutlined,
 } from '@ant-design/icons';
 import { history, useParams, useModel } from '@umijs/max';
 import { useState, useEffect, useCallback } from 'react';
-import { approvalInstanceApi } from '@hospital/api';
+import { approvalInstanceApi, approvalFlowApi } from '@hospital/api';
 import type { ApprovalInstance, ApprovalRecord, ApprovalInstanceStatus, ApprovalProgress } from '@hospital/shared';
+import FlowChartViewer from '@/components/ApprovalFlowChart';
+import type { NodeStatus } from '@/components/ApprovalFlowChart';
 
 const STATUS_MAP: Record<ApprovalInstanceStatus, { text: string; color: string }> = {
   pending: { text: '审批中', color: 'processing' },
@@ -57,6 +60,9 @@ const ApprovalInstanceDetailPage: React.FC = () => {
   const [targetUserName, setTargetUserName] = useState('');
   const [targetNodeKey, setTargetNodeKey] = useState('');
   const [progress, setProgress] = useState<ApprovalProgress | null>(null);
+  const [flowDefinition, setFlowDefinition] = useState<any>(null);
+  const [nodeStatuses, setNodeStatuses] = useState<Map<string, NodeStatus>>(new Map());
+  const [instanceRecords, setInstanceRecords] = useState<Map<string, any[]>>(new Map());
 
   const fetchDetail = useCallback(async () => {
     if (!id) return;
@@ -74,6 +80,68 @@ const ApprovalInstanceDetailPage: React.FC = () => {
   useEffect(() => {
     fetchDetail();
   }, [fetchDetail]);
+
+  // 加载流程定义数据，用于渲染流程图
+  useEffect(() => {
+    if (!instance?.flowDefId) return;
+    approvalFlowApi.getDetail(instance.flowDefId).then((flowDef: any) => {
+      setFlowDefinition(flowDef);
+
+      // 根据实例记录和当前节点计算各节点状态
+      const statusMap = new Map<string, NodeStatus>();
+      const recordActions = new Map<string, { action: string; comment?: string }[]>();
+
+      // 收集每个节点的审批记录
+      (instance.records || []).forEach((r: ApprovalRecord) => {
+        if (r.nodeKey) {
+          const actions = recordActions.get(r.nodeKey) || [];
+          actions.push({ action: r.action, comment: r.comment });
+          recordActions.set(r.nodeKey, actions);
+        }
+      });
+
+      // 标记节点状态
+      const allNodeKeys = (flowDef.nodes || []).map((n: any) => n.nodeKey);
+      for (const nodeKey of allNodeKeys) {
+        const actions = recordActions.get(nodeKey);
+        if (actions) {
+          // 有审批记录 → 检查是否被拒绝
+          const hasReject = actions.some((a) => a.action === 'reject');
+          statusMap.set(nodeKey, hasReject ? 'rejected' : 'completed');
+        }
+      }
+
+      // 标记当前节点
+      if (instance.currentNodeKey) {
+        statusMap.set(instance.currentNodeKey, 'current');
+      }
+
+      // 被拒绝流程的其余节点标记为跳过
+      if (instance.status === 'rejected' || instance.status === 'cancelled' || instance.status === 'withdrawn') {
+        for (const nodeKey of allNodeKeys) {
+          if (!statusMap.has(nodeKey)) {
+            statusMap.set(nodeKey, 'skipped');
+          }
+        }
+      }
+
+      setNodeStatuses(statusMap);
+
+      // 同时构建节点→记录映射，供流程图节点点击抽屉展示
+      const recMap = new Map<string, any[]>();
+      (instance.records || []).forEach((r: ApprovalRecord) => {
+        if (r.nodeKey) {
+          const arr = recMap.get(r.nodeKey) || [];
+          arr.push(r);
+          recMap.set(r.nodeKey, arr);
+        }
+      });
+      setInstanceRecords(recMap);
+    }).catch(() => {
+      // 流程定义加载失败（非关键，流程图区域显示为空）
+      setFlowDefinition(null);
+    });
+  }, [instance?.flowDefId, instance?.records, instance?.currentNodeKey, instance?.status]);
 
   useEffect(() => {
     if (!id || !instance) return;
@@ -392,6 +460,29 @@ const ApprovalInstanceDetailPage: React.FC = () => {
               };
             })}
           />
+        </Card>
+      )}
+
+      {/* 流程图 */}
+      {flowDefinition && (
+        <Card
+          title={
+            <Space>
+              <BranchesOutlined />
+              流程图
+            </Space>
+          }
+          style={{ marginBottom: 16 }}
+        >
+          <div style={{ border: '1px solid #eee', borderRadius: 8, overflow: 'hidden' }}>
+            <FlowChartViewer
+              flowDefinition={flowDefinition}
+              nodeStatuses={nodeStatuses}
+              instanceRecords={instanceRecords}
+              mode="instance"
+              height={450}
+            />
+          </div>
         </Card>
       )}
 

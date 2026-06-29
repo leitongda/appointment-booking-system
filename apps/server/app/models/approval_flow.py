@@ -61,9 +61,9 @@ class ApprovalFlowNode(Base):
     position_x = Column(Float, comment="设计器X坐标")
     position_y = Column(Float, comment="设计器Y坐标")
     listeners = Column(JSON, nullable=True, comment="执行监听器列表")
-    created_at = Column(DateTime, default=lambda: __import__('datetime').datetime.utcnow)
-    updated_at = Column(DateTime, default=lambda: __import__('datetime').datetime.utcnow,
-                        onupdate=lambda: __import__('datetime').datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: __import__('datetime').datetime.utcnow())
+    updated_at = Column(DateTime, default=lambda: __import__('datetime').datetime.utcnow(),
+                        onupdate=lambda: __import__('datetime').datetime.utcnow())
 
     # 关系
     flow_def = relationship("ApprovalFlowDefinition", back_populates="nodes")
@@ -87,7 +87,7 @@ class ApprovalFlowCondition(Base):
     value = Column(Text, nullable=False, comment="条件值 (JSON 字符串)")
     priority = Column(Integer, nullable=False, default=0, comment="优先级，越小越先匹配")
     group_id = Column(String(50), nullable=True, comment="条件组 ID: 同组 AND，不同组 OR。None 表示独立条件")
-    created_at = Column(DateTime, default=lambda: __import__('datetime').datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: __import__('datetime').datetime.utcnow())
 
     # 关系
     node = relationship("ApprovalFlowNode", back_populates="conditions")
@@ -150,7 +150,7 @@ class ApprovalRecord(Base):
     comment = Column(Text, comment="审批意见")
     delegate_to = Column(String(36), comment="转交目标人 ID")
     attachments = Column(JSON, comment="附件列表")
-    created_at = Column(DateTime, default=lambda: __import__('datetime').datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: __import__('datetime').datetime.utcnow())
 
     # 关系
     instance = relationship("ApprovalInstance", back_populates="records")
@@ -182,7 +182,7 @@ class ApprovalTask(Base):
     completed_at = Column(DateTime, comment="完成时间")
     completed_by = Column(String(36), comment="完成操作人（审批人或 system）")
     timeout_at = Column(DateTime, comment="超时时间")
-    created_at = Column(DateTime, default=lambda: __import__('datetime').datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: __import__('datetime').datetime.utcnow())
 
     # 关系
     instance = relationship("ApprovalInstance", back_populates="tasks")

@@ -162,6 +162,7 @@ export const approvalFlowApi = {
   getList: (params?: {
     page?: number;
     pageSize?: number;
+    name?: string;
     businessType?: string;
     status?: string;
   }): Promise<PageResult<FlowDefinitionListItem>> => {
@@ -169,6 +170,7 @@ export const approvalFlowApi = {
       params: {
         page: params?.page,
         page_size: params?.pageSize,
+        name: params?.name,
         business_type: params?.businessType,
         status: params?.status,
       },
@@ -205,6 +207,14 @@ export const approvalFlowApi = {
     return request.delete(`/approval-flows/${id}`);
   },
 
+  /** 批量删除流程定义（仅草稿状态可删除） */
+  batchDelete: (ids: string[]): Promise<{
+    deleted: Array<{ id: string; name?: string }>;
+    failed: Array<{ id: string; name?: string; status?: string; error?: string }>;
+  }> => {
+    return request.post('/approval-flows/batch-delete', { ids });
+  },
+
   /** 复制流程定义 */
   copy: (id: string): Promise<FlowDefinition> => {
     return request.post(`/approval-flows/${id}/copy`);
@@ -228,5 +238,25 @@ export const approvalFlowApi = {
   /** 导入流程定义（接受导出的 JSON 格式，创建为草稿状态） */
   import: (data: FlowDefinitionCreateData): Promise<FlowDefinition> => {
     return request.post('/approval-flows/import', data);
+  },
+
+  /** 解析 BPMN XML 预览（不入库） */
+  parseBpmn: (file: File): Promise<any> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return request.post('/approval-flows/parse-bpmn', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+
+  /** 从 BPMN XML 导入流程定义（创建草稿，支持多文件） */
+  importBpmn: (files: File | File[], businessType?: string): Promise<any> => {
+    const formData = new FormData();
+    const fileArr = Array.isArray(files) ? files : [files];
+    fileArr.forEach(f => formData.append('files', f));
+    return request.post('/approval-flows/import-bpmn', formData, {
+      params: { business_type: businessType || 'custom' },
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
   },
 };

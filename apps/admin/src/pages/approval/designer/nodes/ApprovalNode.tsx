@@ -8,23 +8,20 @@ const ASSIGNEE_MAP: Record<string, string> = { role: '角色', user: '指定人'
 
 const ApprovalNode = memo(({ data, selected }: NodeProps) => {
   const d = data as any;
+  const metas: string[] = [];
+  if (d.approvalMode) metas.push(MODE_MAP[d.approvalMode] || d.approvalMode);
+  if (d.assigneeType) metas.push(ASSIGNEE_MAP[d.assigneeType] || d.assigneeType);
+
   return (
     <div className="rf-node rf-node--approval" data-selected={selected}>
       <Handle type="target" position={Position.Top} className="rf-handle" />
-      <div>
-        <AuditOutlined className="rf-node__icon" style={{ color: '#1677ff' }} />
+      <AuditOutlined className="rf-node__icon" />
+      <div className="rf-node__body">
         <span className="rf-node__label">{d.label || '审批节点'}</span>
+        {metas.length > 0 && (
+          <div className="rf-node__meta">{metas.join(' · ')}</div>
+        )}
       </div>
-      {d.approvalMode && (
-        <div className="rf-node__meta">
-          {MODE_MAP[d.approvalMode] || d.approvalMode}
-        </div>
-      )}
-      {d.assigneeType && (
-        <div className="rf-node__meta">
-          {ASSIGNEE_MAP[d.assigneeType] || d.assigneeType}
-        </div>
-      )}
       {(d.listeners?.length > 0) && (
         <div className="rf-node__listener-dot" title={`${d.listeners.length} 个监听器`} />
       )}

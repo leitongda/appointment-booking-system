@@ -6,8 +6,10 @@ import './nodes.css';
 const StartNode = memo(({ data, selected }: NodeProps) => {
   return (
     <div className={`rf-node rf-node--start`} data-selected={selected}>
-      <PlayCircleOutlined className="rf-node__icon" style={{ color: '#52c41a' }} />
-      <span className="rf-node__label">{(data as any).label || '开始'}</span>
+      <PlayCircleOutlined className="rf-node__icon" />
+      <div className="rf-node__body">
+        <span className="rf-node__label">{(data as any).label || '开始'}</span>
+      </div>
       <Handle type="source" position={Position.Bottom} className="rf-handle" />
     </div>
   );

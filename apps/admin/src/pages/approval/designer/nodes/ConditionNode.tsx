@@ -9,15 +9,13 @@ const ConditionNode = memo(({ data, selected }: NodeProps) => {
   return (
     <div className="rf-node rf-node--condition" data-selected={selected}>
       <Handle type="target" position={Position.Top} className="rf-handle" />
-      <div>
-        <BranchesOutlined className="rf-node__icon" style={{ color: '#fa8c16' }} />
+      <BranchesOutlined className="rf-node__icon" />
+      <div className="rf-node__body">
         <span className="rf-node__label">{d.label || '条件判断'}</span>
+        {branchCount > 0 && (
+          <div className="rf-node__meta">{branchCount} 个分支</div>
+        )}
       </div>
-      {branchCount > 0 && (
-        <div className="rf-node__meta">
-          {branchCount} 个分支
-        </div>
-      )}
       {(d.listeners?.length > 0) && (
         <div className="rf-node__listener-dot" title={`${d.listeners.length} 个监听器`} />
       )}

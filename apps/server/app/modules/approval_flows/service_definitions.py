@@ -32,6 +32,8 @@ class FlowDefinitionService:
         page_size: int = 20,
         business_type: str | None = None,
         status: str | None = None,
+        *,
+        name: str | None = None,
     ) -> tuple[list[ApprovalFlowDefinition], int]:
         """获取流程定义列表"""
         stmt = select(ApprovalFlowDefinition)
@@ -49,6 +51,10 @@ class FlowDefinitionService:
         if status:
             stmt = stmt.where(ApprovalFlowDefinition.status == status)
             count_stmt = count_stmt.where(ApprovalFlowDefinition.status == status)
+
+        if name:
+            stmt = stmt.where(ApprovalFlowDefinition.name.ilike(f"%{name}%"))
+            count_stmt = count_stmt.where(ApprovalFlowDefinition.name.ilike(f"%{name}%"))
 
         stmt = stmt.order_by(ApprovalFlowDefinition.updated_at.desc())
         stmt = stmt.offset((page - 1) * page_size).limit(page_size)
@@ -78,6 +84,71 @@ class FlowDefinitionService:
         stmt = stmt.order_by(ApprovalFlowDefinition.version.desc())
         result = await self.db.execute(stmt)
         return result.scalars().first()
+
+    async def get_by_name(self, name: str, business_type: str = "custom") -> ApprovalFlowDefinition | None:
+        """按名称查找最新版本的流程定义"""
+        tenant_id = get_current_tenant_id()
+        stmt = select(ApprovalFlowDefinition).where(
+            ApprovalFlowDefinition.name == name,
+            ApprovalFlowDefinition.business_type == business_type,
+        )
+        if tenant_id:
+            stmt = stmt.where(ApprovalFlowDefinition.tenant_id == tenant_id)
+        stmt = stmt.order_by(ApprovalFlowDefinition.version.desc())
+        result = await self.db.execute(stmt)
+        return result.scalars().first()
+
+    async def update_from_import(self, flow_def: ApprovalFlowDefinition, data: FlowDefinitionCreate, user_id: str) -> ApprovalFlowDefinition:
+        """从导入数据更新已有流程定义（替换节点和条件）"""
+        from app.models.approval_flow import ApprovalFlowCondition, ApprovalFlowNode
+
+        # 删除旧节点（级联删除条件）
+        for node in flow_def.nodes:
+            await self.db.delete(node)
+        await self.db.flush()
+
+        # 更新基本信息
+        flow_def.description = data.description
+        flow_def.form_schema = data.form_schema
+        flow_def.callback_config = data.callback_config
+        flow_def.edges = data.edges
+        set_update_audit(flow_def, user_id)
+
+        # 创建新节点
+        for node_data in data.nodes:
+            node = ApprovalFlowNode(
+                id=str(uuid.uuid4()),
+                flow_def_id=flow_def.id,
+                node_key=node_data.node_key,
+                node_name=node_data.node_name,
+                node_type=node_data.node_type,
+                approval_mode=node_data.approval_mode,
+                assignee_type=node_data.assignee_type,
+                assignee_config=node_data.assignee_config,
+                timeout_hours=node_data.timeout_hours,
+                timeout_action=node_data.timeout_action,
+                sort_order=node_data.sort_order,
+                position_x=node_data.position_x,
+                position_y=node_data.position_y,
+            )
+            self.db.add(node)
+            await self.db.flush()
+
+            for cond_data in node_data.conditions:
+                condition = ApprovalFlowCondition(
+                    id=str(uuid.uuid4()),
+                    node_id=node.id,
+                    flow_def_id=flow_def.id,
+                    target_node_key=cond_data.target_node_key,
+                    field_name=cond_data.field_name,
+                    operator=cond_data.operator,
+                    value=cond_data.value,
+                    priority=cond_data.priority,
+                )
+                self.db.add(condition)
+
+        await self.db.flush()
+        return flow_def
 
     async def create(self, data: FlowDefinitionCreate, user_id: str) -> ApprovalFlowDefinition:
         """创建流程定义"""
@@ -295,6 +366,40 @@ class FlowDefinitionService:
         await self.db.delete(flow_def)
         await self.db.flush()
         return True
+
+    async def batch_delete(self, flow_def_ids: list[str], user_id: str) -> dict:
+        """批量删除流程定义（仅草稿状态可删除）
+
+        逐条处理：未找到 / 非草稿状态的条目会被收集到 failed 中，
+        不影响其他可删除条目。返回 {"deleted": [...], "failed": [...]}。
+        """
+        deleted: list[dict] = []
+        failed: list[dict] = []
+
+        for flow_def_id in flow_def_ids:
+            flow_def = await self.get_by_id(flow_def_id)
+            if not flow_def:
+                failed.append({"id": flow_def_id, "error": "流程定义不存在"})
+                continue
+
+            if flow_def.status != "draft":
+                failed.append({
+                    "id": flow_def_id,
+                    "name": flow_def.name,
+                    "status": flow_def.status,
+                    "error": "仅草稿状态的流程可以删除",
+                })
+                continue
+
+            try:
+                await self.db.delete(flow_def)
+                await self.db.flush()
+                deleted.append({"id": flow_def_id, "name": flow_def.name})
+            except Exception as e:  # noqa: BLE001
+                logger.exception("批量删除流程失败 id=%s", flow_def_id)
+                failed.append({"id": flow_def_id, "name": flow_def.name, "error": str(e)})
+
+        return {"deleted": deleted, "failed": failed}
 
     async def copy(self, flow_def_id: str, user_id: str) -> ApprovalFlowDefinition | None:
         """复制流程定义"""
