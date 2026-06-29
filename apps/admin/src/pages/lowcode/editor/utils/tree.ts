@@ -60,3 +60,21 @@ export function findParentNode(
   }
   return null;
 }
+
+/**
+ * 为节点及其子节点重新生成唯一 ID（用于复制粘贴、snippet 展开等场景）。
+ *
+ * @param node  原始节点
+ * @returns 新 ID 的节点树副本
+ */
+export function regenerateIds(node: LowCodeNode): LowCodeNode {
+  const newNode = {
+    ...node,
+    id: `node_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    props: { ...node.props },
+  };
+  if (node.children) {
+    newNode.children = node.children.map((child) => regenerateIds(child));
+  }
+  return newNode;
+}

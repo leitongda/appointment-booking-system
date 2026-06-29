@@ -134,7 +134,7 @@ async def create_page(
         schema_data=data.schema_data,
         thumbnail_url=data.thumbnail_url,
         miniapp_instance_id=data.miniapp_instance_id,
-        created_by=str(current_admin.id),
+        created_by=str(current_admin["id"]),
     )
     return LowCodePageResponse.model_validate(page)
 
@@ -187,7 +187,7 @@ async def update_page(
         status=data.status,
         thumbnail_url=data.thumbnail_url,
         miniapp_instance_id=data.miniapp_instance_id,
-        updated_by=str(current_admin.id),
+        updated_by=str(current_admin["id"]),
     )
     if not page:
         raise HTTPException(
@@ -206,7 +206,7 @@ async def delete_page(
 ):
     tenant_id = _get_tenant_id(current_admin)
     service = LowCodePageService(db)
-    deleted = await service.delete(tenant_id, page_id, deleted_by=str(current_admin.id))
+    deleted = await service.delete(tenant_id, page_id, deleted_by=str(current_admin["id"]))
     if not deleted:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -356,7 +356,7 @@ async def import_page(
         slug=slug,
         description=data.get("description", ""),
         schema_data=data["schema_data"],
-        created_by=str(current_admin.id),
+        created_by=str(current_admin["id"]),
     )
     return LowCodePageResponse.model_validate(page)
 
@@ -388,7 +388,7 @@ async def publish_page(
         tenant_id=tenant_id,
         page_id=page_id,
         status=1,
-        updated_by=str(current_admin.id),
+        updated_by=str(current_admin["id"]),
     )
     if not page:
         raise HTTPException(
@@ -411,7 +411,7 @@ async def archive_page(
         tenant_id=tenant_id,
         page_id=page_id,
         status=2,
-        updated_by=str(current_admin.id),
+        updated_by=str(current_admin["id"]),
     )
     if not page:
         raise HTTPException(
@@ -777,7 +777,7 @@ async def publish_to_marketplace(
         tenant_id=tenant_id,
         page_id=page_id,
         status=3,  # 3 = 已上架市场
-        updated_by=str(current_admin.id),
+        updated_by=str(current_admin["id"]),
     )
     if not page:
         raise HTTPException(
@@ -815,7 +815,7 @@ async def deploy_page(
         result = await service.trigger_deploy(
             tenant_id=tenant_id,
             page_id=page_id,
-            updated_by=str(current_admin.id),
+            updated_by=str(current_admin["id"]),
         )
     except DeployError as e:
         raise HTTPException(
@@ -893,7 +893,7 @@ async def deploy_rollback(
             tenant_id=tenant_id,
             page_id=page_id,
             target_version=data.target_version,
-            updated_by=str(current_admin.id),
+            updated_by=str(current_admin["id"]),
         )
     except DeployError as e:
         raise HTTPException(

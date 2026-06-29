@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import { DragDropProvider, DragOverlay } from '@dnd-kit/react';
-import { Segmented, InputNumber, Switch, Tooltip, Space, Select, message } from 'antd';
+import { Segmented, InputNumber, Slider, Switch, Tooltip, Space, Select, message } from 'antd';
 import { SwapOutlined, EditOutlined } from '@ant-design/icons';
 import { useEditorStore } from '../store';
 import { SchemaRenderer } from './SchemaRenderer';
@@ -115,8 +115,8 @@ const DEVICE_OPTIONS = VENDOR_ORDER
   })
   .filter(Boolean) as { label: string; title: string; options: { label: string; value: string }[] }[];
 
-/** 缩放级别 */
-const ZOOM_LEVELS = [50, 75, 100, 125];
+/** 缩放级别（用于快捷按钮） */
+const ZOOM_LEVELS = [25, 50, 75, 100, 125, 150, 200];
 /** 常见 DPR 候选 */
 const DPR_OPTIONS = [1, 2, 3];
 
@@ -400,12 +400,43 @@ export const Canvas: React.FC = () => {
         }}
       >
         <span style={{ color: EDITOR_COLORS.textSecondary, whiteSpace: 'nowrap' }}>缩放</span>
-        <Segmented
-          size="small"
+        <Slider
+          min={25}
+          max={200}
+          step={5}
           value={zoom}
-          options={ZOOM_LEVELS.map((z) => ({ label: `${z}%`, value: z }))}
-          onChange={(value) => setZoom(Number(value))}
+          onChange={(value) => setZoom(value)}
+          style={{ width: 120 }}
+          tooltip={{ formatter: (v) => `${v}%` }}
         />
+        <InputNumber
+          size="small"
+          min={25}
+          max={200}
+          value={zoom}
+          onChange={(v) => v && setZoom(Number(v))}
+          style={{ width: 60 }}
+          formatter={(v) => `${v}%`}
+          parser={(v) => Number(v?.replace('%', '')) as any}
+        />
+        <Space size={2}>
+          {ZOOM_LEVELS.map((z) => (
+            <a
+              key={z}
+              onClick={() => setZoom(z)}
+              style={{
+                fontSize: 11,
+                color: zoom === z ? EDITOR_COLORS.primary : EDITOR_COLORS.textSecondary,
+                padding: '1px 4px',
+                borderRadius: 3,
+                background: zoom === z ? `${EDITOR_COLORS.primary}10` : undefined,
+                cursor: 'pointer',
+              }}
+            >
+              {z}%
+            </a>
+          ))}
+        </Space>
         <span style={{ color: EDITOR_COLORS.textSecondary, whiteSpace: 'nowrap' }}>设备</span>
         <Select
           size="small"

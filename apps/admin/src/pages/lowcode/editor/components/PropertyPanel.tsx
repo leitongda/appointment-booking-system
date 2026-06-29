@@ -874,8 +874,8 @@ export const PropertyPanel: React.FC = () => {
     return (
       <div
         style={{
-          width: EDITOR_LAYOUT.rightPanelWidth,
-          flexShrink: 0,
+          width: '100%',
+          height: '100%',
           borderLeft: `1px solid ${EDITOR_COLORS.border}`,
           padding: 16,
           overflow: 'auto',
@@ -902,8 +902,8 @@ export const PropertyPanel: React.FC = () => {
   return (
     <div
       style={{
-        width: EDITOR_LAYOUT.rightPanelWidth,
-        flexShrink: 0,
+        width: '100%',
+        height: '100%',
         borderLeft: `1px solid ${EDITOR_COLORS.border}`,
         overflow: 'auto',
         background: EDITOR_COLORS.panelBg,

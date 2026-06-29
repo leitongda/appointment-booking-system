@@ -181,9 +181,30 @@ function collectAllNodeIds(nodes: LowCodeNode[]): string[] {
   ]);
 }
 
-/** 深拷贝 Schema */
+/** 深拷贝 Schema — 优先使用 structuredClone（性能更好），fallback 到 JSON */
 function cloneSchema(schema: LowCodeSchema): LowCodeSchema {
+  if (typeof structuredClone === 'function') {
+    return structuredClone(schema);
+  }
   return JSON.parse(JSON.stringify(schema));
+}
+
+/** 深拷贝 HistoryEntry — 优先使用 structuredClone */
+function cloneHistoryEntry(entry: HistoryEntry): HistoryEntry {
+  if (typeof structuredClone === 'function') {
+    return structuredClone(entry);
+  }
+  return JSON.parse(JSON.stringify(entry));
+}
+
+/** 比较两个 Schema 是否相同（基于 JSON 序列化） */
+function isSchemaEqual(a: LowCodeSchema, b: LowCodeSchema): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
+/** 比较两个 HistoryEntry 是否与已保存状态一致 */
+function isEntrySaved(entry: HistoryEntry, savedSchema: LowCodeSchema): boolean {
+  return isSchemaEqual(entry.schema, savedSchema);
 }
 
 /** 递归添加节点 */
@@ -362,8 +383,8 @@ function pushHistory(
   const state = get();
   const snapshot: HistoryEntry = {
     schema: cloneSchema(overrides.schema ?? state.schema),
-    dataSources: JSON.parse(JSON.stringify(overrides.dataSources ?? state.dataSources)),
-    stateSchema: JSON.parse(JSON.stringify(overrides.stateSchema ?? state.stateSchema)),
+    dataSources: (typeof structuredClone === 'function' ? structuredClone : <T>(v: T) => JSON.parse(JSON.stringify(v)))(overrides.dataSources ?? state.dataSources),
+    stateSchema: (typeof structuredClone === 'function' ? structuredClone : <T>(v: T) => JSON.parse(JSON.stringify(v)))(overrides.stateSchema ?? state.stateSchema),
   };
   const newHistory = state.history.slice(0, state.historyIndex + 1);
   newHistory.push(snapshot);
@@ -515,6 +536,7 @@ export const useEditorStore = create<EditorStore>()(persist(
   addDataSource: (ds) => {
     const next = [...get().dataSources, ds];
     pushHistory(get, set as any, { dataSources: next });
+    set({ isDirty: true });
   },
 
   updateDataSource: (id, updates) => {
@@ -522,15 +544,18 @@ export const useEditorStore = create<EditorStore>()(persist(
       ds.id === id ? { ...ds, ...updates } : ds,
     );
     pushHistory(get, set as any, { dataSources: next });
+    set({ isDirty: true });
   },
 
   removeDataSource: (id) => {
     const next = get().dataSources.filter((ds) => ds.id !== id);
     pushHistory(get, set as any, { dataSources: next });
+    set({ isDirty: true });
   },
 
   setStateSchema: (schema) => {
     pushHistory(get, set as any, { stateSchema: schema });
+    set({ isDirty: true });
   },
 
   updateNodeBinding: (nodeId, propName, expression) => {
@@ -548,35 +573,39 @@ export const useEditorStore = create<EditorStore>()(persist(
   },
 
   undo: () => {
-    const { historyIndex, history } = get();
+    const { historyIndex, history, savedSchema } = get();
     if (historyIndex > 0) {
       const newIndex = historyIndex - 1;
       const entry = history[newIndex];
+      const cloned = cloneHistoryEntry(entry);
       set({
-        schema: cloneSchema(entry.schema),
-        dataSources: JSON.parse(JSON.stringify(entry.dataSources)),
-        stateSchema: JSON.parse(JSON.stringify(entry.stateSchema)),
+        schema: cloned.schema,
+        dataSources: cloned.dataSources,
+        stateSchema: cloned.stateSchema,
         historyIndex: newIndex,
         selectedNodeId: null,
         selectedNodeIds: [],
-        isDirty: true,
+        // 修复：撤销到已保存状态时，将 isDirty 设为 false，避免 auto-save 覆盖正确版本
+        isDirty: !isEntrySaved(entry, savedSchema),
       });
     }
   },
 
   redo: () => {
-    const { historyIndex, history } = get();
+    const { historyIndex, history, savedSchema } = get();
     if (historyIndex < history.length - 1) {
       const newIndex = historyIndex + 1;
       const entry = history[newIndex];
+      const cloned = cloneHistoryEntry(entry);
       set({
-        schema: cloneSchema(entry.schema),
-        dataSources: JSON.parse(JSON.stringify(entry.dataSources)),
-        stateSchema: JSON.parse(JSON.stringify(entry.stateSchema)),
+        schema: cloned.schema,
+        dataSources: cloned.dataSources,
+        stateSchema: cloned.stateSchema,
         historyIndex: newIndex,
         selectedNodeId: null,
         selectedNodeIds: [],
-        isDirty: true,
+        // 修复：重做到已保存状态时，将 isDirty 设为 false，避免 auto-save 覆盖正确版本
+        isDirty: !isEntrySaved(entry, savedSchema),
       });
     }
   },
@@ -650,10 +679,14 @@ export const useEditorStore = create<EditorStore>()(persist(
     const newChildren = [...children];
     [newChildren[idx - 1], newChildren[idx]] = [newChildren[idx], newChildren[idx - 1]];
     if (parent) {
-      const updated = addNodeRecursive(schema.children, parent.id, children[idx], idx - 1);
-      // 先移除旧位置
-      const withoutOld = removeNodeRecursive(updated, nodeId);
-      get().setSchema({ ...schema, children: withoutOld });
+      // 直接替换 parent 的 children
+      const replaceParentChildren = (nodes: LowCodeNode[]): LowCodeNode[] =>
+        nodes.map((n) => {
+          if (n.id === parent.id) return { ...n, children: newChildren };
+          if (n.children) return { ...n, children: replaceParentChildren(n.children) };
+          return n;
+        });
+      get().setSchema({ ...schema, children: replaceParentChildren(schema.children) });
     } else {
       get().setSchema({ ...schema, children: newChildren });
     }
@@ -665,14 +698,18 @@ export const useEditorStore = create<EditorStore>()(persist(
     const children = parent ? parent.children! : schema.children;
     const idx = children.findIndex((c) => c.id === nodeId);
     if (idx < 0 || idx >= children.length - 1) return;
-    // 先上移 idx+1 的节点即可
-    const swappedId = children[idx + 1].id;
+    // 交换 idx 和 idx+1
     const newChildren = [...children];
     [newChildren[idx], newChildren[idx + 1]] = [newChildren[idx + 1], newChildren[idx]];
     if (parent) {
-      const updated = addNodeRecursive(schema.children, parent.id, children[idx + 1], idx);
-      const withoutOld = removeNodeRecursive(updated, swappedId);
-      get().setSchema({ ...schema, children: withoutOld });
+      // 直接替换 parent 的 children
+      const replaceParentChildren = (nodes: LowCodeNode[]): LowCodeNode[] =>
+        nodes.map((n) => {
+          if (n.id === parent.id) return { ...n, children: newChildren };
+          if (n.children) return { ...n, children: replaceParentChildren(n.children) };
+          return n;
+        });
+      get().setSchema({ ...schema, children: replaceParentChildren(schema.children) });
     } else {
       get().setSchema({ ...schema, children: newChildren });
     }
@@ -681,12 +718,16 @@ export const useEditorStore = create<EditorStore>()(persist(
 {
   name: 'lowcode-editor',
   storage: createJSONStorage(createTenantScopedStorage),
-  partialize: (state) => ({
-    schema: state.schema,
-    dataSources: state.dataSources,
-    stateSchema: state.stateSchema,
-    history: state.history.slice(-20), // 只持久化最近 20 条历史
-    historyIndex: Math.min(state.historyIndex, 19),
-  }),
+  partialize: (state) => {
+    const slicedHistory = state.history.slice(-20);
+    const dropCount = Math.max(0, state.history.length - 20);
+    return {
+      schema: state.schema,
+      dataSources: state.dataSources,
+      stateSchema: state.stateSchema,
+      history: slicedHistory,
+      historyIndex: Math.max(0, Math.min(state.historyIndex - dropCount, slicedHistory.length - 1)),
+    };
+  },
 },
 ));

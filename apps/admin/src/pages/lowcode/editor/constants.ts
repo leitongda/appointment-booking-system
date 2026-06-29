@@ -18,6 +18,7 @@ export const EDITOR_COLORS = {
   textSecondary: '#6b7280',
   textMuted: '#9ca3af',
   primary: '#1677ff',
+  primaryBg: 'rgba(22,119,255,0.06)',
 } as const;
 
 export const EDITOR_SPACING = {

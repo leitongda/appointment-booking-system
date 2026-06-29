@@ -1,8 +1,8 @@
 /** 物料面板 — 左侧组件列表 */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useDraggable } from '@dnd-kit/react';
-import { Collapse, Input, Space, Typography } from 'antd';
+import { Collapse, Input, Space, Typography, Button, Popconfirm, message } from 'antd';
 import {
   FontSizeOutlined,
   PictureOutlined,
@@ -20,10 +20,13 @@ import {
   SwitcherOutlined,
   DownSquareOutlined,
   SearchOutlined,
+  DeleteOutlined,
+  StarOutlined,
 } from '@ant-design/icons';
 import { materialsByCategory, categoryLabels } from '../materials';
 import { snippetTemplates } from '../materials/snippets';
 import type { SnippetTemplate } from '../materials/snippets';
+import { loadCustomSnippets, deleteCustomSnippet, type CustomSnippet } from '../utils/customSnippets';
 import type { MaterialComponent } from '@hospital/shared';
 import { EDITOR_COLORS, EDITOR_SPACING } from '../constants';
 
@@ -205,6 +208,58 @@ function DraggableSnippet({ snippet }: { snippet: SnippetTemplate }) {
   );
 }
 
+/** 单个可拖拽自定义 Snippet 项 */
+function DraggableCustomSnippet({ snippet, onDelete }: { snippet: CustomSnippet; onDelete: (id: string) => void }) {
+  const { ref, handleRef } = useDraggable({
+    id: `custom-snippet-${snippet.id}`,
+    data: {
+      type: 'snippet',
+      snippet: {
+        id: snippet.id,
+        name: snippet.name,
+        description: '自定义模板',
+        icon: 'StarOutlined',
+        nodes: snippet.nodes,
+      },
+    },
+  });
+  const setDragRefs = React.useCallback(
+    (element: HTMLDivElement | null) => {
+      ref(element);
+      handleRef(element);
+    },
+    [handleRef, ref],
+  );
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+      <div style={{ flex: 1 }}>
+        <MaterialListItem
+          ref={setDragRefs}
+          accentColor="#faad14"
+          hoverBg="#fffbe6"
+          icon={<StarOutlined />}
+          title={snippet.name}
+          description="自定义模板"
+        />
+      </div>
+      <Popconfirm
+        title="确定删除此模板？"
+        onConfirm={() => onDelete(snippet.id)}
+        okText="删除"
+        cancelText="取消"
+      >
+        <Button
+          type="text"
+          size="small"
+          icon={<DeleteOutlined />}
+          style={{ color: '#999', flexShrink: 0 }}
+        />
+      </Popconfirm>
+    </div>
+  );
+}
+
 /** 物料面板 */
 export const ComponentPanel: React.FC = () => {
   const [search, setSearch] = useState('');
@@ -215,6 +270,31 @@ export const ComponentPanel: React.FC = () => {
       return [];
     }
   });
+  const [customSnippets, setCustomSnippets] = useState<CustomSnippet[]>([]);
+
+  // 加载自定义 snippets
+  const refreshCustomSnippets = useCallback(() => {
+    setCustomSnippets(loadCustomSnippets());
+  }, []);
+
+  useEffect(() => {
+    refreshCustomSnippets();
+    // 监听 storage 事件，跨 tab 同步
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key?.includes('lowcode-custom-snippets')) {
+        refreshCustomSnippets();
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, [refreshCustomSnippets]);
+
+  // 删除自定义 snippet
+  const handleDeleteCustomSnippet = useCallback((id: string) => {
+    deleteCustomSnippet(id);
+    refreshCustomSnippets();
+    message.success('已删除 Snippet');
+  }, [refreshCustomSnippets]);
 
   // 记录最近使用的组件
   const trackRecent = (componentName: string) => {
@@ -329,24 +409,46 @@ export const ComponentPanel: React.FC = () => {
             ghost
             defaultActiveKey={[]}
             size="small"
-            items={[{
-              key: 'snippets',
-            label: (
-                <Text strong style={{ fontSize: 13 }}>
-                  模板 ({snippetTemplates.length})
-                </Text>
-              ),
-              children: (
-                <Space direction="vertical" style={{ width: '100%' }} size={EDITOR_SPACING.itemGap}>
-                  {snippetTemplates.map((snippet) => (
-                    <DraggableSnippet
-                      key={snippet.id}
-                      snippet={snippet}
-                    />
-                  ))}
-                </Space>
-              ),
-            }]}
+            items={[
+              {
+                key: 'snippets',
+                label: (
+                  <Text strong style={{ fontSize: 13 }}>
+                    模板 ({snippetTemplates.length})
+                  </Text>
+                ),
+                children: (
+                  <Space direction="vertical" style={{ width: '100%' }} size={EDITOR_SPACING.itemGap}>
+                    {snippetTemplates.map((snippet) => (
+                      <DraggableSnippet
+                        key={snippet.id}
+                        snippet={snippet}
+                      />
+                    ))}
+                  </Space>
+                ),
+              },
+              ...(customSnippets.length > 0 ? [{
+                key: 'custom-snippets',
+                label: (
+                  <Text strong style={{ fontSize: 13 }}>
+                    <StarOutlined style={{ marginRight: 4, color: '#faad14' }} />
+                    我的模板 ({customSnippets.length})
+                  </Text>
+                ),
+                children: (
+                  <Space direction="vertical" style={{ width: '100%' }} size={EDITOR_SPACING.itemGap}>
+                    {customSnippets.map((snippet) => (
+                      <DraggableCustomSnippet
+                        key={snippet.id}
+                        snippet={snippet}
+                        onDelete={handleDeleteCustomSnippet}
+                      />
+                    ))}
+                  </Space>
+                ),
+              }] : []),
+            ]}
           />
         </div>
       )}

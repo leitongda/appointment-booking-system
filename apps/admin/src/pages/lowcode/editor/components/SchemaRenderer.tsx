@@ -1,11 +1,64 @@
 /** Schema 渲染器 — 将 Schema 节点树渲染为 React 组件 */
 
-import React, { useState } from 'react';
+import React, { useState, Component, type ReactNode, type ErrorInfo } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/react';
 import { useEditorStore } from '../store';
 import { ContextMenu } from './ContextMenu';
 import { ROOT_DROP_ID } from '../constants';
+import { isValidImageUrl } from './BaseRenderer';
 import type { LowCodeNode } from '@hospital/shared';
+
+// --- P0-2: NodeErrorBoundary ---
+/** 节点级错误边界 — 组件渲染失败时显示红色占位符，防止整个画布白屏 */
+interface NodeErrorBoundaryProps {
+  componentName: string;
+  children: ReactNode;
+}
+
+interface NodeErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class NodeErrorBoundary extends Component<NodeErrorBoundaryProps, NodeErrorBoundaryState> {
+  constructor(props: NodeErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error): Partial<NodeErrorBoundaryState> {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error(`[LowCode Editor] 组件渲染失败: ${this.props.componentName}`, error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div
+          style={{
+            padding: '12px 16px',
+            margin: '4px 0',
+            border: '1px dashed #ff4d4f',
+            borderRadius: 4,
+            background: '#fff2f0',
+            color: '#ff4d4f',
+            fontSize: 12,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+          }}
+        >
+          <span style={{ fontWeight: 500 }}>[{this.props.componentName}]</span>
+          <span>渲染失败：{this.state.error?.message || '未知错误'}</span>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 /** 合并样式：将 node.style 与基础样式合并 */
 function mergeStyles(base: React.CSSProperties, nodeStyle?: Record<string, string>): React.CSSProperties {
@@ -65,6 +118,8 @@ const DroppableZone = React.memo(function DroppableZone({
   return (
     <div
       ref={ref}
+      role="group"
+      aria-label="可放置区域"
       style={{
         ...style,
         outline: isDropTarget ? '2px dashed #1677ff' : undefined,
@@ -245,8 +300,8 @@ const NutTabsRenderer = React.memo(function NutTabsRenderer({
   );
 });
 
-/** 单个节点渲染 */
-const NodeRenderer = React.memo(function NodeRenderer({ node, depth = 0 }: { node: LowCodeNode; depth?: number }) {
+/** 单个节点渲染（带错误边界保护） */
+const NodeRendererInner = React.memo(function NodeRendererInner({ node, depth = 0 }: { node: LowCodeNode; depth?: number }) {
   const { isSelected, selectedNodeIds } = useNodeSelection(node.id);
   const { selectNode, toggleNodeSelect } = useNodeActions();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
@@ -264,6 +319,19 @@ const NodeRenderer = React.memo(function NodeRenderer({ node, depth = 0 }: { nod
     e.preventDefault();
     e.stopPropagation();
     setContextMenu({ x: e.clientX, y: e.clientY });
+  };
+
+  // a11y: 键盘导航支持
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.shiftKey) {
+        toggleNodeSelect(node.id);
+      } else {
+        selectNode(node.id);
+      }
+    }
   };
 
   // 渲染组件映射
@@ -372,10 +440,10 @@ const NodeRenderer = React.memo(function NodeRenderer({ node, depth = 0 }: { nod
       case 'NutImage':
         return (
           <div style={{ padding: '4px 12px' }}>
-            {node.props.src ? (
+            {node.props.src && isValidImageUrl(node.props.src) ? (
               <img
                 src={node.props.src}
-                alt=""
+                alt={node.props.alt || '图片'}
                 style={{
                   width: node.props.width,
                   height: node.props.height,
@@ -398,7 +466,7 @@ const NodeRenderer = React.memo(function NodeRenderer({ node, depth = 0 }: { nod
                   borderRadius: node.props.borderRadius,
                 }}
               >
-                图片占位
+                {node.props.src ? '无效图片链接' : '图片占位'}
               </div>
             )}
           </div>
@@ -815,7 +883,7 @@ const NodeRenderer = React.memo(function NodeRenderer({ node, depth = 0 }: { nod
       case 'NutAvatar':
         return (
           <div style={{ width: node.props.size || 40, height: node.props.size || 40, borderRadius: '50%', background: '#ddd', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#999' }}>
-            {node.props.src ? <img src={node.props.src} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} /> : '头像'}
+            {node.props.src && isValidImageUrl(node.props.src) ? <img src={node.props.src} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} /> : '头像'}
           </div>
         );
 
@@ -878,7 +946,7 @@ const NodeRenderer = React.memo(function NodeRenderer({ node, depth = 0 }: { nod
           <div style={{ margin: '8px 12px', padding: 12, background: '#fff', borderRadius: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#e6f4ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#1677ff', flexShrink: 0 }}>
-                {node.props.avatar ? <img src={node.props.avatar} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} /> : '头像'}
+                {node.props.avatar && isValidImageUrl(node.props.avatar) ? <img src={node.props.avatar} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} /> : '头像'}
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 15, fontWeight: 500, color: '#333' }}>{node.props.doctorName || '医生'}</div>
@@ -896,7 +964,7 @@ const NodeRenderer = React.memo(function NodeRenderer({ node, depth = 0 }: { nod
           <div style={{ margin: '8px 12px', padding: 12, background: '#fff', borderRadius: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
             <div style={{ display: 'flex', gap: 12 }}>
               <div style={{ width: 64, height: 64, borderRadius: 8, background: '#e6f4ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#1677ff', flexShrink: 0 }}>
-                {node.props.avatar ? <img src={node.props.avatar} style={{ width: '100%', height: '100%', borderRadius: 8, objectFit: 'cover' }} /> : '头像'}
+                {node.props.avatar && isValidImageUrl(node.props.avatar) ? <img src={node.props.avatar} style={{ width: '100%', height: '100%', borderRadius: 8, objectFit: 'cover' }} /> : '头像'}
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 15, fontWeight: 500, color: '#333' }}>{node.props.doctorName || '医生'}</div>
@@ -967,6 +1035,11 @@ const NodeRenderer = React.memo(function NodeRenderer({ node, depth = 0 }: { nod
       <div
         onClick={handleClick}
         onContextMenu={handleContextMenu}
+        onKeyDown={handleKeyDown}
+        role="treeitem"
+        aria-selected={isSelected || isMultiSelected}
+        aria-label={`${node.componentName} 组件${node.props.text ? `: ${node.props.text}` : ''}`}
+        tabIndex={isSelected ? 0 : -1}
         style={{
           outline: isSelected ? '2px solid #1677ff' : isMultiSelected ? '2px solid #52c41a' : '1px dashed transparent',
           outlineOffset: isSelected || isMultiSelected ? -1 : 0,
@@ -1017,12 +1090,23 @@ const NodeRenderer = React.memo(function NodeRenderer({ node, depth = 0 }: { nod
   return <DraggableNode nodeId={node.id} nodeStyle={node.style}>{content}</DraggableNode>;
 });
 
+/** 单个节点渲染（带错误边界保护） */
+const NodeRenderer = React.memo(function NodeRenderer({ node, depth = 0 }: { node: LowCodeNode; depth?: number }) {
+  return (
+    <NodeErrorBoundary componentName={node.componentName}>
+      <NodeRendererInner node={node} depth={depth} />
+    </NodeErrorBoundary>
+  );
+});
+
 /** 画布渲染入口 — 撑满 Canvas 容器（width/height 由外层 100% 提供，不再依赖百分比 minHeight） */
 export const SchemaRenderer: React.FC = () => {
   const schema = useEditorStore((s) => s.schema);
 
   return (
     <div
+      role="tree"
+      aria-label="页面组件树"
       style={{
         background: '#fff',
         width: '100%',

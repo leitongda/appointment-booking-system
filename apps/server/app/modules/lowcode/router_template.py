@@ -174,7 +174,7 @@ _TEMPLATE_CATEGORIES = [
 
 
 @router.get(
-    "/",
+    "",
     response_model=PageResponse[TemplateResponse],
     summary="获取模板市场列表",
 )
@@ -234,7 +234,7 @@ async def get_template(
 
 
 @router.post(
-    "/",
+    "",
     response_model=TemplateResponse,
     summary="创建模板",
     status_code=status.HTTP_201_CREATED,
