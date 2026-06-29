@@ -221,7 +221,7 @@ const ApprovalInstancesPage: React.FC = () => {
         request={fetchData}
         pagination={{ defaultPageSize: 20 }}
         search={{ labelWidth: 'auto' }}
-        scroll={{ x: 800 }}
+        scroll={{ x: 900 }}
       />
 
       {/* 通过弹窗 */}

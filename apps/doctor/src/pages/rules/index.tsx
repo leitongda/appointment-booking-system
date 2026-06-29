@@ -186,7 +186,7 @@ const RuleSetPage: React.FC = () => {
           reload: true,
           setting: false,
         }}
-        scroll={{ x: 800 }}
+        scroll={{ x: 1000 }}
       />
     </PageContainer>
   );

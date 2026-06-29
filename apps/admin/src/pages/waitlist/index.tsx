@@ -423,6 +423,7 @@ const WaitlistPage: React.FC = () => {
             defaultPageSize: PAGINATION_CONFIG.DEFAULT_PAGE_SIZE,
           }}
           search={{ labelWidth: 'auto' }}
+          scroll={{ x: 1200 }}
         />
       )}
 

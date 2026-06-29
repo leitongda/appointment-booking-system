@@ -362,7 +362,7 @@ const ContactsPage: React.FC = () => {
             }}
             pagination={{ defaultPageSize: 20 }}
             search={{ labelWidth: 'auto' }}
-            scroll={{ x: 1200 }}
+            scroll={{ x: 1400 }}
             rowSelection={{
               selectedRowKeys,
               onChange: (keys) => setSelectedRowKeys(keys as string[]),

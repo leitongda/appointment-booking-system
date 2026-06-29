@@ -249,7 +249,7 @@ const ScheduleRoomPage: React.FC = () => {
         ]}
         pagination={{ defaultPageSize: 10 }}
         search={{ labelWidth: 'auto' }}
-        scroll={{ x: 1100 }}
+        scroll={{ x: 1300 }}
       />
 
       <Modal

@@ -560,7 +560,7 @@ const ScheduleRulePage: React.FC = () => {
         actionRef={actionRef}
         rowKey="id"
         columns={columns}
-        scroll={{ x: 1650 }}
+        scroll={{ x: 1400 }}
         rowSelection={{
           selectedRowKeys: selectedTemplates,
           onChange: (keys) => setSelectedTemplates(keys as string[]),

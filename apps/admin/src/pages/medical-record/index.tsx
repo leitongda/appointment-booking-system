@@ -235,6 +235,7 @@ const MedicalRecordPage: React.FC = () => {
         }))}
         pagination={{ defaultPageSize: 10 }}
         search={{ labelWidth: 'auto' }}
+        scroll={{ x: 1200 }}
       />
 
       <Drawer

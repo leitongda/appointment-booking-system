@@ -154,6 +154,7 @@ const DictTypeListPage: React.FC = () => {
         search={{ labelWidth: 'auto' }}
         options={{ density: false, fullScreen: false, reload: true, setting: true }}
         pagination={{ defaultPageSize: 10, showSizeChanger: true }}
+        scroll={{ x: 1200 }}
         rowClassName={(record) => (record.status === 0 ? 'disabled-row' : '')}
         toolBarRender={() => [
           <Button key="add" type="primary" icon={<PlusOutlined />} onClick={handleCreate}>

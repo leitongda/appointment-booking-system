@@ -138,7 +138,7 @@ const UserManagePage: React.FC = () => {
         actionRef={actionRef}
         rowKey="id"
         columns={columns}
-        scroll={{ x: 1000 }}
+        scroll={{ x: 1200 }}
         request={createListRequest(userManageApi.getList, (params) => {
           const { phone, nickname, ...rest } = params;
           return { ...rest, keyword: phone || nickname };
