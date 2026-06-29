@@ -1,4 +1,4 @@
-import { isPublicEntryRoute, setStorage, STORAGE_KEYS } from '@hospital/shared';
+import { isPublicEntryRoute, setStorage, STORAGE_KEYS, rememberReturnPath } from '@hospital/shared';
 import type { CrossTabEvent } from '@hospital/shared';
 import { history } from '@umijs/max';
 import { Button, Modal, notification } from 'antd';
@@ -10,6 +10,10 @@ export function handleCrossTabEvent(event: CrossTabEvent) {
   switch (event.type) {
     case 'auth-change':
       if (event.action === 'logout') {
+        // 记忆当前标签页的业务页，供本标签页重新登录后回跳。
+        // token 是在「另一个标签页」被清除的，本标签页的 onPageChange 不会触发写入，
+        // 因此需在此主动记忆。
+        rememberReturnPath();
         Modal.confirm({
           title: '登录状态变更',
           content: '您已在其他页面退出登录，请重新登录。',

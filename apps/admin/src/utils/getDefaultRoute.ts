@@ -1,96 +1,108 @@
 /**
- * 根据当前用户权限计算登录后 / 无权限时的默认落地路由
+ * 根据当前用户权限计算登录后 / 无权限时的默认落地路由，以及校验登录后回跳目标。
  *
- * 背景：
- *   - 登录页原先硬编码跳转 `/dashboard`，若用户无 dashboard 权限会进入死循环
- *     （`/dashboard` 无权限 → `onUnAccessible` 又跳回 `/dashboard`）
- *   - 这里按业务优先级返回「用户有权限的第一个叶子路由」作为兜底落地页
+ * ## 关键约束 —— 避开跳板路由 / 死循环
+ * 路由树里大量父路径只是 `redirect` 跳板（如 `/medical-services` → `/medical-services/doctor`），
+ * 且父节点的 access 多为聚合权限（`canClinicalOperations = canDoctor || canSchedule || ...`），
+ * 用户可能满足聚合权限但所有子路由都无权限。若选中跳板，会触发再次 redirect → 死循环。
  *
- * 关键约束 —— 避开跳板路由：
- *   路由树里大量父路径只是 `redirect` 跳板（如 `/medical-services` → `/medical-services/doctor`），
- *   且父节点的 access 多为聚合权限（`canClinicalOperations = canDoctor || canSchedule || ...`），
- *   用户可能满足聚合权限但所有子路由都无权限。若选中跳板，会触发再次 redirect → 死循环。
- *   因此这里只收录「真正带 component 的叶子路径」+「该叶子自己的 access key」，
- *   不依赖父级聚合权限，也不选 redirect 跳板。
+ * 因此这里只收录「真正带 component 的叶子路由」+「该叶子自己的 access key」，
+ * 不依赖父级聚合权限，也不选 redirect 跳板。
  *
- * access key 必须与 `apps/admin/src/access.ts` 的返回字段一一对应；
- * 顺序代表业务优先级（仪表盘优先，其次核心业务，最后系统/平台管理）。
+ * ## 实现方式 —— 从路由树自动派生（单一事实来源）
+ * 早期版本用一份**手工维护的白名单** `LEAF_ROUTE_CANDIDATES` 判定「哪些路径可回跳」，
+ * 但项目有 80+ 条叶子路由分散在十余个配置文件，白名单严重滞后，导致用户从「未收录页面」
+ * 退出登录后无法回到原路由（`isSafeReturnPath` 误判 → 走默认页）。
+ *
+ * 现改为运行时从真实路由树（`@config/routes`）派生全集（见 `deriveSafeRoutes.ts`），
+ * 彻底消除漏配。落地路由仍保留**业务优先级顺序**（下方 `LANDING_PRIORITY`），
+ * 用于从派生全集中挑出「最合适的默认落地页」。
  */
 
-/**
- * access 对象类型 —— 兼容 `src/access.ts` 的返回值
- *
- * access.ts 返回一个固定形状的对象：大部分字段是 `boolean | undefined`，
- * 但也包含 `hasPermission` 等函数字段。这里用宽松索引签名（unknown）兼容，
- * 内部读取时统一按 truthy 判定（`!!access[accessKey]`）。
- */
+import { getSafeRouteMap } from './deriveSafeRoutes';
+
+/** access 对象类型 —— 兼容 `src/access.ts` 返回值，读取时按 truthy 判定 */
 type AccessMap = Record<string, unknown>;
-
-/**
- * 叶子路由白名单 —— [path, accessKey] 有序数组
- *
- * 维护约定：
- *   - 仅收录有 `component` 的叶子路由（不要把 redirect 跳板、layout 容器放进来）
- *   - accessKey 取该叶子路由在 routes 里声明的 `access` 字段（没有则取其最近父级的 access）
- *   - 新增业务路由时，在此表追加对应条目即可被自动纳入候选
- */
-const LEAF_ROUTE_CANDIDATES: ReadonlyArray<readonly [string, string]> = [
-  // 仪表盘（最高优先级）
-  ['/dashboard', 'canDashboard'],
-
-  // 医疗服务 - 核心业务
-  ['/medical-services/appointment/list', 'canAppointment'],
-  ['/medical-services/schedule/rule', 'canSchedule'],
-  ['/medical-services/doctor/list', 'canDoctor'],
-  ['/medical-services/patient/list', 'canPatient'],
-  ['/medical-services/medical-record', 'canMedicalRecord'],
-  ['/medical-services/follow-up/tasks', 'canMedicalRecord'],
-
-  // 组织架构
-  ['/organization/store/list', 'canStore'],
-  ['/organization/department/list', 'canDepartment'],
-  ['/organization/staff', 'canUserManagement'],
-  ['/organization/medical-config/booking-rules', 'canMedicalConfig'],
-
-  // 运营中心
-  ['/content-center/content/news', 'canContent'],
-  ['/content-center/message/list', 'canMessage'],
-  ['/content-center/feedback', 'canFeedback'],
-  ['/content-center/statistics', 'canAnalytics'],
-  ['/content-center/freelance/freelancers', 'canFreelance'],
-
-  // 系统管理
-  ['/system/role', 'canRoleManagement'],
-  ['/system/config/hospital-info', 'canSystemConfig'],
-  ['/system/blacklist', 'canBlacklistSettings'],
-  ['/system/monitoring/log', 'canSystemMonitoring'],
-  ['/system/data/import-export', 'canSystemMonitoring'],
-
-  // 平台管理（超管域）
-  ['/platform/operations-dashboard', 'canPlatformMetrics'],
-  ['/platform/tenant/list', 'canTenant'],
-  ['/platform/tenant/plans', 'canTenantPlans'],
-  ['/platform/miniapp-platform/company', 'canMiniappPlatform'],
-  ['/platform/lowcode/list', 'canLowcode'],
-
-  // 注：以下模块的 access key（canFinanceManagement / canApproval /
-  // canPlatformAnnouncement / canSupportTicket / canPoints 等）在
-  // access.ts 中尚未定义，对应路由当前对所有用户均不可达，
-  // 故暂不纳入候选。待 access.ts 补全后再追加。
-];
 
 /** 没有任何匹配时的最终兜底（避免返回空字符串导致跳转到当前页） */
 const FALLBACK_PATH = '/dashboard';
 
 /**
+ * 登录后默认落地页的**业务优先级顺序**（仅用于排序，不是完整清单）。
+ *
+ * 维护约定：
+ *   - 这里只列「期望的默认落地顺序」，越靠前优先级越高。
+ *   - 实际是否可选仍由派生 Map（路由树真实存在）+ 用户权限共同决定，
+ *     因此**即便此数组偶有滞后也不再致命** —— 最坏只是默认落地页次优，
+ *     绝不会死循环或 403（派生 Map 保证选中的页面真实存在且用户有权限）。
+ *   - 新增业务模块时，按期望的落地优先级在此追加即可。
+ */
+const LANDING_PRIORITY: ReadonlyArray<string> = [
+  // 仪表盘（最高优先级）
+  '/dashboard',
+
+  // 医疗服务 - 核心业务
+  '/medical-services/appointment/list',
+  '/medical-services/schedule/rule',
+  '/medical-services/schedule/list',
+  '/medical-services/doctor/list',
+  '/medical-services/patient/list',
+  '/medical-services/medical-record',
+  '/medical-services/follow-up/tasks',
+
+  // 审批中心
+  '/approval/instances',
+
+  // 组织架构
+  '/organization/store/list',
+  '/organization/department/list',
+  '/organization/staff',
+  '/organization/medical-config/booking-rules',
+
+  // 运营中心
+  '/content-center/content/news',
+  '/content-center/message/list',
+  '/content-center/feedback',
+  '/content-center/statistics',
+  '/content-center/freelance/freelancers',
+
+  // 系统管理
+  '/system/role',
+  '/system/config/hospital-info',
+  '/system/blacklist',
+  '/system/monitoring/log',
+  '/system/data/import-export',
+
+  // 平台管理（超管域）
+  '/platform/operations-dashboard',
+  '/platform/tenant/list',
+  '/platform/tenant/plans',
+  '/platform/miniapp-platform/company',
+  '/platform/lowcode/list',
+];
+
+/**
  * 计算默认落地路由
  *
+ * 优先从 `LANDING_PRIORITY` 中挑出第一个「在派生 Map 中存在且用户有权限」的路径；
+ * 优先数组都不命中时，再按派生 Map 的自然顺序兜底（保证总能给出一个有权限的真实叶子路由）。
+ *
  * @param access Umi access 对象（由 `src/access.ts` 返回，组件内通过 `useAccess()` 获取）
- * @returns 第一个有权限的叶子路由 path；都没有时返回 `/dashboard`
+ * @returns 用户有权限的第一个叶子路由 path；都没有时返回 `/dashboard`
  */
 export function getDefaultRoute(access: AccessMap | undefined | null): string {
+  const safeMap = getSafeRouteMap();
+
   if (access) {
-    for (const [path, accessKey] of LEAF_ROUTE_CANDIDATES) {
+    // 1) 按业务优先级挑选
+    for (const path of LANDING_PRIORITY) {
+      const accessKey = safeMap.get(path);
+      if (accessKey && access[accessKey]) {
+        return path;
+      }
+    }
+    // 2) 优先数组均不命中 —— 按派生 Map 自然顺序兜底
+    for (const [path, accessKey] of safeMap) {
       if (access[accessKey]) {
         return path;
       }
@@ -102,25 +114,24 @@ export function getDefaultRoute(access: AccessMap | undefined | null): string {
 /**
  * 校验「上次访问路径」是否可作为登录后的安全回跳目标
  *
- * 用于登录后回跳 lastPath 前的校验：若上次路径因无权限被踢出，
- * 或是个 redirect 跳板（回跳会触发再次 redirect → 可能死循环），
- * 则不应回跳，改用默认路由。
- *
- * 判定规则：
- *   - 路径必须在白名单内（即稳定的列表/首页入口，排除 redirect 跳板、详情页 `:id` 等）
+ * 判定规则（数据来源为路由树派生 Map，自动覆盖全部真实叶子路由）：
+ *   - 路径的 **pathname 部分**必须在派生 Map 中（即真实的、带 component 的稳定叶子路由，
+ *     排除 redirect 跳板、详情页 `:id`、表单页 `/create` `/edit` 等）。
+ *     比较时忽略 `search`/`hash`，因为 onPageChange 存入 LAST_PATH 的是完整路径
+ *     （含分页/筛选 query），带参数的列表页同样应允许回跳以恢复用户原本视图状态。
  *   - 且用户对该路径有明确权限
  *
  * @param access Umi access 对象
- * @param pathname 待校验的上次访问路径
- * @returns true 表示可安全回跳该路径
+ * @param fullPath 待校验的上次访问路径（可能含 `?query` / `#hash`）
+ * @returns true 表示可安全回跳该路径（完整 fullPath 均可回跳）
  */
-export function isSafeReturnPath(access: AccessMap | undefined | null, pathname: string): boolean {
-  if (!access || !pathname) return false;
-  for (const [path, accessKey] of LEAF_ROUTE_CANDIDATES) {
-    if (path === pathname) {
-      return !!access[accessKey];
-    }
-  }
-  // 不在白名单内（跳板、详情页、个人设置等）一律不作为登录后首跳目标。
-  return false;
+export function isSafeReturnPath(access: AccessMap | undefined | null, fullPath: string): boolean {
+  if (!access || !fullPath) return false;
+
+  // 仅取 pathname 部分，剥离可能的 ?query 与 #hash
+  const pathname = fullPath.split(/[?#]/)[0];
+
+  const accessKey = getSafeRouteMap().get(pathname);
+  if (!accessKey) return false; // 不在真实叶子路由内（跳板、详情页、个人设置等）
+  return !!access[accessKey];
 }

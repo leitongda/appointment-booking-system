@@ -1,13 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { MedicineBoxOutlined } from '@ant-design/icons';
-import { App, Tabs } from 'antd';
-import { history, useModel } from '@umijs/max';
-import { setToken, STORAGE_KEYS, setStorage, getStorage, removeStorage, removeToken, resetTokenExpiredState } from '@hospital/shared';
-import { adminApi } from '@hospital/api';
-import defaultSettings from '@config/defaultSettings';
+import { App, Modal, Tabs } from 'antd';
+import { history } from '@umijs/max';
+import { setToken, STORAGE_KEYS, setStorage, getStorage, removeStorage, resetTokenExpiredState } from '@hospital/shared';
 import { APP_TITLE } from '@config/appConfig';
 import access from '@/access';
 import { getDefaultRoute, isSafeReturnPath } from '@/utils/getDefaultRoute';
+import { getSafeRouteMap } from '@/utils/deriveSafeRoutes';
 import {
   AccountLogin, UserOutlined,
   PhoneLogin, MobileOutlined,
@@ -33,8 +32,7 @@ const INTEGRATION_TABS: Array<{
 
 const Login: React.FC = () => {
   const { message } = App.useApp();
-  const { setInitialState } = useModel('@@initialState');
-  
+
   // 登录方式（从 localStorage 读取，实现刷新后保持选中状态）
   const [loginType, setLoginType] = useState<LoginType>(
     () => getStorage<LoginType>(STORAGE_KEYS.LOGIN_TYPE) || 'wechat'
@@ -52,6 +50,12 @@ const Login: React.FC = () => {
   useEffect(() => {
     const timer = setTimeout(() => setEnableAnimation(true), 50);
     return () => clearTimeout(timer);
+  }, []);
+
+  // 进入登录页时清理可能残留的"登录已过期"弹框。
+  // 处理在上一页已弹出、跳转后才渲染到登录界面的竞态。
+  useEffect(() => {
+    Modal.destroyAll();
   }, []);
 
   // 登录成功后的处理
@@ -87,36 +91,10 @@ const Login: React.FC = () => {
     }
     
     message.success('登录成功！');
-    
-    // 登录接口已经返回了用户信息，直接使用，无需再次请求
+
+    // 登录接口已经返回了用户信息，直接用于计算落地路由
     const currentUser = result.admin;
-    const userStores = result.stores || (result.store ? [result.store] : []);
-    
-    // 创建 fetchUserInfo 函数（用于后续刷新用户信息）
-    const fetchUserInfo = async () => {
-      try {
-        const user = await adminApi.getCurrentAdmin();
-        return user as any;
-      } catch (error: any) {
-        // 401 已由响应拦截器处理（弹框 + 清 token），不再重复操作
-        if (error?.isUnauthorized?.()) return undefined;
-        removeToken();
-        history.push('/login');
-        return undefined;
-      }
-    };
-    
-    // 更新初始状态，避免整页刷新
-    // 使用函数式更新，保留原有字段（如 settings），并设置新的用户信息
-    setInitialState((s: any) => ({
-      ...s,
-      fetchUserInfo,
-      currentUser: currentUser as any,
-      currentStore: currentStore || undefined,
-      userStores: userStores,
-      settings: s?.settings || defaultSettings as any,
-    }));
-    
+
     // 获取上次访问的页面路径
     const lastPath = getStorage<string>(STORAGE_KEYS.LAST_PATH);
     // 清除存储的路径（只使用一次）
@@ -136,12 +114,38 @@ const Login: React.FC = () => {
       ? lastPath
       : defaultPath;
 
-    // 使用 history.push 进行路由跳转，不会触发整页刷新
-    // 使用 setTimeout 确保状态更新完成后再跳转
+    // 诊断日志：当未回跳到原路径时，打印原因（是「路径不在安全集合」还是「无权限」），
+    // 便于今后定位任何路由漏配边缘情况。安全集合由路由树自动派生（见 deriveSafeRoutes）。
+    if (lastPath && lastPath !== '/' && lastPath !== safeLastPath) {
+      const lastPathname = lastPath.split(/[?#]/)[0];
+      const safeMap = getSafeRouteMap();
+      const accessKey = safeMap.get(lastPathname);
+      // accessMap 用宽松索引类型读取，与 getDefaultRoute/isSafeReturnPath 内部一致。
+      const accessMapLoose = accessMap as Record<string, unknown>;
+      const reason = !accessKey
+        ? 'path not a safe leaf route (redirect/详情页/表单页/layout:false)'
+        : !accessMapLoose[accessKey]
+          ? `no permission (requires ${accessKey})`
+          : 'unknown';
+      console.log('[login-redirect] 丢弃 lastPath，原因：', reason);
+    }
+    console.log('[login-redirect] lastPath =', lastPath, '| safeLastPath =', safeLastPath);
+
+    // 使用整页跳转而非 SPA history.push。
+    //
+    // 原实现 setInitialState + setTimeout(history.push) 存在时序竞态：
+    // 扫码登录/集成登录等通过轮询（setInterval/storage 事件）触发，属于
+    // 非 React 事件上下文，React 18 不会同步刷新 setInitialState 的状态更新。
+    // 当 setTimeout(0) 的宏任务执行 history.push 时，ProLayout 的 access 检查
+    // 可能仍读到旧的 currentUser=undefined → 渲染 403 → 跳到默认页，导致
+    // 「登录后不回到原界面」。
+    //
+    // 整页跳转会让 getInitialState 重新执行并加载完整用户信息，access 基于
+    // 完整权限计算，彻底消除竞态。登录是一次性操作，整页刷新体验可接受。
     setTimeout(() => {
-      history.push(safeLastPath);
+      window.location.href = safeLastPath;
     }, 0);
-  }, [message, setInitialState]);
+  }, [message]);
 
   const tabItems = [
     {

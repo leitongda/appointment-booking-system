@@ -3,7 +3,7 @@ import { history, useModel } from '@umijs/max';
 import { Spin, Dropdown, Modal, Form, Input, App } from 'antd';
 import type { MenuProps } from 'antd';
 import React, { useState } from 'react';
-import { removeToken } from '@hospital/shared';
+import { removeToken, rememberReturnPath } from '@hospital/shared';
 import { adminApi } from '@hospital/api';
 
 export const AvatarName: React.FC = () => {
@@ -21,6 +21,13 @@ export const AvatarDropdown: React.FC<{ children: React.ReactNode }> = ({ childr
   const [form] = Form.useForm();
 
   const handleLogout = async () => {
+    // 在清除登录态之前记住当前业务页，以便重新登录后回跳。
+    // 必须在 removeToken() 之前：onPageChange 依赖 token 判断是否写入 LAST_PATH，
+    // token 一旦清除，后续 history.push('/login') 触发的 onPageChange 走「无 token」
+    // 短路分支，不再更新 LAST_PATH。
+    const { pathname, search, hash } = history.location;
+    const remembered = rememberReturnPath(pathname, search || undefined, hash || undefined);
+    if (remembered) console.log('[login-redirect] logout: remembered LAST_PATH =', remembered);
     try {
       // 调用后端接口清除会话
       await adminApi.logout();

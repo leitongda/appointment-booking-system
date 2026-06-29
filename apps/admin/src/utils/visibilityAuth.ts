@@ -1,5 +1,5 @@
 import { adminApi } from '@hospital/api';
-import { isTokenExpired, markAuthExpired, handleTokenExpired, getToken, isPublicEntryRoute } from '@hospital/shared';
+import { isTokenExpired, markAuthExpired, handleTokenExpired, getToken, isPublicEntryRoute, rememberReturnPath } from '@hospital/shared';
 import { Modal } from 'antd';
 import { LOGIN_PATH } from '@/constants/paths';
 
@@ -11,6 +11,14 @@ let lastCheckedAt = 0;
 
 const showTokenExpiredModal = (content = '您的登录已过期，请重新登录。') => {
   handleTokenExpired(() => {
+    // 已在登录页/根路径时不弹认证失效 Modal，避免在登录界面打扰用户。
+    if (isPublicEntryRoute()) {
+      Modal.destroyAll();
+      return;
+    }
+    // 记忆当前业务页，供重新登录后回跳（与 onPageChange 写 LAST_PATH 的条件互补：
+    // 此时 token 已被 handleTokenExpired 清除，onPageChange 不会写）。
+    rememberReturnPath();
     Modal.confirm({
       title: '登录已过期',
       content,

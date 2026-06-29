@@ -13,7 +13,7 @@ import {
   isRsaDecryptError,
   handleNetworkError,
 } from '@hospital/api';
-import { getToken, getStorage, STORAGE_KEYS, handleTokenExpired, markAuthExpired, shouldSilenceAuthExpiredFeedback, parseTenantError, markTenantSuspended } from '@hospital/shared';
+import { getToken, getStorage, STORAGE_KEYS, handleTokenExpired, markAuthExpired, shouldSilenceAuthExpiredFeedback, isPublicEntryRoute, parseTenantError, markTenantSuspended, rememberReturnPath } from '@hospital/shared';
 import { message, Modal, notification } from 'antd';
 import type { InternalAxiosRequestConfig } from 'axios';
 
@@ -100,13 +100,20 @@ export const setupResponseInterceptor = () => {
             return Promise.reject(error);
           }
 
-          if (shouldSilenceAuthExpiredFeedback()) {
-            markAuthExpired();
+          markAuthExpired();
+
+          // 登录页/根路径下绝不弹认证失效 Modal，仅静默清理 token。
+          // shouldSilenceAuthExpiredFeedback 覆盖"公共入口页"与"已无 token"两种场景。
+          if (shouldSilenceAuthExpiredFeedback() || isPublicEntryRoute()) {
             handleTokenExpired();
             return Promise.reject(error);
           }
 
-          markAuthExpired();
+          // 在清理 token / 弹框跳转前记忆当前业务页，供重新登录后回跳。
+          // 必须在 handleTokenExpired（内部 removeToken）之前调用，否则 onPageChange
+          // 短路分支不会写入 LAST_PATH。
+          rememberReturnPath();
+
           handleTokenExpired(() => {
             Modal.confirm({
               title: '登录已过期',
@@ -189,12 +196,15 @@ export const setupResponseInterceptor = () => {
             return Promise.reject(new ApiError(status, errorMsg, data, requestUrl, errorCode, errorDetails));
           }
 
-          if (shouldSilenceAuthExpiredFeedback()) {
-            markAuthExpired();
+          markAuthExpired();
+
+          // 登录页/根路径下绝不弹认证失效 Modal，仅静默清理 token。
+          if (shouldSilenceAuthExpiredFeedback() || isPublicEntryRoute()) {
             handleTokenExpired();
             return Promise.reject(new ApiError(status, errorMsg, data, requestUrl, errorCode, errorDetails));
           }
-          markAuthExpired();
+          // 在清理 token / 弹框跳转前记忆当前业务页，供重新登录后回跳。
+          rememberReturnPath();
           handleTokenExpired(() => {
             Modal.confirm({
               title: '登录已过期',

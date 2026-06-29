@@ -67,6 +67,61 @@ export const clearStorage = (): void => {
   localStorage.clear();
 };
 
+// ─── 登录后回跳路径记忆 ──────────────────────────────────
+
+/**
+ * 不应作为「登录后回跳目标」的路径：登录/兜底/错误页/租户停用页/根。
+ * 与 apps/admin 里 onPageChange、RightContent 的排除集合保持一致。
+ */
+const NON_RETURNABLE_PATHS = ['/login', '/welcome', '/404', '/403', '/tenant-suspended', '/'];
+
+/**
+ * 判断给定 pathname 是否「可作为登录后回跳目标」。
+ * 纯函数，无副作用，便于单元测试。
+ *
+ * 排除登录页、欢迎页、错误页、租户停用页、根路径 —— 回跳到这些页面没有意义。
+ */
+export const isReturnablePathname = (pathname?: string | null): boolean => {
+  return !!pathname && !NON_RETURNABLE_PATHS.includes(pathname);
+};
+
+/**
+ * 在退出登录 / 会话失效跳转登录页之前，记忆当前业务页路径，
+ * 供登录成功后回跳（`LAST_PATH`）。
+ *
+ * **必须在 `removeToken()` 之前调用**：
+ * apps/admin 的 `onPageChange` 写 `LAST_PATH` 的条件是「有 token 且非业务页」，
+ * 一旦 token 被清除，随后 `history.push('/login')` 触发的 `onPageChange`
+ * 会走「无 token」短路分支，不再写入 `LAST_PATH`。
+ * 因此所有跳登录的代码路径都需主动调用本函数，否则重新登录后回不到原页面。
+ *
+ * 自动排除非业务页（登录页、404、租户停用页等），避免回跳目标变成它们自身。
+ * 在非浏览器环境（SSR / 测试）下安全 no-op。
+ *
+ * @param pathnameOverride 可选 pathname，默认取 `window.location.pathname`
+ * @param searchOverride   可选 search，默认取 `window.location.search`
+ * @param hashOverride     可选 hash，默认取 `window.location.hash`
+ * @returns 实际写入的路径；未写入（非业务页 / 非浏览器）时返回 null
+ */
+export const rememberReturnPath = (
+  pathnameOverride?: string,
+  searchOverride?: string,
+  hashOverride?: string,
+): string | null => {
+  if (typeof window === 'undefined' || !window.location) return null;
+
+  const pathname = pathnameOverride ?? window.location.pathname;
+  if (!isReturnablePathname(pathname)) return null;
+
+  const search = searchOverride ?? window.location.search ?? '';
+  const hash = hashOverride ?? window.location.hash ?? '';
+  const fullPath = pathname + (search || '') + (hash || '');
+  setStorage(STORAGE_KEYS.LAST_PATH, fullPath);
+  return fullPath;
+};
+
+
+
 /**
  * Token 相关
  */

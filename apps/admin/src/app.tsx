@@ -4,7 +4,7 @@ import TenantSwitcher from '@/components/TenantSwitcher';
 import TenantStatusBanner from '@/components/TenantStatusBanner';
 import PageTransitionWrapper from '@/components/PageTransitionWrapper';
 import GuidedTour from '@/components/GuidedTour';
-import { getToken, removeToken, setStorage, getStorage, removeStorage, STORAGE_KEYS, initCrossTabSync, isPublicEntryRoute, subscribeTenantSuspended, getTracker, recordRouteChange } from '@hospital/shared';
+import { getToken, removeToken, setStorage, getStorage, removeStorage, STORAGE_KEYS, initCrossTabSync, isPublicEntryRoute, subscribeTenantSuspended, getTracker, recordRouteChange, rememberReturnPath } from '@hospital/shared';
 import type { MiniappStoreThemeValue } from '@hospital/shared';
 import { adminApi } from '@hospital/api';
 import type { Settings as LayoutSettings } from '@ant-design/pro-components';
@@ -109,6 +109,10 @@ export async function getInitialState(): Promise<{
       return user;
     } catch (error: any) {
       if (error?.isUnauthorized?.()) return undefined;
+      // 会话失效（如刷新页面时 token 过期）：在清 token / 跳登录前记忆当前业务页，
+      // 供重新登录后回跳。onPageChange 此时因 token 已清除不会写入 LAST_PATH。
+      const { pathname, search, hash } = history.location;
+      rememberReturnPath(pathname, search || undefined, hash || undefined);
       removeToken();
       history.push(LOGIN_PATH);
     }
@@ -212,6 +216,9 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }: a
       const { location } = history;
       const token = getToken();
       if (!token && location.pathname !== LOGIN_PATH) {
+        // 无 token 访问业务页（如 token 被其它标签页清除后又在当前页导航）：
+        // 跳登录前记忆当前路径，供重新登录后回跳。
+        rememberReturnPath(location.pathname, location.search || undefined, location.hash || undefined);
         history.push(LOGIN_PATH);
         return;
       }
