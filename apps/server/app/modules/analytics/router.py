@@ -5,7 +5,6 @@
 """
 import json
 import logging
-import time
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -36,39 +35,34 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# ========== 安全：IP 级速率限制 ==========
+# ========== 安全：IP 级速率限制（Redis 滑动窗口，多实例共享） ==========
 
-_analytics_rate_limit: dict[str, list[float]] = {}
 _RATE_LIMIT_WINDOW = 60  # 秒
-_RATE_LIMIT_MAX = 120    # 每窗口最大请求数
+# 埋点批量上报高频，单 IP 每分钟放宽到 300 次（全局中间件已豁免此接口，由此处兜底防滥用）
+_RATE_LIMIT_MAX = 300   # 每窗口最大请求数
+# 限流作用域，避免与 session_events 等其他高频接口共用配额
+_RATE_LIMIT_SCOPE = "analytics"
 
 
-def _check_rate_limit(client_ip: str) -> None:
-    """简单的内存级 IP 速率限制"""
-    now = time.time()
-    window_start = now - _RATE_LIMIT_WINDOW
+async def _check_rate_limit(client_ip: str) -> None:
+    """基于 Redis 滑动窗口的 IP 速率限制（多实例共享，全局生效）。
 
-    if client_ip not in _analytics_rate_limit:
-        _analytics_rate_limit[client_ip] = []
+    迁移自进程内内存 dict：内存版在多 worker/多实例下各计数独立，
+    实际限流阈值被放大 N 倍，无法有效防滥用。改为复用 RateLimitMiddleware
+    的 Redis 滑窗逻辑，所有实例共享同一计数。Redis 不可用时 fail-open 放行。
+    """
+    from app.core.redis import get_redis
+    from app.middleware.rate_limit import RateLimitMiddleware
 
-    timestamps = _analytics_rate_limit[client_ip]
-    # 清理过期时间戳
-    _analytics_rate_limit[client_ip] = [t for t in timestamps if t > window_start]
-
-    if len(_analytics_rate_limit[client_ip]) >= _RATE_LIMIT_MAX:
+    redis = await get_redis()
+    allowed = await RateLimitMiddleware.check_ip_rate_limit(
+        redis, client_ip, _RATE_LIMIT_SCOPE, _RATE_LIMIT_MAX, _RATE_LIMIT_WINDOW
+    )
+    if not allowed:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="请求过于频繁，请稍后再试",
         )
-
-    _analytics_rate_limit[client_ip].append(now)
-
-    # 防止内存泄漏：定期清理不活跃的 IP
-    if len(_analytics_rate_limit) > 10000:
-        cutoff = now - _RATE_LIMIT_WINDOW * 2
-        stale_ips = [ip for ip, ts in _analytics_rate_limit.items() if not ts or ts[-1] < cutoff]
-        for ip in stale_ips:
-            _analytics_rate_limit.pop(ip, None)
 
 
 def _extract_user_id(account: AccountInfo | None) -> str | None:
@@ -145,7 +139,7 @@ async def track_event(
     此接口不需要认证，允许匿名用户上报；提供 token 时自动提取 user_id
     """
     client_ip = _get_client_ip(request)
-    _check_rate_limit(client_ip)
+    await _check_rate_limit(client_ip)
 
     user_agent = request.headers.get("User-Agent", "")
     ua_info = _parse_user_agent(user_agent)
@@ -202,7 +196,7 @@ async def batch_track_events(
     此接口不需要认证，允许匿名用户上报；提供 token 时自动提取 user_id
     """
     client_ip = _get_client_ip(request)
-    _check_rate_limit(client_ip)
+    await _check_rate_limit(client_ip)
 
     user_agent = request.headers.get("User-Agent", "")
     ua_info = _parse_user_agent(user_agent)

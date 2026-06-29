@@ -36,6 +36,14 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
     # 不参与限流的路径前缀
     EXCLUDE_PATHS = ["/health", "/docs", "/redoc", "/openapi.json"]
+    # 完全跳过限流的路径（高频埋点上报，由路由自身的 IP 限流兜底）
+    EXCLUDE_EXACT_PATHS = (
+        "/api/v1/analytics/track",
+        "/api/v1/analytics/batch",
+        # rrweb 会话录制批量上报：前端 100 条/30s 一批，多用户并发会撞 rpm=300 全局限流，
+        # 与 analytics/batch 一致由路由内 IP 限流兜底。
+        "/api/v1/session-events/batch",
+    )
 
     def __init__(
         self,
@@ -155,6 +163,52 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             logger.error(f"限流检查异常 (key={key}): {e}")
             return True
 
+    @staticmethod
+    async def check_ip_rate_limit(
+        redis,
+        client_ip: str,
+        scope: str,
+        limit: int,
+        window_seconds: int = 60,
+    ) -> bool:
+        """基于 Redis 滑动窗口的通用 IP 限流检查（供路由层复用）。
+
+        与中间件自身的 _check_rate_limit 同构，区别在于：
+        - 调用方自行获取 redis 客户端（避免路由层依赖中间件实例）
+        - 限流 key 形如 rate_limit:ip:{scope}:{ip}:{window}，独立于中间件维度
+
+        多实例部署下，所有 worker 共享同一个 Redis，限流全局生效——
+        这是路由层从"进程内内存 dict"迁移到 Redis 的核心收益。
+
+        Args:
+            redis: redis.asyncio 客户端实例
+            client_ip: 客户端 IP
+            scope: 限流作用域（如 "session_events_batch"，避免不同接口互相干扰）
+            limit: 窗口内最大请求数
+            window_seconds: 窗口大小（秒），默认 60
+
+        Returns:
+            True 表示允许通过，False 表示超限
+        """
+        try:
+            now = time.time()
+            window_start = now - window_seconds
+            key = f"rate_limit:ip:{scope}:{client_ip}:{window_seconds}"
+
+            pipeline = redis.pipeline()
+            pipeline.zremrangebyscore(key, 0, window_start)
+            pipeline.zcard(key)
+            pipeline.zadd(key, {str(now): now})
+            pipeline.expire(key, window_seconds + 1)
+            results = await pipeline.execute()
+
+            current_count = results[1]
+            return current_count < limit
+        except Exception as e:
+            # Redis 异常时放行（fail-open），避免限流基础设施抖动阻断正常请求
+            logger.error(f"路由级限流检查异常 (scope={scope}, ip={client_ip}): {e}")
+            return True
+
     async def dispatch(self, request: Request, call_next: Callable):
         """限流中间件主逻辑"""
         if not self.enabled:
@@ -164,6 +218,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         for exclude_path in self.EXCLUDE_PATHS:
             if path.startswith(exclude_path):
                 return await call_next(request)
+
+        # 高频埋点接口完全跳过全局限流（由路由自身 IP 限流兜底）
+        if path in self.EXCLUDE_EXACT_PATHS:
+            return await call_next(request)
 
         from app.middleware.tenant_context import get_current_tenant_id
         tenant_id = get_current_tenant_id()
