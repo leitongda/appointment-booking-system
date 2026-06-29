@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from sqlalchemy import and_, case, func, select
@@ -129,8 +129,8 @@ class RevenueService:
             .join(Doctor, Schedule.doctor_id == Doctor.id)
             .where(
                 and_(
-                    func.date(Appointment.created_at) >= start_date,
-                    func.date(Appointment.created_at) <= end_date,
+                    Appointment.created_at >= datetime.combine(start_date, datetime.min.time()),
+                    Appointment.created_at < datetime.combine(end_date + timedelta(days=1), datetime.min.time()),
                     Appointment.status.in_(status_list)
                 )
             )
@@ -170,8 +170,8 @@ class RevenueService:
             .join(Doctor, Schedule.doctor_id == Doctor.id)
             .where(
                 and_(
-                    func.date(Appointment.created_at) >= start_date,
-                    func.date(Appointment.created_at) <= end_date,
+                    Appointment.created_at >= datetime.combine(start_date, datetime.min.time()),
+                    Appointment.created_at < datetime.combine(end_date + timedelta(days=1), datetime.min.time()),
                     Appointment.status.in_([2, 3, 5])
                 )
             )

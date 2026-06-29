@@ -1,5 +1,5 @@
 """数据统计 - 概览与门店 Dashboard"""
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import and_, func, select
@@ -35,7 +35,12 @@ async def get_overview(
         .select_from(Appointment)
         .join(Schedule, Appointment.schedule_id == Schedule.id)
         .join(Doctor, Schedule.doctor_id == Doctor.id)
-        .where(func.date(Appointment.created_at) == today)
+        .where(
+            and_(
+                Appointment.created_at >= datetime.combine(today, datetime.min.time()),
+                Appointment.created_at < datetime.combine(today + timedelta(days=1), datetime.min.time()),
+            )
+        )
     )
     today_query = apply_data_scope(today_query, Doctor, admin_dict)
     today_appointments = await db.scalar(today_query)
@@ -73,7 +78,7 @@ async def get_overview(
         .select_from(Appointment)
         .join(Schedule, Appointment.schedule_id == Schedule.id)
         .join(Doctor, Schedule.doctor_id == Doctor.id)
-        .where(func.date(Appointment.created_at) >= first_day_of_month)
+        .where(Appointment.created_at >= datetime.combine(first_day_of_month, datetime.min.time()))
     )
     month_query = apply_data_scope(month_query, Doctor, admin_dict)
     month_appointments = await db.scalar(month_query)
@@ -195,7 +200,8 @@ async def get_store_dashboard(
         select(func.count(UserBehaviorLog.id)).where(
             and_(
                 UserBehaviorLog.event_type == "page_view",
-                func.date(UserBehaviorLog.created_at) == today
+                UserBehaviorLog.created_at >= datetime.combine(today, datetime.min.time()),
+                UserBehaviorLog.created_at < datetime.combine(today + timedelta(days=1), datetime.min.time()),
             )
         )
     ) or 0
@@ -205,7 +211,8 @@ async def get_store_dashboard(
         select(func.count(func.distinct(UserBehaviorLog.session_id))).where(
             and_(
                 UserBehaviorLog.event_type == "page_view",
-                func.date(UserBehaviorLog.created_at) == today
+                UserBehaviorLog.created_at >= datetime.combine(today, datetime.min.time()),
+                UserBehaviorLog.created_at < datetime.combine(today + timedelta(days=1), datetime.min.time()),
             )
         )
     ) or 0
@@ -215,7 +222,8 @@ async def get_store_dashboard(
         select(func.count(UserBehaviorLog.id)).where(
             and_(
                 UserBehaviorLog.event_type == "page_view",
-                func.date(UserBehaviorLog.created_at) == yesterday
+                UserBehaviorLog.created_at >= datetime.combine(yesterday, datetime.min.time()),
+                UserBehaviorLog.created_at < datetime.combine(today, datetime.min.time()),
             )
         )
     ) or 0
@@ -225,7 +233,8 @@ async def get_store_dashboard(
         select(func.count(func.distinct(UserBehaviorLog.session_id))).where(
             and_(
                 UserBehaviorLog.event_type == "page_view",
-                func.date(UserBehaviorLog.created_at) == yesterday
+                UserBehaviorLog.created_at >= datetime.combine(yesterday, datetime.min.time()),
+                UserBehaviorLog.created_at < datetime.combine(today, datetime.min.time()),
             )
         )
     ) or 0
@@ -235,8 +244,8 @@ async def get_store_dashboard(
         select(func.count(UserBehaviorLog.id)).where(
             and_(
                 UserBehaviorLog.event_type == "page_view",
-                func.date(UserBehaviorLog.created_at) >= week_start,
-                func.date(UserBehaviorLog.created_at) <= week_end
+                UserBehaviorLog.created_at >= datetime.combine(week_start, datetime.min.time()),
+                UserBehaviorLog.created_at < datetime.combine(week_end + timedelta(days=1), datetime.min.time()),
             )
         )
     ) or 0
@@ -246,8 +255,8 @@ async def get_store_dashboard(
         select(func.count(UserBehaviorLog.id)).where(
             and_(
                 UserBehaviorLog.event_type == "page_view",
-                func.date(UserBehaviorLog.created_at) >= last_week_start,
-                func.date(UserBehaviorLog.created_at) <= last_week_end
+                UserBehaviorLog.created_at >= datetime.combine(last_week_start, datetime.min.time()),
+                UserBehaviorLog.created_at < datetime.combine(last_week_end + timedelta(days=1), datetime.min.time()),
             )
         )
     ) or 0
@@ -257,8 +266,8 @@ async def get_store_dashboard(
         select(func.count(func.distinct(UserBehaviorLog.session_id))).where(
             and_(
                 UserBehaviorLog.event_type == "page_view",
-                func.date(UserBehaviorLog.created_at) >= week_start,
-                func.date(UserBehaviorLog.created_at) <= week_end
+                UserBehaviorLog.created_at >= datetime.combine(week_start, datetime.min.time()),
+                UserBehaviorLog.created_at < datetime.combine(week_end + timedelta(days=1), datetime.min.time()),
             )
         )
     ) or 0
@@ -268,8 +277,8 @@ async def get_store_dashboard(
         select(func.count(func.distinct(UserBehaviorLog.session_id))).where(
             and_(
                 UserBehaviorLog.event_type == "page_view",
-                func.date(UserBehaviorLog.created_at) >= last_week_start,
-                func.date(UserBehaviorLog.created_at) <= last_week_end
+                UserBehaviorLog.created_at >= datetime.combine(last_week_start, datetime.min.time()),
+                UserBehaviorLog.created_at < datetime.combine(last_week_end + timedelta(days=1), datetime.min.time()),
             )
         )
     ) or 0
@@ -298,7 +307,8 @@ async def get_store_dashboard(
         .where(
             and_(
                 Doctor.store_id == store_id,
-                func.date(Appointment.created_at) == today
+                Appointment.created_at >= datetime.combine(today, datetime.min.time()),
+                Appointment.created_at < datetime.combine(today + timedelta(days=1), datetime.min.time()),
             )
         )
     ) or 0
@@ -312,7 +322,8 @@ async def get_store_dashboard(
         .where(
             and_(
                 Doctor.store_id == store_id,
-                func.date(Appointment.created_at) == yesterday
+                Appointment.created_at >= datetime.combine(yesterday, datetime.min.time()),
+                Appointment.created_at < datetime.combine(today, datetime.min.time()),
             )
         )
     ) or 0
