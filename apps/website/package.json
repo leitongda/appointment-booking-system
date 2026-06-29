@@ -17,7 +17,7 @@
     "@hospital/api": "workspace:*",
     "@hospital/shared": "workspace:*",
     "clsx": "^2.1.1",
-    "framer-motion": "^12.23.26",
+    "framer-motion": "^12.42.0",
     "lucide-react": "^0.474.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
