@@ -25,7 +25,7 @@
     "dev:doctor": "turbo run dev --filter=@hospital/doctor",
     "dev:temp-registration": "turbo run dev --filter=@hospital/temp-registration",
     "dev:website": "turbo run dev --filter=@hospital/website",
-    "dev:server": "cd apps/server && uvicorn app.main:app --reload --host 0.0.0.0 --port ${SERVER_PORT:-9000}",
+    "dev:server": "cd apps/server && PYTHON_BIN=${SERVER_PYTHON:-python3} && if [ -x .venv/bin/python ]; then PYTHON_BIN=.venv/bin/python; fi && $PYTHON_BIN -m uvicorn app.main:app --reload --host 0.0.0.0 --port ${SERVER_PORT:-9000}",
     "build": "turbo run build",
     "build:admin": "turbo run build --filter=@hospital/admin",
     "build:patient-h5": "turbo run build --filter=@hospital/patient-h5",
@@ -54,7 +54,7 @@
     "figlet": "^1.8.0",
     "ora": "^8.1.1",
     "prompts": "^2.4.2",
-    "turbo": "^2.9.14"
+    "turbo": "^2.10.0"
   },
   "packageManager": "pnpm@10.27.0",
   "engines": {
