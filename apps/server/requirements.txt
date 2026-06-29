@@ -41,7 +41,7 @@ aiosmtplib==5.1.1
 minio==7.2.20
 
 # 阿里云短信 SDK
-alibabacloud_dysmsapi20170525==3.0.0
+alibabacloud_dysmsapi20170525==4.5.1
 
 # 图片处理
 Pillow==12.2.0
