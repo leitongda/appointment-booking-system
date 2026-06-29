@@ -8,7 +8,8 @@ import asyncio
 import json
 import logging
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
@@ -60,13 +61,25 @@ def _build_storage_key() -> str:
     return f"session-replay/{date_path}/{unique_name}"
 
 
-def _day_from_started_at(started_at: object) -> datetime.date:
-    """从 started_at 计算 heatmap 聚合用的日期分桶（按 UTC）。
+# 业务时区：与 celery_app.timezone="Asia/Shanghai" 保持一致。
+# heatmap 按天聚合必须按业务日历日（东八区）取 date，否则东八区
+# 20:00-24:00 的点击会被 UTC 边界归到次日，导致按天统计系统性错位。
+# 注意：datetime.timezone() 只接受 timedelta 偏移量，不接受时区名；
+# 命名时区（含 DST 规则）必须用 zoneinfo.ZoneInfo。
+_BUSINESS_TZ = ZoneInfo("Asia/Shanghai")
 
-    router 上报的 started_at 多为 datetime.isoformat()（naive 本地时间），
-    过去按本地时间直接取 .date() 在东八区会跨天偏移最多 8h，导致按天聚合错位。
-    统一规则：naive 一律视为 UTC，带 tz 的 astimezone(UTC) 后取日期；
-    解析失败或为空回退 datetime.utcnow().date()。
+
+def _day_from_started_at(started_at: object) -> datetime.date:
+    """从 started_at 计算 heatmap 聚合用的日期分桶（按业务时区东八区）。
+
+    前端 sessionRecorder 上报的 startedAt 为 new Date(ms).toISOString()，
+    是带 tz 的 UTC 字符串（如 2026-06-27T14:00:00.000Z）；router 转成
+    datetime 后走 Celery payload 传入。早期 naive 本地时间上报同样存在。
+
+    统一规则：
+    - 带 tz：astimezone(东八区) 后取 date（正确）
+    - naive：视为业务时区本地时间直接取 date（兼容历史/简化路径上报）
+    - 解析失败或为空：回退到东八区当前 date
 
     返回 date 对象，与 HeatmapPoint.day（SQLAlchemy Date）一致。
     """
@@ -74,15 +87,16 @@ def _day_from_started_at(started_at: object) -> datetime.date:
         try:
             value = datetime.fromisoformat(started_at.replace("Z", "+00:00"))
         except ValueError:
-            return datetime.utcnow().date()
+            return datetime.now(_BUSINESS_TZ).date()
     elif isinstance(started_at, datetime):
         value = started_at
     else:
-        return datetime.utcnow().date()
+        return datetime.now(_BUSINESS_TZ).date()
 
     if value.tzinfo is not None:
-        value = value.astimezone(UTC)
-    # naive 直接视为 UTC，不做本地时间转换
+        # 带 tz：转到业务时区取日历日
+        return value.astimezone(_BUSINESS_TZ).date()
+    # naive：统一视为业务时区本地时间（与 Celery timezone 配置一致）
     return value.date()
 
 
@@ -202,6 +216,12 @@ def batch_save_session_events(batch_payload: dict):
             data = json.dumps(events, ensure_ascii=False).encode("utf-8")
             key = _build_storage_key()
             storage = get_storage()
+            # 说明：storage 后端的 upload_bytes 虽声明为 async，但 minio/cos 后端
+            # 内部是同步 SDK（put_object 阻塞），local 后端用 aiofiles。
+            # asyncio.run 每次新建事件循环跑一次上传，不会复用/绑定模块级 loop，
+            # 因此无 "event loop is closed" 风险；代价是每次上传新建循环 + 阻塞
+            # Celery worker。若未来 storage 改为复用全局 async client（如 aiobotocore），
+            # 需改为 asgiref.sync.async_to_run 或在 worker 内复用单例事件循环。
             result = asyncio.run(storage.upload_bytes(data, key, "application/json"))
             storage_url = result.url
             storage_key = result.key
@@ -239,7 +259,7 @@ def batch_save_session_events(batch_payload: dict):
             if page_path:
                 points = _extract_heatmap_points(events, viewport_w, viewport_h)
                 if points:
-                    # day 一律按 UTC 计算（naive 视为 UTC，带 tz 转 UTC）
+                    # day 按业务时区（东八区）日历日计算，见 _day_from_started_at
                     day_date = _day_from_started_at(started_at)
 
                     viewport_bucket = _bucket_for_viewport(viewport_w)
@@ -288,6 +308,16 @@ def batch_save_session_events(batch_payload: dict):
         except Exception as exc:
             db.rollback()
             logger.error(f"[任务] 会话事件段保存失败: {exc}")
+            # 补偿：DB 写失败时删除已上传的对象存储文件，避免孤儿对象。
+            # 补偿失败仅 warning，不掩盖原始 DB 错误；任务会重试（重新上传）。
+            if storage_key:
+                try:
+                    asyncio.run(get_storage().delete(storage_key))
+                    logger.info(f"[任务] 补偿删除孤儿对象成功: key={storage_key}")
+                except Exception as cleanup_exc:
+                    logger.warning(
+                        f"[任务] 补偿删除孤儿对象失败 key={storage_key}: {cleanup_exc}"
+                    )
             raise
 
 

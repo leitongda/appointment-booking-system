@@ -17,8 +17,11 @@ declare const wx: {
   }) => void;
 } | undefined;
 
-/** 生成唯一 ID */
+/** 生成唯一 ID（优先 crypto.randomUUID，回退时间戳+随机串兼容旧环境） */
 function generateId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
   return `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
 }
 
@@ -81,6 +84,8 @@ export class Tracker {
   /** 错误去重：相同错误消息在窗口期内只上报一次 */
   private recentErrors: Map<string, number> = new Map();
   private errorDedupWindow = 5000; // 5 秒内相同错误不重复上报
+  /** flush 并发守卫：避免 addEvent 阈值触发与定时触发并发执行多次上报 */
+  private flushing = false;
 
   constructor(config: TrackerConfig) {
     this.config = {
@@ -208,13 +213,25 @@ export class Tracker {
     return true;
   }
 
-  /** 启动定时上报 */
+  /** 启动定时上报（顺带周期性清理 recentErrors 过期条目，避免低频多样错误缓慢堆积） */
   private startFlushTimer(): void {
     if (this.flushTimer) return;
-    
+
     this.flushTimer = setInterval(() => {
       this.flush();
+      this.cleanupRecentErrors();
     }, this.config.batchInterval);
+  }
+
+  /** 清理 recentErrors 中已超出去重窗口的条目 */
+  private cleanupRecentErrors(): void {
+    if (this.recentErrors.size === 0) return;
+    const now = Date.now();
+    for (const [k, t] of this.recentErrors) {
+      if (now - t > this.errorDedupWindow) {
+        this.recentErrors.delete(k);
+      }
+    }
   }
 
   /** 停止定时上报 */
@@ -250,7 +267,14 @@ export class Tracker {
 
   /** 上报事件 */
   private async flush(sync = false): Promise<void> {
+    // sync 分支（beforeunload/visibilitychange）必须尽力发出，跳过并发守卫；
+    // 非同步分支（定时/阈值触发）用 flushing 守卫避免并发 fetch 浪费连接。
+    if (!sync && this.flushing) return;
     if (this.eventQueue.length === 0) return;
+
+    if (!sync) {
+      this.flushing = true;
+    }
 
     const events = [...this.eventQueue];
     this.eventQueue = [];
@@ -290,7 +314,12 @@ export class Tracker {
       // 上报失败时将事件放回队列（限制最大 500 条，防止内存泄漏）
       this.eventQueue.unshift(...events);
       if (this.eventQueue.length > 500) {
-        this.eventQueue = this.eventQueue.slice(0, 500);
+        // 保留最新的事件（rrweb/埋点场景下新事件价值更高）
+        this.eventQueue = this.eventQueue.slice(-500);
+      }
+    } finally {
+      if (!sync) {
+        this.flushing = false;
       }
     }
   }

@@ -5,11 +5,17 @@
 - 响应类统一 alias_generator=to_camel + from_attributes（list 响应可直接从 ORM 聚合行构造）
 - events 字段为 list[dict]，rrweb 事件结构动态，不做严格校验
 """
+import json
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.schemas.response import to_camel
+
+# 单批次上报 payload 序列化后的字节上限（2MB）。
+# 防止恶意客户端用 500 条超大事件打爆对象存储配额；
+# 正常 rrweb 100 条/批的事件量远小于此。
+_MAX_PAYLOAD_BYTES = 2 * 1024 * 1024
 
 # ========== 请求 Schema ==========
 
@@ -18,7 +24,7 @@ class SessionEventBatchRequest(BaseModel):
 
     前端 rrweb recorder 每次批量上报一个会话段（segment），events 内为
     rrweb 原始事件对象数组，结构动态（snapshot/incremental/meta 等），
-    因此不做严格 Pydantic 校验，仅约束列表长度。
+    因此不做严格 Pydantic 校验，仅约束列表长度 + 整体字节数。
     """
     model_config = ConfigDict(
         alias_generator=to_camel,
@@ -38,6 +44,17 @@ class SessionEventBatchRequest(BaseModel):
         max_length=500,
         description="rrweb 原始事件对象数组（结构动态，不做严格校验）",
     )
+
+    @model_validator(mode="after")
+    def _validate_payload_size(self) -> "SessionEventBatchRequest":
+        """校验整体 payload 序列化后不超过 _MAX_PAYLOAD_BYTES，防滥用。"""
+        # 仅校验 events（占 payload 绝大部分体积），避免序列化整个对象
+        serialized = json.dumps(self.events, ensure_ascii=False)
+        if len(serialized.encode("utf-8")) > _MAX_PAYLOAD_BYTES:
+            raise ValueError(
+                f"events 序列化后超过 {_MAX_PAYLOAD_BYTES // 1024 // 1024}MB 上限"
+            )
+        return self
 
 
 # ========== 响应 Schema ==========
@@ -108,6 +125,10 @@ class SessionReplayResponse(BaseModel):
     segments: list[SessionSegmentResponse] = Field(
         default_factory=list,
         description="按 sequence/created_at 排序的批次段列表",
+    )
+    missing_count: int = Field(
+        0,
+        description="因 storage_key 缺失（孤儿/清理中）而被跳过的段数",
     )
 
 

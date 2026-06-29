@@ -12,7 +12,6 @@
 """
 import json
 import logging
-import time
 import uuid
 from datetime import datetime, timedelta
 
@@ -58,38 +57,33 @@ def _bucket_for_viewport(width: int | None) -> str:
     return "md"
 
 
-# ========== 安全：IP 级速率限制 ==========
+# ========== 安全：IP 级速率限制（Redis 滑动窗口，多实例共享） ==========
 
-_batch_rate_limit: dict[str, list[float]] = {}
 _RATE_LIMIT_WINDOW = 60  # 秒
 _RATE_LIMIT_MAX = 120    # 每窗口最大请求数
+# 限流作用域，避免与 analytics 等其他高频接口共用配额
+_RATE_LIMIT_SCOPE = "session_events_batch"
 
 
-def _check_rate_limit(client_ip: str) -> None:
-    """简单的内存级 IP 速率限制"""
-    now = time.time()
-    window_start = now - _RATE_LIMIT_WINDOW
+async def _check_rate_limit(client_ip: str) -> None:
+    """基于 Redis 滑动窗口的 IP 速率限制（多实例共享，全局生效）。
 
-    if client_ip not in _batch_rate_limit:
-        _batch_rate_limit[client_ip] = []
+    迁移自进程内内存 dict：内存版在多 worker/多实例下各计数独立，
+    实际限流阈值被放大 N 倍，无法有效防滥用。改为复用 RateLimitMiddleware
+    的 Redis 滑窗逻辑，所有实例共享同一计数。Redis 不可用时 fail-open 放行。
+    """
+    from app.core.redis import get_redis
+    from app.middleware.rate_limit import RateLimitMiddleware
 
-    timestamps = _batch_rate_limit[client_ip]
-    _batch_rate_limit[client_ip] = [t for t in timestamps if t > window_start]
-
-    if len(_batch_rate_limit[client_ip]) >= _RATE_LIMIT_MAX:
+    redis = await get_redis()
+    allowed = await RateLimitMiddleware.check_ip_rate_limit(
+        redis, client_ip, _RATE_LIMIT_SCOPE, _RATE_LIMIT_MAX, _RATE_LIMIT_WINDOW
+    )
+    if not allowed:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="请求过于频繁，请稍后再试",
         )
-
-    _batch_rate_limit[client_ip].append(now)
-
-    # 防止内存泄漏：定期清理不活跃的 IP
-    if len(_batch_rate_limit) > 10000:
-        cutoff = now - _RATE_LIMIT_WINDOW * 2
-        stale_ips = [ip for ip, ts in _batch_rate_limit.items() if not ts or ts[-1] < cutoff]
-        for ip in stale_ips:
-            _batch_rate_limit.pop(ip, None)
 
 
 def _get_client_ip(request: Request) -> str:
@@ -133,7 +127,7 @@ async def batch_upload_session_events(
     （简化：回退路径跳过热力图坐标提取，避免阻塞请求）。
     """
     client_ip = _get_client_ip(request)
-    _check_rate_limit(client_ip)
+    await _check_rate_limit(client_ip)
 
     user_agent = request.headers.get("User-Agent", "")
     tenant_id = get_current_tenant_id()
@@ -362,7 +356,8 @@ async def get_session_replay(
     """返回该 session 所有批次段（按 sequence/created_at 排序）。
 
     前端按顺序拉取各 eventsUrl，拼接 events 数组后喂给 rrweb-player。
-    viewport_w/H 取首段。
+    viewport_w/H 取首段。storage_key 缺失的段（孤儿对象/清理中途）会被跳过，
+    通过 missing_count 暴露给前端，避免返回 events_url=null 导致回放拼接失败。
     """
     tenant_id = get_current_tenant_id()
 
@@ -386,14 +381,19 @@ async def get_session_replay(
 
     storage = get_storage()
     segments: list[SessionSegmentResponse] = []
+    missing_count = 0
     for row in rows:
+        # storage_key 缺失：对象存储文件不存在（孤儿/清理中/直写回退未存对象），
+        # 跳过该段而非返回 null events_url，避免前端拼接出错。
+        if not row.storage_key:
+            missing_count += 1
+            continue
         events_url: str | None = None
-        if row.storage_key:
-            try:
-                events_url = await storage.get_url(row.storage_key, expires=3600)
-            except Exception as exc:
-                logger.warning(f"生成 eventsUrl 失败 segment={row.id}: {exc}")
-                events_url = row.storage_url
+        try:
+            events_url = await storage.get_url(row.storage_key, expires=3600)
+        except Exception as exc:
+            logger.warning(f"生成 eventsUrl 失败 segment={row.id}: {exc}")
+            events_url = row.storage_url
         segments.append(
             SessionSegmentResponse(
                 segment_id=row.id,
@@ -403,12 +403,20 @@ async def get_session_replay(
             )
         )
 
+    if not segments:
+        # 所有段都缺失数据：回放不可用
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"会话回放数据全部缺失（{missing_count} 段无对象存储引用）",
+        )
+
     first = rows[0]
     return SessionReplayResponse(
         session_id=session_id,
         viewport_w=first.viewport_w,
         viewport_h=first.viewport_h,
         segments=segments,
+        missing_count=missing_count,
     )
 
 
