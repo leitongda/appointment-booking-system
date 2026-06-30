@@ -160,6 +160,29 @@ export interface PatientHistoryItem {
   hasMedicalRecord: boolean;
 }
 
+export interface AppointmentSatisfaction {
+  id: string;
+  appointmentId?: string | null;
+  userId?: string | null;
+  patientId?: string | null;
+  doctorId?: string | null;
+  overallScore?: number | null;
+  serviceScore?: number | null;
+  environmentScore?: number | null;
+  comment?: string | null;
+  tags?: string[] | null;
+  submittedAt?: string | null;
+  createdAt?: string | null;
+}
+
+export interface AppointmentSatisfactionCreateData {
+  overallScore: number;
+  serviceScore?: number;
+  environmentScore?: number;
+  comment?: string;
+  tags?: string[];
+}
+
 export const appointmentApi = {
   /**
    * 检查同一天同一时段是否有重复预约
@@ -407,13 +430,10 @@ export const appointmentApi = {
   /**
    * 提交预约满意度评价
    */
-  createSatisfaction: (appointmentId: string, data: {
-    overallScore: number;
-    serviceScore?: number;
-    environmentScore?: number;
-    comment?: string;
-    tags?: string[];
-  }): Promise<any> => {
+  createSatisfaction: (
+    appointmentId: string,
+    data: AppointmentSatisfactionCreateData,
+  ): Promise<AppointmentSatisfaction> => {
     return request.post(`/appointments/${appointmentId}/satisfaction`, {
       overall_score: data.overallScore,
       service_score: data.serviceScore,
@@ -426,7 +446,7 @@ export const appointmentApi = {
   /**
    * 查询预约满意度
    */
-  getSatisfaction: (appointmentId: string): Promise<any> => {
+  getSatisfaction: (appointmentId: string): Promise<AppointmentSatisfaction> => {
     return request.get(`/appointments/${appointmentId}/satisfaction`);
   },
 };

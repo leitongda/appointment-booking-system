@@ -3,6 +3,7 @@ import { history, useParams } from 'umi';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { appointmentApi, doctorApi } from '@hospital/api';
+import type { Appointment } from '@hospital/shared';
 import { Card, Button } from '@/components/ui';
 import { fadeInUp } from '@/components/ui/animations';
 
@@ -23,7 +24,7 @@ const ReviewPage: React.FC = () => {
   const { appointmentId } = useParams() as { appointmentId: string };
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [appointment, setAppointment] = useState<any>(null);
+  const [appointment, setAppointment] = useState<Appointment | null>(null);
   const [rating, setRating] = useState(0);
   const [content, setContent] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -41,7 +42,7 @@ const ReviewPage: React.FC = () => {
       // 检查是否已提交过评价
       try {
         const reviews = await doctorApi.getDoctorReviews(data.doctorId, { page: 1, pageSize: 100 });
-        const existing = reviews?.data?.find((r: any) => r.appointmentId === appointmentId);
+        const existing = reviews.data.find((review) => review.appointmentId === appointmentId);
         if (existing) {
           setSubmitted(true);
           setRating(existing.rating || 0);

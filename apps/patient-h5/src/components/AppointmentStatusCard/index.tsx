@@ -1,8 +1,7 @@
-import { Tag } from 'antd-mobile';
 import { Card, Button } from '@/components/ui';
-import { TIME_SLOT_MAP } from '@hospital/shared';
+import { APPOINTMENT_STATUS, TIME_SLOT_MAP } from '@hospital/shared';
 import type { AppointmentRecord, AppointmentStatusConfig } from '@/types/appointment';
-import { APPOINTMENT_STATUS_CONFIG, AppointmentStatus } from '@/types/appointment';
+import { getAppointmentStatusConfig } from '@/types/appointment';
 
 export interface AppointmentStatusCardProps {
   /** 预约记录 */
@@ -30,9 +29,9 @@ export const AppointmentStatusCard: React.FC<AppointmentStatusCardProps> = ({
   onCancel,
   onSignIn,
 }) => {
-  const config = statusConfig || APPOINTMENT_STATUS_CONFIG[appointment.status];
-  const isPending = appointment.status === AppointmentStatus.CONFIRMED;
-  const isPendingPayment = appointment.status === AppointmentStatus.PENDING_PAYMENT;
+  const config = statusConfig || getAppointmentStatusConfig(appointment.status);
+  const isPending = appointment.status === APPOINTMENT_STATUS.CONFIRMED;
+  const isPendingPayment = appointment.status === APPOINTMENT_STATUS.PENDING_PAYMENT;
 
   return (
     <Card

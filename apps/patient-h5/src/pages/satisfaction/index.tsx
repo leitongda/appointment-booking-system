@@ -3,6 +3,7 @@ import { history, useParams } from 'umi';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { appointmentApi } from '@hospital/api';
+import type { Appointment } from '@hospital/shared';
 import { Card, Button } from '@/components/ui';
 import { fadeInUp } from '@/components/ui/animations';
 
@@ -23,7 +24,7 @@ const SatisfactionPage: React.FC = () => {
   const { appointmentId } = useParams() as { appointmentId: string };
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [appointment, setAppointment] = useState<any>(null);
+  const [appointment, setAppointment] = useState<Appointment | null>(null);
   const [overallScore, setOverallScore] = useState(0);
   const [serviceScore, setServiceScore] = useState(0);
   const [environmentScore, setEnvironmentScore] = useState(0);

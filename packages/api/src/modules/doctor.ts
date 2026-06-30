@@ -78,6 +78,34 @@ export interface DoctorCreateData {
   useFeeTemplate?: number;
 }
 
+export interface DoctorReviewCreateData {
+  appointmentId: string;
+  doctorId: string;
+  patientId?: string;
+  rating: number;
+  content?: string;
+  tags?: string[];
+  isAnonymous?: boolean;
+}
+
+export interface DoctorReview {
+  id: string;
+  appointmentId?: string | null;
+  doctorId?: string | null;
+  userId?: string | null;
+  patientId?: string | null;
+  rating?: number | null;
+  content?: string | null;
+  tags?: string[] | null;
+  isAnonymous?: boolean | null;
+  status?: number | null;
+  reply?: string | null;
+  replyAt?: string | null;
+  createdAt?: string | null;
+  userName?: string | null;
+  patientName?: string | null;
+}
+
 export const doctorApi = {
   /**
    * 获取当前登录医生信息
@@ -291,15 +319,7 @@ export const doctorApi = {
   /**
    * 创建医生评价
    */
-  createReview: (data: {
-    appointmentId: string;
-    doctorId: string;
-    patientId?: string;
-    rating: number;
-    content?: string;
-    tags?: string[];
-    isAnonymous?: boolean;
-  }): Promise<any> => {
+  createReview: (data: DoctorReviewCreateData): Promise<DoctorReview> => {
     const payload: Record<string, any> = {
       appointment_id: data.appointmentId,
       doctor_id: data.doctorId,
@@ -315,7 +335,10 @@ export const doctorApi = {
   /**
    * 获取医生评价列表（公开）
    */
-  getDoctorReviews: (doctorId: string, params?: { page?: number; pageSize?: number }): Promise<any> => {
+  getDoctorReviews: (
+    doctorId: string,
+    params?: { page?: number; pageSize?: number },
+  ): Promise<PageResult<DoctorReview>> => {
     return request.get(`/doctor-reviews/doctors/${doctorId}`, {
       params: { page: params?.page, page_size: params?.pageSize },
     });
@@ -324,7 +347,7 @@ export const doctorApi = {
   /**
    * 回复评价（管理端）
    */
-  replyReview: (reviewId: string, reply: string): Promise<any> => {
+  replyReview: (reviewId: string, reply: string): Promise<DoctorReview> => {
     return request.post(`/doctor-reviews/${reviewId}/reply`, { reply });
   },
 };
