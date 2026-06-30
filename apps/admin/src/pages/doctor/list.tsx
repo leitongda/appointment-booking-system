@@ -214,7 +214,7 @@ const RecommendedSortModal: React.FC<RecommendedSortModalProps> = ({ open, onClo
     <Modal
       title={
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <StarOutlined style={{ color: '#faad14' }} />
+          <StarOutlined style={{ color: 'var(--color-warning)' }} />
           <span>推荐医生排序</span>
         </div>
       }
@@ -258,7 +258,7 @@ const RecommendedSortModal: React.FC<RecommendedSortModalProps> = ({ open, onClo
               border: '1px solid #bae0ff',
             }}
           >
-            <span style={{ fontSize: 13, color: '#1677ff' }}>
+            <span style={{ fontSize: 13, color: 'var(--color-primary)' }}>
               拖拽调整顺序，排在前面的优先展示
             </span>
             <Tag color="blue" style={{ margin: 0 }}>
@@ -523,14 +523,14 @@ const DoctorListPage: React.FC = () => {
                 title="确定删除该医生吗？"
                 onConfirm={() => handleDelete(record.id)}
               >
-                <a style={{ color: '#ff4d4f', fontSize: 13 }}>
+                <a style={{ color: 'var(--color-error)', fontSize: 13 }}>
                   <DeleteOutlined /> 删除
                 </a>
               </Popconfirm>
             )}
             {moreMenuItems.length > 0 && (
               <Dropdown menu={{ items: moreMenuItems }} trigger={['click']}>
-                <a style={{ color: '#666', fontSize: 13 }}>
+                <a style={{ color: 'var(--color-text-secondary)', fontSize: 13 }}>
                   <MoreOutlined /> 更多
                 </a>
               </Dropdown>

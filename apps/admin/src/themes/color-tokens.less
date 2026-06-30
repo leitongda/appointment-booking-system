@@ -1,0 +1,80 @@
+/**
+ * 颜色 Token 系统
+ *
+ * 本文件定义全局 CSS 变量，用于替代硬编码颜色值。
+ * 使用方式：color: var(--color-primary); 而非 color: #1677ff;
+ *
+ * 迁移策略：增量替换，新代码必须使用 token，旧代码逐步迁移。
+ * 当前硬编码统计（2026-06-30）：
+ *   - #fff (276次) - 白色背景
+ *   - #999 (225次) - 辅助文字
+ *   - #1677ff (190次) - 主色
+ *   - #ff4d4f (181次) - 错误/危险
+ *   - #52c41a (163次) - 成功
+ *   - #666 (136次) - 次要文字
+ *   - #f5f5f5 (104次) - 浅灰背景
+ */
+
+:root {
+  /* ========== 主色 ========== */
+  --color-primary: #1677ff;
+  --color-primary-hover: #4096ff;
+  --color-primary-active: #0958d9;
+  --color-primary-bg: #e6f4ff;
+  --color-primary-border: #91caff;
+
+  /* ========== 功能色 ========== */
+  --color-success: #52c41a;
+  --color-success-hover: #73d13d;
+  --color-success-active: #389e0d;
+  --color-success-bg: #f6ffed;
+
+  --color-warning: #faad14;
+  --color-warning-hover: #ffc53d;
+  --color-warning-active: #d48806;
+  --color-warning-bg: #fffbe6;
+
+  --color-error: #ff4d4f;
+  --color-error-hover: #ff7875;
+  --color-error-active: #d9363e;
+  --color-error-bg: #fff2f0;
+
+  --color-info: #1677ff;
+  --color-info-bg: #e6f4ff;
+
+  /* ========== 文字色 ========== */
+  --color-text: rgba(0, 0, 0, 0.88);        /* 主要文字 */
+  --color-text-secondary: rgba(0, 0, 0, 0.65); /* 次要文字 */
+  --color-text-tertiary: rgba(0, 0, 0, 0.45);  /* 辅助文字 */
+  --color-text-quaternary: rgba(0, 0, 0, 0.25); /* 最弱文字 */
+  --color-text-disabled: rgba(0, 0, 0, 0.25);  /* 禁用文字 */
+
+  /* ========== 背景色 ========== */
+  --color-bg: #ffffff;                       /* 组件背景 */
+  --color-bg-layout: #f5f5f5;               /* 布局背景 */
+  --color-bg-container: #ffffff;             /* 容器背景 */
+  --color-bg-elevated: #ffffff;              /* 浮层背景 */
+  --color-bg-spotlight: rgba(0, 0, 0, 0.85); /* 聚光灯背景 */
+
+  /* ========== 边框色 ========== */
+  --color-border: #d9d9d9;                   /* 边框 */
+  --color-border-secondary: #f0f0f0;         /* 次要边框 */
+
+  /* ========== 填充色 ========== */
+  --color-fill: rgba(0, 0, 0, 0.15);        /* 填充 */
+  --color-fill-secondary: rgba(0, 0, 0, 0.06); /* 次要填充 */
+  --color-fill-tertiary: rgba(0, 0, 0, 0.04);  /* 三级填充 */
+  --color-fill-quaternary: rgba(0, 0, 0, 0.02); /* 四级填充 */
+
+  /* ========== 特殊色 ========== */
+  --color-white: #ffffff;
+  --color-black: #000000;
+  --color-link: #1677ff;
+  --color-highlight: #ff4d4f;
+
+  /* ========== 业务色（挂号系统专用） ========== */
+  --color-morning: #1677ff;                  /* 上午 */
+  --color-afternoon: #722ed1;                /* 下午 */
+  --color-evening: #fa8c16;                  /* 晚间 */
+  --color-queue: #13c2c2;                    /* 排队 */
+}

@@ -43,7 +43,7 @@ const Pie = lazy(() =>
 
 const ChartLoading = ({ height = 300 }: { height?: number }) => (
   <div style={{ height, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-    <div style={{ color: '#999' }}>图表加载中...</div>
+    <div style={{ color: 'var(--color-text-tertiary)' }}>图表加载中...</div>
   </div>
 );
 
@@ -152,7 +152,7 @@ const Dashboard: React.FC = () => {
     xField: 'name',
     yField: 'count',
     label: { position: 'top' as const },
-    color: '#1677ff',
+    color: 'var(--color-primary)',
     height: 280,
   } : null;
 
@@ -161,7 +161,7 @@ const Dashboard: React.FC = () => {
     xField: 'name',
     yField: 'count',
     label: { position: 'top' as const },
-    color: '#52c41a',
+    color: 'var(--color-success)',
     height: 280,
   } : null;
 
@@ -178,7 +178,7 @@ const Dashboard: React.FC = () => {
       position: 'top' as const,
       formatter: (d: any) => `${d['留存率']}%`,
     },
-    color: '#722ed1',
+    color: 'var(--color-afternoon)',
     height: 280,
     tooltip: {
       formatter: (d: any) => [
@@ -214,7 +214,7 @@ const Dashboard: React.FC = () => {
                 <Statistic
                   title="今日预约"
                   value={overview?.todayAppointments ?? '-'}
-                  icon={<CalendarOutlined style={{ fontSize: 40, color: '#1677ff' }} />}
+                  icon={<CalendarOutlined style={{ fontSize: 40, color: 'var(--color-primary)' }} />}
                 />
               </ProCard>
             </Col>
@@ -223,7 +223,7 @@ const Dashboard: React.FC = () => {
                 <Statistic
                   title="今日就诊"
                   value={overview?.todayVisits ?? '-'}
-                  icon={<CheckCircleOutlined style={{ fontSize: 40, color: '#52c41a' }} />}
+                  icon={<CheckCircleOutlined style={{ fontSize: 40, color: 'var(--color-success)' }} />}
                 />
               </ProCard>
             </Col>
@@ -232,7 +232,7 @@ const Dashboard: React.FC = () => {
                 <Statistic
                   title="总患者数"
                   value={overview?.totalPatients ?? '-'}
-                  icon={<TeamOutlined style={{ fontSize: 40, color: '#722ed1' }} />}
+                  icon={<TeamOutlined style={{ fontSize: 40, color: 'var(--color-afternoon)' }} />}
                 />
               </ProCard>
             </Col>
@@ -241,7 +241,7 @@ const Dashboard: React.FC = () => {
                 <Statistic
                   title="医生数量"
                   value={overview?.totalDoctors ?? '-'}
-                  icon={<UserOutlined style={{ fontSize: 40, color: '#13c2c2' }} />}
+                  icon={<UserOutlined style={{ fontSize: 40, color: 'var(--color-queue)' }} />}
                 />
               </ProCard>
             </Col>
@@ -250,7 +250,7 @@ const Dashboard: React.FC = () => {
                 <Statistic
                   title="本月预约"
                   value={overview?.monthAppointments ?? '-'}
-                  icon={<RiseOutlined style={{ fontSize: 40, color: '#fa8c16' }} />}
+                  icon={<RiseOutlined style={{ fontSize: 40, color: 'var(--color-evening)' }} />}
                 />
               </ProCard>
             </Col>
@@ -375,9 +375,9 @@ const Dashboard: React.FC = () => {
                         value={revisitRate.overall.revisitRate}
                         precision={1}
                         suffix="%"
-                        prefix={<ReloadOutlined style={{ color: '#722ed1' }} />}
+                        prefix={<ReloadOutlined style={{ color: 'var(--color-afternoon)' }} />}
                       />
-                      <div style={{ color: '#999', fontSize: 12, marginTop: 4 }}>
+                      <div style={{ color: 'var(--color-text-tertiary)', fontSize: 12, marginTop: 4 }}>
                         {revisitRate.overall.revisitUsers} / {revisitRate.overall.totalUsers} 用户
                       </div>
                     </div>
@@ -389,9 +389,9 @@ const Dashboard: React.FC = () => {
                         value={revisitRate.byDoctor.revisitRate}
                         precision={1}
                         suffix="%"
-                        prefix={<SyncOutlined style={{ color: '#1677ff' }} />}
+                        prefix={<SyncOutlined style={{ color: 'var(--color-primary)' }} />}
                       />
-                      <div style={{ color: '#999', fontSize: 12, marginTop: 4 }}>
+                      <div style={{ color: 'var(--color-text-tertiary)', fontSize: 12, marginTop: 4 }}>
                         {revisitRate.byDoctor.revisitPairs} / {revisitRate.byDoctor.totalPairs} 医患对
                       </div>
                     </div>
@@ -403,9 +403,9 @@ const Dashboard: React.FC = () => {
                         value={revisitRate.visits.revisitRatio}
                         precision={1}
                         suffix="%"
-                        prefix={<RiseOutlined style={{ color: '#52c41a' }} />}
+                        prefix={<RiseOutlined style={{ color: 'var(--color-success)' }} />}
                       />
-                      <div style={{ color: '#999', fontSize: 12, marginTop: 4 }}>
+                      <div style={{ color: 'var(--color-text-tertiary)', fontSize: 12, marginTop: 4 }}>
                         复诊 {revisitRate.visits.revisitVisits} / 总计 {revisitRate.visits.totalVisits} 次
                       </div>
                     </div>
