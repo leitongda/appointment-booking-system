@@ -1,4 +1,4 @@
-import { NavBar, Image, Skeleton, Empty } from 'antd-mobile';
+import { NavBar, Image, Skeleton, Empty, Toast } from 'antd-mobile';
 import { history, useSearchParams } from 'umi';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
@@ -27,6 +27,7 @@ const DoctorPage: React.FC = () => {
       setDoctors(data);
     } catch (error) {
       console.error('加载医生列表失败', error);
+      Toast.show({ icon: 'fail', content: '加载医生列表失败，请稍后重试' });
     } finally {
       setLoading(false);
     }

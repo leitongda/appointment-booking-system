@@ -403,4 +403,30 @@ export const appointmentApi = {
   }> => {
     return request.get(`/payments/orders/${appointmentId}`);
   },
+
+  /**
+   * 提交预约满意度评价
+   */
+  createSatisfaction: (appointmentId: string, data: {
+    overallScore: number;
+    serviceScore?: number;
+    environmentScore?: number;
+    comment?: string;
+    tags?: string[];
+  }): Promise<any> => {
+    return request.post(`/appointments/${appointmentId}/satisfaction`, {
+      overall_score: data.overallScore,
+      service_score: data.serviceScore,
+      environment_score: data.environmentScore,
+      comment: data.comment,
+      tags: data.tags,
+    });
+  },
+
+  /**
+   * 查询预约满意度
+   */
+  getSatisfaction: (appointmentId: string): Promise<any> => {
+    return request.get(`/appointments/${appointmentId}/satisfaction`);
+  },
 };

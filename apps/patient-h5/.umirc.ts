@@ -68,6 +68,8 @@ export default defineConfig({
         { path: '/profile/notification-settings', component: '@/pages/profile/notification-settings' },
         { path: '/message', component: '@/pages/message' },
         { path: '/feedback', component: '@/pages/feedback' },
+        { path: '/satisfaction/:appointmentId', component: '@/pages/satisfaction' },
+        { path: '/review/:appointmentId', component: '@/pages/review' },
       ],
     },
     { path: '/login', component: '@/pages/login' },

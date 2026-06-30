@@ -52,6 +52,7 @@ const AppointmentPage: React.FC = () => {
       setPage(currentPage + 1);
     } catch (error) {
       console.error('加载预约列表失败', error);
+      Toast.show({ icon: 'fail', content: '加载预约列表失败，请稍后重试' });
     } finally {
       setLoading(false);
     }

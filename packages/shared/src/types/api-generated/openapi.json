@@ -41114,13 +41114,13 @@
         }
       }
     },
-    "/api/v1/satisfaction/appointments/{appointment_id}/satisfaction": {
+    "/api/v1/appointments/{appointment_id}/satisfaction": {
       "post": {
         "tags": [
           "预约满意度"
         ],
         "summary": "提交预约满意度",
-        "operationId": "create_satisfaction_api_v1_satisfaction_appointments__appointment_id__satisfaction_post",
+        "operationId": "create_satisfaction_api_v1_appointments__appointment_id__satisfaction_post",
         "security": [
           {
             "JWT认证": []
@@ -41175,7 +41175,7 @@
           "预约满意度"
         ],
         "summary": "获取预约满意度",
-        "operationId": "get_satisfaction_api_v1_satisfaction_appointments__appointment_id__satisfaction_get",
+        "operationId": "get_satisfaction_api_v1_appointments__appointment_id__satisfaction_get",
         "parameters": [
           {
             "name": "appointment_id",

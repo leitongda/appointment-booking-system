@@ -12163,7 +12163,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/satisfaction/appointments/{appointment_id}/satisfaction": {
+    "/api/v1/appointments/{appointment_id}/satisfaction": {
         parameters: {
             query?: never;
             header?: never;
@@ -12171,10 +12171,10 @@ export interface paths {
             cookie?: never;
         };
         /** 获取预约满意度 */
-        get: operations["get_satisfaction_api_v1_satisfaction_appointments__appointment_id__satisfaction_get"];
+        get: operations["get_satisfaction_api_v1_appointments__appointment_id__satisfaction_get"];
         put?: never;
         /** 提交预约满意度 */
-        post: operations["create_satisfaction_api_v1_satisfaction_appointments__appointment_id__satisfaction_post"];
+        post: operations["create_satisfaction_api_v1_appointments__appointment_id__satisfaction_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -57234,7 +57234,7 @@ export interface operations {
             };
         };
     };
-    get_satisfaction_api_v1_satisfaction_appointments__appointment_id__satisfaction_get: {
+    get_satisfaction_api_v1_appointments__appointment_id__satisfaction_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -57265,7 +57265,7 @@ export interface operations {
             };
         };
     };
-    create_satisfaction_api_v1_satisfaction_appointments__appointment_id__satisfaction_post: {
+    create_satisfaction_api_v1_appointments__appointment_id__satisfaction_post: {
         parameters: {
             query?: never;
             header?: never;

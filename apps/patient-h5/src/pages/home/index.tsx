@@ -1,4 +1,4 @@
-import { Swiper, Grid, Image, Skeleton, SearchBar } from 'antd-mobile';
+import { Swiper, Grid, Image, Skeleton, SearchBar, Toast } from 'antd-mobile';
 import { history } from 'umi';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
@@ -104,6 +104,7 @@ const HomePage: React.FC = () => {
       setBanners(bannerList);
     } catch (error) {
       console.error('加载首页数据失败', error);
+      Toast.show({ icon: 'fail', content: '加载首页数据失败，请稍后重试' });
     } finally {
       setLoading(false);
     }

@@ -116,7 +116,7 @@ ROUTER_REGISTRATIONS = [
     # --------------------------------------------------------------- #
     RouterRegistration("app.modules.doctor_portal.router", "/doctor-portal", ["医生端"]),
     RouterRegistration("app.modules.doctor_reviews.router", "/doctor-reviews", ["医生评价"]),
-    RouterRegistration("app.modules.appointment_satisfactions.router", "/satisfaction", ["预约满意度"]),
+    RouterRegistration("app.modules.appointment_satisfactions.router", "", ["预约满意度"]),
 
     # --------------------------------------------------------------- #
     #  基础设施 / 平台 — 长期保留
