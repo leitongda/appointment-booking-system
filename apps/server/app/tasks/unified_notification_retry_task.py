@@ -155,26 +155,20 @@ def _retry_sms(delivery: NotificationDelivery) -> bool:
     """重试短信发送"""
     try:
         from app.infrastructure.sms.factory import get_sms_provider
+        from app.infrastructure.sms.retry import send_sms_retry
 
-        provider = get_sms_provider()
-        content = delivery.content or ""
         recipient = delivery.recipient_address
 
         if not recipient:
             logger.warning(f"短信重试缺少手机号: id={delivery.id}")
             return False
 
-        # 尝试发送
-        if hasattr(provider, "send_business_notification"):
-            result = asyncio.get_event_loop().run_until_complete(
-                provider.send_business_notification(recipient, content)
-            )
-        else:
-            result = asyncio.get_event_loop().run_until_complete(
-                provider.send_notification(recipient, content)
-            )
-
-        return bool(result)
+        return send_sms_retry(
+            provider=get_sms_provider(),
+            phone=recipient,
+            extra_data=delivery.extra_data,
+            content=delivery.content,
+        )
     except Exception as e:
         logger.error(f"短信重试异常: id={delivery.id}, error={e}")
         return False

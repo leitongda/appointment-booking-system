@@ -209,35 +209,15 @@ def _retry_by_channel(db, log: NotificationLog) -> bool:
 def _retry_sms(db, log: NotificationLog) -> bool:
     """重试短信发送"""
     try:
-        # 导入短信服务
         from app.infrastructure.sms.factory import get_sms_provider
+        from app.infrastructure.sms.retry import send_sms_retry
 
-        # 尝试读取模板代码（从 extra_data 或根据 message_type 推断）
-        extra_data = log.extra_data or {}
-        template_code = extra_data.get("template_code")
-        template_params = extra_data.get("template_params", {})
-
-        if template_code:
-            # 使用模板发送
-            provider = get_sms_provider()
-            if hasattr(provider, "send_business_notification"):
-                import asyncio
-                loop = asyncio.get_event_loop()
-                success, _ = loop.run_until_complete(
-                    provider.send_business_notification(
-                        phone=log.recipient,
-                        template_code=template_code,
-                        template_params=template_params,
-                    )
-                )
-                return success
-        else:
-            # 降级：使用简单通知方式（如果支持）
-            provider = get_sms_provider()
-            if hasattr(provider, "send_notification"):
-                return provider.send_notification(log.recipient, log.content or "")
-
-        return False
+        return send_sms_retry(
+            provider=get_sms_provider(),
+            phone=log.recipient,
+            extra_data=log.extra_data,
+            content=log.content,
+        )
     except Exception as e:
         logger.error(f"短信重试失败: id={log.id}, error={e}")
         return False

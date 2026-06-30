@@ -7,7 +7,7 @@
 import logging
 from datetime import datetime
 
-from sqlalchemy import text
+from sqlalchemy import select, text
 
 from app.celery_app import celery_app
 from app.db.session import get_sync_db
@@ -232,51 +232,13 @@ def _retry_sms(phone: str, extra_data: dict) -> bool:
     """重试短信发送"""
     try:
         from app.infrastructure.sms.factory import get_sms_provider
+        from app.infrastructure.sms.retry import send_sms_retry
 
-        template_code = extra_data.get("template_code")
-        template_params = extra_data.get("template_params", {})
-
-        if template_code:
-            provider = get_sms_provider()
-            if hasattr(provider, "send_business_notification"):
-                import asyncio
-                try:
-                    loop = asyncio.get_event_loop()
-                    if loop.is_running():
-                        # 如果事件循环已在运行，使用 new_loop
-                        new_loop = asyncio.new_event_loop()
-                        try:
-                            success, _ = new_loop.run_until_complete(
-                                provider.send_business_notification(
-                                    phone=phone,
-                                    template_code=template_code,
-                                    template_params=template_params,
-                                )
-                            )
-                            return success
-                        finally:
-                            new_loop.close()
-                    else:
-                        success, _ = loop.run_until_complete(
-                            provider.send_business_notification(
-                                phone=phone,
-                                template_code=template_code,
-                                template_params=template_params,
-                            )
-                        )
-                        return success
-                except RuntimeError:
-                    # 回退方式
-                    success, _ = asyncio.run(
-                        provider.send_business_notification(
-                            phone=phone,
-                            template_code=template_code,
-                            template_params=template_params,
-                        )
-                    )
-                    return success
-
-        return False
+        return send_sms_retry(
+            provider=get_sms_provider(),
+            phone=phone,
+            extra_data=extra_data,
+        )
     except Exception as e:
         logger.error(f"短信重试失败: phone={phone}, error={e}")
         return False

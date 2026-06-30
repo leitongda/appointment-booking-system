@@ -3,6 +3,7 @@ import pytest
 from app.infrastructure.sms.provider_base import SmsProvider
 from app.infrastructure.sms.mock_provider import MockSmsProvider
 from app.infrastructure.sms.factory import get_sms_provider
+from app.infrastructure.sms.retry import coerce_extra_data, normalize_sms_result, send_sms_retry
 from app.infrastructure.sms.providers.tencent_provider import TencentSmsProvider
 
 
@@ -82,3 +83,65 @@ class TestTencentSmsProvider:
         params = TencentSmsProvider._normalize_template_params(["张三", 3])
 
         assert params == ["张三", "3"]
+
+
+class TestSmsRetryHelpers:
+    """测试短信重试辅助函数"""
+
+    def test_normalize_sms_result_handles_failed_tuple(self):
+        """测试 (False, error) 不会被误判为成功"""
+        assert normalize_sms_result((False, "发送失败")) is False
+
+    def test_coerce_extra_data_from_json_string(self):
+        """测试 JSON 字符串 extra_data 可被解析"""
+        data = coerce_extra_data('{"template_code": "TPL_001", "template_params": {"code": "123456"}}')
+
+        assert data["template_code"] == "TPL_001"
+        assert data["template_params"] == {"code": "123456"}
+
+    def test_send_sms_retry_uses_business_template_signature(self):
+        """测试模板短信重试使用统一关键字签名"""
+        class Provider:
+            def __init__(self):
+                self.calls = []
+
+            async def send_business_notification(self, **kwargs):
+                self.calls.append(kwargs)
+                return True, None
+
+        provider = Provider()
+        success = send_sms_retry(
+            provider=provider,
+            phone="13800138000",
+            extra_data={
+                "template_code": "TPL_001",
+                "template_params": {"code": "123456"},
+            },
+        )
+
+        assert success is True
+        assert provider.calls == [{
+            "phone": "13800138000",
+            "template_code": "TPL_001",
+            "template_params": {"code": "123456"},
+        }]
+
+    def test_send_sms_retry_awaits_notification_fallback(self):
+        """测试无模板时会 await 普通通知并归一化结果"""
+        class Provider:
+            def __init__(self):
+                self.calls = []
+
+            async def send_notification(self, phone, content):
+                self.calls.append((phone, content))
+                return False
+
+        provider = Provider()
+        success = send_sms_retry(
+            provider=provider,
+            phone="13800138000",
+            content="通知内容",
+        )
+
+        assert success is False
+        assert provider.calls == [("13800138000", "通知内容")]
