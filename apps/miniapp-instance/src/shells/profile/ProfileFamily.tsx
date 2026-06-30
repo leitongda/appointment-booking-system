@@ -416,7 +416,7 @@ export function ProfileFamily() {
                 : '登录后享受更多服务'}
             </Text>
           </View>
-          {!wechatLoading && !isInitializing && <Text className="login-arrow">></Text>}
+          {!wechatLoading && !isInitializing && <Text className="login-arrow">{'>'}</Text>}
         </View>
       </View>
 
@@ -498,7 +498,7 @@ export function ProfileFamily() {
                     <Text className="menu-title">{item.title}</Text>
                     <Text className="menu-desc">{item.desc}</Text>
                   </View>
-                  <Text className="menu-arrow">></Text>
+                  <Text className="menu-arrow">{'>'}</Text>
                 </View>
               );
             })}

@@ -2,9 +2,10 @@ import { View, Text, Button } from '@tarojs/components';
 import { useState, useEffect } from 'react';
 import Taro from '@tarojs/taro';
 import { getTodayPendingAppointments, signInAppointment } from '@/services/appointment';
+import type { PendingSignInAppointment } from '@/services/appointment';
 import { getStoreByCode } from '@/services/user';
 import { setStoreId } from '@/utils/request';
-import type { PendingSignInAppointment, Store } from '@/types/api';
+import type { Store } from '@/types/api';
 import './index.scss';
 
 export default function Scan() {

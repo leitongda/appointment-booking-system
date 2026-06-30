@@ -136,7 +136,7 @@ const MessagePage = () => {
         consultation: counts.consultation || 0,
         schedule: counts.schedule || 0,
         system: counts.system || 0,
-        stop_clinic: counts.stop_clinic || 0,
+        stop_clinic: counts.stopClinic || 0,
         feedback: counts.feedback || 0,
       });
     } catch (error) {
@@ -263,14 +263,12 @@ const MessagePage = () => {
     <View className="message-page">
       {/* 头部操作栏 */}
       <View className="header-bar">
-        <Text className="unread-count" role="status" aria-live="polite">
+        <Text className="unread-count">
           {unreadCounts.total > 0 ? `${unreadCounts.total}条未读` : '无未读消息'}
         </Text>
         <Text
           className="mark-all-btn"
           onClick={handleMarkAllRead}
-          role="button"
-          aria-label={`标记全部${unreadCounts.total}条消息为已读`}
         >
           全部已读
         </Text>
@@ -280,34 +278,21 @@ const MessagePage = () => {
       <View className="tabs-wrapper" role="tablist" aria-label="消息分类标签">
         <Tabs
           value={activeTab}
-          onChange={(value) => setActiveTab(value as string)}
+          onChange={(value) => setActiveTab(value as PatientMessageTabKey)}
         >
           {PATIENT_MESSAGE_TABS.map((tab) => {
             const badgeCount =
               tab.key === 'all' ? unreadCounts.total :
               tab.key === 'appointment' ? unreadCounts.appointment :
               tab.key === 'consultation' ? unreadCounts.consultation :
-              tab.key === 'schedule' ? unreadCounts.schedule :
               tab.key === 'stop_clinic' ? unreadCounts.stop_clinic :
               tab.key === 'feedback' ? unreadCounts.feedback :
               unreadCounts.system;
             return (
               <Tabs.TabPane
                 key={tab.key}
-                title={
-                  <View className="tab-title">
-                    <Text>{tab.label}</Text>
-                    {badgeCount > 0 && (
-                      <View className="tab-badge" aria-label={`${badgeCount}条未读`}>
-                        {badgeCount > 99 ? '99+' : badgeCount}
-                      </View>
-                    )}
-                  </View>
-                }
+                title={badgeCount > 0 ? `${tab.label} ${badgeCount > 99 ? '99+' : badgeCount}` : tab.label}
                 value={tab.key}
-                role="tab"
-                aria-label={badgeCount > 0 ? `${tab.label}，${badgeCount}条未读` : tab.label}
-                aria-selected={activeTab === tab.key}
               />
             );
           })}

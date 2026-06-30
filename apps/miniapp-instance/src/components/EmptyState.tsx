@@ -28,7 +28,12 @@ export function EmptyState({
   const primaryColor = useThemePrimaryColor();
 
   // 默认配置
-  const config = {
+  const config: Record<NonNullable<EmptyStateProps['type']>, {
+    icon: string;
+    title: string;
+    description: string;
+    buttonText?: string;
+  }> = {
     empty: {
       icon: icon || '📋',
       title: title || '暂无数据',

@@ -9,7 +9,7 @@
  * 5. 变量作用域: pageParams / apiData / formData / custom
  */
 
-import { useState, useEffect, useRef, useCallback } from '@tarojs/taro';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Taro from '@tarojs/taro';
 import type { ApiDataSource, PageDataSource } from '@hospital/shared';
 import type { LinkageRule, LinkageCondition, LinkageAction } from '@hospital/shared';
@@ -380,7 +380,7 @@ export function useDataManager(options: UseDataManagerOptions = {}): DataManager
     // 构建 apiData 作用域: { [dsId]: DataSourceState }
     const apiData: Record<string, DataSourceState> = {};
     for (const [id, dsState] of Object.entries(currentDs)) {
-      apiData[id] = dsState;
+      apiData[id] = dsState as DataSourceState;
     }
 
     // 变量作用域:

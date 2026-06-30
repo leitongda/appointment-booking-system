@@ -1,4 +1,4 @@
-import { get, post } from '@/utils/request';
+import { post } from '@/utils/request';
 import type { User } from '@/types/api';
 
 /**

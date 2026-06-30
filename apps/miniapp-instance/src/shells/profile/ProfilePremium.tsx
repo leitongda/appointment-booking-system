@@ -414,7 +414,7 @@ export function ProfilePremium() {
                   <IconComponent size={22} color={primaryColor} />
                 </View>
                 <Text className="menu-title">{item.title}</Text>
-                <Text className="menu-arrow">></Text>
+                <Text className="menu-arrow">{'>'}</Text>
               </View>
             );
           })}
@@ -432,7 +432,7 @@ export function ProfilePremium() {
                   <IconComponent size={22} color={primaryColor} />
                 </View>
                 <Text className="menu-title">{item.title}</Text>
-                <Text className="menu-arrow">></Text>
+                <Text className="menu-arrow">{'>'}</Text>
               </View>
             );
           })}
@@ -450,7 +450,7 @@ export function ProfilePremium() {
                   <IconComponent size={22} color={primaryColor} />
                 </View>
                 <Text className="menu-title">{item.title}</Text>
-                <Text className="menu-arrow">></Text>
+                <Text className="menu-arrow">{'>'}</Text>
               </View>
             );
           })}

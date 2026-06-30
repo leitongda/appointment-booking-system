@@ -29,10 +29,11 @@ const LoginPopup: React.FC<LoginPopupProps> = ({ visible, onClose, onSuccess, on
       }
       const authResult = await authApi.wechatLogin(loginRes.code);
       if (authResult.accessToken) {
+        const loginUser = (authResult as { user?: Parameters<typeof setAuthSession>[0]['user'] }).user;
         setAuthSession({
           accessToken: authResult.accessToken,
           refreshToken: authResult.refreshToken,
-          user: authResult.user,
+          user: loginUser,
         });
         onSuccess?.();
       }

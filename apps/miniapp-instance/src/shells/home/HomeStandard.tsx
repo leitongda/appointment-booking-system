@@ -251,7 +251,7 @@ export function HomeStandard() {
                     {defaultPatient.relationship || '本人'} -- 默认就诊人
                   </Text>
                 </View>
-                <Text className="card-arrow">></Text>
+                <Text className="card-arrow">{'>'}</Text>
               </>
             ) : (
               <>
@@ -262,7 +262,7 @@ export function HomeStandard() {
                   <Text className="card-name">添加就诊卡</Text>
                   <Text className="card-relation">添加就诊人信息，快速预约挂号</Text>
                 </View>
-                <Text className="card-arrow">></Text>
+                <Text className="card-arrow">{'>'}</Text>
               </>
             )}
           </View>
@@ -273,7 +273,7 @@ export function HomeStandard() {
           <View key={mod.id} className="section">
             <View className="section-header">
               <Text className="section-title">推荐医生</Text>
-              <Text className="section-more" onClick={() => navigateTo('/pages/doctor/index')} aria-label="查看更多推荐医生" role="button">
+              <Text className="section-more" onClick={() => navigateTo('/pages/doctor/index')}>
                 更多
               </Text>
             </View>

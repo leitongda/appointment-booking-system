@@ -1,7 +1,6 @@
 import path from 'path';
-import type { UserConfigExport } from '@tarojs/cli';
 
-const config: UserConfigExport = {
+const config: any = {
   projectName: 'mini-appointment-miniapp',
   date: '2026-1-8',
   designWidth: 750,
@@ -99,6 +98,10 @@ const config: UserConfigExport = {
         packages: ['pages/appointment']
       }
     }
+  } as {
+    postcss?: unknown;
+    subpackages?: Array<{ root: string; pages: string[] }>;
+    preloadRule?: Record<string, { network: string; packages: string[] }>;
   },
   h5: {
     publicPath: '/',

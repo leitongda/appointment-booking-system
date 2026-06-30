@@ -19,7 +19,7 @@ export default defineConfig(async () => {
     // quiet 模式保留编译结果、warning、error 和 Watching 信息。
     logger: {
       quiet: true,
-    },
+    } as any,
     // 小程序环境不支持的库替换为空模块
     // 1. jsencrypt - 依赖 Web Crypto API，小程序不支持
     // 2. @ant-design/pro-components 和 antd - PC端组件库，小程序不需要

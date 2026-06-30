@@ -1,6 +1,4 @@
-import { defineAppConfig } from '@tarojs/taro';
-
-export default defineAppConfig({
+export default {
   pages: [
     'pages/home/index',
     'pages/scan/index',
@@ -18,4 +16,4 @@ export default defineAppConfig({
       desc: '您的位置信息将用于获取附近的医院'
     }
   }
-});
+};

@@ -179,7 +179,7 @@ export function DoctorDetailWomens() {
 
   const getCountdown = (schedule: AvailableSchedule) => {
     if (!schedule.bookingCloseAt) return null;
-    const closeTime = new Date(s.bookingCloseAt);
+    const closeTime = new Date(schedule.bookingCloseAt);
     const minutesLeft = Math.floor((closeTime.getTime() - currentTime.getTime()) / 60000);
     if (minutesLeft <= 0) return null;
     if (minutesLeft < 60) return { text: `${minutesLeft}分钟`, minutes: minutesLeft };

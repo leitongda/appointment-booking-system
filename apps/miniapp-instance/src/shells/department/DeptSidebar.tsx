@@ -238,7 +238,7 @@ export function DeptSidebar() {
                       <Text className="dept-name">{child.name}</Text>
                     </View>
                   </View>
-                  <Text className="arrow">></Text>
+                  <Text className="arrow">{'>'}</Text>
                 </View>
               );
             })

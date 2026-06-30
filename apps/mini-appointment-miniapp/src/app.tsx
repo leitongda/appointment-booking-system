@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { useLaunch } from '@tarojs/taro';
+import Taro, { useLaunch } from '@tarojs/taro';
 import { checkLogin } from '@/utils/auth';
 import './app.scss';
 
@@ -55,8 +55,8 @@ function App({ children }: { children?: React.ReactNode }) {
 
   // 检查小程序更新
   const checkUpdate = () => {
-    if (wx.canIUse('getUpdateManager')) {
-      const updateManager = wx.getUpdateManager();
+    if (Taro.canIUse('getUpdateManager')) {
+      const updateManager = Taro.getUpdateManager();
       
       updateManager.onCheckForUpdate((res) => {
         if (res.hasUpdate) {
@@ -65,7 +65,7 @@ function App({ children }: { children?: React.ReactNode }) {
       });
 
       updateManager.onUpdateReady(() => {
-        wx.showModal({
+        Taro.showModal({
           title: '更新提示',
           content: '新版本已经准备好，是否重启应用？',
           success: (res) => {

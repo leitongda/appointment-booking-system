@@ -1,9 +1,22 @@
 import { ComponentType, useState, useEffect } from 'react';
 import { View, Text } from '@tarojs/components';
 
+type ShellModule = Record<string, unknown> & {
+  default?: ComponentType<any>;
+};
+
 interface ShellLoaderProps {
-  loader: () => Promise<{ default: ComponentType<any> }>;
+  loader: () => Promise<ShellModule>;
   fallback?: React.ReactNode;
+}
+
+export function resolveShellModule(module: ShellModule): ComponentType<any> {
+  if (module.default) return module.default;
+
+  const component = Object.values(module).find((value) => typeof value === 'function');
+  if (component) return component as ComponentType<any>;
+
+  throw new Error('Shell module does not export a component');
 }
 
 /**
@@ -17,7 +30,7 @@ export function ShellLoader({ loader, fallback }: ShellLoaderProps) {
     let mounted = true;
     loader().then(module => {
       if (mounted) {
-        setShell(() => module.default);
+        setShell(() => resolveShellModule(module));
       }
     }).catch(error => {
       console.error('[ShellLoader] 加载失败:', error);
@@ -46,7 +59,7 @@ export function ShellLoader({ loader, fallback }: ShellLoaderProps) {
  * <ShellLoader loader={loadHomeStandard} />
  */
 export function createShellLoader(
-  importFn: () => Promise<{ default: ComponentType<any> }>
+  importFn: () => Promise<ShellModule>
 ) {
   return importFn;
 }

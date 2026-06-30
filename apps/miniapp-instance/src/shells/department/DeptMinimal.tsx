@@ -36,7 +36,7 @@ export function DeptMinimal() {
     setError(false);
     try {
       const data = await departmentApi.getList();
-      setDepartments(data);
+      setDepartments((data.data || []).map((department) => ({ ...department, children: [] })));
     } catch (error) {
       console.error('[科室] 加载失败', error);
       setError(true);
@@ -124,7 +124,7 @@ export function DeptMinimal() {
                     <IconComponent size={24} color={primaryColor} />
                   </View>
                   <Text className="dept-name">{dept.name}</Text>
-                  <Text className="dept-arrow">></Text>
+                  <Text className="dept-arrow">{'>'}</Text>
                 </View>
               );
             })

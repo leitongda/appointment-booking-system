@@ -371,7 +371,7 @@ export function ProfileWomens() {
                 : '登录后享受更多服务'}
             </Text>
           </View>
-          {!wechatLoading && !isInitializing && <Text className="login-arrow">></Text>}
+          {!wechatLoading && !isInitializing && <Text className="login-arrow">{'>'}</Text>}
         </View>
       </View>
 
@@ -403,7 +403,7 @@ export function ProfileWomens() {
                   <View className="menu-content">
                     <Text className="menu-title">{item.title}</Text>
                   </View>
-                  <Text className="menu-arrow">></Text>
+                  <Text className="menu-arrow">{'>'}</Text>
                 </View>
               );
             })}

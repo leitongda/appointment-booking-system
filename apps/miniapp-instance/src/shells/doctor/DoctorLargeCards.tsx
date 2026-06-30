@@ -138,7 +138,8 @@ export function DoctorLargeCards() {
                 role="button"
                 style={{
                   height: '100rpx',
-                  paddingHorizontal: '48rpx',
+                  paddingLeft: '48rpx',
+                  paddingRight: '48rpx',
                   borderRadius: '9999rpx',
                   backgroundColor: doctor.hasAvailableSlots ? tokens.primary : '#D1D5DB',
                   display: 'flex',

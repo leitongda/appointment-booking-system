@@ -5,6 +5,7 @@
  */
 
 import { lazy, ComponentType } from 'react';
+import { resolveShellModule } from './ShellLoader';
 
 // 页面路径类型（与模板 pageShells 键名对应）
 type PagePath = 'home' | 'department' | 'doctorList' | 'doctorDetail' | 'appointment' | 'profile';
@@ -19,7 +20,7 @@ type LazyShellComponent = ComponentType<any>;
  * Shell 映射表：页面 -> 变体ID -> 动态导入函数
  * 使用显式映射而非动态路径，确保 Webpack 可静态分析
  */
-const SHELL_IMPORT_MAP: Record<PagePath, Record<VariantId, () => Promise<{ default: ComponentType<any> }>>> = {
+const SHELL_IMPORT_MAP: Record<PagePath, Record<VariantId, () => Promise<Record<string, unknown>>>> = {
   home: {
     standard: () => import('./home/HomeStandard'),
     'home-elderly': () => import('./home/HomeElderly'),
@@ -98,7 +99,7 @@ export function loadShell(
 
   if (useLazy) {
     // 使用 React.lazy 包装动态导入
-    const LazyComponent = lazy(importFn);
+    const LazyComponent = lazy(() => importFn().then((module) => ({ default: resolveShellModule(module) })));
     shellCache.set(cacheKey, LazyComponent);
     return LazyComponent;
   } else {

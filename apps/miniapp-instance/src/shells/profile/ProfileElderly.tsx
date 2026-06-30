@@ -130,10 +130,8 @@ export function ProfileElderly() {
             ) : (
               <>
                 <Text
-                  onClick={() => setShowLoginPopup(true)}
-                  aria-label="点击登录"
-                  role="button"
-                  style={{ fontSize: '44rpx', fontWeight: 700, color: tokens.primary, display: 'block' }}
+	                  onClick={() => setShowLoginPopup(true)}
+	                  style={{ fontSize: '44rpx', fontWeight: 700, color: tokens.primary, display: 'block' }}
                 >
                   点击登录
                 </Text>

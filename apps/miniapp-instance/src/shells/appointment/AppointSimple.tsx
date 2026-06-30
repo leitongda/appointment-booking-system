@@ -47,7 +47,7 @@ export function AppointSimple() {
   const loadAppointments = async () => {
     try {
       const result = await appointmentApi.getList({ pageSize: 50 });
-      setAppointments(result.items || []);
+      setAppointments(result.data || []);
     } catch {
       Taro.showToast({ title: '加载预约失败', icon: 'none' });
     } finally {
@@ -222,7 +222,8 @@ export function AppointSimple() {
                       role="button"
                       style={{
                         height: '88rpx',
-                        paddingHorizontal: '40rpx',
+                        paddingLeft: '40rpx',
+                        paddingRight: '40rpx',
                         borderRadius: '9999rpx',
                         backgroundColor: tokens.primary,
                         display: 'flex',
@@ -238,7 +239,8 @@ export function AppointSimple() {
                       role="button"
                       style={{
                         height: '88rpx',
-                        paddingHorizontal: '40rpx',
+                        paddingLeft: '40rpx',
+                        paddingRight: '40rpx',
                         borderRadius: '9999rpx',
                         border: '2rpx solid #D1D5DB',
                         display: 'flex',
