@@ -12,7 +12,7 @@ def get_sms_provider() -> SmsProvider:
     Returns:
         SmsProvider 实例
     """
-    provider = getattr(settings, 'SMS_PROVIDER', 'mock') or 'mock'
+    provider = (getattr(settings, 'SMS_PROVIDER', 'mock') or 'mock').strip().lower()
 
     if provider == 'mock':
         return MockSmsProvider()
@@ -20,10 +20,8 @@ def get_sms_provider() -> SmsProvider:
         from .providers.aliyun_provider import AliyunSmsProvider
         return AliyunSmsProvider()
     elif provider == 'tencent':
-        # TODO: 实现 TencentSmsProvider
-        # from .tencent_provider import TencentSmsProvider
-        # return TencentSmsProvider()
-        return MockSmsProvider()
+        from .providers.tencent_provider import TencentSmsProvider
+        return TencentSmsProvider()
 
     # 未知 provider 默认使用 mock
     return MockSmsProvider()

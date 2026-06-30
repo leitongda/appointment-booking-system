@@ -3,6 +3,7 @@ import pytest
 from app.infrastructure.sms.provider_base import SmsProvider
 from app.infrastructure.sms.mock_provider import MockSmsProvider
 from app.infrastructure.sms.factory import get_sms_provider
+from app.infrastructure.sms.providers.tencent_provider import TencentSmsProvider
 
 
 class TestMockSmsProvider:
@@ -38,6 +39,14 @@ class TestSmsProviderFactory:
         provider = get_sms_provider()
         assert isinstance(provider, MockSmsProvider)
 
+    def test_factory_normalizes_tencent_provider(self, monkeypatch):
+        """测试 provider 配置支持大小写和空格容错"""
+        monkeypatch.setattr("app.infrastructure.sms.factory.settings.SMS_PROVIDER", " Tencent ")
+
+        provider = get_sms_provider()
+
+        assert isinstance(provider, TencentSmsProvider)
+
 
 class TestSmsProviderAbstract:
     """测试 SmsProvider 抽象基类"""
@@ -46,3 +55,30 @@ class TestSmsProviderAbstract:
         """测试不能直接实例化抽象基类"""
         with pytest.raises(TypeError):
             SmsProvider()
+
+
+class TestTencentSmsProvider:
+    """测试 TencentSmsProvider 边界转换"""
+
+    def test_normalize_mainland_phone(self):
+        """测试国内手机号自动转换为 E.164 格式"""
+        assert TencentSmsProvider._normalize_phone("13800138000") == "+8613800138000"
+
+    def test_keep_international_phone(self):
+        """测试国际格式手机号保持不变"""
+        assert TencentSmsProvider._normalize_phone("+85251234567") == "+85251234567"
+
+    def test_normalize_template_params_from_dict(self):
+        """测试 dict 模板参数按插入顺序转换为位置参数"""
+        params = TencentSmsProvider._normalize_template_params({
+            "patient_name": "张三",
+            "doctor": "李医生",
+        })
+
+        assert params == ["张三", "李医生"]
+
+    def test_normalize_template_params_from_list(self):
+        """测试列表模板参数转换为字符串列表"""
+        params = TencentSmsProvider._normalize_template_params(["张三", 3])
+
+        assert params == ["张三", "3"]

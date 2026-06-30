@@ -154,6 +154,12 @@ class Settings(BaseSettings):
     ALIYUN_ACCESS_KEY_SECRET: str | None = None
     SMS_SIGN_NAME: str | None = None
     SMS_TEMPLATE_CODE: str | None = None
+    # 腾讯云短信配置
+    TENCENT_SECRET_ID: str | None = None
+    TENCENT_SECRET_KEY: str | None = None
+    TENCENT_SMS_APP_ID: str | None = None
+    TENCENT_SMS_SIGN_NAME: str | None = None
+    TENCENT_SMS_REGION: str = "ap-guangzhou"
     
     # 存储配置
     STORAGE_TYPE: str = "local"  # local / minio / cos

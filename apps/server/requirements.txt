@@ -43,6 +43,9 @@ minio==7.2.20
 # 阿里云短信 SDK
 alibabacloud_dysmsapi20170525==3.0.0
 
+# 腾讯云短信 SDK
+tencentcloud-sdk-python==3.1.123
+
 # 图片处理
 Pillow==12.2.0
 
