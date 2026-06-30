@@ -7,6 +7,7 @@ import { appointmentApi, storeApi, doctorApi } from '@hospital/api';
 import { TIME_SLOT_MAP } from '@hospital/shared';
 import type { CheckinQueueItem } from '@hospital/api';
 import { useListRequest } from '@/hooks/useListRequest';
+import { rrwebMaskTextCell } from '@/utils/tableCellProps';
 import dayjs from 'dayjs';
 
 const STATUS_MAP: Record<number, { text: string; color: string }> = {
@@ -166,7 +167,7 @@ const AppointmentQueuePage: React.FC = () => {
       dataIndex: 'patientName',
       key: 'patientName',
       width: 100,
-      onCell: () => ({ 'data-rrweb-mask-text': '' }),
+      onCell: rrwebMaskTextCell,
     },
     {
       title: '医生',

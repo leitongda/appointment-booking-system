@@ -7,6 +7,7 @@ import { departmentApi, doctorApi, medicalRecordApi } from '@hospital/api';
 import type { MedicalRecord, MedicalRecordListItem } from '@hospital/api';
 import { createListRequest } from '@/utils/proTable';
 import { fetchAllData } from '@/utils/fetchAllData';
+import { rrwebMaskTextCell } from '@/utils/tableCellProps';
 import dayjs from 'dayjs';
 
 const STATUS_MAP: Record<number, { text: string; color: string }> = {
@@ -146,7 +147,7 @@ const MedicalRecordPage: React.FC = () => {
       dataIndex: 'patientName',
       width: 100,
       search: false,
-      onCell: () => ({ 'data-rrweb-mask-text': '' }),
+      onCell: rrwebMaskTextCell,
     },
     {
       title: '医生',

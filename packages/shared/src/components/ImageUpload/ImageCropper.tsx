@@ -118,7 +118,7 @@ function getWatermarkPosition(
   }
 }
 
-const ImageCropper: React.FC<ImageCropperProps> = ({
+const ImageCropper = ({
   open,
   imageSrc,
   aspectRatio: initialAspectRatio,
@@ -140,7 +140,7 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
   // UI 选项
   showGrid = true,
   showFlip = true,
-}) => {
+}: ImageCropperProps) => {
   const imgRef = useRef<HTMLImageElement>(null);
   const [crop, setCrop] = useState<Crop>();
   const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
@@ -414,7 +414,7 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
           {/* 格式选择 */}
           <Segmented
             value={currentFormat}
-            onChange={(value) => setCurrentFormat(value as ImageOutputFormat)}
+            onChange={(value: string | number) => setCurrentFormat(value as ImageOutputFormat)}
             options={[
               { label: 'JPG', value: 'jpeg' },
               { label: 'PNG', value: 'png' },
@@ -478,8 +478,8 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
         }}>
           <ReactCrop
             crop={crop}
-            onChange={(_, percentCrop) => setCrop(percentCrop)}
-            onComplete={(c) => setCompletedCrop(c)}
+            onChange={(_: PixelCrop, percentCrop: Crop) => setCrop(percentCrop)}
+            onComplete={(c: PixelCrop) => setCompletedCrop(c)}
             aspect={effectiveAspectRatio}
             circularCrop={circularCrop}
             style={{ maxHeight: '100%' }}

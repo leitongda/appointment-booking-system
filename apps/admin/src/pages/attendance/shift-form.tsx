@@ -9,7 +9,7 @@
 import {
   ProFormText,
   ProFormTimePicker,
-  ProFormInputNumber,
+  ProFormDigit,
   ProFormSwitch,
 } from '@ant-design/pro-components';
 import { Card, message } from 'antd';
@@ -152,7 +152,7 @@ const ShiftFormPage: React.FC = () => {
       </Card>
 
       <Card title="考勤规则" style={{ marginTop: 16 }}>
-        <ProFormInputNumber
+        <ProFormDigit
           name="graceMinutes"
           label="宽限时间（分钟）"
           width="md"
@@ -164,7 +164,7 @@ const ShiftFormPage: React.FC = () => {
           extra="迟到在此时间范围内不计为迟到"
         />
 
-        <ProFormInputNumber
+        <ProFormDigit
           name="lateThresholdMinutes"
           label="迟到阈值（分钟）"
           width="md"
@@ -176,7 +176,7 @@ const ShiftFormPage: React.FC = () => {
           extra="超过此时间计为严重迟到或缺勤"
         />
 
-        <ProFormInputNumber
+        <ProFormDigit
           name="earlyThresholdMinutes"
           label="早退阈值（分钟）"
           width="md"

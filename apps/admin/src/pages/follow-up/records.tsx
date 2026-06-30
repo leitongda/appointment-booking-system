@@ -15,6 +15,7 @@ import { departmentApi, doctorApi, followUpApi } from '@hospital/api';
 import type { FollowUpRecord, FollowUpRecordListItem } from '@hospital/api';
 import { createListRequest } from '@/utils/proTable';
 import { fetchAllData } from '@/utils/fetchAllData';
+import { rrwebMaskTextCell } from '@/utils/tableCellProps';
 import dayjs from 'dayjs';
 
 const CONDITION_MAP: Record<string, { text: string; color: string }> = {
@@ -103,7 +104,7 @@ const FollowUpRecordsPage: React.FC = () => {
         },
       },
     },
-    { title: '患者', dataIndex: 'patientName', width: 100, search: false, onCell: () => ({ 'data-rrweb-mask-text': '' }) },
+    { title: '患者', dataIndex: 'patientName', width: 100, search: false, onCell: rrwebMaskTextCell },
     { title: '医生', dataIndex: 'doctorName', width: 100, search: false },
     {
       title: '随访日期',
@@ -112,7 +113,7 @@ const FollowUpRecordsPage: React.FC = () => {
       valueType: 'date',
       search: false,
     },
-    { title: '随访内容', dataIndex: 'content', ellipsis: true, search: false, onCell: () => ({ 'data-rrweb-mask-text': '' }) },
+    { title: '随访内容', dataIndex: 'content', ellipsis: true, search: false, onCell: rrwebMaskTextCell },
     {
       title: '患者状况',
       dataIndex: 'patientCondition',

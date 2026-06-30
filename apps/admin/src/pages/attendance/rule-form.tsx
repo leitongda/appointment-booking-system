@@ -9,7 +9,7 @@
 import {
   ProFormText,
   ProFormTextArea,
-  ProFormInputNumber,
+  ProFormDigit,
   ProFormSwitch,
   ProFormSelect,
 } from '@ant-design/pro-components';
@@ -156,7 +156,7 @@ const RuleFormPage: React.FC = () => {
           extra="开启后将根据加班时长计算加班"
         />
 
-        <ProFormInputNumber
+        <ProFormDigit
           name="overtimeMinMinutes"
           label="最低加班时长（分钟）"
           width="md"

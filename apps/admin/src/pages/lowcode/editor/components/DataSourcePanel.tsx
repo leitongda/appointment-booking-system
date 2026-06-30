@@ -130,7 +130,7 @@ function KVEditor({
 // Draggable data source item
 // ---------------------------------------------------------------------------
 
-function DraggableDataSource({ ds }: { ds: ApiDataSource }) {
+function DraggableDataSource({ ds }: { ds: DataSource }) {
   const { ref } = useDraggable({
     id: `datasource-${ds.id}`,
     data: {

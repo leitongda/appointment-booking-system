@@ -394,6 +394,10 @@ export const tenantApi = {
     return request.get('/tenants', { params: queryParams });
   },
 
+  getList: (params: TenantListParams = {}): Promise<{ data: Tenant[]; total: number; page: number; pageSize: number }> => {
+    return tenantApi.getTenants(params);
+  },
+
   getTenant: (tenantId: string): Promise<Tenant> => {
     return request.get(`/tenants/${tenantId}`);
   },

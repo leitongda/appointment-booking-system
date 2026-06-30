@@ -9,7 +9,7 @@
 import {
   ProFormText,
   ProFormTextArea,
-  ProFormInputNumber,
+  ProFormDigit,
   ProFormSwitch,
   ProFormSelect,
 } from '@ant-design/pro-components';
@@ -123,7 +123,7 @@ const GroupFormPage: React.FC = () => {
       </Card>
 
       <Card title="位置设置" style={{ marginTop: 16 }}>
-        <ProFormInputNumber
+        <ProFormDigit
           name="locationLat"
           label="纬度"
           width="md"
@@ -134,7 +134,7 @@ const GroupFormPage: React.FC = () => {
           extra="签到地点纬度（中国境内：3.8 ~ 53.5）"
         />
 
-        <ProFormInputNumber
+        <ProFormDigit
           name="locationLng"
           label="经度"
           width="md"
@@ -145,7 +145,7 @@ const GroupFormPage: React.FC = () => {
           extra="签到地点经度（中国境内：73.5 ~ 135.5）"
         />
 
-        <ProFormInputNumber
+        <ProFormDigit
           name="locationRadius"
           label="签到半径（米）"
           width="md"

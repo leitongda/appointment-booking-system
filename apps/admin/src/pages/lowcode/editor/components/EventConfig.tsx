@@ -539,7 +539,7 @@ export const EventConfig: React.FC = () => {
   /** 查找选中的节点 */
   const selectedNode = useMemo(() => {
     if (!selectedNodeId) return null;
-    return findNodeById([schema], selectedNodeId);
+    return findNodeById(schema.children || [], selectedNodeId);
   }, [selectedNodeId, schema]);
 
   const events: EventHandler[] = useMemo(

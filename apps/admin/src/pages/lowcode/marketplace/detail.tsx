@@ -64,7 +64,8 @@ const VERSION_STATUS_MAP: Record<number, { text: string; color: string }> = {
 
 /** 模板详情页 */
 const TemplateDetail: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const params = useParams() as { id?: string };
+  const id = params.id;
   const [loading, setLoading] = useState(true);
   const [template, setTemplate] = useState<LowCodeTemplate | null>(null);
   const [versions, setVersions] = useState<LowCodeTemplateVersionItem[]>([]);
@@ -131,6 +132,17 @@ const TemplateDetail: React.FC = () => {
     }
   }, [id]);
 
+  /** 检查收藏状态 */
+  const checkFavoriteStatus = useCallback(async (templateId: string) => {
+    try {
+      const result = await favoriteApi.check('template' as any, templateId);
+      setIsFavorited(result.isFavorited);
+      setFavoriteId(result.favoriteId);
+    } catch {
+      // 静默处理
+    }
+  }, []);
+
   useEffect(() => {
     fetchTemplate();
     fetchCategories();
@@ -157,17 +169,6 @@ const TemplateDetail: React.FC = () => {
     window.open(`/platform/lowcode/preview/${template.sourcePageId || template.id}`, '_blank');
   };
 
-  /** 检查收藏状态 */
-  const checkFavoriteStatus = useCallback(async (templateId: string) => {
-    try {
-      const result = await favoriteApi.check('template', templateId);
-      setIsFavorited(result.isFavorited);
-      setFavoriteId(result.favoriteId);
-    } catch {
-      // 静默处理
-    }
-  }, []);
-
   /** 切换收藏状态 */
   const handleToggleFavorite = async () => {
     if (!template) return;
@@ -178,7 +179,7 @@ const TemplateDetail: React.FC = () => {
         setFavoriteId(undefined);
         message.success('已取消收藏');
       } else {
-        const result = await favoriteApi.add({ targetType: 'template', targetId: template.id });
+        const result = await favoriteApi.add({ targetType: 'template' as any, targetId: template.id });
         setIsFavorited(true);
         setFavoriteId(result.id);
         message.success('已收藏');

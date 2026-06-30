@@ -10,7 +10,7 @@ import type { GuideTourFormData, TourStep } from '@hospital/api';
 import StepEditor from './components/StepEditor';
 
 export default function GuideTourFormPage() {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams() as { id?: string };
   const isEdit = !!id;
   const { message } = App.useApp();
   const [form] = Form.useForm();

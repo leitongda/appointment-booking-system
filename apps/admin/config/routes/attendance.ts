@@ -11,9 +11,19 @@
  *
  * 顶层 access: canAttendance
  */
-import type { IRoute } from '@umijs/max';
+export interface RouteItem {
+  [key: string]: unknown;
+  path: string;
+  name?: string;
+  icon?: string;
+  access?: string;
+  redirect?: string;
+  component?: string;
+  hideInMenu?: boolean;
+  routes?: RouteItem[];
+}
 
-const attendanceRoutes: IRoute[] = [
+const attendanceRoutes: RouteItem[] = [
   {
     path: '/attendance',
     name: '考勤管理',
@@ -94,21 +104,21 @@ const attendanceRoutes: IRoute[] = [
         access: 'canAttendanceRecords',
         hideInMenu: true,
       },
-      // NOTE: 假期管理 / 假期申请 pages (pages/attendance/leave, pages/attendance/leave-requests)
-      // were never created — referencing them here breaks umi route resolution and aborts `dev`.
-      // Commented out until the page components exist. See apps/admin/src/access.ts -> canAttendanceLeave.
-      // {
-      //   path: '/attendance/leave',
-      //   name: '假期管理',
-      //   component: '@/pages/attendance/leave',
-      //   access: 'canAttendanceLeave',
-      // },
-      // {
-      //   path: '/attendance/leave/requests',
-      //   name: '假期申请',
-      //   component: '@/pages/attendance/leave-requests',
-      //   access: 'canAttendanceLeave',
-      // },
+      // 假期管理 / 假期申请页面已补齐（P1-D）
+      // 后端：apps/server/app/modules/attendance_leave/router.py
+      // 前端：pages/attendance/leave.tsx, pages/attendance/leave-requests.tsx
+      {
+        path: '/attendance/leave',
+        name: '假期管理',
+        component: '@/pages/attendance/leave',
+        access: 'canAttendanceLeave',
+      },
+      {
+        path: '/attendance/leave/requests',
+        name: '假期申请',
+        component: '@/pages/attendance/leave-requests',
+        access: 'canAttendanceLeave',
+      },
     ],
   },
 ];

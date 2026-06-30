@@ -1,1 +1,1 @@
-export * from '@hospital/shared/components/ImageUpload/types';
+export type * from '@hospital/shared/components/ImageUpload';

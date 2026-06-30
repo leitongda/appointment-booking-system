@@ -1,1 +1,1 @@
-export { default } from '@hospital/shared/components/ImageUpload/ImageCropper';
+export { ImageCropper as default } from '@hospital/shared/components/ImageUpload';

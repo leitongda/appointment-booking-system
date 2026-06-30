@@ -57,9 +57,17 @@ interface RealtimeNotification {
   status: '预约成功' | '就诊完成' | '已签到';
 }
 
+interface ScreenStoreOption {
+  id: string;
+  name: string;
+}
+
 const Screen: React.FC = () => {
   const { initialState } = useModel('@@initialState');
-  const userStores = useMemo(() => initialState?.userStores || [], [initialState]);
+  const userStores = useMemo<ScreenStoreOption[]>(
+    () => (Array.isArray(initialState?.userStores) ? initialState.userStores : []),
+    [initialState],
+  );
 
   // 控制参数
   const [selectedStore, setSelectedStore] = useState<string>('all'); // 'all' 代表总管端，具体 storeId 代表单门店

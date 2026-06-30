@@ -25,6 +25,7 @@ import { userManageApi } from '@hospital/api';
 import { GENDER_MAP, GENDER_OPTIONS } from '@/constants';
 import { useDict } from '@/hooks/useDict';
 import { phoneRules } from '@/utils/formValidators';
+import { rrwebMaskTextCell } from '@/utils/tableCellProps';
 import type { UserDetail, UserCard, CardCreateData, CardUpdateData, UserUpdateData } from '@hospital/api';
 
 const { Title, Text } = Typography;
@@ -177,7 +178,7 @@ const UserDetailPage: React.FC = () => {
   // 就诊卡列表列定义
   const cardColumns = [
     { title: '卡号', dataIndex: 'cardNo', key: 'cardNo', width: 150, ellipsis: true },
-    { title: '姓名', dataIndex: 'name', key: 'name', width: 80, onCell: () => ({ 'data-rrweb-mask-text': '' }) },
+    { title: '姓名', dataIndex: 'name', key: 'name', width: 80, onCell: rrwebMaskTextCell },
     {
       title: '性别',
       dataIndex: 'gender',
@@ -186,7 +187,7 @@ const UserDetailPage: React.FC = () => {
       render: (val: number) => GENDER_MAP[val] || '-',
     },
     { title: '年龄', dataIndex: 'age', key: 'age', width: 60, render: (val: number) => val ?? '-' },
-    { title: '手机号', dataIndex: 'phone', key: 'phone', width: 120, onCell: () => ({ 'data-rrweb-mask-text': '' }) },
+    { title: '手机号', dataIndex: 'phone', key: 'phone', width: 120, onCell: rrwebMaskTextCell },
     { title: '关系', dataIndex: 'relationship', key: 'relationship', width: 80 },
     {
       title: '默认',

@@ -28,8 +28,8 @@ export function locationToFields(location: LocationInfo): Record<string, string>
     province: location.province,
     city: location.city,
     district: location.district,
-    longitude: location.longitude,
-    latitude: location.latitude,
+    longitude: String(location.longitude),
+    latitude: String(location.latitude),
   };
 }
 

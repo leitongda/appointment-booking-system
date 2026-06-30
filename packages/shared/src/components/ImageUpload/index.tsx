@@ -10,11 +10,18 @@
 import { Upload, Button, Space, Input, App, Image } from 'antd';
 import { PlusOutlined, DeleteOutlined, ScissorOutlined, LinkOutlined, LoadingOutlined } from '@ant-design/icons';
 import { useState, useCallback } from 'react';
+import type { ChangeEvent } from 'react';
 import type { UploadProps } from 'antd';
 import ImageCropper from './ImageCropper';
 import type { ImageUploadProps } from './types';
 import { ASPECT_RATIO_MAP } from './types';
-const ImageUpload: React.FC<ImageUploadProps> = ({
+
+export type * from './types';
+export { default as ImageCropper } from './ImageCropper';
+
+type BeforeUploadFile = Parameters<NonNullable<UploadProps['beforeUpload']>>[0];
+
+const ImageUpload = ({
   value,
   onChange,
   onThumbnailsChange,
@@ -43,7 +50,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
   // 依赖注入
   onUpload,
   onTransferUrl,
-}) => {
+}: ImageUploadProps) => {
   const { message } = App.useApp();
   const [loading, setLoading] = useState(false);
   const [cropperOpen, setCropperOpen] = useState(false);
@@ -80,15 +87,17 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
   }, [folder, onChange, onThumbnailsChange, message, onUpload]);
 
   // 处理文件选择（开始剪裁或直接上传）
-  const handleFileSelect = useCallback((file: File) => {
+  const handleFileSelect = useCallback<NonNullable<UploadProps['beforeUpload']>>((file: BeforeUploadFile) => {
+    const imageFile = file as unknown as File;
+
     // 检查文件大小
-    if (file.size > maxSize * 1024 * 1024) {
+    if (imageFile.size > maxSize * 1024 * 1024) {
       message.error(`文件大小不能超过 ${maxSize}MB`);
       return false;
     }
 
     // 检查文件类型
-    if (!file.type.startsWith('image/')) {
+    if (!imageFile.type.startsWith('image/')) {
       message.error('请选择图片文件');
       return false;
     }
@@ -100,10 +109,10 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
         setCropperSrc(reader.result as string);
         setCropperOpen(true);
       };
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(imageFile);
     } else {
       // 不需要剪裁，直接上传
-      uploadFile(file);
+      uploadFile(imageFile);
     }
 
     return false; // 阻止默认上传行为
@@ -173,7 +182,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
     showUploadList: false,
     beforeUpload: handleFileSelect,
     disabled: disabled || loading,
-  };
+  } as UploadProps;
 
   // 渲染上传区域
   const renderUploadArea = () => {
@@ -263,7 +272,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
               <Input
                 placeholder="输入图片URL"
                 value={urlInput}
-                onChange={(e) => setUrlInput(e.target.value)}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setUrlInput(e.target.value)}
                 onPressEnter={handleUrlTransfer}
                 disabled={urlTransferring}
               />

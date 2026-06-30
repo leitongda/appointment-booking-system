@@ -258,6 +258,18 @@ class PerformanceReporter {
   }
 
   /**
+   * 最佳努力同步上报。用于 sendBeacon 不可用时的页面卸载兜底。
+   */
+  private sendReportSync(report: PerformanceReport): void {
+    if (typeof XMLHttpRequest === 'undefined') return;
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', this.config.endpoint, false);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.send(JSON.stringify(report));
+  }
+
+  /**
    * 获取待上报数据
    */
   getPendingMetrics(): { metrics: PerformanceMetric[]; routeMetrics: RouteMetric[] } {

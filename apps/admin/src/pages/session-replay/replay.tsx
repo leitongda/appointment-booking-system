@@ -31,7 +31,7 @@ interface ReplayMeta {
 }
 
 const SessionReplayPage: React.FC = () => {
-  const params = useParams<{ sessionId: string }>();
+  const params = useParams() as { sessionId?: string };
   const sessionId = params.sessionId;
 
   const containerRef = useRef<HTMLDivElement>(null);

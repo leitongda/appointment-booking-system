@@ -30,6 +30,7 @@ import { APPOINTMENT_STATUS_MAP as SHARED_STATUS_MAP, APPOINTMENT_STATUS_COLOR }
 import { toProTableResult } from '@/utils/proTable';
 import { fetchAllData } from '@/utils/fetchAllData';
 import { phoneRules } from '@/utils/formValidators';
+import { rrwebMaskTextCell } from '@/utils/tableCellProps';
 import type {
   PatientDetail,
   PatientAppointment,
@@ -322,7 +323,7 @@ const PatientDetailPage: React.FC = () => {
 
   // 家庭成员列定义
   const familyColumns = [
-    { title: '姓名', dataIndex: 'name', key: 'name', width: 80, onCell: () => ({ 'data-rrweb-mask-text': '' }) },
+    { title: '姓名', dataIndex: 'name', key: 'name', width: 80, onCell: rrwebMaskTextCell },
     {
       title: '性别',
       dataIndex: 'gender',
@@ -330,7 +331,7 @@ const PatientDetailPage: React.FC = () => {
       width: 60,
       render: (val: number) => GENDER_MAP[val] || '-',
     },
-    { title: '手机号', dataIndex: 'phone', key: 'phone', width: 120, onCell: () => ({ 'data-rrweb-mask-text': '' }) },
+    { title: '手机号', dataIndex: 'phone', key: 'phone', width: 120, onCell: rrwebMaskTextCell },
     { title: '关系', dataIndex: 'relationship', key: 'relationship', width: 80 },
     {
       title: '默认',

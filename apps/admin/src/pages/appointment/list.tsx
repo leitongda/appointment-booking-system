@@ -7,6 +7,7 @@ import { history, useAccess, useModel } from '@umijs/max';
 import { appointmentApi, storeApi, dataApi, doctorApi, departmentApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import { fetchAllData } from '@/utils/fetchAllData';
+import { rrwebMaskTextCell } from '@/utils/tableCellProps';
 import { PAGINATION_CONFIG } from '@/constants/pagination';
 import { REFUND_STATUS_MAP, REFUND_STATUS_COLOR, APPOINTMENT_STATUS_TAG, REFUNDABLE_APPOINTMENT_STATUSES } from '@hospital/shared';
 import type { Appointment } from '@hospital/shared';
@@ -180,14 +181,14 @@ const AppointmentListPage: React.FC = () => {
       dataIndex: 'patientName',
       width: 80,
       search: false,
-      onCell: () => ({ 'data-rrweb-mask-text': '' }),
+      onCell: rrwebMaskTextCell,
     },
     {
       title: '手机号',
       dataIndex: 'patientPhone',
       width: 120,
       search: false,
-      onCell: () => ({ 'data-rrweb-mask-text': '' }),
+      onCell: rrwebMaskTextCell,
     },
     {
       title: '医生',

@@ -39,12 +39,9 @@ export {
 } from './utils/retry';
 export type { RetryOptions, RetryStats } from './utils/retry';
 
-// 导出 API 配置
-export { API_CONFIG, getApiBaseUrl, setApiConfig, resetApiConfig } from './config';
-export type { ApiConfig } from './config';
-
 // 导出请求适配器（用于小程序等非浏览器环境）
 export { createTaroAdapter, getTaroToken, setTaroToken } from './adapters';
+// NOTE: 旧的全局 API 配置模块 (config.ts) 已移除 —— 请改用 setBaseURL/getBaseURL。
 export type { TaroAdapterConfig } from './adapters';
 
 // 导出 RSA 加密工具
@@ -85,6 +82,7 @@ export type {
   AttendanceRule,
   AttendanceRuleCreateData,
   AttendanceRuleUpdateData,
+  LeaveType,
 } from './modules/attendance';
 export { medicalRecordApi } from './modules/medical-record';
 export { contentApi } from './modules/content';
@@ -113,7 +111,6 @@ export type {
   TestConnectionResult,
 } from './modules/integration';
 export { patientApi } from './modules/patient';
-export { exportApi } from './modules/export';
 export { storeApi } from './modules/store';
 export { messageApi } from './modules/message';
 export { leaveRequestApi } from './modules/leave-request';
@@ -135,6 +132,21 @@ export { uploadApi } from './modules/upload';
 export { examinationReportApi } from './modules/examination-report';
 export { followUpApi, selfReportApi } from './modules/follow-up';
 export { freelancerApi, freelanceTaskApi, freelanceSettlementApi } from './modules/freelance';
+export type {
+  Freelancer,
+  FreelancerCreateData,
+  FreelancerUpdateData,
+  FreelanceTask,
+  FreelanceTaskCreateData,
+  FreelanceTaskUpdateData,
+  FreelanceInteraction,
+  FreelanceInteractionCreateData,
+  FreelanceSettlement,
+  FreelanceSettlementItem,
+  FreelanceListParams,
+  FreelanceTaskListParams,
+  FreelanceSettlementListParams,
+} from './modules/freelance';
 export { emailTemplateApi } from './modules/email-template';
 export { dataApi } from './modules/data';
 export type { ImportResult } from './modules/data';
@@ -207,6 +219,7 @@ export type { StoreAdmin } from './modules/store';
 
 // Auth types are re-exported from @hospital/shared
 export type { LoginParams, LoginResult } from '@hospital/shared';
+export type { LeaveRequest, LowCodePage } from '@hospital/shared';
 export type {
   WechatLoginResponse,
   AccountInfo,
@@ -565,7 +578,7 @@ export type {
 
 // LowCode Template Marketplace
 export { lowcodeTemplateApi } from './modules/lowcode-template';
-export type { TemplateVersionCreateData } from './modules/lowcode-template';
+export type { TemplateVersionCreateData as LowCodeTemplateVersionCreateData } from './modules/lowcode-template';
 
 export type {
   LowCodeTemplate,
@@ -584,27 +597,3 @@ export type { GuideTourItem, TourStep, GuideTourProgress, LocaleMap } from './mo
 
 export { adminGuideToursApi } from './modules/admin-guide-tours';
 export type { GuideTourDetail, GuideTourListItem, GuideTourFormData } from './modules/admin-guide-tours';
-
-// Contact types
-export { contactApi } from './modules/contact';
-export type {
-  ContactListItem,
-  ContactDetail,
-  ContactChannel,
-  ContactGroup,
-  ContactGroupItem,
-  ContactTag,
-  ContactTagItem,
-  ContactListParams,
-  ContactCreateData,
-  ContactUpdateData,
-  ContactGroupCreateData,
-  ContactGroupUpdateData,
-  ContactTagCreateData,
-  ContactTagUpdateData,
-  ContactBatchMoveData,
-  ContactBatchTagData,
-  ContactBatchDeleteData,
-  ContactType,
-  ContactStatus,
-} from './modules/contact';

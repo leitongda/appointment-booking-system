@@ -12,6 +12,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { history, useLocation } from '@umijs/max';
 import { guideToursApi, type GuideTourItem, type TourStep } from '@hospital/api';
+import type { TourProps } from 'antd';
 import { t } from '@/utils/locale';
 
 export interface UseGuidedTourOptions {
@@ -26,8 +27,8 @@ export interface GuidedTourState {
   open: boolean;
   /** 当前步骤索引 */
   current: number;
-  /** 当前指引的步骤列表（已过滤为当前路由的步骤） */
-  steps: TourStep[];
+  /** 当前指引的步骤列表（转换为 antd Tour 可消费的结构） */
+  steps: NonNullable<TourProps['steps']>;
   /** 当前指引完整信息 */
   activeTour: GuideTourItem | null;
   /** 所有可用指引 */
@@ -232,11 +233,11 @@ export function useGuidedTour(options: UseGuidedTourOptions = {}): GuidedTourSta
 
   // ==================== 构造 antd Tour steps ====================
 
-  const antdSteps = currentSteps.map((step) => ({
+  const antdSteps: NonNullable<TourProps['steps']> = currentSteps.map((step) => ({
     title: t(step.title),
     description: t(step.description),
-    target: () => document.querySelector(step.target),
-    placement: step.placement as any,
+    target: (() => document.querySelector<HTMLElement>(step.target)) as NonNullable<TourProps['steps']>[number]['target'],
+    placement: step.placement as NonNullable<TourProps['steps']>[number]['placement'],
   }));
 
   return {

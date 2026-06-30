@@ -166,7 +166,7 @@ const TasksPage: React.FC = () => {
           options={Object.entries(STATUS_MAP).map(([k, v]) => ({ label: v.text, value: k }))}
         />
         <ProFormSelect name="isIndexed" label="是否收录"
-          options={[{ label: '已收录', value: true }, { label: '未收录', value: false }]}
+          options={[{ label: '已收录', value: true as any }, { label: '未收录', value: false as any }]}
         />
         <ProFormDigit name="likesCount" label="点赞数" min={0} fieldProps={{ precision: 0 }} />
         <ProFormDigit name="bonusAmount" label="补贴金额（5~30）" min={0} max={30} fieldProps={{ precision: 2 }} />

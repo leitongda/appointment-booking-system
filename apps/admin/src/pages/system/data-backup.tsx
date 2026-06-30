@@ -40,7 +40,7 @@ const DataBackupPage: React.FC = () => {
   // 加载租户列表
   useEffect(() => {
     tenantApi
-      .getList({ pageSize: 200 })
+      .getTenants({ pageSize: 200 })
       .then((res: any) => {
         const list = res.data || res.items || res || [];
         setTenantOptions(list.map((t: any) => ({ label: t.name, value: t.id })));

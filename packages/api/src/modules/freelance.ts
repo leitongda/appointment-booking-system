@@ -217,6 +217,24 @@ export const freelancerApi = {
   delete: (id: string): Promise<void> => {
     return request.delete(`/freelance-fees/freelancers/${id}`);
   },
+
+  getImportTemplateUrl: (): string => {
+    return '/api/v1/freelance-fees/import/template';
+  },
+
+  importFreelancers: async (file: File): Promise<{
+    success_count: number;
+    fail_count: number;
+    skipped_count: number;
+    total: number;
+    errors: string[];
+  }> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return request.post('/freelance-fees/import/freelancers', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
 };
 
 export const freelanceTaskApi = {

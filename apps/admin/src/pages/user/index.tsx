@@ -5,6 +5,7 @@ import { UserOutlined, StopOutlined, CheckCircleOutlined } from '@ant-design/ico
 import { userManageApi } from '@hospital/api';
 import type { UserListItem } from '@hospital/api';
 import { createListRequest } from '@/utils/proTable';
+import { rrwebMaskTextCell } from '@/utils/tableCellProps';
 import { useListPage } from '@/hooks/useListPage';
 import { OperationButton, OperationGroup } from '@/components/ListOperations';
 
@@ -46,7 +47,7 @@ const UserManagePage: React.FC = () => {
       title: '手机号',
       dataIndex: 'phone',
       width: 120,
-      onCell: () => ({ 'data-rrweb-mask-text': '' }),
+      onCell: rrwebMaskTextCell,
     },
     {
       title: '就诊卡数量',

@@ -19,6 +19,7 @@ import { GENDER_MAP, GENDER_OPTIONS } from '@/constants';
 import { useDict } from '@/hooks/useDict';
 import { createListRequest } from '@/utils/proTable';
 import { phoneRules, idCardRules } from '@/utils/formValidators';
+import { rrwebMaskTextCell } from '@/utils/tableCellProps';
 import type { PatientListItem, PatientUpdateData } from '@hospital/api';
 import type { PatientCreateData } from '@hospital/api/src/modules/patient';
 import ImportExport from '@/components/ImportExport';
@@ -91,16 +92,13 @@ const PatientPage: React.FC = () => {
     }
   };
 
-  // rrweb 文本遮蔽单元格（仅遮蔽展示文本，不遮蔽整块录制）
-  const maskTextCell = () => ({ 'data-rrweb-mask-text': '' });
-
   const columns: ProColumns<PatientListItem>[] = [
     { title: '卡号', dataIndex: 'cardNo', width: 150, ellipsis: true },
     {
       title: '姓名',
       dataIndex: 'name',
       width: 80,
-      onCell: maskTextCell,
+      onCell: rrwebMaskTextCell,
     },
     {
       title: '性别',
@@ -114,7 +112,7 @@ const PatientPage: React.FC = () => {
       title: '手机号',
       dataIndex: 'phone',
       width: 120,
-      onCell: maskTextCell,
+      onCell: rrwebMaskTextCell,
     },
     {
       title: '默认',
@@ -128,7 +126,7 @@ const PatientPage: React.FC = () => {
       dataIndex: 'userNickname',
       width: 120,
       search: false,
-      onCell: maskTextCell,
+      onCell: rrwebMaskTextCell,
       render: (_, record) => (
         <Space size={0}>
           <span>{record.userNickname || '微信用户'}</span>

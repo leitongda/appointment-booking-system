@@ -1,14 +1,14 @@
 import { uploadApi } from '@hospital/api';
-import { default as SharedImageUpload } from '@hospital/shared/components/ImageUpload';
-import type { ImageUploadProps } from '@hospital/shared/components/ImageUpload/types';
+import SharedImageUpload from '@hospital/shared/components/ImageUpload';
+import type { ImageUploadProps } from '@hospital/shared/components/ImageUpload';
 
-const ImageUpload: React.FC<ImageUploadProps> = (props) => (
+const ImageUpload = (props: ImageUploadProps) => (
   <SharedImageUpload
-    onUpload={(file, folder) => uploadApi.upload(file, { folder })}
-    onTransferUrl={(url, folder) => uploadApi.transfer(url, folder)}
+    onUpload={(file: File, folder?: string) => uploadApi.upload(file, { folder })}
+    onTransferUrl={(url: string, folder?: string) => uploadApi.transfer(url, folder)}
     {...props}
   />
 );
 
 export default ImageUpload;
-export type { ImageUploadProps } from '@hospital/shared/components/ImageUpload/types';
+export type { ImageUploadProps } from '@hospital/shared/components/ImageUpload';

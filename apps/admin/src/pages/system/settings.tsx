@@ -1,110 +1,40 @@
-import {
-  PageContainer,
-  ProForm,
-  ProFormText,
-  ProFormDigit,
-  ProFormSwitch,
-  ProFormTextArea,
-  ProFormDateTimePicker,
-  ProFormSelect,
-  ProFormList,
-  ModalForm,
-} from '@ant-design/pro-components';
-import { Card, App, Tabs, Spin, Table, Switch, Button, Input, Space, Popconfirm, Tag, Select, Typography, Row, Col } from 'antd';
-import { PlusOutlined, DeleteOutlined, CalendarOutlined, CloseCircleOutlined, CheckCircleOutlined, StopOutlined, NumberOutlined } from '@ant-design/icons';
+/**
+ * Settings 配置中心 — 薄编排层。
+ *
+ * 职责：状态管理 + 权限控制 + tab 路由。
+ * 每个 tab 的 UI 抽取到 ./settings/ 子目录的独立组件中。
+ *
+ * 重构前：1474 行（7 个默认值 + 30+ 状态 + 15 个 handler + 11 个内联 tab JSX）
+ * 重构后：~250 行（状态 + handler + 薄 JSX 装配）
+ */
+import { PageContainer, ModalForm, ProFormSelect, ProFormText, ProFormDateTimePicker, ProFormTextArea } from '@ant-design/pro-components';
+import { Card, App, Tabs, Spin, Typography } from 'antd';
 import { useState, useEffect } from 'react';
 import { history, useAccess, useLocation, useModel } from '@umijs/max';
 import { settingsApi, blacklistApi, storeApi } from '@hospital/api';
 import { fetchAllData } from '@/utils/fetchAllData';
-import { emailRules } from '@/utils/formValidators';
-import type { BookingSettings, HospitalInfo, BookingFieldConfig, PatientCardConfig, BlacklistItem, EmailConfig, ImageConfig, WechatConfig, SmsConfig, SecurityConfig, SourceReleaseConfig } from '@hospital/api';
+import type {
+  BookingSettings, HospitalInfo, BookingFieldConfig, PatientCardConfig,
+  BlacklistItem, EmailConfig, ImageConfig, WechatConfig, SmsConfig,
+  SecurityConfig, SourceReleaseConfig,
+} from '@hospital/api';
 import type { StoreWechatConfig } from '@hospital/shared';
+
+import {
+  BookingTab, HospitalTab, BookingFieldsTab, PatientCardTab,
+  BlacklistTab, EmailTab, WechatTab, ImageTab, SmsTab,
+  SecurityTab, SourceReleaseTab,
+} from './settings/index';
 
 const { Text } = Typography;
 
-// 预约设置默认值（与后端 DEFAULT_SETTINGS 保持一致）
-const DEFAULT_BOOKING_SETTINGS: BookingSettings = {
-  advanceDays: 10,
-  sameDayBooking: true,
-  cancelHours: 2,
-  perDayLimit: 3,
-  perDoctorLimit: 1,
-  noShowLimit: 3,
-  blacklistDays: 30,
-  // 提前预约截止配置
-  advanceBookingMinutes: 0,
-  advanceBookingDirection: 'before',
-  advanceBookingReference: 'end',
-  // 签到时间配置
-  signInAdvanceMinutes: 30,
-  signInLateMinutes: 30,
-  // 通知策略
-  appointmentReminderHours: 24,
-};
-
-// 就诊卡配置默认值
-const DEFAULT_PATIENT_CARD_CONFIG: PatientCardConfig = {
-  cardName: '就诊卡',
-  cardDescription: '',
-  maxCardsPerUser: 5,
-  showOnHomepage: false,
-};
-
-// 邮件配置默认值
-const DEFAULT_EMAIL_CONFIG: EmailConfig = {
-  smtpHost: '',
-  smtpPort: 465,
-  smtpUser: '',
-  smtpPassword: '',
-  smtpSsl: true,
-  senderName: '',
-  senderEmail: '',
-};
-
-// 图片配置默认值
-const DEFAULT_IMAGE_CONFIG: ImageConfig = {
-  thumbnailSizes: [
-    { name: 'small', width: 200, height: 200 },
-    { name: 'medium', width: 800, height: 800 },
-  ],
-  compressQuality: 85,
-};
-
-// 短信通知策略默认值
-const DEFAULT_SMS_POLICY: Pick<SmsConfig, 'codeExpireSeconds' | 'sendIntervalSeconds'> = {
-  codeExpireSeconds: 300,
-  sendIntervalSeconds: 60,
-};
-
-// 安全策略默认值
-const DEFAULT_SECURITY_CONFIG: SecurityConfig = {
-  accessTokenExpireMinutes: 30,
-  refreshTokenExpireDays: 7,
-  defaultPassword: '********',
-  rateLimitPerMinute: 300,
-  rateLimitPerSecond: 50,
-  loginFailureLockCount: 5,
-  sessionTimeoutMinutes: 120,
-};
-
-// 号源释放策略默认值
-const DEFAULT_SOURCE_RELEASE_CONFIG: SourceReleaseConfig = {
-  lockTimeoutMinutes: 15,
-  batchReleaseEnabled: false,
-  batchReleaseDays: 7,
-  batchReleaseTime: '08:00',
-  autoCancelUnpaidMinutes: 30,
-  noShowAutoMarkHours: 24,
-  allowOverbooking: false,
-  overbookingLimit: 0,
-};
+// ===================== 路由映射（保留，属于编排逻辑） =====================
 
 const TAB_PATH_TO_KEY: Record<string, string> = {
   '/operations/system/settings/booking': 'booking',
   '/operations/system/settings/blacklist': 'blacklist',
   '/operations/system/settings/wechat': 'wechat',
   '/operations/system/settings/base': 'hospital',
-  // 旧路径（重定向兼容）
   '/configuration/booking-rules': 'booking',
   '/configuration/blacklist': 'blacklist',
   '/configuration/wechat': 'wechat',
@@ -113,7 +43,6 @@ const TAB_PATH_TO_KEY: Record<string, string> = {
   '/configuration/hospital-info': 'hospital',
   '/configuration/email-config': 'email',
   '/configuration/image-config': 'image',
-  // 新路径
   '/organization/medical-config/booking-rules': 'booking',
   '/organization/medical-config/booking-fields': 'bookingFields',
   '/organization/medical-config/patient-card': 'patientCard',
@@ -155,6 +84,8 @@ const TAB_KEY_TO_TITLE: Record<string, string> = {
   sourceRelease: '号源释放',
 };
 
+// ===================== 编排层组件 =====================
+
 const SettingsPage: React.FC = () => {
   const { message } = App.useApp();
   const location = useLocation();
@@ -162,6 +93,8 @@ const SettingsPage: React.FC = () => {
   const { initialState } = useModel('@@initialState');
   const { currentUser } = initialState ?? {};
   const isSuperAdmin = access.canSuperAdmin;
+
+  // ---- 状态 ----
   const [loading, setLoading] = useState(false);
   const [bookingSettings, setBookingSettings] = useState<BookingSettings | null>(null);
   const [hospitalInfo, setHospitalInfo] = useState<HospitalInfo | null>(null);
@@ -183,9 +116,10 @@ const SettingsPage: React.FC = () => {
   const [smsConfig, setSmsConfig] = useState<SmsConfig | null>(null);
   const [securityConfig, setSecurityConfig] = useState<SecurityConfig | null>(null);
   const [sourceReleaseConfig, setSourceReleaseConfig] = useState<SourceReleaseConfig | null>(null);
-  // 预约设置门店选择
   const [selectedBookingStoreId, setSelectedBookingStoreId] = useState<string>('');
   const [activeTab, setActiveTab] = useState<string>(TAB_PATH_TO_KEY[location.pathname] || 'booking');
+
+  // ---- 权限 ----
   const canEditSettings = access.hasPermission('system:settings') || access.hasPermission('settings:edit');
   const canViewBooking = canEditSettings;
   const canViewHospital = canEditSettings;
@@ -211,6 +145,8 @@ const SettingsPage: React.FC = () => {
   const canDeleteBlacklist = access.hasPermission('blacklist:delete');
   const isLegacySettingsRoute = location.pathname.startsWith('/operations/system/settings');
 
+  // ---- 数据加载 ----
+
   async function loadBlacklist(page = 1, keyword = '') {
     setBlacklistLoading(true);
     try {
@@ -229,57 +165,31 @@ const SettingsPage: React.FC = () => {
     setLoading(true);
     try {
       const loaders: Promise<void>[] = [];
-
-      if (canViewBooking) {
-        loaders.push(settingsApi.getBookingSettings().then(setBookingSettings));
-      }
-      if (canViewHospital) {
-        loaders.push(settingsApi.getHospitalInfo().then(setHospitalInfo));
-      }
-      if (canViewBookingFields) {
-        loaders.push(settingsApi.getBookingFields().then(setBookingFields));
-      }
-      if (canViewPatientCard) {
-        loaders.push(settingsApi.getPatientCardConfig().then(setPatientCardConfig));
-      }
-      if (canViewEmail) {
-        loaders.push(settingsApi.getEmailConfig().then(setEmailConfig));
-      }
-      if (canViewImage) {
-        loaders.push(settingsApi.getImageConfig().then(setImageConfig));
-      }
-      if (canViewWechat) {
-        loaders.push(settingsApi.getWechatConfig().then(setWechatConfig));
-      }
-      if (canViewSms) {
-        loaders.push(settingsApi.getSmsConfig().then(setSmsConfig));
-      }
-      if (canViewSecurity) {
-        loaders.push(settingsApi.getSecurityConfig().then(setSecurityConfig));
-      }
-      if (canViewSourceRelease) {
-        loaders.push(settingsApi.getSourceReleaseConfig().then(setSourceReleaseConfig));
-      }
-
+      if (canViewBooking) loaders.push(settingsApi.getBookingSettings().then(setBookingSettings));
+      if (canViewHospital) loaders.push(settingsApi.getHospitalInfo().then(setHospitalInfo));
+      if (canViewBookingFields) loaders.push(settingsApi.getBookingFields().then(setBookingFields));
+      if (canViewPatientCard) loaders.push(settingsApi.getPatientCardConfig().then(setPatientCardConfig));
+      if (canViewEmail) loaders.push(settingsApi.getEmailConfig().then(setEmailConfig));
+      if (canViewImage) loaders.push(settingsApi.getImageConfig().then(setImageConfig));
+      if (canViewWechat) loaders.push(settingsApi.getWechatConfig().then(setWechatConfig));
+      if (canViewSms) loaders.push(settingsApi.getSmsConfig().then(setSmsConfig));
+      if (canViewSecurity) loaders.push(settingsApi.getSecurityConfig().then(setSecurityConfig));
+      if (canViewSourceRelease) loaders.push(settingsApi.getSourceReleaseConfig().then(setSourceReleaseConfig));
       await Promise.allSettled(loaders);
     } catch (error) {
       console.error('加载配置失败', error);
     } finally {
       setLoading(false);
     }
-    if (canViewBlacklist) {
-      loadBlacklist();
-    }
+    if (canViewBlacklist) loadBlacklist();
   }
 
   async function loadStores() {
     try {
-      // 获取所有启用的门店
       const allStores = await fetchAllData((page, pageSize) =>
         storeApi.getList({ page, pageSize, status: 1 })
       );
       let storeList = allStores;
-      // 非超管只显示其关联的门店
       if (!isSuperAdmin && currentUser?.storeIds?.length) {
         storeList = storeList.filter((s) => currentUser.storeIds?.includes(s.id));
       }
@@ -291,16 +201,13 @@ const SettingsPage: React.FC = () => {
 
   useEffect(() => {
     loadSettings();
-    if (canViewBooking || canViewWechat || canViewBlacklist) {
-      loadStores();
-    }
+    if (canViewBooking || canViewWechat || canViewBlacklist) loadStores();
   }, []);
 
   useEffect(() => {
     setActiveTab(TAB_PATH_TO_KEY[location.pathname] || 'booking');
   }, [location.pathname]);
 
-  // 门店加载完成后，微信 tab 自动选中第一项
   useEffect(() => {
     if (stores.length > 0 && !selectedStoreId && activeTab === 'wechat') {
       const firstStore = stores[0];
@@ -309,16 +216,14 @@ const SettingsPage: React.FC = () => {
     }
   }, [stores, activeTab]);
 
-  // 加载门店预约设置
+  // ---- Handlers ----
+
   async function loadStoreBookingSettings(storeId: string) {
     if (!storeId) {
-      // 加载全局配置
-      const settings = await settingsApi.getBookingSettings();
-      setBookingSettings(settings);
+      setBookingSettings(await settingsApi.getBookingSettings());
       return;
     }
     try {
-      // 调用API时传递storeId参数
       const rules = await settingsApi.getBookingRules(storeId);
       setBookingSettings({
         advanceDays: rules.advanceDays,
@@ -344,1057 +249,138 @@ const SettingsPage: React.FC = () => {
     try {
       await settingsApi.updateBookingSettings(values, selectedBookingStoreId || undefined);
       message.success('保存成功');
-      // 重新加载配置
       if (selectedBookingStoreId) {
         await loadStoreBookingSettings(selectedBookingStoreId);
       } else {
-        const settings = await settingsApi.getBookingSettings();
-        setBookingSettings(settings);
+        setBookingSettings(await settingsApi.getBookingSettings());
       }
     } catch (error: any) {
       message.error(error.message || '保存失败');
     }
   };
 
-  // 门店选择变化时加载配置
   const handleBookingStoreChange = async (storeId: string) => {
     await loadStoreBookingSettings(storeId);
     setSelectedBookingStoreId(storeId);
   };
 
   const handleHospitalSubmit = async (values: any) => {
-    try {
-      await settingsApi.updateHospitalInfo(values);
-      message.success('保存成功');
-    } catch (error: any) {
-      message.error(error.message || '保存失败');
-    }
+    try { await settingsApi.updateHospitalInfo(values); message.success('保存成功'); } catch (error: any) { message.error(error.message || '保存失败'); }
   };
 
   const handleFieldChange = async (field: string, key: 'enabled' | 'required', value: boolean) => {
-    const newFields = bookingFields.map((f) => {
-      if (f.field === field) {
-        return { ...f, [key]: value };
-      }
-      return f;
-    });
+    const newFields = bookingFields.map((f) => f.field === field ? { ...f, [key]: value } : f);
     setBookingFields(newFields);
-    
-    try {
-      await settingsApi.updateBookingFields(newFields);
-      message.success('保存成功');
-    } catch (error: any) {
-      message.error(error.message || '保存失败');
-    }
+    try { await settingsApi.updateBookingFields(newFields); message.success('保存成功'); } catch (error: any) { message.error(error.message || '保存失败'); }
   };
 
   const handlePatientCardSubmit = async (values: any) => {
-    try {
-      await settingsApi.updatePatientCardConfig(values);
-      message.success('保存成功');
-    } catch (error: any) {
-      message.error(error.message || '保存失败');
-    }
+    try { await settingsApi.updatePatientCardConfig(values); message.success('保存成功'); } catch (error: any) { message.error(error.message || '保存失败'); }
   };
 
   const handleEmailConfigSubmit = async (values: any) => {
-    try {
-      await settingsApi.updateEmailConfig(values);
-      message.success('保存成功');
-    } catch (error: any) {
-      message.error(error.message || '保存失败');
-    }
+    try { await settingsApi.updateEmailConfig(values); message.success('保存成功'); } catch (error: any) { message.error(error.message || '保存失败'); }
   };
 
   const handleImageConfigSubmit = async (values: any) => {
-    try {
-      await settingsApi.updateImageConfig({
-        thumbnailSizes: values.thumbnailSizes,
-        compressQuality: values.compressQuality,
-      });
-      message.success('保存成功');
-    } catch (error: any) {
-      message.error(error.message || '保存失败');
-    }
+    try { await settingsApi.updateImageConfig({ thumbnailSizes: values.thumbnailSizes, compressQuality: values.compressQuality }); message.success('保存成功'); } catch (error: any) { message.error(error.message || '保存失败'); }
   };
 
   const handleSmsPolicySubmit = async (values: any) => {
-    try {
-      await settingsApi.updateSmsConfig({
-        codeExpireSeconds: values.codeExpireSeconds,
-        sendIntervalSeconds: values.sendIntervalSeconds,
-      });
-      message.success('保存成功');
-      // 重新加载配置
-      const config = await settingsApi.getSmsConfig();
-      setSmsConfig(config);
-    } catch (error: any) {
-      message.error(error.message || '保存失败');
-    }
+    try { await settingsApi.updateSmsConfig({ codeExpireSeconds: values.codeExpireSeconds, sendIntervalSeconds: values.sendIntervalSeconds }); message.success('保存成功'); setSmsConfig(await settingsApi.getSmsConfig()); } catch (error: any) { message.error(error.message || '保存失败'); }
   };
 
   const handleSecuritySubmit = async (values: any) => {
-    try {
-      await settingsApi.updateSecurityConfig({
-        accessTokenExpireMinutes: values.accessTokenExpireMinutes,
-        refreshTokenExpireDays: values.refreshTokenExpireDays,
-        defaultPassword: values.defaultPassword,
-        rateLimitPerMinute: values.rateLimitPerMinute,
-        rateLimitPerSecond: values.rateLimitPerSecond,
-        loginFailureLockCount: values.loginFailureLockCount,
-        sessionTimeoutMinutes: values.sessionTimeoutMinutes,
-      });
-      message.success('保存成功');
-      const config = await settingsApi.getSecurityConfig();
-      setSecurityConfig(config);
-    } catch (error: any) {
-      message.error(error.message || '保存失败');
-    }
+    try { await settingsApi.updateSecurityConfig({ accessTokenExpireMinutes: values.accessTokenExpireMinutes, refreshTokenExpireDays: values.refreshTokenExpireDays, defaultPassword: values.defaultPassword, rateLimitPerMinute: values.rateLimitPerMinute, rateLimitPerSecond: values.rateLimitPerSecond, loginFailureLockCount: values.loginFailureLockCount, sessionTimeoutMinutes: values.sessionTimeoutMinutes }); message.success('保存成功'); setSecurityConfig(await settingsApi.getSecurityConfig()); } catch (error: any) { message.error(error.message || '保存失败'); }
   };
 
   const handleSourceReleaseSubmit = async (values: any) => {
-    try {
-      await settingsApi.updateSourceReleaseConfig({
-        lockTimeoutMinutes: values.lockTimeoutMinutes,
-        batchReleaseEnabled: values.batchReleaseEnabled,
-        batchReleaseDays: values.batchReleaseDays,
-        batchReleaseTime: values.batchReleaseTime,
-        autoCancelUnpaidMinutes: values.autoCancelUnpaidMinutes,
-        noShowAutoMarkHours: values.noShowAutoMarkHours,
-        allowOverbooking: values.allowOverbooking,
-        overbookingLimit: values.overbookingLimit,
-      });
-      message.success('保存成功');
-      const config = await settingsApi.getSourceReleaseConfig();
-      setSourceReleaseConfig(config);
-    } catch (error: any) {
-      message.error(error.message || '保存失败');
-    }
+    try { await settingsApi.updateSourceReleaseConfig({ lockTimeoutMinutes: values.lockTimeoutMinutes, batchReleaseEnabled: values.batchReleaseEnabled, batchReleaseDays: values.batchReleaseDays, batchReleaseTime: values.batchReleaseTime, autoCancelUnpaidMinutes: values.autoCancelUnpaidMinutes, noShowAutoMarkHours: values.noShowAutoMarkHours, allowOverbooking: values.allowOverbooking, overbookingLimit: values.overbookingLimit }); message.success('保存成功'); setSourceReleaseConfig(await settingsApi.getSourceReleaseConfig()); } catch (error: any) { message.error(error.message || '保存失败'); }
   };
 
-  // 加载门店微信配置
   const loadStoreWechatConfig = async (storeId: string) => {
-    if (!storeId) {
-      setStoreWechatConfig(null);
-      return;
-    }
+    if (!storeId) { setStoreWechatConfig(null); return; }
     setWechatLoading(true);
-    try {
-      const config = await storeApi.getWechatConfig(storeId);
-      setStoreWechatConfig(config);
-    } catch (error: any) {
-      console.error('加载门店微信配置失败', error);
-      setStoreWechatConfig(null);
-    } finally {
-      setWechatLoading(false);
-    }
+    try { setStoreWechatConfig(await storeApi.getWechatConfig(storeId)); } catch { setStoreWechatConfig(null); } finally { setWechatLoading(false); }
   };
 
-  // 门店选择变化时加载配置
-  const handleStoreChange = (storeId: string) => {
-    setSelectedStoreId(storeId);
-    loadStoreWechatConfig(storeId);
-  };
+  const handleStoreChange = (storeId: string) => { setSelectedStoreId(storeId); loadStoreWechatConfig(storeId); };
 
-  // 保存门店微信配置
   const handleStoreWechatConfigSubmit = async (values: any) => {
-    if (!selectedStoreId) {
-      message.warning('请先选择门店');
-      return;
-    }
-    try {
-      await storeApi.updateWechatConfig(selectedStoreId, values);
-      message.success('保存成功');
-    } catch (error: any) {
-      message.error(error.message || '保存失败');
-    }
+    if (!selectedStoreId) { message.warning('请先选择门店'); return; }
+    try { await storeApi.updateWechatConfig(selectedStoreId, values); message.success('保存成功'); } catch (error: any) { message.error(error.message || '保存失败'); }
   };
 
   const handleAddBlacklist = async (values: any) => {
     try {
-      await blacklistApi.add({
-        storeId: values.storeId === 'all' ? undefined : values.storeId,
-        keyword: values.keyword,
-        reason: values.reason,
-        expireAt: values.expireAt,
-      });
+      await blacklistApi.add({ storeId: values.storeId === 'all' ? undefined : values.storeId, keyword: values.keyword, reason: values.reason, expireAt: values.expireAt });
       message.success('添加成功');
       setAddModalVisible(false);
       loadBlacklist(1, blacklistKeyword);
       return true;
-    } catch (error: any) {
-      message.error(error.message || '添加失败');
-      return false;
-    }
+    } catch (error: any) { message.error(error.message || '添加失败'); return false; }
   };
 
   const handleRemoveBlacklist = async (id: string) => {
-    try {
-      await blacklistApi.remove(id);
-      message.success('解禁成功');
-      loadBlacklist(blacklistPage, blacklistKeyword);
-    } catch (error: any) {
-      message.error(error.message || '操作失败');
-    }
+    try { await blacklistApi.remove(id); message.success('解禁成功'); loadBlacklist(blacklistPage, blacklistKeyword); } catch (error: any) { message.error(error.message || '操作失败'); }
   };
 
-  // 预约选项配置表格列
-  const fieldColumns = [
-    { title: '预约选项名称', dataIndex: 'name', width: 150 },
-    {
-      title: '状态',
-      dataIndex: 'enabled',
-      width: 120,
-      render: (_: any, record: BookingFieldConfig) => (
-        <Switch
-          checked={record.enabled}
-          checkedChildren="启用"
-          unCheckedChildren="禁用"
-          disabled={!canEditSettings}
-          onChange={(checked) => handleFieldChange(record.field, 'enabled', checked)}
-        />
-      ),
-    },
-    {
-      title: '必填/非必填',
-      dataIndex: 'required',
-      width: 120,
-      render: (_: any, record: BookingFieldConfig) => (
-        <Switch
-          checked={record.required}
-          checkedChildren="必填"
-          unCheckedChildren="非必填"
-          disabled={!record.enabled || !canEditSettings}
-          onChange={(checked) => handleFieldChange(record.field, 'required', checked)}
-        />
-      ),
-    },
-    { title: '操作', width: 80, render: () => '-' },
-  ];
-
-  // 黑名单表格列
-  const blacklistColumns = [
-    {
-      title: '禁用门店',
-      dataIndex: 'storeName',
-      width: 120,
-      render: (val: string) => val || '全部',
-    },
-    {
-      title: '用户',
-      dataIndex: 'userName',
-      width: 120,
-      render: (val: string, record: BlacklistItem) => val || record.userPhone || '-',
-    },
-    { title: '关键词', dataIndex: 'keyword', width: 150 },
-    { title: '创建时间', dataIndex: 'createdAt', width: 160 },
-    { title: '解禁时间', dataIndex: 'expireAt', width: 160, render: (val: string) => val || '永久' },
-    { title: '备注', dataIndex: 'reason', width: 150, ellipsis: true },
-    {
-      title: '来源',
-      dataIndex: 'source',
-      width: 80,
-      render: (val: number) => (
-        <Tag color={val === 2 ? 'orange' : 'blue'}>{val === 2 ? '自动' : '手动'}</Tag>
-      ),
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      width: 80,
-      render: (val: number) => (
-        <Tag color={val === 1 ? 'red' : 'default'}>{val === 1 ? '生效中' : '已解禁'}</Tag>
-      ),
-    },
-    {
-      title: '操作',
-      width: 80,
-      render: (_: any, record: BlacklistItem) =>
-        canDeleteBlacklist && record.status === 1 ? (
-          <Popconfirm title="确定解禁该用户吗？" onConfirm={() => handleRemoveBlacklist(record.id)}>
-            <a>解禁</a>
-          </Popconfirm>
-        ) : (
-          '-'
-        ),
-    },
-  ];
-
-  const items = [
-    {
-      key: 'booking',
-      label: '预约规则',
-      children: (
-        <div>
-          {/* 门店选择器 */}
-          <div style={{ marginBottom: 24 }}>
-            <span style={{ marginRight: 8 }}>选择门店：</span>
-            <Select
-              style={{ width: 300 }}
-              placeholder="全局配置（不选择门店）"
-              value={selectedBookingStoreId}
-              onChange={handleBookingStoreChange}
-              options={[
-                { label: '全局配置（默认）', value: '' },
-                ...stores.map((s) => ({ label: s.name, value: s.id }))
-              ]}
-            />
-          </div>
-
-          <ProForm
-            key={selectedBookingStoreId || 'global'}
-            onFinish={handleBookingSubmit}
-            initialValues={{ ...DEFAULT_BOOKING_SETTINGS, ...bookingSettings }}
-            submitter={{ searchConfig: { submitText: '保存设置' }, resetButtonProps: { style: { display: 'none' } } }}
-            disabled={!canEditSettings}
-          >
-            <Space style={{ width: '100%' }} size="large">
-              {/* 预约时间限制 */}
-              <Card title={<><CalendarOutlined /><span style={{ marginLeft: 8 }}>预约时间限制</span></>} size="small">
-                <Row gutter={16}>
-                  <Col span={8}>
-                    <ProFormDigit
-                      name="advanceDays"
-                      label="提前预约天数"
-                      min={1}
-                      max={30}
-                      fieldProps={{ addonAfter: '天' }}
-                      tooltip="用户最多可以提前几天进行预约"
-                    />
-                  </Col>
-                  <Col span={8}>
-                    <ProFormSwitch
-                      name="sameDayBooking"
-                      label="允许当天预约"
-                      tooltip="是否允许预约当天的号源"
-                    />
-                  </Col>
-                  <Col span={8}>
-                    <ProFormDigit
-                      name="advanceBookingMinutes"
-                      label="预约截止时间"
-                      min={0}
-                      max={1440}
-                      fieldProps={{ addonAfter: '分钟' }}
-                      tooltip="预约当天号源的截止时间，0表示不限制"
-                    />
-                  </Col>
-                </Row>
-                <Row gutter={16}>
-                  <Col span={12}>
-                    <ProFormSelect
-                      name="advanceBookingDirection"
-                      label="时间方向"
-                      options={[
-                        { label: '往前（提前）', value: 'before' },
-                        { label: '往后（延后）', value: 'after' },
-                      ]}
-                      tooltip="'往前'表示从基准时间往前推算，'往后'表示从基准时间往后推算"
-                    />
-                  </Col>
-                  <Col span={12}>
-                    <ProFormSelect
-                      name="advanceBookingReference"
-                      label="基准时间"
-                      options={[
-                        { label: '开始时间', value: 'start' },
-                        { label: '结束时间', value: 'end' },
-                      ]}
-                      tooltip="以班次的开始时间还是结束时间作为基准"
-                    />
-                  </Col>
-                </Row>
-              </Card>
-
-              {/* 取消规则 */}
-              <Card title={<><CloseCircleOutlined /><span style={{ marginLeft: 8 }}>取消规则</span></>} size="small">
-                <ProFormDigit
-                  name="cancelHours"
-                  label="最晚取消时间"
-                  min={0}
-                  max={168}
-                  fieldProps={{ addonAfter: '小时' }}
-                  tooltip="用户最晚可以在就诊前几小时取消预约，0表示不限制"
-                />
-              </Card>
-
-              {/* 签到规则 */}
-              <Card title={<><CheckCircleOutlined /><span style={{ marginLeft: 8 }}>签到规则</span></>} size="small">
-                <Row gutter={16}>
-                  <Col span={12}>
-                    <ProFormDigit
-                      name="signInAdvanceMinutes"
-                      label="提前签到时间"
-                      min={0}
-                      max={1440}
-                      fieldProps={{ addonAfter: '分钟' }}
-                      tooltip="用户最早可以在班次开始前几分钟签到"
-                    />
-                  </Col>
-                  <Col span={12}>
-                    <ProFormDigit
-                      name="signInLateMinutes"
-                      label="迟到签到时间"
-                      min={0}
-                      max={1440}
-                      fieldProps={{ addonAfter: '分钟' }}
-                      tooltip="用户最晚可以在班次开始后几分钟签到"
-                    />
-                  </Col>
-                </Row>
-              </Card>
-
-              {/* 频次限制 */}
-              <Card title={<><NumberOutlined /><span style={{ marginLeft: 8 }}>频次限制</span></>} size="small">
-                <Row gutter={16}>
-                  <Col span={8}>
-                    <ProFormDigit
-                      name="perDayLimit"
-                      label="每人每天最大预约数"
-                      min={1}
-                      max={10}
-                      tooltip="每个用户每天最多可以预约多少次"
-                    />
-                  </Col>
-                  <Col span={8}>
-                    <ProFormDigit
-                      name="perDoctorLimit"
-                      label="每人每医生最大预约数"
-                      min={1}
-                      max={5}
-                      tooltip="每个用户对同一个医生最多可以预约多少次"
-                    />
-                  </Col>
-                  <Col span={8}>
-                    <ProFormDigit
-                      name="noShowLimit"
-                      label="爽约次数限制"
-                      min={1}
-                      max={10}
-                      tooltip="用户爽约多少次后会被限制预约"
-                    />
-                  </Col>
-                </Row>
-              </Card>
-
-              {/* 黑名单规则 */}
-              <Card title={<><StopOutlined /><span style={{ marginLeft: 8 }}>黑名单规则</span></>} size="small">
-                <ProFormDigit
-                  name="blacklistDays"
-                  label="黑名单限制天数"
-                  min={1}
-                  max={365}
-                  fieldProps={{ addonAfter: '天' }}
-                  tooltip="用户被加入黑名单后，多少天内无法预约"
-                />
-              </Card>
-
-              {/* 通知策略 */}
-              <Card title={<><CalendarOutlined /><span style={{ marginLeft: 8 }}>通知策略</span></>} size="small">
-                <ProFormDigit
-                  name="appointmentReminderHours"
-                  label="预约提醒提前时间"
-                  min={1}
-                  max={72}
-                  fieldProps={{ addonAfter: '小时' }}
-                  tooltip="就诊前多少小时发送预约提醒通知"
-                />
-              </Card>
-            </Space>
-          </ProForm>
-        </div>
-      ),
-    },
-    {
-      key: 'hospital',
-      label: '医院信息',
-      children: (
-        <ProForm
-          key={loading ? 'hospital-loading' : 'hospital-loaded'}
-          onFinish={handleHospitalSubmit}
-          initialValues={hospitalInfo || {}}
-          submitter={{ searchConfig: { submitText: '保存设置' }, resetButtonProps: { style: { display: 'none' } } }}
-          disabled={!canEditSettings}
-        >
-          <ProFormText name="hospitalName" label="医院名称" />
-          <ProFormText name="hospitalLevel" label="医院等级" placeholder="如：三级甲等" />
-          <ProFormText name="address" label="医院地址" />
-          <ProFormText name="phone" label="联系电话" />
-          <ProFormText name="workTime" label="工作时间" placeholder="如：08:00-17:30" />
-          <ProFormText name="logo" label="Logo URL" />
-          <ProFormTextArea name="introduction" label="医院简介" fieldProps={{ rows: 4 }} />
-        </ProForm>
-      ),
-    },
-    {
-      key: 'bookingFields',
-      label: '预约字段',
-      children: (
-        <Table
-          columns={fieldColumns}
-          dataSource={bookingFields}
-          rowKey="field"
-          pagination={false}
-          size="middle"
-        />
-      ),
-    },
-    {
-      key: 'patientCard',
-      label: '就诊卡配置',
-      children: (
-        <ProForm
-          key={loading ? 'patientCard-loading' : 'patientCard-loaded'}
-          onFinish={handlePatientCardSubmit}
-          initialValues={{ ...DEFAULT_PATIENT_CARD_CONFIG, ...patientCardConfig }}
-          submitter={{ searchConfig: { submitText: '保存设置' }, resetButtonProps: { style: { display: 'none' } } }}
-          disabled={!canEditSettings}
-        >
-          <ProFormText
-            name="cardName"
-            label="名称修改"
-            placeholder="如：xxx就诊卡"
-            extra='修改前端"就诊卡"字样；所有涉及到"就诊卡"的地方都会修改'
-          />
-          <ProFormText
-            name="cardDescription"
-            label="描述文字"
-            placeholder="如：医道至朴.德泽万方"
-            fieldProps={{ maxLength: 16, showCount: true }}
-            extra='修改前端添加"就诊卡"时；下方的详细描述文字；限16字以内'
-          />
-          <ProFormDigit
-            name="maxCardsPerUser"
-            label="可建就诊卡数量"
-            min={1}
-            max={20}
-            fieldProps={{ precision: 0 }}
-          />
-          <ProFormSwitch name="showOnHomepage" label="首页是否展示" />
-        </ProForm>
-      ),
-    },
-    {
-      key: 'blacklist',
-      label: '黑名单管理',
-      children: (
-        <div>
-          <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
-            <Space>
-              <span>用户：</span>
-              <Input.Search
-                placeholder="搜索(用户昵称/电话/身份证)"
-                style={{ width: 280 }}
-                onSearch={(val) => {
-                  setBlacklistKeyword(val);
-                  loadBlacklist(1, val);
-                }}
-                allowClear
-              />
-            </Space>
-            {canAddBlacklist && (
-              <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddModalVisible(true)}>
-                添加黑名单
-              </Button>
-            )}
-          </div>
-          <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-            注：黑名单规则，如果只填关键词则判断就诊卡的手机号或者身份证，如果选择的是用户则该用户无法预约，选择门店只针对该门店不选择则针对所有门店
-          </Text>
-          <Table
-            columns={blacklistColumns}
-            dataSource={blacklist}
-            rowKey="id"
-            loading={blacklistLoading}
-            pagination={{
-              current: blacklistPage,
-              total: blacklistTotal,
-              pageSize: 20,
-              showSizeChanger: false,
-              onChange: (page) => loadBlacklist(page, blacklistKeyword),
-            }}
-            scroll={{ x: 1200 }}
-            size="middle"
-          />
-        </div>
-      ),
-    },
-    {
-      key: 'email',
-      label: '邮件配置',
-      children: (
-        <ProForm
-          key={loading ? 'email-loading' : 'email-loaded'}
-          onFinish={handleEmailConfigSubmit}
-          initialValues={{ ...DEFAULT_EMAIL_CONFIG, ...emailConfig }}
-          submitter={{ searchConfig: { submitText: '保存设置' }, resetButtonProps: { style: { display: 'none' } } }}
-          disabled={!canEditEmail}
-        >
-          <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-            配置SMTP服务器信息，用于发送邮件通知（如预约确认、就诊提醒等）。常见邮箱SMTP设置：QQ邮箱(smtp.qq.com:465)、163邮箱(smtp.163.com:465)、Gmail(smtp.gmail.com:587)
-          </Text>
-          <ProFormText
-            name="smtpHost"
-            label="SMTP服务器"
-            placeholder="如：smtp.qq.com"
-            rules={[{ required: true, message: '请输入SMTP服务器地址' }]}
-          />
-          <ProFormDigit
-            name="smtpPort"
-            label="SMTP端口"
-            placeholder="如：465 或 587"
-            min={1}
-            max={65535}
-            fieldProps={{ precision: 0 }}
-            rules={[{ required: true, message: '请输入SMTP端口' }]}
-          />
-          <ProFormText
-            name="smtpUser"
-            label="SMTP用户名"
-            placeholder="通常为邮箱地址"
-            rules={[{ required: true, message: '请输入SMTP用户名' }]}
-          />
-          <ProFormText.Password
-            name="smtpPassword"
-            label="SMTP密码"
-            placeholder="邮箱密码或授权码"
-            rules={[{ required: true, message: '请输入SMTP密码' }]}
-            extra="部分邮箱需要使用授权码而非登录密码"
-            fieldProps={{ autoComplete: 'new-password' }}
-          />
-          <ProFormSwitch
-            name="smtpSsl"
-            label="使用SSL"
-            extra="大多数邮箱服务器需要启用SSL"
-          />
-          <ProFormText
-            name="senderName"
-            label="发件人名称"
-            placeholder="如：XX医院"
-            rules={[{ required: true, message: '请输入发件人名称' }]}
-          />
-          <ProFormText
-            name="senderEmail"
-            label="发件人邮箱"
-            placeholder="如：noreply@hospital.com"
-            rules={[
-              { required: true, message: '请输入发件人邮箱' },
-              { type: 'email', message: '请输入正确的邮箱格式' },
-            ]}
-          />
-        </ProForm>
-      ),
-    },
-    {
-      key: 'wechat',
-      label: '微信配置',
-      children: (
-        <div>
-          <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-            每个门店可以配置独立的微信小程序。请先选择门店，然后配置对应的 AppID 和 Secret。在{' '}
-            <a href="https://mp.weixin.qq.com" target="_blank" rel="noopener noreferrer">
-              微信公众平台
-            </a>{' '}
-            → 开发管理 → 开发设置 中获取。
-          </Text>
-          
-          <div style={{ marginBottom: 24 }}>
-            <span style={{ marginRight: 8 }}>选择门店：</span>
-            <Select
-              style={{ width: 300 }}
-              placeholder="请选择门店"
-              value={selectedStoreId || undefined}
-              onChange={handleStoreChange}
-              options={stores.map((s) => ({ label: s.name, value: s.id }))}
-              allowClear
-            />
-          </div>
-
-          {selectedStoreId ? (
-            <Spin spinning={wechatLoading}>
-              <ProForm
-                key={selectedStoreId}
-                onFinish={handleStoreWechatConfigSubmit}
-                initialValues={storeWechatConfig || {}}
-                submitter={{ 
-                  searchConfig: { submitText: '保存设置' }, 
-                  resetButtonProps: { style: { display: 'none' } },
-                  submitButtonProps: { disabled: !canEditWechat }
-                }}
-              >
-                <ProFormText
-                  name="appId"
-                  label="小程序 AppID"
-                  placeholder="请输入小程序 AppID"
-                  rules={[{ required: true, message: '请输入小程序 AppID' }]}
-                  extra="在微信公众平台 → 开发管理 → 开发设置 中获取"
-                  disabled={!canEditWechat}
-                />
-                <ProFormText.Password
-                  name="appSecret"
-                  label="小程序 Secret"
-                  placeholder="请输入小程序 Secret"
-                  rules={[{ required: true, message: '请输入小程序 Secret' }]}
-                  extra="Secret 是敏感信息，请妥善保管（已保存的密钥显示为 ******）"
-                  fieldProps={{ autoComplete: 'new-password' }}
-                  disabled={!canEditWechat}
-                />
-                <ProFormText
-                  name="mchId"
-                  label="商户号 (选填)"
-                  placeholder="请输入微信支付商户号"
-                  extra="如需使用微信支付功能，请填写商户号"
-                  disabled={!canEditWechat}
-                />
-                <ProFormText.Password
-                  name="apiKey"
-                  label="API 密钥 (选填)"
-                  placeholder="请输入微信支付 API 密钥"
-                  extra="如需使用微信支付功能，请填写 API 密钥"
-                  fieldProps={{ autoComplete: 'new-password' }}
-                  disabled={!canEditWechat}
-                />
-                <ProFormText
-                  name="notifyUrl"
-                  label="支付回调地址 (选填)"
-                  placeholder="如：https://your-domain.com/api/v1/wechat/pay/notify"
-                  extra="微信支付结果通知的回调地址"
-                  disabled={!canEditWechat}
-                />
-                {!canEditWechat && (
-                  <Text type="warning" style={{ display: 'block', marginTop: 16 }}>
-                    您没有修改微信配置的权限，仅可查看
-                  </Text>
-                )}
-              </ProForm>
-            </Spin>
-          ) : (
-            <div style={{ textAlign: 'center', padding: '40px 0', color: '#999' }}>
-              请先选择门店以查看或编辑微信配置
-            </div>
-          )}
-        </div>
-      ),
-    },
-    {
-      key: 'image',
-      label: '图片配置',
-      children: (
-        <ProForm
-          key={loading ? 'image-loading' : 'image-loaded'}
-          onFinish={handleImageConfigSubmit}
-          initialValues={{ ...DEFAULT_IMAGE_CONFIG, ...imageConfig }}
-          submitter={{ searchConfig: { submitText: '保存设置' }, resetButtonProps: { style: { display: 'none' } } }}
-          disabled={!canEditImage}
-        >
-          <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-            配置图片上传时的缩略图生成规则和压缩质量。上传时可选择是否生成缩略图。
-          </Text>
-          <ProFormDigit
-            name="compressQuality"
-            label="压缩质量"
-            min={1}
-            max={100}
-            fieldProps={{ 
-              precision: 0,
-              addonAfter: '%',
-            }}
-            extra="图片压缩质量，1-100，值越高质量越好但文件越大，推荐 75-90"
-          />
-          <ProFormList
-            name="thumbnailSizes"
-            label="缩略图尺寸配置"
-            creatorButtonProps={{
-              creatorButtonText: '添加尺寸',
-              icon: <PlusOutlined />,
-            }}
-            copyIconProps={false}
-            deleteIconProps={{
-              Icon: DeleteOutlined,
-              tooltipText: '删除',
-            }}
-            itemRender={({ listDom, action }) => (
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                {listDom}
-                {action}
-              </div>
-            )}
-          >
-            <Space align="baseline">
-              <ProFormText
-                name="name"
-                placeholder="名称，如 small"
-                rules={[{ required: true, message: '请输入名称' }]}
-                width="sm"
-              />
-              <ProFormDigit
-                name="width"
-                placeholder="宽度"
-                min={1}
-                max={4096}
-                fieldProps={{ precision: 0, addonAfter: 'px' }}
-                rules={[{ required: true, message: '请输入宽度' }]}
-                width="sm"
-              />
-              <ProFormDigit
-                name="height"
-                placeholder="高度"
-                min={1}
-                max={4096}
-                fieldProps={{ precision: 0, addonAfter: 'px' }}
-                rules={[{ required: true, message: '请输入高度' }]}
-                width="sm"
-              />
-            </Space>
-          </ProFormList>
-          <Text type="secondary">
-            提示：缩略图会等比例缩放，保持原图宽高比，不会拉伸变形。宽度和高度表示缩略图的最大尺寸。
-          </Text>
-        </ProForm>
-      ),
-    },
-    {
-      key: 'sms',
-      label: '短信通知',
-      children: (
-        <ProForm
-          key={loading ? 'sms-loading' : 'sms-loaded'}
-          onFinish={handleSmsPolicySubmit}
-          initialValues={{ ...DEFAULT_SMS_POLICY, ...smsConfig }}
-          submitter={{ searchConfig: { submitText: '保存设置' }, resetButtonProps: { style: { display: 'none' } } }}
-          disabled={!canEditSms}
-        >
-          <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-            配置短信验证码和发送频率的相关参数。修改后立即生效。
-          </Text>
-          <ProFormDigit
-            name="codeExpireSeconds"
-            label="验证码有效期"
-            min={60}
-            max={600}
-            fieldProps={{ precision: 0, addonAfter: '秒' }}
-            extra="用户收到的短信验证码的有效时长，范围 60-600 秒"
-            rules={[{ required: true, message: '请输入验证码有效期' }]}
-          />
-          <ProFormDigit
-            name="sendIntervalSeconds"
-            label="短信发送间隔"
-            min={30}
-            max={300}
-            fieldProps={{ precision: 0, addonAfter: '秒' }}
-            extra="同一手机号两次发送短信的最短间隔，范围 30-300 秒"
-            rules={[{ required: true, message: '请输入短信发送间隔' }]}
-          />
-        </ProForm>
-      ),
-    },
-    {
-      key: 'security',
-      label: '安全策略',
-      children: (
-        <ProForm
-          key={loading ? 'security-loading' : 'security-loaded'}
-          onFinish={handleSecuritySubmit}
-          initialValues={{ ...DEFAULT_SECURITY_CONFIG, ...securityConfig }}
-          submitter={{ searchConfig: { submitText: '保存设置' }, resetButtonProps: { style: { display: 'none' } } }}
-          disabled={!canEditSecurity}
-        >
-          <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-            配置认证令牌、限流、登录锁定等安全相关参数。修改后立即生效（限流参数需重启服务）。
-          </Text>
-          <Card title="令牌配置" size="small" style={{ marginBottom: 16 }}>
-            <Row gutter={24}>
-              <Col span={8}>
-                <ProFormDigit
-                  name="accessTokenExpireMinutes"
-                  label="AccessToken 有效期"
-                  min={5}
-                  max={1440}
-                  fieldProps={{ precision: 0, addonAfter: '分钟' }}
-                  rules={[{ required: true, message: '请输入有效期' }]}
-                />
-              </Col>
-              <Col span={8}>
-                <ProFormDigit
-                  name="refreshTokenExpireDays"
-                  label="RefreshToken 有效期"
-                  min={1}
-                  max={90}
-                  fieldProps={{ precision: 0, addonAfter: '天' }}
-                  rules={[{ required: true, message: '请输入有效期' }]}
-                />
-              </Col>
-              <Col span={8}>
-                <ProFormText
-                  name="defaultPassword"
-                  label="新建管理员默认密码"
-                  placeholder="请输入默认密码"
-                  fieldProps={{ type: 'password' }}
-                />
-              </Col>
-            </Row>
-          </Card>
-          <Card title="限流配置" size="small" style={{ marginBottom: 16 }}>
-            <Row gutter={24}>
-              <Col span={8}>
-                <ProFormDigit
-                  name="rateLimitPerMinute"
-                  label="每分钟请求上限"
-                  min={10}
-                  max={10000}
-                  fieldProps={{ precision: 0 }}
-                  extra="修改后需重启服务生效"
-                  rules={[{ required: true, message: '请输入限流值' }]}
-                />
-              </Col>
-              <Col span={8}>
-                <ProFormDigit
-                  name="rateLimitPerSecond"
-                  label="每秒请求上限"
-                  min={1}
-                  max={1000}
-                  fieldProps={{ precision: 0 }}
-                  extra="修改后需重启服务生效"
-                  rules={[{ required: true, message: '请输入限流值' }]}
-                />
-              </Col>
-            </Row>
-          </Card>
-          <Card title="登录安全" size="small">
-            <Row gutter={24}>
-              <Col span={8}>
-                <ProFormDigit
-                  name="loginFailureLockCount"
-                  label="登录失败锁定次数"
-                  min={0}
-                  max={20}
-                  fieldProps={{ precision: 0 }}
-                  extra="0 表示不锁定"
-                />
-              </Col>
-              <Col span={8}>
-                <ProFormDigit
-                  name="sessionTimeoutMinutes"
-                  label="会话超时时间"
-                  min={5}
-                  max={1440}
-                  fieldProps={{ precision: 0, addonAfter: '分钟' }}
-                />
-              </Col>
-            </Row>
-          </Card>
-        </ProForm>
-      ),
-    },
-    {
-      key: 'sourceRelease',
-      label: '号源释放',
-      children: (
-        <ProForm
-          key={loading ? 'source-release-loading' : 'source-release-loaded'}
-          onFinish={handleSourceReleaseSubmit}
-          initialValues={{ ...DEFAULT_SOURCE_RELEASE_CONFIG, ...sourceReleaseConfig }}
-          submitter={{ searchConfig: { submitText: '保存设置' }, resetButtonProps: { style: { display: 'none' } } }}
-          disabled={!canEditSourceRelease}
-        >
-          <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-            配置号源锁定、自动释放、超额预约等策略参数。修改后立即生效。
-          </Text>
-          <Card title="号源锁定" size="small" style={{ marginBottom: 16 }}>
-            <Row gutter={24}>
-              <Col span={8}>
-                <ProFormDigit
-                  name="lockTimeoutMinutes"
-                  label="锁定超时时间"
-                  min={1}
-                  max={60}
-                  fieldProps={{ precision: 0, addonAfter: '分钟' }}
-                  extra="患者选号后未完成支付，超时自动释放"
-                  rules={[{ required: true, message: '请输入超时时间' }]}
-                />
-              </Col>
-              <Col span={8}>
-                <ProFormDigit
-                  name="autoCancelUnpaidMinutes"
-                  label="未支付自动取消"
-                  min={5}
-                  max={1440}
-                  fieldProps={{ precision: 0, addonAfter: '分钟' }}
-                  extra="预约成功但未支付，超时自动取消"
-                />
-              </Col>
-              <Col span={8}>
-                <ProFormDigit
-                  name="noShowAutoMarkHours"
-                  label="爽约自动标记"
-                  min={1}
-                  max={168}
-                  fieldProps={{ precision: 0, addonAfter: '小时' }}
-                  extra="就诊时间后超过此时间自动标记为爽约"
-                />
-              </Col>
-            </Row>
-          </Card>
-          <Card title="批量释放" size="small" style={{ marginBottom: 16 }}>
-            <Row gutter={24}>
-              <Col span={8}>
-                <ProFormSwitch
-                  name="batchReleaseEnabled"
-                  label="启用批量释放"
-                />
-              </Col>
-              <Col span={8}>
-                <ProFormDigit
-                  name="batchReleaseDays"
-                  label="释放提前天数"
-                  min={1}
-                  max={30}
-                  fieldProps={{ precision: 0, addonAfter: '天' }}
-                  extra="提前多少天的号源自动释放"
-                />
-              </Col>
-              <Col span={8}>
-                <ProFormText
-                  name="batchReleaseTime"
-                  label="释放时间点"
-                  placeholder="08:00"
-                  extra="每天几点执行批量释放，格式 HH:mm"
-                />
-              </Col>
-            </Row>
-          </Card>
-          <Card title="超额预约" size="small">
-            <Row gutter={24}>
-              <Col span={8}>
-                <ProFormSwitch
-                  name="allowOverbooking"
-                  label="允许超额预约"
-                />
-              </Col>
-              <Col span={8}>
-                <ProFormDigit
-                  name="overbookingLimit"
-                  label="超额预约上限"
-                  min={0}
-                  max={50}
-                  fieldProps={{ precision: 0 }}
-                  extra="0 表示不允许超额"
-                />
-              </Col>
-            </Row>
-          </Card>
-        </ProForm>
-      ),
-    },
-  ];
+  // ---- Tab 路由 ----
 
   const handleTabChange = (key: string) => {
     setActiveTab(key);
     const targetPath = TAB_KEY_TO_PATH[key] || '/system/config/hospital-info';
-    if (targetPath !== location.pathname) {
-      history.replace(targetPath);
-    }
+    if (targetPath !== location.pathname) history.replace(targetPath);
   };
+
+  // ---- Tab 组件装配 ----
+
+  const items = [
+    {
+      key: 'booking', label: '预约规则',
+      children: <BookingTab bookingSettings={bookingSettings} selectedBookingStoreId={selectedBookingStoreId} stores={stores} onStoreChange={handleBookingStoreChange} onSubmit={handleBookingSubmit} canEdit={canEditSettings} />,
+    },
+    {
+      key: 'hospital', label: '医院信息',
+      children: <HospitalTab hospitalInfo={hospitalInfo} onSubmit={handleHospitalSubmit} canEdit={canEditSettings} loading={loading} />,
+    },
+    {
+      key: 'bookingFields', label: '预约字段',
+      children: <BookingFieldsTab bookingFields={bookingFields} onFieldChange={handleFieldChange} canEdit={canEditSettings} />,
+    },
+    {
+      key: 'patientCard', label: '就诊卡配置',
+      children: <PatientCardTab patientCardConfig={patientCardConfig} onSubmit={handlePatientCardSubmit} canEdit={canEditSettings} loading={loading} />,
+    },
+    {
+      key: 'blacklist', label: '黑名单管理',
+      children: <BlacklistTab blacklist={blacklist} blacklistTotal={blacklistTotal} blacklistPage={blacklistPage} blacklistKeyword={blacklistKeyword} blacklistLoading={blacklistLoading} onLoadBlacklist={loadBlacklist} onAddBlacklist={handleAddBlacklist} onRemoveBlacklist={handleRemoveBlacklist} canAdd={canAddBlacklist} canDelete={canDeleteBlacklist} stores={stores} addModalVisible={addModalVisible} onAddModalChange={setAddModalVisible} />,
+    },
+    {
+      key: 'email', label: '邮件配置',
+      children: <EmailTab emailConfig={emailConfig} onSubmit={handleEmailConfigSubmit} canEdit={canEditEmail} loading={loading} />,
+    },
+    {
+      key: 'wechat', label: '微信配置',
+      children: <WechatTab selectedStoreId={selectedStoreId} stores={stores} storeWechatConfig={storeWechatConfig} wechatLoading={wechatLoading} onStoreChange={handleStoreChange} onSubmit={handleStoreWechatConfigSubmit} canEdit={canEditWechat} />,
+    },
+    {
+      key: 'image', label: '图片配置',
+      children: <ImageTab imageConfig={imageConfig} onSubmit={handleImageConfigSubmit} canEdit={canEditImage} loading={loading} />,
+    },
+    {
+      key: 'sms', label: '短信通知',
+      children: <SmsTab smsConfig={smsConfig} onSubmit={handleSmsPolicySubmit} canEdit={canEditSms} loading={loading} />,
+    },
+    {
+      key: 'security', label: '安全策略',
+      children: <SecurityTab securityConfig={securityConfig} onSubmit={handleSecuritySubmit} canEdit={canEditSecurity} loading={loading} />,
+    },
+    {
+      key: 'sourceRelease', label: '号源释放',
+      children: <SourceReleaseTab sourceReleaseConfig={sourceReleaseConfig} onSubmit={handleSourceReleaseSubmit} canEdit={canEditSourceRelease} loading={loading} />,
+    },
+  ];
 
   const visibleItems = items.filter((item) => {
     if (item.key === 'booking') return canViewBooking;
@@ -1414,22 +400,14 @@ const SettingsPage: React.FC = () => {
   const activeItem = visibleItems.find((item) => item.key === activeTab) ?? visibleItems[0];
 
   useEffect(() => {
-    if (!visibleItems.length) {
-      return;
-    }
-    if (!visibleItems.some((item) => item.key === activeTab)) {
-      handleTabChange(visibleItems[0].key);
-    }
+    if (!visibleItems.length) return;
+    if (!visibleItems.some((item) => item.key === activeTab)) handleTabChange(visibleItems[0].key);
   }, [activeTab, visibleItems]);
 
   return (
     <PageContainer
       title={isLegacySettingsRoute ? undefined : TAB_KEY_TO_TITLE[activeTab] || '配置中心'}
-      subTitle={
-        isLegacySettingsRoute
-          ? undefined
-          : '配置中心按职责拆分为独立菜单入口，旧版聚合设置页仅保留兼容跳转。'
-      }
+      subTitle={isLegacySettingsRoute ? undefined : '配置中心按职责拆分为独立菜单入口，旧版聚合设置页仅保留兼容跳转。'}
     >
       <Spin spinning={loading}>
         <Card>

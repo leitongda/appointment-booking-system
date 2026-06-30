@@ -17,7 +17,8 @@ const deviceSizes: Record<string, { width: number; height: number; label: string
 
 /** 页面预览 */
 const LowCodePreview: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const params = useParams() as { id?: string };
+  const id = params.id;
   const [page, setPage] = useState<LowCodePage | null>(null);
   const [loading, setLoading] = useState(true);
   const [device, setDevice] = useState<string>('mobile');

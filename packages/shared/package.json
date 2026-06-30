@@ -17,6 +17,9 @@
     "./miniapp/components/*": "./src/miniapp/components/*.tsx",
     "./miniapp/stubs/*": "./src/miniapp/stubs/*.ts",
     "./components": "./src/components/index.ts",
+    "./components/ImageUpload": "./src/components/ImageUpload/index.tsx",
+    "./components/ImageUpload/types": "./src/components/ImageUpload/types.ts",
+    "./components/ImageUpload/ImageCropper": "./src/components/ImageUpload/ImageCropper.tsx",
     "./components/*": "./src/components/*/index.tsx"
   },
   "scripts": {
@@ -30,6 +33,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
+    "@types/react": "^18.3.0",
     "openapi-typescript": "^7.13.0",
     "typescript": "^5.3.3"
   },
