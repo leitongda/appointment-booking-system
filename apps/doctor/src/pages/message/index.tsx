@@ -4,12 +4,12 @@ import { BellOutlined, CalendarOutlined, MedicineBoxOutlined, NotificationOutlin
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { messageApi } from '@hospital/api';
 import type { Message, UnreadCount } from '@hospital/shared';
-import { DOCTOR_MESSAGE_TABS } from '@hospital/shared';
+import { DOCTOR_MESSAGE_TABS, type DoctorMessageTabKey } from '@hospital/shared';
 import { useWebSocket, ConnectionStatus } from '@/hooks';
 import { ConnectionTag, ConnectionBanner } from '@/components/ConnectionStatus';
 
 const MessagePage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState('all');
+  const [activeTab, setActiveTab] = useState<DoctorMessageTabKey>('all');
   const [messages, setMessages] = useState<Message[]>([]);
   const [unreadCount, setUnreadCount] = useState<UnreadCount | null>(null);
   const [loading, setLoading] = useState(false);
@@ -29,24 +29,21 @@ const MessagePage: React.FC = () => {
     }
     return '';
   }, []);
-  const userType = 'doctor';
 
   const loadUnreadCount = useCallback(async () => {
     try {
-      const count = await messageApi.getUnreadCount(doctorId, userType);
+      const count = await messageApi.getUnifiedUnreadCount();
       setUnreadCount(count);
     } catch (error) {
       console.error('获取未读数失败', error);
     }
-  }, [doctorId]);
+  }, []);
 
   const loadMessages = useCallback(async (pageNum: number) => {
     setLoading(true);
     try {
       const messageType = activeTab === 'all' ? undefined : activeTab;
-      const result = await messageApi.getList({
-        userId: doctorId,
-        userType,
+      const result = await messageApi.getUnifiedList({
         messageType,
         page: pageNum,
         pageSize: 20,
@@ -60,7 +57,7 @@ const MessagePage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, doctorId]);
+  }, [activeTab]);
 
   // WebSocket 连接
   const { status: wsStatus, reconnect } = useWebSocket({
@@ -89,8 +86,8 @@ const MessagePage: React.FC = () => {
   const handleRead = async (msg: Message) => {
     if (msg.isRead === 0) {
       try {
-        await messageApi.markAsRead(msg.id, doctorId);
-        setMessages(prev => 
+        await messageApi.markAsReadUnified(msg.id);
+        setMessages(prev =>
           prev.map(m => m.id === msg.id ? { ...m, isRead: 1 } : m)
         );
         loadUnreadCount();
@@ -109,7 +106,7 @@ const MessagePage: React.FC = () => {
       onOk: async () => {
         try {
           const messageType = activeTab === 'all' ? undefined : activeTab;
-          await messageApi.markAllAsRead(doctorId, userType, messageType);
+          await messageApi.markAllAsReadUnified(messageType);
           setMessages(prev => prev.map(m => ({ ...m, isRead: 1 })));
           loadUnreadCount();
           antMessage.success('已全部标记为已读');
@@ -122,7 +119,7 @@ const MessagePage: React.FC = () => {
 
   const handleDelete = async (messageId: string) => {
     try {
-      await messageApi.delete(messageId, doctorId);
+      await messageApi.deleteUnified(messageId);
       setMessages(prev => prev.filter(m => m.id !== messageId));
       antMessage.success('删除成功');
     } catch (error) {
@@ -200,7 +197,7 @@ const MessagePage: React.FC = () => {
       <ConnectionBanner status={wsStatus} onReconnect={reconnect} />
       <Tabs
         activeKey={activeTab} 
-        onChange={setActiveTab}
+        onChange={(key) => setActiveTab(key as DoctorMessageTabKey)}
         items={tabItems}
       />
       

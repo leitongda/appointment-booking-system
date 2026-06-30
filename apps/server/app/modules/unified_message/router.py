@@ -145,6 +145,35 @@ async def mark_all_as_read(
     return {"message": f"已标记 {count} 条消息为已读"}
 
 
+@router.delete("/{message_id}", summary="删除消息")
+async def delete_message(
+    message_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """删除消息（从 JWT 自动提取用户信息）"""
+    user_id, _ = _get_user_info(current_user)
+
+    service = UnifiedMessageService(db)
+    success = await service.delete(message_id, user_id)
+    if not success:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="消息不存在")
+    return {"message": "删除成功"}
+
+
+@router.delete("/clear/read", summary="清空已读消息")
+async def clear_read_messages(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """清空已读消息（从 JWT 自动提取用户信息）"""
+    user_id, user_type = _get_user_info(current_user)
+
+    service = UnifiedMessageService(db)
+    count = await service.delete_all_read(user_id, user_type)
+    return {"message": f"已删除 {count} 条已读消息"}
+
+
 # ========== 模板管理 ==========
 
 @router.get(
@@ -308,3 +337,19 @@ async def delete_rule(
     if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="规则不存在")
     return {"message": "删除成功"}
+
+
+@router.get("/{message_id}", response_model=MessageResponse, summary="获取消息详情")
+async def get_message(
+    message_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """获取消息详情（从 JWT 自动提取用户信息）"""
+    user_id, _ = _get_user_info(current_user)
+
+    service = UnifiedMessageService(db)
+    message = await service.get_by_id(message_id, user_id)
+    if not message:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="消息不存在")
+    return MessageResponse.model_validate(message)

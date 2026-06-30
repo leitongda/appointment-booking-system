@@ -4,14 +4,14 @@ import { history } from 'umi';
 import { motion } from 'framer-motion';
 import { messageApi } from '@hospital/api';
 import type { Message, UnreadCount } from '@hospital/shared';
-import { PATIENT_MESSAGE_TABS } from '@hospital/shared';
+import { PATIENT_MESSAGE_TABS, type PatientMessageTabKey } from '@hospital/shared';
 import { Card } from '@/components/ui';
 import { fadeInUp, stagger } from '@/components/ui/animations';
 import { announce } from '@/components/ui/toast-live';
 import { usePatientWebSocket } from '@/hooks/usePatientWebSocket';
 
 const MessagePage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState('all');
+  const [activeTab, setActiveTab] = useState<PatientMessageTabKey>('all');
   const [messages, setMessages] = useState<Message[]>([]);
   const [unreadCount, setUnreadCount] = useState<UnreadCount | null>(null);
   const [loading, setLoading] = useState(false);
@@ -19,7 +19,6 @@ const MessagePage: React.FC = () => {
   const [page, setPage] = useState(1);
   
   const userId = localStorage.getItem('userId') || '';
-  const userType = 'patient';
 
   // WebSocket 实时消息推送
   const handleNewMessage = useCallback((data: any) => {
@@ -44,7 +43,7 @@ const MessagePage: React.FC = () => {
 
   const loadUnreadCount = async () => {
     try {
-      const count = await messageApi.getUnreadCount(userId, userType);
+      const count = await messageApi.getUnifiedUnreadCount();
       setUnreadCount(count);
     } catch (error) {
       console.error('获取未读数失败', error);
@@ -54,12 +53,10 @@ const MessagePage: React.FC = () => {
   const loadMessages = async (pageNum: number, reset: boolean = false) => {
     if (loading) return;
     setLoading(true);
-    
+
     try {
       const messageType = activeTab === 'all' ? undefined : activeTab;
-      const result = await messageApi.getList({
-        userId,
-        userType,
+      const result = await messageApi.getUnifiedList({
         messageType,
         page: pageNum,
         pageSize: 20,
@@ -92,8 +89,8 @@ const MessagePage: React.FC = () => {
   const handleRead = async (message: Message) => {
     if (message.isRead === 0) {
       try {
-        await messageApi.markAsRead(message.id, userId);
-        setMessages(prev => 
+        await messageApi.markAsReadUnified(message.id);
+        setMessages(prev =>
           prev.map(m => m.id === message.id ? { ...m, isRead: 1 } : m)
         );
         loadUnreadCount();
@@ -114,7 +111,7 @@ const MessagePage: React.FC = () => {
 
   const handleDelete = async (messageId: string) => {
     try {
-      await messageApi.delete(messageId, userId);
+      await messageApi.deleteUnified(messageId);
       setMessages(prev => prev.filter(m => m.id !== messageId));
       Toast.show({ content: '删除成功' });
     } catch (error) {
@@ -130,7 +127,7 @@ const MessagePage: React.FC = () => {
     if (result) {
       try {
         const messageType = activeTab === 'all' ? undefined : activeTab;
-        await messageApi.markAllAsRead(userId, userType, messageType);
+        await messageApi.markAllAsReadUnified(messageType);
         setMessages(prev => prev.map(m => ({ ...m, isRead: 1 })));
         loadUnreadCount();
         Toast.show({ content: '已全部标记为已读' });
@@ -218,7 +215,7 @@ const MessagePage: React.FC = () => {
         </div>
         <Tabs
           activeKey={activeTab}
-          onChange={setActiveTab}
+          onChange={(key) => setActiveTab(key as PatientMessageTabKey)}
           style={{
             '--active-line-color': '#0052FF',
             '--active-title-color': '#0052FF',

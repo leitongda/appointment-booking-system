@@ -539,6 +539,28 @@ class UnifiedMessageService:
         await self.db.commit()
         return result.rowcount
 
+    async def get_by_id(self, message_id: str, user_id: str) -> NotificationRecipient | None:
+        """获取单条消息详情
+
+        Args:
+            message_id: 消息 ID
+            user_id: 用户 ID（用于权限校验）
+
+        Returns:
+            消息对象，不存在或无权限返回 None
+        """
+        from sqlalchemy import select
+
+        stmt = select(NotificationRecipient).where(
+            and_(
+                NotificationRecipient.id == message_id,
+                NotificationRecipient.user_id == user_id,
+                NotificationRecipient.is_read != READ_STATUS_DELETED,
+            )
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
     # -----------------------------------------------------------------------
     # 内部方法
     # -----------------------------------------------------------------------

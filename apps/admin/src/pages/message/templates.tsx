@@ -8,7 +8,20 @@ import { createListRequest } from '@/utils/proTable';
 import { useListPage } from '@/hooks/useListPage';
 import { OperationGroup, OperationButton, CreateButton } from '@/components/ListOperations';
 import { useDict } from '@/hooks/useDict';
-import type { UnifiedTemplate } from '@hospital/shared';
+import type { MessageType, UnifiedTemplate } from '@hospital/shared';
+
+const MESSAGE_TYPES: readonly MessageType[] = [
+  'appointment',
+  'consultation',
+  'schedule',
+  'system',
+  'stop_clinic',
+  'feedback',
+];
+
+const toMessageType = (value?: string): MessageType => (
+  value && MESSAGE_TYPES.includes(value as MessageType) ? value as MessageType : 'system'
+);
 
 const UnifiedTemplatesPage: React.FC = () => {
   const { actionRef, message, access } = useListPage();
@@ -83,7 +96,7 @@ const UnifiedTemplatesPage: React.FC = () => {
         userType: 'patient',
         title: tpl?.subjectTemplate || `测试: ${tpl?.name}`,
         content: tpl?.textTemplate || '',
-        messageType: tpl?.messageType || 'system',
+        messageType: toMessageType(tpl?.messageType),
       });
       message.success('测试发送成功');
       setTestSendVisible(false);

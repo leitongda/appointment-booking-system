@@ -1,10 +1,18 @@
 import request from '../request';
-import type { Message, UnreadCount, MessageTemplate, UnifiedTemplate, RecipientRule, PageResult } from '@hospital/shared';
+import type {
+  Message,
+  MessageType,
+  UnreadCount,
+  MessageTemplate,
+  UnifiedTemplate,
+  RecipientRule,
+  PageResult,
+} from '@hospital/shared';
 
 export interface MessageListParams {
   userId?: string;
   userType?: string;
-  messageType?: string;
+  messageType?: MessageType;
   isRead?: number;
   keyword?: string;
   page?: number;
@@ -12,7 +20,7 @@ export interface MessageListParams {
 }
 
 export interface UnifiedMessageListParams {
-  messageType?: string;
+  messageType?: MessageType;
   isRead?: number;
   page?: number;
   pageSize?: number;
@@ -28,7 +36,7 @@ export interface UnifiedSendParams {
   recipientOpenid?: string;
   templateCode: string;
   variables?: Record<string, any>;
-  messageType: string;
+  messageType: MessageType;
   relatedId?: string;
   channels?: string[];
   priority?: number;
@@ -42,7 +50,7 @@ export interface MessageCreateData {
   userType: string;
   title: string;
   content?: string;
-  messageType?: string;
+  messageType?: MessageType;
   relatedId?: string;
   extraData?: Record<string, any>;
 }
@@ -52,7 +60,7 @@ export interface MessageBatchCreateData {
   userType: string;
   title: string;
   content?: string;
-  messageType?: string;
+  messageType?: MessageType;
   relatedId?: string;
 }
 
@@ -106,7 +114,7 @@ export const messageApi = {
   },
 
   // 标记全部已读
-  markAllAsRead: (userId: string, userType: string, messageType?: string): Promise<void> => {
+  markAllAsRead: (userId: string, userType: string, messageType?: MessageType): Promise<void> => {
     return request.post('/messages/read-all', null, {
       params: { user_id: userId, user_type: userType, message_type: messageType }
     });
@@ -163,7 +171,7 @@ export const messageApi = {
   },
 
   // 统一模板 API
-  getUnifiedTemplates: (params?: { messageType?: string; status?: number; page?: number; pageSize?: number }): Promise<UnifiedTemplate[]> => {
+  getUnifiedTemplates: (params?: { messageType?: MessageType; status?: number; page?: number; pageSize?: number }): Promise<UnifiedTemplate[]> => {
     return request.get('/unified-messages/templates', {
       params: {
         message_type: params?.messageType,
@@ -228,7 +236,7 @@ export const messageApi = {
   },
 
   // 全部标记已读（统一端点）
-  markAllAsReadUnified: (messageType?: string): Promise<void> => {
+  markAllAsReadUnified: (messageType?: MessageType): Promise<void> => {
     return request.post('/unified-messages/read-all', null, {
       params: { message_type: messageType }
     });
@@ -258,7 +266,7 @@ export const messageApi = {
 
   // 批量发送（通过规则）
   sendBatchByRule: (ruleId: string, data: {
-    messageType: string;
+    messageType: MessageType;
     templateCode?: string;
     title?: string;
     content?: string;
@@ -267,5 +275,20 @@ export const messageApi = {
     priority?: number;
   }): Promise<{ message: string }> => {
     return request.post('/unified-messages/send-batch', data, { params: { rule_id: ruleId } });
+  },
+
+  // 删除消息（统一端点，自动从 JWT 提取用户信息）
+  deleteUnified: (messageId: string): Promise<void> => {
+    return request.delete(`/unified-messages/${messageId}`);
+  },
+
+  // 清空已读消息（统一端点，自动从 JWT 提取用户信息）
+  clearReadUnified: (): Promise<void> => {
+    return request.delete('/unified-messages/clear/read');
+  },
+
+  // 获取消息详情（统一端点，自动从 JWT 提取用户信息）
+  getDetailUnified: (messageId: string): Promise<Message> => {
+    return request.get(`/unified-messages/${messageId}`);
   },
 };

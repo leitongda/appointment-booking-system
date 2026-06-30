@@ -20,7 +20,7 @@ export const MessageBadge: React.FC<MessageBadgeProps> = ({
   const loadUnreadCount = useCallback(async () => {
     if (!effectiveUserId) return;
     try {
-      const count = await messageApi.getUnreadCount(effectiveUserId, 'patient');
+      const count = await messageApi.getUnifiedUnreadCount();
       setUnreadCount(count?.total || 0);
     } catch {
       // silent

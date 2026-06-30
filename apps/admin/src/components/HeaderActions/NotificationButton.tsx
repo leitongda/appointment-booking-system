@@ -52,7 +52,7 @@ export const NotificationButton: React.FC = () => {
   const fetchUnreadCount = useCallback(async () => {
     if (!currentUser?.id) return;
     try {
-      const res = await messageApi.getUnreadCount(currentUser.id, 'admin');
+      const res = await messageApi.getUnifiedUnreadCount();
       setUnreadCount(res?.total || 0);
     } catch (error) {
       console.error('获取未读消息数量失败:', error);
@@ -63,9 +63,7 @@ export const NotificationButton: React.FC = () => {
     if (!currentUser?.id) return;
     setLoading(true);
     try {
-      const res = await messageApi.getList({
-        userId: currentUser.id,
-        userType: 'admin',
+      const res = await messageApi.getUnifiedList({
         page: 1,
         pageSize: 10,
       });
@@ -93,7 +91,7 @@ export const NotificationButton: React.FC = () => {
     event?.stopPropagation();
     if (!currentUser?.id) return;
     try {
-      await messageApi.markAsRead(messageId, currentUser.id);
+      await messageApi.markAsReadUnified(messageId);
       fetchMessages();
       fetchUnreadCount();
     } catch (error) {
@@ -104,7 +102,7 @@ export const NotificationButton: React.FC = () => {
   const handleMarkAllAsRead = useCallback(async () => {
     if (!currentUser?.id) return;
     try {
-      await messageApi.markAllAsRead(currentUser.id, 'admin');
+      await messageApi.markAllAsReadUnified();
       message.success('已全部标记为已读');
       fetchMessages();
       fetchUnreadCount();
@@ -126,7 +124,7 @@ export const NotificationButton: React.FC = () => {
     event?.stopPropagation();
     if (!currentUser?.id) return;
     try {
-      await messageApi.delete(messageId, currentUser.id);
+      await messageApi.deleteUnified(messageId);
       fetchMessages();
       fetchUnreadCount();
       message.success('删除成功');

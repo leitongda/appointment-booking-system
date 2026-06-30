@@ -195,7 +195,7 @@ const ProfilePage = () => {
       const [appointmentsResult, patients, unreadCount] = await Promise.all([
         appointmentApi.getList({ pageSize: 1 }).catch(() => ({ total: 0, data: [] })),
         userApi.getPatients().catch(() => []),
-        messageApi.getUnreadCount(user?.id || '', 'patient').catch(() => ({ total: 0 })),
+        messageApi.getUnifiedUnreadCount().catch(() => ({ total: 0 })),
       ]);
 
       setStats({

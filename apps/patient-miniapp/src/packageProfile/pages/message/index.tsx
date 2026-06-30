@@ -69,16 +69,14 @@ const MessagePage = () => {
   // Tab 内容区下拉刷新
   const handleRefresh = async () => {
     if (!userId) return;
-    await Promise.all([resetAndLoad(), loadUnreadCount(userId)]);
+    await Promise.all([resetAndLoad(), loadUnreadCount()]);
   };
 
   const loadMessages = useCallback(async () => {
     if (!userId) return;
     setLoading(true);
     try {
-      const params: { userId?: string; userType?: string; page: number; pageSize: number; messageType?: string } = {
-        userId,
-        userType: 'patient',
+      const params: { page: number; pageSize: number; messageType?: MessageType } = {
         page: 1,
         pageSize: PAGE_SIZE,
       };
@@ -87,7 +85,7 @@ const MessagePage = () => {
         params.messageType = activeTab;
       }
 
-      const result = await messageApi.getList(params);
+      const result = await messageApi.getUnifiedList(params);
       setMessages(result.data || []);
       setHasMore((result.data?.length || 0) < (result.total || 0));
     } catch (error) {
@@ -104,9 +102,7 @@ const MessagePage = () => {
     setLoadingMore(true);
     try {
       const nextPage = page + 1;
-      const params: { userId?: string; userType?: string; page: number; pageSize: number; messageType?: string } = {
-        userId,
-        userType: 'patient',
+      const params: { page: number; pageSize: number; messageType?: MessageType } = {
         page: nextPage,
         pageSize: PAGE_SIZE,
       };
@@ -115,7 +111,7 @@ const MessagePage = () => {
         params.messageType = activeTab;
       }
 
-      const result = await messageApi.getList(params);
+      const result = await messageApi.getUnifiedList(params);
       const newMessages = result.data || [];
       setMessages(prev => [...prev, ...newMessages]);
       setPage(nextPage);
@@ -127,9 +123,9 @@ const MessagePage = () => {
     }
   };
 
-  const loadUnreadCount = useCallback(async (uid: string) => {
+  const loadUnreadCount = useCallback(async () => {
     try {
-      const counts = await messageApi.getUnreadCount(uid, 'patient');
+      const counts = await messageApi.getUnifiedUnreadCount();
       setUnreadCounts({
         total: counts.total || 0,
         appointment: counts.appointment || 0,
@@ -155,7 +151,7 @@ const MessagePage = () => {
     try {
       const user = await userApi.getProfile();
       setUserId(user.id);
-      await loadUnreadCount(user.id);
+      await loadUnreadCount();
     } catch (error) {
       console.error('获取用户信息失败', error);
       setLoading(false);
@@ -182,13 +178,13 @@ const MessagePage = () => {
     // 如果未读，标记为已读
     if (message.isRead === 0) {
       try {
-        await messageApi.markAsRead(message.id, userId);
+        await messageApi.markAsReadUnified(message.id);
         // 更新本地状态
         setMessages((prev) =>
           prev.map((m) => (m.id === message.id ? { ...m, isRead: 1 } : m))
         );
         // 更新未读数
-        loadUnreadCount(userId);
+        loadUnreadCount();
       } catch (error) {
         console.error('标记已读失败', error);
       }
@@ -241,10 +237,10 @@ const MessagePage = () => {
 
       if (result.confirm) {
         const messageType = activeTab === 'all' ? undefined : activeTab;
-        await messageApi.markAllAsRead(userId, 'patient', messageType);
+        await messageApi.markAllAsReadUnified(messageType);
         Taro.showToast({ title: '已全部标记为已读', icon: 'success' });
         loadMessages();
-        loadUnreadCount(userId);
+        loadUnreadCount();
       }
     } catch (error) {
       Taro.showToast({ title: '操作失败', icon: 'none' });

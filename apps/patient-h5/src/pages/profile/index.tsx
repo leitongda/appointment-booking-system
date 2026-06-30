@@ -127,7 +127,7 @@ const ProfilePage: React.FC = () => {
   const loadUnreadCount = async () => {
     if (!userId) return;
     try {
-      const count = await messageApi.getUnreadCount(userId, 'patient');
+      const count = await messageApi.getUnifiedUnreadCount();
       setUnreadCount(count.total || 0);
     } catch (error) {
       console.error('获取未读消息数失败', error);

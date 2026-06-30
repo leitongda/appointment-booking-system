@@ -45,24 +45,24 @@ const MessagePage: React.FC = () => {
     setDetailVisible(true);
     setDetailLoading(true);
     try {
-      const detail = await messageApi.getDetail(id);
+      const detail = await messageApi.getDetailUnified(id);
       setCurrentMessage(detail);
     } catch {
       message.error('获取消息详情失败');
     } finally {
       setDetailLoading(false);
     }
-  }, [message]);
+  }, []);
 
   const handleDelete = useCallback(async (id: string) => {
     try {
-      await messageApi.delete(id, currentUser?.id || '');
+      await messageApi.deleteUnified(id);
       message.success('删除成功');
       actionRef.current?.reload();
     } catch {
       message.error('删除失败');
     }
-  }, [currentUser?.id, actionRef, message]);
+  }, [actionRef, message]);
 
   const handleBatchRead = useCallback(async () => {
     if (selectedRowKeys.length === 0) return;
@@ -77,21 +77,20 @@ const MessagePage: React.FC = () => {
   }, [selectedRowKeys, actionRef, message]);
 
   const handleBatchDelete = useCallback(async () => {
-    if (!currentUser?.id || selectedRowKeys.length === 0) return;
+    if (selectedRowKeys.length === 0) return;
     try {
-      await batchExecute(selectedRowKeys, (id) => messageApi.delete(id, currentUser.id));
+      await batchExecute(selectedRowKeys, (id) => messageApi.deleteUnified(id));
       message.success(`已删除 ${selectedRowKeys.length} 条消息`);
       setSelectedRowKeys([]);
       actionRef.current?.reload();
     } catch {
       message.error('批量删除失败');
     }
-  }, [currentUser?.id, selectedRowKeys, actionRef, message]);
+  }, [selectedRowKeys, actionRef, message]);
 
   const handleClearRead = useCallback(async () => {
-    if (!currentUser?.id) return;
     try {
-      await messageApi.clearRead(currentUser.id, 'admin');
+      await messageApi.clearReadUnified();
       message.success('已清空已读消息');
       actionRef.current?.reload();
     } catch {
