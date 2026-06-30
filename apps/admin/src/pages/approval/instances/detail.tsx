@@ -14,7 +14,7 @@ import {
   FastForwardOutlined,
   BranchesOutlined,
 } from '@ant-design/icons';
-import { history, useParams, useModel } from '@umijs/max';
+import { history, useParams, useModel, useAccess } from '@umijs/max';
 import { useState, useEffect, useCallback } from 'react';
 import { approvalInstanceApi, approvalFlowApi } from '@hospital/api';
 import type { ApprovalInstance, ApprovalRecord, ApprovalInstanceStatus, ApprovalProgress } from '@hospital/shared';
@@ -46,6 +46,7 @@ const ApprovalInstanceDetailPage: React.FC = () => {
   const params = useParams();
   const id = params.id as string | undefined;
   const { initialState } = useModel('@@initialState');
+  const access = useAccess();
   const [loading, setLoading] = useState(true);
   const [instance, setInstance] = useState<ApprovalInstance | null>(null);
   const [approveModalOpen, setApproveModalOpen] = useState(false);
@@ -152,6 +153,7 @@ const ApprovalInstanceDetailPage: React.FC = () => {
   const isAssignee = instance?.tasks?.some(
     (t) => t.assigneeId === initialState?.currentUser?.id && t.status === 'pending',
   ) ?? false;
+  const canManageInstance = access.hasPermission('approval-instance:manage');
 
   const handleApprove = async () => {
     if (!id) return;
@@ -314,13 +316,23 @@ const ApprovalInstanceDetailPage: React.FC = () => {
     return options;
   };
 
-  /** 从 tasks 中提取所有节点，用于跳转目标 */
+  /** 从流程定义中提取可跳转节点，允许跳到尚未创建任务的后续节点 */
   const getAllNodeOptions = () => {
+    const flowNodes = flowDefinition?.nodes || [];
+    if (flowNodes.length > 0) {
+      return flowNodes
+        .filter((node: any) => node.nodeType !== 'start' && node.nodeKey !== instance?.currentNodeKey)
+        .map((node: any) => ({
+          label: node.nodeName || node.nodeKey,
+          value: node.nodeKey,
+        }));
+    }
+
     if (!instance?.tasks) return [];
     const seen = new Set<string>();
     const options: { label: string; value: string }[] = [];
     for (const t of instance.tasks) {
-      if (t.nodeKey && !seen.has(t.nodeKey)) {
+      if (t.nodeKey && t.nodeKey !== instance.currentNodeKey && !seen.has(t.nodeKey)) {
         seen.add(t.nodeKey);
         options.push({ label: t.nodeName || t.nodeKey, value: t.nodeKey });
       }
@@ -355,18 +367,22 @@ const ApprovalInstanceDetailPage: React.FC = () => {
       extra={
         instance.status === 'pending' && (
           <Space>
-            <Button
-              type="primary"
-              onClick={() => setApproveModalOpen(true)}
-            >
-              通过
-            </Button>
-            <Button
-              danger
-              onClick={() => setRejectModalOpen(true)}
-            >
-              拒绝
-            </Button>
+            {isAssignee && (
+              <>
+                <Button
+                  type="primary"
+                  onClick={() => setApproveModalOpen(true)}
+                >
+                  通过
+                </Button>
+                <Button
+                  danger
+                  onClick={() => setRejectModalOpen(true)}
+                >
+                  拒绝
+                </Button>
+              </>
+            )}
             {isAssignee && (
               <Button
                 icon={<SwapOutlined />}
@@ -375,34 +391,36 @@ const ApprovalInstanceDetailPage: React.FC = () => {
                 转交
               </Button>
             )}
-            <Dropdown
-              menu={{
-                items: [
-                  {
-                    key: 'rollback',
-                    icon: <RollbackOutlined />,
-                    label: '回退',
-                    onClick: () => setRollbackModalOpen(true),
-                  },
-                  {
-                    key: 'addSigner',
-                    icon: <UserAddOutlined />,
-                    label: '加签',
-                    onClick: () => setAddSignerModalOpen(true),
-                  },
-                  {
-                    key: 'jump',
-                    icon: <FastForwardOutlined />,
-                    label: '跳转',
-                    onClick: () => setJumpModalOpen(true),
-                  },
-                ] as MenuProps['items'],
-              }}
-            >
-              <Button icon={<EllipsisOutlined />}>
-                更多操作
-              </Button>
-            </Dropdown>
+            {canManageInstance && (
+              <Dropdown
+                menu={{
+                  items: [
+                    {
+                      key: 'rollback',
+                      icon: <RollbackOutlined />,
+                      label: '回退',
+                      onClick: () => setRollbackModalOpen(true),
+                    },
+                    {
+                      key: 'addSigner',
+                      icon: <UserAddOutlined />,
+                      label: '加签',
+                      onClick: () => setAddSignerModalOpen(true),
+                    },
+                    {
+                      key: 'jump',
+                      icon: <FastForwardOutlined />,
+                      label: '跳转',
+                      onClick: () => setJumpModalOpen(true),
+                    },
+                  ] as MenuProps['items'],
+                }}
+              >
+                <Button icon={<EllipsisOutlined />}>
+                  更多操作
+                </Button>
+              </Dropdown>
+            )}
             {isApplicant && (
               <Button onClick={handleWithdraw}>
                 撤回

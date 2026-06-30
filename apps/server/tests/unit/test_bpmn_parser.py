@@ -193,6 +193,22 @@ class TestBpmnParser:
             assert "source" in edge
             assert "target" in edge
 
+    def test_parse_condition_gateway_keeps_conditional_edges(self):
+        """条件网关的条件分支也应生成画布边。"""
+        result = parse_bpmn_xml(SAMPLE_BPMN_XML)
+        edges = result["edges"]
+
+        gateway_edges = [
+            edge for edge in edges
+            if edge["source"] == "Gateway_0evyocg"
+        ]
+
+        assert {edge["target"] for edge in gateway_edges} == {
+            "Event_0tbzze4",
+            "Activity_05x2sta",
+        }
+        assert all(edge["sourceHandle"] == "condition" for edge in gateway_edges)
+
     def test_parse_positions(self):
         """测试 BPMNDI 坐标解析"""
         result = parse_bpmn_xml(SAMPLE_BPMN_XML)

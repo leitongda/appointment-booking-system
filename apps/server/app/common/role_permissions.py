@@ -33,6 +33,7 @@ ADMIN_APPROVAL_PERMISSIONS: set[str] = {
     "approval-flow:delete",        # 删除流程
     "approval:read",               # 查看审批实例
     "approval:approve",            # 审批操作
+    "approval-instance:manage",     # 回退/加签/跳转等实例管理操作
 }
 
 # ============================================================

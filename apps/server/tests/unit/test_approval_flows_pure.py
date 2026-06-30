@@ -10,9 +10,117 @@ from unittest.mock import AsyncMock, MagicMock
 
 from app.modules.approval_flows.condition_evaluator import ConditionEvaluator
 from app.modules.approval_flows.callback_registry import CallbackRegistry
+from app.modules.approval_flows.service_definitions import FlowDefinitionService, _normalize_listener
 
 
 # ==================== ConditionEvaluator ====================
+
+
+@pytest.mark.unit
+class TestApprovalListenerNormalization:
+    """测试前端监听器 payload 到运行时契约的兼容转换"""
+
+    def test_normalize_node_listener_action_config(self):
+        listener = _normalize_listener({
+            "event": "start",
+            "actionType": "webhook",
+            "actionConfig": {
+                "url": "https://example.com/hook",
+                "bodyTemplate": "{\"id\":\"{{instanceId}}\"}",
+            },
+        })
+
+        assert listener["action"] == "webhook"
+        assert listener["config"]["url"] == "https://example.com/hook"
+        assert listener["config"]["body_template"] == "{\"id\":\"{{instanceId}}\"}"
+
+    def test_normalize_global_listener_config(self):
+        listener = _normalize_listener({
+            "event": "process.end",
+            "actionType": "callback",
+            "config": {"callbackName": "on_approved"},
+        })
+
+        assert listener["action"] == "callback"
+        assert listener["config"]["callback_action"] == "on_approved"
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+class TestFlowDefinitionGraphValidation:
+    """测试流程定义图结构校验"""
+
+    def _node(
+        self,
+        key: str,
+        name: str,
+        node_type: str,
+        conditions: list | None = None,
+        assignee_type: str | None = "user",
+        assignee_config: dict | None = None,
+    ):
+        node = MagicMock()
+        node.node_key = key
+        node.node_name = name
+        node.node_type = node_type
+        node.conditions = conditions or []
+        node.assignee_type = assignee_type
+        node.assignee_config = assignee_config if assignee_config is not None else {"user_ids": ["u1"]}
+        return node
+
+    def _condition(self, target: str):
+        condition = MagicMock()
+        condition.target_node_key = target
+        return condition
+
+    async def test_validate_rejects_ambiguous_normal_node_edges(self):
+        flow_def = MagicMock()
+        flow_def.nodes = [
+            self._node("start", "开始", "start"),
+            self._node("approval_1", "部门审批", "approval"),
+            self._node("approval_2", "总监审批", "approval"),
+            self._node("end", "结束", "end"),
+        ]
+        flow_def.edges = [
+            {"source": "start", "target": "approval_1"},
+            {"source": "approval_1", "target": "approval_2"},
+            {"source": "approval_1", "target": "end"},
+            {"source": "approval_2", "target": "end"},
+        ]
+
+        service = FlowDefinitionService(AsyncMock())
+        service.get_by_id = AsyncMock(return_value=flow_def)
+
+        result = await service.validate("fd-1")
+
+        assert result["valid"] is False
+        assert any("存在多条出边" in error for error in result["errors"])
+
+    async def test_validate_rejects_condition_targets_without_edges_and_duplicate_default(self):
+        flow_def = MagicMock()
+        flow_def.nodes = [
+            self._node("start", "开始", "start"),
+            self._node("cond_1", "条件判断", "condition", [self._condition("manager_approval")]),
+            self._node("manager_approval", "经理审批", "approval"),
+            self._node("normal_approval", "普通审批", "approval"),
+            self._node("end", "结束", "end"),
+        ]
+        flow_def.edges = [
+            {"source": "start", "target": "cond_1"},
+            {"source": "cond_1", "target": "normal_approval", "sourceHandle": "default"},
+            {"source": "cond_1", "target": "end", "sourceHandle": "default"},
+            {"source": "manager_approval", "target": "end"},
+            {"source": "normal_approval", "target": "end"},
+        ]
+
+        service = FlowDefinitionService(AsyncMock())
+        service.get_by_id = AsyncMock(return_value=flow_def)
+
+        result = await service.validate("fd-1")
+
+        assert result["valid"] is False
+        assert any("默认分支只能有一条" in error for error in result["errors"])
+        assert any("条件目标缺少连线" in error for error in result["errors"])
 
 @pytest.mark.unit
 class TestConditionEvaluatorOperators:

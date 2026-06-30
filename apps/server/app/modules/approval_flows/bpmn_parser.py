@@ -269,15 +269,15 @@ def _build_internal_format(
                 node = _make_node(elem, sort_order, conditions=conditions)
                 nodes.append(node)
 
-                # 默认分支的边（无条件表达式的出边）
+                # 条件分支和默认分支都要生成边，避免导入后的画布丢失条件路径。
                 for flow in out_flows:
-                    if not flow.condition_expression:
-                        edges.append({
-                            "source": eid,
-                            "target": flow.target_ref,
-                            "sourceHandle": "default",
-                            "targetHandle": "input",
-                        })
+                    edges.append({
+                        "id": flow.id,
+                        "source": eid,
+                        "target": flow.target_ref,
+                        "sourceHandle": "condition" if flow.condition_expression else "default",
+                        "targetHandle": "input",
+                    })
             else:
                 # 无条件分支的 gateway → 转为 approval 节点（占位）
                 node = _make_node(elem, sort_order, node_type_override="approval")

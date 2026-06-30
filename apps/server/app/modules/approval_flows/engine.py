@@ -52,6 +52,7 @@ class SnapshotCondition:
     operator: str
     value: str
     priority: int = 0
+    group_id: str | None = None
 
 
 @dataclass
@@ -68,6 +69,16 @@ class SnapshotNode:
     timeout_action: str | None = None
     sort_order: int = 0
     conditions: list[SnapshotCondition] = field(default_factory=list)
+
+
+@dataclass
+class SnapshotEdge:
+    """快照中的连线，作为运行时推进路径的权威来源"""
+    id: str
+    source: str
+    target: str
+    source_handle: str | None = None
+    target_handle: str | None = None
 
 
 class FlowNotFoundError(Exception):
@@ -119,6 +130,7 @@ class ApprovalEngine:
 
         # 加载节点和条件
         nodes = await self._load_nodes(flow_def.id)
+        edges = await self._load_edges(flow_def.id)
         if not nodes:
             raise ValueError("流程定义没有节点")
 
@@ -129,7 +141,7 @@ class ApprovalEngine:
 
         # 找到第一个审批节点
         first_approval_node = await self._find_next_node(
-            start_node, nodes, form_data
+            start_node, nodes, form_data, edges
         )
         if not first_approval_node:
             raise ValueError("start 节点后没有审批节点")
@@ -235,10 +247,16 @@ class ApprovalEngine:
         )
         self.db.add(record)
 
-        # 判断是否满足推进条件
-        should_advance = await self._check_approval_complete(
-            current_node, instance.id, current_node.node_key
-        )
+        if (current_node.approval_mode or "or") == "sequential":
+            has_next_sequential_task = await self._create_next_sequential_task(
+                current_node, instance, task
+            )
+            should_advance = not has_next_sequential_task
+        else:
+            # 判断是否满足推进条件
+            should_advance = await self._check_approval_complete(
+                current_node, instance.id, current_node.node_key
+            )
 
         if should_advance:
             await self._cancel_pending_tasks(instance.id, current_node.node_key)
@@ -948,6 +966,35 @@ class ApprovalEngine:
 
         candidate_ids = [a["id"] for a in approvers]
 
+        if (node.approval_mode or "or") == "sequential":
+            first_approver = approvers[0]
+            task = ApprovalTask(
+                id=str(uuid.uuid4()),
+                tenant_id=tenant_id,
+                store_id=store_id,
+                instance_id=instance.id,
+                node_key=node.node_key,
+                node_name=node.node_name,
+                task_type="approval",
+                status="pending",
+                assignee_id=first_approver["id"],
+                assignee_name=first_approver.get("name", ""),
+                candidate_user_ids=candidate_ids,
+                assignee_snapshot={
+                    "id": first_approver["id"],
+                    "name": first_approver.get("name", ""),
+                    "resolved_by": node.assignee_type,
+                    "config": node.assignee_config,
+                    "sequence_index": 0,
+                    "candidates": approvers,
+                },
+                timeout_at=timeout_at,
+            )
+            self.db.add(task)
+            await self._notify_approver(first_approver["id"], instance, node.node_name)
+            await self.db.flush()
+            return
+
         for approver in approvers:
             task = ApprovalTask(
                 id=str(uuid.uuid4()),
@@ -976,6 +1023,66 @@ class ApprovalEngine:
             await self._notify_approver(approver["id"], instance, node.node_name)
 
         await self.db.flush()
+
+    async def _create_next_sequential_task(
+        self,
+        node: ApprovalFlowNode,
+        instance: ApprovalInstance,
+        completed_task: ApprovalTask,
+    ) -> bool:
+        """Create the next pending task for sequential approval, if any."""
+        snapshot = completed_task.assignee_snapshot or {}
+        candidates = snapshot.get("candidates") or []
+        if not candidates and completed_task.candidate_user_ids:
+            candidates = [{"id": uid, "name": ""} for uid in completed_task.candidate_user_ids]
+
+        if not candidates:
+            return False
+
+        completed_stmt = select(func.count(ApprovalTask.id)).where(
+            and_(
+                ApprovalTask.instance_id == instance.id,
+                ApprovalTask.node_key == node.node_key,
+                ApprovalTask.status == "completed",
+                ApprovalTask.task_type == "approval",
+            )
+        )
+        completed_count = (await self.db.execute(completed_stmt)).scalar() or 0
+        if completed_count >= len(candidates):
+            return False
+
+        next_approver = candidates[completed_count]
+        timeout_at = None
+        if node.timeout_hours:
+            timeout_at = datetime.utcnow() + timedelta(hours=node.timeout_hours)
+
+        candidate_ids = [candidate["id"] for candidate in candidates]
+        next_task = ApprovalTask(
+            id=str(uuid.uuid4()),
+            tenant_id=instance.tenant_id,
+            store_id=instance.store_id,
+            instance_id=instance.id,
+            node_key=node.node_key,
+            node_name=node.node_name,
+            task_type="approval",
+            status="pending",
+            assignee_id=next_approver["id"],
+            assignee_name=next_approver.get("name", ""),
+            candidate_user_ids=candidate_ids,
+            assignee_snapshot={
+                "id": next_approver["id"],
+                "name": next_approver.get("name", ""),
+                "resolved_by": node.assignee_type,
+                "config": node.assignee_config,
+                "sequence_index": completed_count,
+                "candidates": candidates,
+            },
+            timeout_at=timeout_at,
+        )
+        self.db.add(next_task)
+        await self._notify_approver(next_approver["id"], instance, node.node_name)
+        await self.db.flush()
+        return True
 
     async def _find_pending_task(
         self, instance_id: str, node_key: str, assignee_id: str
@@ -1141,12 +1248,13 @@ class ApprovalEngine:
         )
 
         nodes = await self._load_nodes(instance.flow_def_id)
+        edges = await self._load_edges(instance.flow_def_id)
         form_data = instance.form_data or {}
 
-        next_node = await self._find_next_node(current_node, nodes, form_data)
+        next_node = await self._find_next_node(current_node, nodes, form_data, edges)
 
         while next_node and next_node.node_type == "condition":
-            next_node = await self._find_next_node(next_node, nodes, form_data)
+            next_node = await self._find_next_node(next_node, nodes, form_data, edges)
 
         if not next_node or next_node.node_type == "end":
             await self._complete_as_approved(instance)
@@ -1155,9 +1263,9 @@ class ApprovalEngine:
             # 抄送节点: 通知抄送人，继续推进
             await self._handle_cc_node(next_node, instance)
             # 继续推进
-            next_next = await self._find_next_node(next_node, nodes, form_data)
+            next_next = await self._find_next_node(next_node, nodes, form_data, edges)
             while next_next and next_next.node_type == "condition":
-                next_next = await self._find_next_node(next_next, nodes, form_data)
+                next_next = await self._find_next_node(next_next, nodes, form_data, edges)
             if next_next:
                 if next_next.node_type == "end":
                     await self._complete_as_approved(instance)
@@ -1239,9 +1347,90 @@ class ApprovalEngine:
         current_node: ApprovalFlowNode,
         nodes: list[ApprovalFlowNode],
         form_data: dict[str, Any],
+        edges: list[SnapshotEdge] | None = None,
     ) -> ApprovalFlowNode | None:
         """找到下一个节点"""
-        # 如果当前节点有条件规则，先求值
+        node_map = {n.node_key: n for n in nodes}
+
+        if edges:
+            return self._find_next_node_by_edges(current_node, node_map, form_data, edges)
+
+        logger.warning(
+            "approval_flow_edges_missing_fallback",
+            node_key=current_node.node_key,
+            node_type=current_node.node_type,
+        )
+        return self._find_next_node_by_sort_order(current_node, nodes, form_data)
+
+    def _find_next_node_by_edges(
+        self,
+        current_node: ApprovalFlowNode,
+        node_map: dict[str, ApprovalFlowNode],
+        form_data: dict[str, Any],
+        edges: list[SnapshotEdge],
+    ) -> ApprovalFlowNode | None:
+        """按快照连线选择下一节点。"""
+        if current_node.node_type == "end":
+            return None
+
+        outgoing = [e for e in edges if e.source == current_node.node_key]
+
+        if current_node.conditions:
+            target_key = self.condition_evaluator.evaluate_condition_groups(
+                current_node.conditions, form_data
+            )
+            if target_key:
+                matched_edge = next((e for e in outgoing if e.target == target_key), None)
+                if not matched_edge:
+                    raise ValueError(
+                        f"条件节点 [{current_node.node_name}] 命中目标 [{target_key}] 但缺少对应连线"
+                    )
+                target = node_map.get(matched_edge.target)
+                if target:
+                    logger.info(
+                        "condition_matched",
+                        node_key=current_node.node_key,
+                        target_node_key=target_key,
+                        field_names=[c.field_name for c in current_node.conditions],
+                    )
+                    return target
+                raise ValueError(
+                    f"条件节点 [{current_node.node_name}] 的目标节点 [{target_key}] 不存在"
+                )
+
+            default_edge = next((e for e in outgoing if e.source_handle == "default"), None)
+            if default_edge:
+                target = node_map.get(default_edge.target)
+                if target:
+                    logger.info(
+                        "condition_default_matched",
+                        node_key=current_node.node_key,
+                        target_node_key=default_edge.target,
+                    )
+                    return target
+                raise ValueError(
+                    f"条件节点 [{current_node.node_name}] 的默认目标 [{default_edge.target}] 不存在"
+                )
+            raise ValueError(f"条件节点 [{current_node.node_name}] 没有匹配条件且缺少默认分支")
+
+        if not outgoing:
+            raise ValueError(f"节点 [{current_node.node_name}] 没有可用出边")
+
+        if len(outgoing) > 1:
+            raise ValueError(f"节点 [{current_node.node_name}] 存在多条出边，无法确定下一节点")
+
+        target = node_map.get(outgoing[0].target)
+        if not target:
+            raise ValueError(f"节点 [{current_node.node_name}] 的目标节点 [{outgoing[0].target}] 不存在")
+        return target
+
+    def _find_next_node_by_sort_order(
+        self,
+        current_node: ApprovalFlowNode,
+        nodes: list[ApprovalFlowNode],
+        form_data: dict[str, Any],
+    ) -> ApprovalFlowNode | None:
+        """历史快照缺少 edges 时按旧逻辑兼容推进。"""
         if current_node.conditions:
             target_key = self.condition_evaluator.evaluate_condition_groups(
                 current_node.conditions, form_data
@@ -1257,7 +1446,6 @@ class ApprovalEngine:
                     )
                     return target
 
-        # 默认: 按 sort_order 找下一个节点
         sorted_nodes = sorted(nodes, key=lambda n: n.sort_order)
         current_idx = next(
             (i for i, n in enumerate(sorted_nodes) if n.id == current_node.id), -1
@@ -1304,8 +1492,17 @@ class ApprovalEngine:
             return completed_count >= total_count
 
         elif mode == "sequential":
-            # 依次审批: 当前人通过即推进
-            return completed_count > 0
+            task_stmt = select(ApprovalTask).where(
+                and_(
+                    ApprovalTask.instance_id == instance_id,
+                    ApprovalTask.node_key == node_key,
+                    ApprovalTask.task_type == "approval",
+                )
+            )
+            task_result = await self.db.execute(task_stmt)
+            tasks = task_result.scalars().all()
+            total_count = max((len(t.candidate_user_ids or []) for t in tasks), default=0)
+            return completed_count >= total_count if total_count else completed_count > 0
 
         return False
 
@@ -1430,6 +1627,18 @@ class ApprovalEngine:
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
+    async def _load_edges(self, flow_def_id: str) -> list[SnapshotEdge]:
+        """加载流程连线，优先从 snapshot_json 读取。"""
+        stmt = select(ApprovalFlowDefinition).where(ApprovalFlowDefinition.id == flow_def_id)
+        result = await self.db.execute(stmt)
+        flow_def = result.scalar_one_or_none()
+
+        if flow_def and flow_def.snapshot_json and "edges" in flow_def.snapshot_json:
+            return self._build_edges_from_snapshot(flow_def.snapshot_json)
+        if flow_def and flow_def.edges:
+            return self._build_edges_from_data(flow_def.edges)
+        return []
+
     def _build_nodes_from_snapshot(self, snapshot: dict[str, Any]) -> list[SnapshotNode]:
         """从 snapshot_json 构建 SnapshotNode 列表"""
         nodes_data = snapshot.get("nodes", [])
@@ -1442,6 +1651,7 @@ class ApprovalEngine:
                     operator=c["operator"],
                     value=c["value"],
                     priority=c.get("priority", 0),
+                    group_id=c.get("group_id"),
                 )
                 for c in nd.get("conditions", [])
             ]
@@ -1459,6 +1669,29 @@ class ApprovalEngine:
                 conditions=conditions,
             ))
         return nodes
+
+    def _build_edges_from_snapshot(self, snapshot: dict[str, Any]) -> list[SnapshotEdge]:
+        """从 snapshot_json 构建 SnapshotEdge 列表"""
+        return self._build_edges_from_data(snapshot.get("edges", []))
+
+    def _build_edges_from_data(self, edges_data: list[dict[str, Any]] | None) -> list[SnapshotEdge]:
+        """从持久化 JSON 构建 SnapshotEdge 列表"""
+        edges: list[SnapshotEdge] = []
+        for idx, edge in enumerate(edges_data or []):
+            if not isinstance(edge, dict):
+                continue
+            source = edge.get("source")
+            target = edge.get("target")
+            if not source or not target:
+                continue
+            edges.append(SnapshotEdge(
+                id=edge.get("id") or f"{source}-{target}-{idx}",
+                source=source,
+                target=target,
+                source_handle=edge.get("sourceHandle") or edge.get("source_handle"),
+                target_handle=edge.get("targetHandle") or edge.get("target_handle"),
+            ))
+        return edges
 
     # ============================================================
     # 内部方法 - 监听器触发

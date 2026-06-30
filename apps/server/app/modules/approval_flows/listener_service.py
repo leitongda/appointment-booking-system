@@ -65,6 +65,38 @@ logger = structlog.get_logger(__name__)
 _jinja_env = SandboxedEnvironment(autoescape=False, undefined=Undefined)
 
 
+EVENT_ALIASES = {
+    "start": "node_enter",
+    "end": "node_leave",
+    "process.start": "process.start",
+    "process.end": "process.end",
+    "process.cancel": "process.cancel",
+    "process.reject": "process.reject",
+}
+
+
+def _normalize_event(event: str | None) -> str | None:
+    if not event:
+        return event
+    return EVENT_ALIASES.get(event, event)
+
+
+def _normalize_config(config: dict[str, Any] | None) -> dict[str, Any]:
+    normalized = dict(config or {})
+    aliases = {
+        "bodyTemplate": "body_template",
+        "titleTemplate": "title_template",
+        "contentTemplate": "content_template",
+        "userIds": "user_ids",
+        "targetIds": "user_ids",
+        "callbackName": "callback_action",
+    }
+    for source, target in aliases.items():
+        if source in normalized and target not in normalized:
+            normalized[target] = normalized[source]
+    return normalized
+
+
 class ListenerService:
     """审批流监听器触发服务"""
 
@@ -96,7 +128,11 @@ class ListenerService:
         if not listeners or not isinstance(listeners, list):
             return
 
-        matching = [l for l in listeners if l.get("event") == event]
+        normalized_event = _normalize_event(event)
+        matching = [
+            l for l in listeners
+            if _normalize_event(l.get("event")) == normalized_event
+        ]
         if not matching:
             return
 
@@ -117,7 +153,7 @@ class ListenerService:
                     instance_id=instance.id,
                     node_key=node.node_key,
                     event=event,
-                    action=listener.get("action"),
+                    action=listener.get("action") or listener.get("actionType"),
                 )
 
     # ============================================================
@@ -143,7 +179,11 @@ class ListenerService:
         if not listeners or not isinstance(listeners, list):
             return
 
-        matching = [l for l in listeners if l.get("event") == event]
+        normalized_event = _normalize_event(event)
+        matching = [
+            l for l in listeners
+            if _normalize_event(l.get("event")) == normalized_event
+        ]
         if not matching:
             return
 
@@ -164,7 +204,7 @@ class ListenerService:
                     instance_id=instance.id,
                     flow_def_id=flow_def.id,
                     event=event,
-                    action=listener.get("action"),
+                    action=listener.get("action") or listener.get("actionType"),
                 )
 
     # ============================================================
@@ -179,8 +219,8 @@ class ListenerService:
         db: AsyncSession,
     ) -> None:
         """分发执行监听器动作。"""
-        action = listener.get("action")
-        config = listener.get("config", {})
+        action = listener.get("action") or listener.get("actionType")
+        config = _normalize_config(listener.get("config") or listener.get("actionConfig"))
 
         if action == "webhook":
             await self._fire_webhook(config, instance, node)

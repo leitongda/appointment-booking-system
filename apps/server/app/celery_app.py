@@ -74,6 +74,7 @@ celery_app.conf.update(
         "app.tasks.approval_task.check_approval_timeouts": {"queue": "scheduled"},
         "app.tasks.approval_task.advance_after_auto_approve": {"queue": "default"},
         "app.tasks.approval_task.auto_reject_after_timeout": {"queue": "default"},
+        "app.tasks.approval_task.transfer_after_timeout": {"queue": "default"},
         "app.tasks.follow_up_task.mark_overdue_task": {"queue": "scheduled"},
         "app.tasks.follow_up_task.send_follow_up_reminders": {"queue": "notification"},
         "app.tasks.lowcode_deploy_task.*": {"queue": "default"},
@@ -361,4 +362,3 @@ celery_app.autodiscover_tasks([
 # Flower 监控配置
 # 通过环境变量 FLOWER_BASIC_AUTH 配置认证，格式: username:password
 # 启动命令: celery -A app.celery_app flower --port=5555
-

@@ -139,6 +139,16 @@ export interface FlowDefinitionCreateData {
       operator: string;
       value: string;
       priority: number;
+      groupId?: string | null;
+    }>;
+    listeners?: Array<{
+      id?: string;
+      label?: string;
+      event: string;
+      action?: string;
+      actionType?: string;
+      config?: Record<string, any>;
+      actionConfig?: Record<string, any>;
     }>;
   }>;
   edges?: Array<{
@@ -222,7 +232,7 @@ export const approvalFlowApi = {
 
   /** 校验流程定义 */
   validate: (id: string): Promise<{ valid: boolean; errors: string[] }> => {
-    return request.post(`/approval-flows/${id}/validate`);
+    return request.get(`/approval-flows/${id}/validate`);
   },
 
   /** 获取流程模板列表 */

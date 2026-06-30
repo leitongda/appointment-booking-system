@@ -20,6 +20,40 @@ from app.utils.audit import set_create_audit, set_update_audit
 logger = logging.getLogger(__name__)
 
 
+def _normalize_listener(listener: dict | None) -> dict:
+    """Normalize legacy/front-end listener payloads to the runtime contract."""
+    if not isinstance(listener, dict):
+        return {}
+
+    normalized = dict(listener)
+    action = normalized.get("action") or normalized.get("actionType")
+    config = normalized.get("config") or normalized.get("actionConfig") or {}
+    if isinstance(config, dict):
+        config = dict(config)
+        if "bodyTemplate" in config and "body_template" not in config:
+            config["body_template"] = config["bodyTemplate"]
+        if "titleTemplate" in config and "title_template" not in config:
+            config["title_template"] = config["titleTemplate"]
+        if "contentTemplate" in config and "content_template" not in config:
+            config["content_template"] = config["contentTemplate"]
+        if "userIds" in config and "user_ids" not in config:
+            config["user_ids"] = config["userIds"]
+        if "targetIds" in config and "user_ids" not in config:
+            config["user_ids"] = config["targetIds"]
+        if "callbackName" in config and "callback_action" not in config:
+            config["callback_action"] = config["callbackName"]
+
+    normalized["action"] = action
+    normalized["config"] = config
+    return normalized
+
+
+def _normalize_listeners(listeners: list[dict] | None) -> list[dict] | None:
+    if listeners is None:
+        return None
+    return [_normalize_listener(listener) for listener in listeners if isinstance(listener, dict)]
+
+
 class FlowDefinitionService:
     """审批流定义 CRUD 服务"""
 
@@ -111,6 +145,7 @@ class FlowDefinitionService:
         flow_def.description = data.description
         flow_def.form_schema = data.form_schema
         flow_def.callback_config = data.callback_config
+        flow_def.global_listeners = _normalize_listeners(data.global_listeners)
         flow_def.edges = data.edges
         set_update_audit(flow_def, user_id)
 
@@ -130,6 +165,7 @@ class FlowDefinitionService:
                 sort_order=node_data.sort_order,
                 position_x=node_data.position_x,
                 position_y=node_data.position_y,
+                listeners=_normalize_listeners(node_data.listeners),
             )
             self.db.add(node)
             await self.db.flush()
@@ -144,6 +180,7 @@ class FlowDefinitionService:
                     operator=cond_data.operator,
                     value=cond_data.value,
                     priority=cond_data.priority,
+                    group_id=cond_data.group_id,
                 )
                 self.db.add(condition)
 
@@ -168,6 +205,7 @@ class FlowDefinitionService:
             form_schema=data.form_schema,
             callback_config=data.callback_config,
             store_id=data.store_id,
+            global_listeners=_normalize_listeners(data.global_listeners),
         )
         flow_def.edges = data.edges
         set_create_audit(flow_def, user_id)
@@ -190,6 +228,7 @@ class FlowDefinitionService:
                 sort_order=node_data.sort_order,
                 position_x=node_data.position_x,
                 position_y=node_data.position_y,
+                listeners=_normalize_listeners(node_data.listeners),
             )
             self.db.add(node)
             await self.db.flush()
@@ -205,6 +244,7 @@ class FlowDefinitionService:
                     operator=cond_data.operator,
                     value=cond_data.value,
                     priority=cond_data.priority,
+                    group_id=cond_data.group_id,
                 )
                 self.db.add(condition)
 
@@ -228,6 +268,8 @@ class FlowDefinitionService:
             flow_def.form_schema = data.form_schema
         if data.callback_config is not None:
             flow_def.callback_config = data.callback_config
+        if data.global_listeners is not None:
+            flow_def.global_listeners = _normalize_listeners(data.global_listeners)
 
         # 更新节点（先删除旧的，再创建新的）
         if data.nodes is not None:
@@ -252,6 +294,7 @@ class FlowDefinitionService:
                     sort_order=node_data.sort_order,
                     position_x=node_data.position_x,
                     position_y=node_data.position_y,
+                    listeners=_normalize_listeners(node_data.listeners),
                 )
                 self.db.add(node)
                 await self.db.flush()
@@ -266,6 +309,7 @@ class FlowDefinitionService:
                         operator=cond_data.operator,
                         value=cond_data.value,
                         priority=cond_data.priority,
+                        group_id=cond_data.group_id,
                     )
                     self.db.add(condition)
 
@@ -283,9 +327,9 @@ class FlowDefinitionService:
         if not flow_def:
             return None
 
-        # 验证流程有节点
-        if not flow_def.nodes:
-            raise ValueError("流程没有节点，无法激活")
+        validation = await self.validate(flow_def_id)
+        if not validation["valid"]:
+            raise ValueError("流程校验失败: " + "；".join(validation["errors"]))
 
         # 归档同业务类型的其他激活流程
         tenant_id = get_current_tenant_id()
@@ -327,6 +371,7 @@ class FlowDefinitionService:
                             "operator": c.operator,
                             "value": c.value,
                             "priority": c.priority,
+                            "group_id": c.group_id,
                         }
                         for c in n.conditions
                     ],
@@ -417,6 +462,7 @@ class FlowDefinitionService:
                     "operator": c.operator,
                     "value": c.value,
                     "priority": c.priority,
+                    "group_id": c.group_id,
                 }
                 for c in node.conditions
             ]
@@ -432,6 +478,7 @@ class FlowDefinitionService:
                 "sort_order": node.sort_order,
                 "position_x": node.position_x,
                 "position_y": node.position_y,
+                "listeners": node.listeners,
                 "conditions": conditions,
             })
 
@@ -442,6 +489,7 @@ class FlowDefinitionService:
             form_schema=source.form_schema,
             callback_config=source.callback_config,
             store_id=source.store_id,
+            global_listeners=source.global_listeners,
             nodes=nodes_data,
             edges=source.edges or [],
         )
@@ -486,20 +534,38 @@ class FlowDefinitionService:
                     errors.append(f"条件节点 [{node.node_name}] 没有条件规则")
 
         # 5. 连通性检查 (BFS)
-        if nodes and edges:
-            node_keys = {n.node_key for n in nodes}
-            adj: dict[str, list[str]] = {}
-            for n in nodes:
-                adj[n.node_key] = []
+        node_keys = {n.node_key for n in nodes}
+        outgoing: dict[str, list[dict]] = {n.node_key: [] for n in nodes}
+        incoming: dict[str, list[dict]] = {n.node_key: [] for n in nodes}
+
+        if nodes:
+            edge_pairs: set[tuple[str, str, str | None]] = set()
             for e in edges:
                 src = e.get("source", "")
                 tgt = e.get("target", "")
+                source_handle = e.get("sourceHandle") or e.get("source_handle")
+
+                if not src:
+                    errors.append("存在缺少源节点的连线")
+                if not tgt:
+                    errors.append("存在缺少目标节点的连线")
+                node_keys = {n.node_key for n in nodes}
                 if src not in node_keys:
                     errors.append(f"连线的源节点 [{src}] 不存在")
                 if tgt not in node_keys:
                     errors.append(f"连线的目标节点 [{tgt}] 不存在")
-                if src in adj:
-                    adj[src].append(tgt)
+                if src in outgoing:
+                    outgoing[src].append(e)
+                if tgt in incoming:
+                    incoming[tgt].append(e)
+
+                pair = (src, tgt, source_handle)
+                if src and tgt and pair in edge_pairs:
+                    errors.append(f"存在重复连线: {src} -> {tgt}")
+                edge_pairs.add(pair)
+
+            if not edges:
+                errors.append("流程定义缺少连线")
 
             start_key = start_nodes[0].node_key if start_nodes else None
             if start_key:
@@ -510,7 +576,8 @@ class FlowDefinitionService:
                     if curr in visited:
                         continue
                     visited.add(curr)
-                    for neighbor in adj.get(curr, []):
+                    for edge in outgoing.get(curr, []):
+                        neighbor = edge.get("target", "")
                         if neighbor not in visited:
                             queue.append(neighbor)
 
@@ -518,15 +585,44 @@ class FlowDefinitionService:
                 if unreachable:
                     errors.append(f"存在不可达节点: {', '.join(unreachable)}")
 
-        # 6. 孤立节点检查
-        if edges:
-            connected: set[str] = set()
-            for e in edges:
-                connected.add(e.get("source", ""))
-                connected.add(e.get("target", ""))
-            for node in nodes:
-                if node.node_key not in connected and node.node_type not in ("start", "end"):
-                    errors.append(f"节点 [{node.node_name}] 没有连线连接")
+        # 6. 图结构约束
+        for node in nodes:
+            node_outgoing = outgoing.get(node.node_key, [])
+            node_incoming = incoming.get(node.node_key, [])
+
+            if node.node_type != "start" and not node_incoming:
+                errors.append(f"节点 [{node.node_name}] 没有入边")
+
+            if node.node_type == "end":
+                if node_outgoing:
+                    errors.append(f"结束节点 [{node.node_name}] 不允许有出边")
+                continue
+
+            if not node_outgoing:
+                errors.append(f"节点 [{node.node_name}] 没有出边")
+
+            if node.node_type == "condition":
+                default_edges = [
+                    e for e in node_outgoing
+                    if (e.get("sourceHandle") or e.get("source_handle")) == "default"
+                ]
+                if len(default_edges) > 1:
+                    errors.append(f"条件节点 [{node.node_name}] 默认分支只能有一条")
+
+                condition_targets = {
+                    condition.target_node_key
+                    for condition in (node.conditions or [])
+                    if condition.target_node_key
+                }
+                edge_targets = {e.get("target") for e in node_outgoing}
+                missing_targets = condition_targets - edge_targets
+                if missing_targets:
+                    errors.append(
+                        f"条件节点 [{node.node_name}] 的条件目标缺少连线: {', '.join(sorted(missing_targets))}"
+                    )
+            else:
+                if len(node_outgoing) > 1:
+                    errors.append(f"节点 [{node.node_name}] 存在多条出边，无法确定下一节点")
 
         return {"valid": len(errors) == 0, "errors": errors}
 

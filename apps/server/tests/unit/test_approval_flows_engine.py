@@ -114,9 +114,24 @@ def _make_db_session():
     return db
 
 
-def _build_snapshot_with_nodes(nodes: list[dict]) -> dict:
+def _build_snapshot_with_nodes(nodes: list[dict], edges: list[dict] | None = None) -> dict:
     """构建包含节点列表的快照"""
-    return {"nodes": nodes}
+    snapshot = {"nodes": nodes}
+    if edges is not None:
+        snapshot["edges"] = edges
+    return snapshot
+
+
+def _make_edge(source: str, target: str, source_handle: str | None = None) -> dict:
+    """构造快照连线 JSON dict"""
+    edge = {
+        "id": f"{source}-{target}",
+        "source": source,
+        "target": target,
+    }
+    if source_handle:
+        edge["sourceHandle"] = source_handle
+    return edge
 
 
 # ============================================================
@@ -151,6 +166,7 @@ class TestStartInstance:
         db.execute.side_effect = [
             list_result,      # _get_active_flow_def
             scalar_result,    # _load_nodes
+            scalar_result,    # _load_edges
         ]
 
         engine = ApprovalEngine(db)
@@ -263,7 +279,7 @@ class TestDoApprove:
             completed_count_result,   # _check_approval_complete (completed count)
             cancel_result,            # _cancel_pending_tasks
             flow_def_result,          # _advance -> _load_nodes (flow_def)
-            nodes_result,             # _advance -> _load_nodes (fallback nodes)
+            flow_def_result,          # _advance -> _load_edges (flow_def)
         ]
 
         engine = ApprovalEngine(db)
@@ -323,6 +339,105 @@ class TestDoApprove:
         # 任务完成但实例不推进（current_node_key 不变）
         assert task.status == "completed"
         assert instance.current_node_key == "approval_1"
+
+    async def test_approve_sequential_creates_next_task_without_advancing(self):
+        """依次审批：当前人通过后创建下一位待办，暂不推进节点。"""
+        db = _make_db_session()
+
+        instance = _make_instance()
+        task = _make_task(assignee_id="approver-1")
+        current_node = MagicMock(
+            node_key="approval_1",
+            node_name="部门审批",
+            node_type="approval",
+            approval_mode="sequential",
+        )
+
+        engine = ApprovalEngine(db)
+        engine._get_instance = AsyncMock(return_value=instance)
+        engine._get_current_node = AsyncMock(return_value=current_node)
+        engine._validate_approver = AsyncMock()
+        engine._find_pending_task = AsyncMock(return_value=task)
+        engine._create_next_sequential_task = AsyncMock(return_value=True)
+        engine._cancel_pending_tasks = AsyncMock()
+        engine._advance = AsyncMock()
+        engine._fire_node_listeners = AsyncMock()
+
+        result = await engine._do_approve("inst-1", "approver-1", "审批人A")
+
+        assert task.status == "completed"
+        assert result.current_node_key == "approval_1"
+        engine._create_next_sequential_task.assert_awaited_once_with(current_node, instance, task)
+        engine._cancel_pending_tasks.assert_not_awaited()
+        engine._advance.assert_not_awaited()
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+class TestSequentialTaskCreation:
+    """测试顺序审批待办创建"""
+
+    async def test_create_tasks_for_sequential_node_only_creates_first_task(self):
+        db = _make_db_session()
+        instance = _make_instance()
+        node = MagicMock(
+            node_key="approval_1",
+            node_name="部门审批",
+            approval_mode="sequential",
+            assignee_type="user",
+            assignee_config={"user_ids": ["approver-1", "approver-2"]},
+            timeout_hours=None,
+        )
+
+        engine = ApprovalEngine(db)
+        engine.assignee_resolver.resolve = AsyncMock(return_value=[
+            {"id": "approver-1", "name": "审批人A"},
+            {"id": "approver-2", "name": "审批人B"},
+        ])
+        engine._notify_approver = AsyncMock()
+
+        await engine._create_tasks_for_node(node, instance, "tenant-1", "store-1")
+
+        assert db.add.call_count == 1
+        created_task = db.add.call_args[0][0]
+        assert created_task.assignee_id == "approver-1"
+        assert created_task.candidate_user_ids == ["approver-1", "approver-2"]
+        assert created_task.assignee_snapshot["sequence_index"] == 0
+        engine._notify_approver.assert_awaited_once_with("approver-1", instance, "部门审批")
+
+    async def test_create_next_sequential_task_uses_next_candidate(self):
+        db = _make_db_session()
+        completed_count_result = MagicMock()
+        completed_count_result.scalar.return_value = 1
+        db.execute.return_value = completed_count_result
+
+        instance = _make_instance()
+        node = MagicMock(
+            node_key="approval_1",
+            node_name="部门审批",
+            assignee_type="user",
+            assignee_config={},
+            timeout_hours=None,
+        )
+        completed_task = _make_task(assignee_id="approver-1", status="completed")
+        completed_task.assignee_snapshot = {
+            "candidates": [
+                {"id": "approver-1", "name": "审批人A"},
+                {"id": "approver-2", "name": "审批人B"},
+            ]
+        }
+        completed_task.candidate_user_ids = ["approver-1", "approver-2"]
+
+        engine = ApprovalEngine(db)
+        engine._notify_approver = AsyncMock()
+
+        created = await engine._create_next_sequential_task(node, instance, completed_task)
+
+        assert created is True
+        next_task = db.add.call_args[0][0]
+        assert next_task.assignee_id == "approver-2"
+        assert next_task.assignee_snapshot["sequence_index"] == 1
+        engine._notify_approver.assert_awaited_once_with("approver-2", instance, "部门审批")
 
 
 # ============================================================
@@ -594,3 +709,144 @@ class TestAdvance:
         # 推进到 approval_2（跳过了 condition 节点）
         assert instance.current_node_key == "approval_2"
         assert instance.status == "pending"
+
+    async def test_find_next_node_uses_edges_before_sort_order(self):
+        """有 edges 的快照按连线推进，不按 sort_order 猜测。"""
+        db = _make_db_session()
+        engine = ApprovalEngine(db)
+        snapshot = _build_snapshot_with_nodes(
+            [
+                _make_snapshot_node("approval_1", "部门审批", "approval", "or", sort_order=1),
+                _make_snapshot_node("wrong_next", "错误节点", "approval", "or", sort_order=2),
+                _make_snapshot_node("approval_2", "总监审批", "approval", "or", sort_order=99),
+            ],
+            edges=[_make_edge("approval_1", "approval_2")],
+        )
+        nodes = engine._build_nodes_from_snapshot(snapshot)
+        edges = engine._build_edges_from_snapshot(snapshot)
+
+        next_node = await engine._find_next_node(nodes[0], nodes, {}, edges)
+
+        assert next_node.node_key == "approval_2"
+
+    async def test_find_next_node_uses_condition_default_edge(self):
+        """条件不命中时走 sourceHandle=default 的默认边。"""
+        db = _make_db_session()
+        engine = ApprovalEngine(db)
+        snapshot = _build_snapshot_with_nodes(
+            [
+                _make_snapshot_node(
+                    "cond_1",
+                    "条件判断",
+                    "condition",
+                    sort_order=1,
+                    conditions=[{
+                        "target_node_key": "manager_approval",
+                        "field_name": "amount",
+                        "operator": "gt",
+                        "value": "1000",
+                        "priority": 1,
+                    }],
+                ),
+                _make_snapshot_node("manager_approval", "经理审批", "approval", "or", sort_order=2),
+                _make_snapshot_node("normal_approval", "普通审批", "approval", "or", sort_order=3),
+            ],
+            edges=[
+                _make_edge("cond_1", "manager_approval", "condition"),
+                _make_edge("cond_1", "normal_approval", "default"),
+            ],
+        )
+        nodes = engine._build_nodes_from_snapshot(snapshot)
+        edges = engine._build_edges_from_snapshot(snapshot)
+
+        next_node = await engine._find_next_node(nodes[0], nodes, {"amount": 100}, edges)
+
+        assert next_node.node_key == "normal_approval"
+
+    async def test_find_next_node_condition_match_requires_edge(self):
+        """条件命中但没有对应出边时阻止推进。"""
+        db = _make_db_session()
+        engine = ApprovalEngine(db)
+        snapshot = _build_snapshot_with_nodes(
+            [
+                _make_snapshot_node(
+                    "cond_1",
+                    "条件判断",
+                    "condition",
+                    sort_order=1,
+                    conditions=[{
+                        "target_node_key": "manager_approval",
+                        "field_name": "amount",
+                        "operator": "gt",
+                        "value": "1000",
+                        "priority": 1,
+                    }],
+                ),
+                _make_snapshot_node("manager_approval", "经理审批", "approval", "or", sort_order=2),
+                _make_snapshot_node("normal_approval", "普通审批", "approval", "or", sort_order=3),
+            ],
+            edges=[_make_edge("cond_1", "normal_approval", "default")],
+        )
+        nodes = engine._build_nodes_from_snapshot(snapshot)
+        edges = engine._build_edges_from_snapshot(snapshot)
+
+        with pytest.raises(ValueError, match="命中目标 .* 但缺少对应连线"):
+            await engine._find_next_node(nodes[0], nodes, {"amount": 2000}, edges)
+
+    async def test_find_next_node_without_edges_keeps_sort_order_fallback(self):
+        """历史快照没有 edges 时仍按旧 sort_order 兼容推进。"""
+        db = _make_db_session()
+        engine = ApprovalEngine(db)
+        snapshot = _build_snapshot_with_nodes([
+            _make_snapshot_node("approval_1", "部门审批", "approval", "or", sort_order=1),
+            _make_snapshot_node("approval_2", "总监审批", "approval", "or", sort_order=2),
+        ])
+        nodes = engine._build_nodes_from_snapshot(snapshot)
+
+        next_node = await engine._find_next_node(nodes[0], nodes, {}, [])
+
+        assert next_node.node_key == "approval_2"
+
+    @patch("app.modules.approval_flows.engine.get_current_tenant_id", return_value="tenant-1")
+    async def test_advance_cc_node_continues_by_edges(self, mock_tenant):
+        """抄送节点通知后继续按连线进入下一审批节点。"""
+        db = _make_db_session()
+        snapshot = _build_snapshot_with_nodes(
+            [
+                _make_snapshot_node("approval_1", "部门审批", "approval", "or", sort_order=1),
+                _make_snapshot_node("cc_1", "抄送财务", "cc", sort_order=2),
+                _make_snapshot_node(
+                    "approval_2",
+                    "总监审批",
+                    "approval",
+                    "or",
+                    sort_order=3,
+                    assignee_type="user",
+                    assignee_config={},
+                ),
+            ],
+            edges=[
+                _make_edge("approval_1", "cc_1"),
+                _make_edge("cc_1", "approval_2"),
+            ],
+        )
+        flow_def = _make_flow_def(snapshot=snapshot)
+        flow_def_result = MagicMock()
+        flow_def_result.scalar_one_or_none.return_value = flow_def
+        db.execute.return_value = flow_def_result
+
+        instance = _make_instance(current_node_key="approval_1")
+        instance.form_data = {}
+
+        engine = ApprovalEngine(db)
+        engine._handle_cc_node = AsyncMock()
+        engine.assignee_resolver.resolve = AsyncMock(
+            return_value=[{"id": "approver-2", "name": "总监"}]
+        )
+
+        current_node = engine._build_nodes_from_snapshot(snapshot)[0]
+
+        await engine._advance(instance, current_node)
+
+        assert instance.current_node_key == "approval_2"
+        engine._handle_cc_node.assert_awaited_once()

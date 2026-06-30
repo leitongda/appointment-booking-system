@@ -157,6 +157,43 @@ def _do_check_approval_timeouts():
                 logger.info(f"超时自动拒绝触发: task={task.id}, instance={instance.id}")
                 _auto_reject_after_timeout.delay(task.instance_id, task.node_key, task.assignee_id)
 
+            elif timeout_action == "transfer":
+                config = node.assignee_config or {}
+                target_user_id = config.get("timeout_transfer_user_id") or config.get("transfer_user_id")
+                target_user_name = config.get("timeout_transfer_user_name") or config.get("transfer_user_name") or ""
+                if target_user_id and target_user_id != task.assignee_id:
+                    logger.info(
+                        "超时自动转交触发: task=%s, instance=%s, target=%s",
+                        task.id,
+                        instance.id,
+                        target_user_id,
+                    )
+                    _transfer_after_timeout.delay(
+                        task.instance_id,
+                        task.node_key,
+                        task.assignee_id,
+                        task.assignee_name or "",
+                        target_user_id,
+                        target_user_name,
+                    )
+                else:
+                    logger.warning(
+                        "超时转交未配置有效目标人，降级为提醒: task=%s, instance=%s",
+                        task.id,
+                        instance.id,
+                    )
+                    send_approval_notification.delay(
+                        user_id=task.assignee_id,
+                        message_type="approval_pending",
+                        data={
+                            "instance_id": instance.id,
+                            "title": instance.title,
+                            "node_name": task.node_name,
+                            "is_remind": True,
+                            "timeout_at": task.timeout_at.isoformat() if task.timeout_at else None,
+                        },
+                    )
+
         db.commit()
 
 
@@ -178,10 +215,11 @@ def _advance_after_auto_approve(instance_id: str, node_key: str, approver_id: st
     async def _run():
         async with AsyncSessionLocal() as db:
             engine = ApprovalEngine(db)
-            instance = db.get(ApprovalInstance, instance_id)
+            instance = await db.get(ApprovalInstance, instance_id)
             if not instance or instance.status != "pending":
                 return
             await engine.approve(instance_id, approver_id, "system", comment="超时自动通过")
+            await db.commit()
 
     _run_async(_run())
 
@@ -204,9 +242,53 @@ def _auto_reject_after_timeout(instance_id: str, node_key: str, approver_id: str
     async def _run():
         async with AsyncSessionLocal() as db:
             engine = ApprovalEngine(db)
-            instance = db.get(ApprovalInstance, instance_id)
+            instance = await db.get(ApprovalInstance, instance_id)
             if not instance or instance.status != "pending":
                 return
             await engine.reject(instance_id, approver_id, "system", comment="超时自动拒绝")
+            await db.commit()
+
+    _run_async(_run())
+
+
+@celery_app.task(
+    name="app.tasks.approval_task.transfer_after_timeout",
+    queue="default",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+    time_limit=60,
+    soft_time_limit=50,
+)
+def _transfer_after_timeout(
+    instance_id: str,
+    node_key: str,
+    approver_id: str,
+    approver_name: str,
+    target_user_id: str,
+    target_user_name: str = "",
+):
+    """超时自动转交"""
+    from app.db.session import AsyncSessionLocal
+    from app.models.approval_flow import ApprovalInstance
+    from app.modules.approval_flows.engine import ApprovalEngine
+
+    async def _run():
+        async with AsyncSessionLocal() as db:
+            engine = ApprovalEngine(db)
+            instance = await db.get(ApprovalInstance, instance_id)
+            if not instance or instance.status != "pending":
+                return
+            if instance.current_node_key != node_key:
+                return
+            await engine.delegate(
+                instance_id,
+                approver_id,
+                approver_name,
+                target_user_id,
+                target_user_name,
+                comment="超时自动转交",
+            )
+            await db.commit()
 
     _run_async(_run())

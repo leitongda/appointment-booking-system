@@ -129,6 +129,8 @@ const PropertyPanel: React.FC<PropertyPanelProps> = memo(({ selectedNode, onUpda
         assigneeType: d.assigneeType,
         timeoutHours: d.timeoutHours,
         timeoutAction: d.timeoutAction,
+        timeoutTransferUserId: d.assigneeConfig?.timeout_transfer_user_id,
+        timeoutTransferUserName: d.assigneeConfig?.timeout_transfer_user_name,
         conditionGroups: nested,
       });
       condIdMapRef.current = new Map();
@@ -147,11 +149,22 @@ const PropertyPanel: React.FC<PropertyPanelProps> = memo(({ selectedNode, onUpda
   const nodeType = d.nodeType;
 
   const handleValuesChange = (_: any, allValues: any) => {
-    if (nodeType === 'condition' && allValues.conditionGroups) {
-      onUpdate(selectedNode.id, { ...d, ...allValues, conditions: nestedToConditions(allValues.conditionGroups) });
-    } else {
-      onUpdate(selectedNode.id, { ...d, ...allValues });
+    const nextData = { ...d, ...allValues };
+    if (nodeType === 'approval') {
+      const assigneeConfig = { ...(d.assigneeConfig || {}) };
+      if (allValues.timeoutAction === 'transfer') {
+        assigneeConfig.timeout_transfer_user_id = allValues.timeoutTransferUserId;
+        assigneeConfig.timeout_transfer_user_name = allValues.timeoutTransferUserName;
+      } else {
+        delete assigneeConfig.timeout_transfer_user_id;
+        delete assigneeConfig.timeout_transfer_user_name;
+      }
+      nextData.assigneeConfig = assigneeConfig;
     }
+    if (nodeType === 'condition' && allValues.conditionGroups) {
+      nextData.conditions = nestedToConditions(allValues.conditionGroups);
+    }
+    onUpdate(selectedNode.id, nextData);
   };
 
   const getCondId = (path: string): string => {
@@ -259,6 +272,24 @@ const PropertyPanel: React.FC<PropertyPanelProps> = memo(({ selectedNode, onUpda
                 { label: '转交', value: 'transfer' },
               ]} allowClear />
             </Form.Item>
+            <Form.Item noStyle shouldUpdate={(prev, cur) => prev.timeoutAction !== cur.timeoutAction}>
+              {({ getFieldValue }) => (
+                getFieldValue('timeoutAction') === 'transfer' ? (
+                  <>
+                    <Form.Item
+                      label="超时转交用户 ID"
+                      name="timeoutTransferUserId"
+                      rules={[{ required: true, message: '请填写超时转交用户 ID' }]}
+                    >
+                      <Input placeholder="目标用户 ID" />
+                    </Form.Item>
+                    <Form.Item label="超时转交用户姓名" name="timeoutTransferUserName">
+                      <Input placeholder="目标用户姓名（选填）" />
+                    </Form.Item>
+                  </>
+                ) : null
+              )}
+            </Form.Item>
           </>
         )}
 
@@ -304,7 +335,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = memo(({ selectedNode, onUpda
                             {groupFields.map(({ key: groupKey, name: groupName }, groupIdx) => (
                               <div key={groupKey}>
                                 {groupIdx > 0 && (
-                                  <Divider plain style={{ margin: '4px 0', fontSize: 11, color: '#1890ff' }}>
+                                  <Divider plain style={{ margin: '4px 0', fontSize: 11, color: '#1677ff' }}>
                                     OR
                                   </Divider>
                                 )}

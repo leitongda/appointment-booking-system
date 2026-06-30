@@ -174,7 +174,7 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
   const canAttendanceRules = isSuperAdmin || hasPermission('attendance:rule');
   const canAttendanceRecords = isSuperAdmin || hasPermission('attendance:record');
   const canAttendanceLeave = isSuperAdmin || hasPermission('attendance:leave');
-  const canApproval = hasModuleAccess('approval-flow', ['approval-flow:list', 'approval-flow:create', 'approval-flow:update', 'approval-flow:manage', 'approval-flow:delete']);
+  const canApproval = hasModuleAccess('approval-flow', ['approval-flow:list', 'approval-flow:create', 'approval-flow:update', 'approval-flow:manage', 'approval-flow:delete', 'approval:read', 'approval:approve', 'approval-instance:manage']);
   const canContacts = hasModuleAccess('contact', ['contact:view', 'contact:create', 'contact:edit', 'contact:delete']);
   const canApprovalFlowManage = hasAnyPermission(['approval-flow:create', 'approval-flow:update', 'approval-flow:manage', 'approval-flow:delete']);
 
