@@ -4,12 +4,13 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Skeleton, Toast, Tag } from 'antd-mobile';
-import { history, useSearchParams } from 'umi';
 import { motion } from 'framer-motion';
 import dayjs from 'dayjs';
 import { scheduleApi } from '@hospital/api';
+import type { Schedule as ApiSchedule } from '@hospital/shared';
 import { Card, StepIndicator, PageHeader, fadeInUp, stagger } from '@/components/ui';
 import { saveRegistrationData, getRegistrationData } from '@/utils/storage';
+import { navigation } from '@/utils/navigation';
 
 // 挂号流程步骤
 const steps = [
@@ -21,8 +22,8 @@ const steps = [
 ];
 
 interface Schedule {
-  id: number;
-  doctorId: number;
+  id: string;
+  doctorId: string;
   date: string;
   timeSlot: 'morning' | 'afternoon';
   maxPatients: number;
@@ -30,8 +31,22 @@ interface Schedule {
   status: number;
 }
 
+const toTimeSlot = (schedule: ApiSchedule): 'morning' | 'afternoon' => {
+  return schedule.timeSlot === 'afternoon' ? 'afternoon' : 'morning';
+};
+
+const toViewSchedule = (schedule: ApiSchedule): Schedule => ({
+  id: schedule.id,
+  doctorId: schedule.doctorId,
+  date: schedule.scheduleDate,
+  timeSlot: toTimeSlot(schedule),
+  maxPatients: schedule.totalSlots,
+  currentPatients: schedule.bookedSlots,
+  status: schedule.status,
+});
+
 const TimeSlotPage: React.FC = () => {
-  const [searchParams] = useSearchParams();
+  const searchParams = new URLSearchParams(window.location.search);
   const doctorId = searchParams.get('doctorId');
 
   const [loading, setLoading] = useState(true);
@@ -55,28 +70,32 @@ const TimeSlotPage: React.FC = () => {
         icon: 'fail',
         content: '请先选择医生',
       });
-      history.replace('/');
+      navigation.replace('/');
       return;
     }
     loadSchedules();
   }, [doctorId, selectedDate]);
 
   const loadSchedules = async () => {
+    if (!doctorId) return;
+
     setLoading(true);
     try {
       // 获取医生在选定日期的排班
-      const data = await scheduleApi.getByDoctor(Number(doctorId), {
+      const data = await scheduleApi.getList({
+        doctorId,
         startDate: selectedDate,
         endDate: selectedDate,
+        pageSize: 100,
       });
-      setSchedules(data || []);
+      setSchedules(data.data.map(toViewSchedule));
     } catch (error) {
       console.error('加载排班失败', error);
       // 模拟数据用于演示
       setSchedules([
         {
-          id: 1,
-          doctorId: Number(doctorId),
+          id: 'demo-morning',
+          doctorId,
           date: selectedDate,
           timeSlot: 'morning',
           maxPatients: 30,
@@ -84,8 +103,8 @@ const TimeSlotPage: React.FC = () => {
           status: 1,
         },
         {
-          id: 2,
-          doctorId: Number(doctorId),
+          id: 'demo-afternoon',
+          doctorId,
           date: selectedDate,
           timeSlot: 'afternoon',
           maxPatients: 25,
@@ -114,7 +133,7 @@ const TimeSlotPage: React.FC = () => {
       timeSlot: schedule.timeSlot,
       timeSlotLabel: schedule.timeSlot === 'morning' ? '上午' : '下午',
     });
-    history.push('/patient-info');
+    navigation.push('/patient-info');
   };
 
   const getTimeSlotInfo = (slot: 'morning' | 'afternoon') => {
@@ -271,6 +290,4 @@ const TimeSlotPage: React.FC = () => {
 };
 
 export default TimeSlotPage;
-
-
 

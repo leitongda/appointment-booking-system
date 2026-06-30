@@ -4,12 +4,12 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Grid, SearchBar, Skeleton, Toast } from 'antd-mobile';
-import { history } from 'umi';
 import { motion } from 'framer-motion';
 import { departmentApi } from '@hospital/api';
 import type { Department } from '@hospital/shared';
 import { Card, StepIndicator, fadeInUp, stagger, viewportOptions } from '@/components/ui';
 import { saveRegistrationData, resetRegistration } from '@/utils/storage';
+import { navigation } from '@/utils/navigation';
 
 // 挂号流程步骤
 const steps = [
@@ -65,7 +65,7 @@ const HomePage: React.FC = () => {
       departmentId: dept.id,
       departmentName: dept.name,
     });
-    history.push(`/doctor?departmentId=${dept.id}&departmentName=${encodeURIComponent(dept.name)}`);
+    navigation.push(`/doctor?departmentId=${dept.id}&departmentName=${encodeURIComponent(dept.name)}`);
   };
 
   // 过滤科室
@@ -194,6 +194,5 @@ const HomePage: React.FC = () => {
 };
 
 export default HomePage;
-
 
 

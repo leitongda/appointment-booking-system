@@ -4,10 +4,10 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Form, Input, Button, Toast, Radio, Space } from 'antd-mobile';
-import { history } from 'umi';
 import { motion } from 'framer-motion';
 import { Card, StepIndicator, PageHeader, fadeInUp } from '@/components/ui';
 import { saveRegistrationData, getRegistrationData } from '@/utils/storage';
+import { navigation } from '@/utils/navigation';
 
 // 挂号流程步骤
 const steps = [
@@ -38,7 +38,7 @@ const PatientInfoPage: React.FC = () => {
         icon: 'fail',
         content: '请先选择就诊时段',
       });
-      history.replace('/');
+      navigation.replace('/');
       return;
     }
 
@@ -94,7 +94,7 @@ const PatientInfoPage: React.FC = () => {
         patientAge: parseInt(values.age, 10),
       });
       
-      history.push('/confirm');
+      navigation.push('/confirm');
     } catch (error) {
       Toast.show({
         icon: 'fail',
@@ -259,6 +259,5 @@ const PatientInfoPage: React.FC = () => {
 };
 
 export default PatientInfoPage;
-
 
 

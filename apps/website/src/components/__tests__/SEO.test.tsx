@@ -4,7 +4,11 @@ import { HelmetProvider } from 'react-helmet-async';
 import { SEO } from '../SEO';
 
 function renderWithHelmet(ui: React.ReactElement) {
-  return render(ui, { wrapper: HelmetProvider });
+  const Wrapper = ({ children }: { children: React.ReactNode }) => (
+    <HelmetProvider>{children as any}</HelmetProvider>
+  );
+
+  return render(ui, { wrapper: Wrapper });
 }
 
 describe('SEO', () => {

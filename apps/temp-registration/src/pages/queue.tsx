@@ -4,11 +4,11 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Button, Toast } from 'antd-mobile';
-import { history } from 'umi';
 import { motion } from 'framer-motion';
 import dayjs from 'dayjs';
 import { Card, fadeInUp, stagger, pulseAnimation } from '@/components/ui';
 import { getRegistrationData, resetRegistration } from '@/utils/storage';
+import { navigation } from '@/utils/navigation';
 
 const QueuePage: React.FC = () => {
   const registrationData = getRegistrationData();
@@ -21,7 +21,7 @@ const QueuePage: React.FC = () => {
         icon: 'fail',
         content: '未找到挂号信息',
       });
-      history.replace('/');
+      navigation.replace('/');
       return;
     }
 
@@ -35,7 +35,7 @@ const QueuePage: React.FC = () => {
 
   const handleNewRegistration = () => {
     resetRegistration();
-    history.replace('/');
+    navigation.replace('/');
   };
 
   const handleViewDetail = () => {
@@ -245,6 +245,5 @@ const QueuePage: React.FC = () => {
 };
 
 export default QueuePage;
-
 
 

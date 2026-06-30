@@ -7,17 +7,17 @@ const STORAGE_PREFIX = 'temp_reg_';
 
 export interface RegistrationData {
   // 科室信息
-  departmentId?: number;
+  departmentId?: string;
   departmentName?: string;
   
   // 医生信息
-  doctorId?: number;
+  doctorId?: string;
   doctorName?: string;
   doctorTitle?: string;
   doctorAvatar?: string;
   
   // 时段信息
-  scheduleId?: number;
+  scheduleId?: string;
   scheduleDate?: string;
   timeSlot?: 'morning' | 'afternoon';
   timeSlotLabel?: string;
@@ -30,7 +30,7 @@ export interface RegistrationData {
   patientAge?: number;
   
   // 挂号结果
-  appointmentId?: number;
+  appointmentId?: string;
   queueNumber?: string;
   estimatedWaitTime?: number;
 }
@@ -109,6 +109,5 @@ export const resetRegistration = () => {
   clearRegistrationData();
   setCurrentStep(0);
 };
-
 
 

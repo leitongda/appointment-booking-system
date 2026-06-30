@@ -4,12 +4,12 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Image, Skeleton, Toast, Tag } from 'antd-mobile';
-import { history, useSearchParams } from 'umi';
 import { motion } from 'framer-motion';
 import { doctorApi } from '@hospital/api';
 import type { Doctor } from '@hospital/shared';
 import { Card, StepIndicator, PageHeader, fadeInUp, stagger } from '@/components/ui';
-import { saveRegistrationData, getRegistrationData } from '@/utils/storage';
+import { saveRegistrationData } from '@/utils/storage';
+import { navigation } from '@/utils/navigation';
 
 // 挂号流程步骤
 const steps = [
@@ -21,7 +21,7 @@ const steps = [
 ];
 
 const DoctorPage: React.FC = () => {
-  const [searchParams] = useSearchParams();
+  const searchParams = new URLSearchParams(window.location.search);
   const departmentId = searchParams.get('departmentId');
   const departmentName = searchParams.get('departmentName') || '';
 
@@ -34,15 +34,17 @@ const DoctorPage: React.FC = () => {
         icon: 'fail',
         content: '请先选择科室',
       });
-      history.replace('/');
+      navigation.replace('/');
       return;
     }
     loadDoctors();
   }, [departmentId]);
 
   const loadDoctors = async () => {
+    if (!departmentId) return;
+
     try {
-      const data = await doctorApi.getByDepartment(Number(departmentId));
+      const data = await doctorApi.getByDepartment(departmentId);
       setDoctors(data);
     } catch (error) {
       console.error('加载医生列表失败', error);
@@ -62,7 +64,7 @@ const DoctorPage: React.FC = () => {
       doctorTitle: doctor.title,
       doctorAvatar: doctor.avatar,
     });
-    history.push(`/time-slot?doctorId=${doctor.id}`);
+    navigation.push(`/time-slot?doctorId=${doctor.id}`);
   };
 
   // 获取职称颜色
@@ -109,7 +111,7 @@ const DoctorPage: React.FC = () => {
             </div>
             <p className="text-muted-foreground">该科室暂无出诊医生</p>
             <button 
-              onClick={() => history.back()}
+              onClick={() => navigation.back()}
               className="mt-4 text-primary font-medium"
             >
               返回选择其他科室
@@ -192,6 +194,4 @@ const DoctorPage: React.FC = () => {
 };
 
 export default DoctorPage;
-
-
 

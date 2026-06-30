@@ -16,6 +16,10 @@ import { SEO } from '@/components/SEO';
 import { tenantApi } from '@hospital/api';
 import type { CurrentTenant } from '@hospital/api';
 
+type WebsiteCurrentTenant = CurrentTenant & {
+  subscriptionStartAt?: string | null;
+};
+
 const ADMIN_URL = import.meta.env.VITE_ADMIN_URL || 'http://localhost:8006';
 
 function getToken(): string | null {
@@ -41,7 +45,7 @@ function clearAuth() {
 
 export function Profile() {
   const navigate = useNavigate();
-  const [tenant, setTenant] = useState<CurrentTenant | null>(null);
+  const [tenant, setTenant] = useState<WebsiteCurrentTenant | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -187,7 +191,7 @@ export function Profile() {
                 <InfoRow icon={Building2} label="机构编码" value={tenant.tenantCode} />
                 <InfoRow icon={Shield} label="状态" value={statusLabel(tenant.status)} />
                 <InfoRow icon={Phone} label="联系电话" value={tenant.contactPhone || '-'} />
-                <InfoRow icon={Calendar} label="开通时间" value={formatDate(tenant.subscriptionStartAt)} />
+                <InfoRow icon={Calendar} label="开通时间" value={formatDate(tenant.subscriptionStartAt ?? undefined)} />
               </div>
             </Card>
           </motion.div>

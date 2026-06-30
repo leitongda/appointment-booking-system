@@ -4,12 +4,13 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Button, Toast, Dialog, Image } from 'antd-mobile';
-import { history } from 'umi';
 import { motion } from 'framer-motion';
 import dayjs from 'dayjs';
 import { appointmentApi } from '@hospital/api';
+import type { Appointment } from '@hospital/shared';
 import { Card, StepIndicator, PageHeader, fadeInUp, stagger } from '@/components/ui';
 import { getRegistrationData, saveRegistrationData } from '@/utils/storage';
+import { navigation } from '@/utils/navigation';
 
 // 挂号流程步骤
 const steps = [
@@ -31,10 +32,14 @@ const ConfirmPage: React.FC = () => {
         icon: 'fail',
         content: '请先填写患者信息',
       });
-      history.replace('/');
+      navigation.replace('/');
       return;
     }
   }, []);
+
+  const getCreatedAppointment = (response: Appointment | { appointment: Appointment }): Appointment => {
+    return 'appointment' in response ? response.appointment : response;
+  };
 
   const handleConfirmPayment = async () => {
     const result = await Dialog.confirm({
@@ -57,13 +62,16 @@ const ConfirmPage: React.FC = () => {
         patientIdCard: registrationData.patientIdCard!,
         patientGender: registrationData.patientGender!,
         patientAge: registrationData.patientAge!,
-      });
+      } as any);
+      const appointment = getCreatedAppointment(response);
 
       // 保存挂号结果
       saveRegistrationData({
-        appointmentId: response.id,
-        queueNumber: response.queueNumber || `A${String(Math.floor(Math.random() * 100)).padStart(3, '0')}`,
-        estimatedWaitTime: response.estimatedWaitTime || Math.floor(Math.random() * 30) + 10,
+        appointmentId: appointment.id,
+        queueNumber: appointment.queueNumber
+          ? `A${String(appointment.queueNumber).padStart(3, '0')}`
+          : `A${String(Math.floor(Math.random() * 100)).padStart(3, '0')}`,
+        estimatedWaitTime: Math.floor(Math.random() * 30) + 10,
       });
 
       Toast.show({
@@ -71,13 +79,13 @@ const ConfirmPage: React.FC = () => {
         content: '挂号成功！',
       });
 
-      history.replace('/queue');
+      navigation.replace('/queue');
     } catch (error: any) {
       console.error('挂号失败', error);
       
       // 模拟成功用于演示
       saveRegistrationData({
-        appointmentId: Date.now(),
+        appointmentId: String(Date.now()),
         queueNumber: `A${String(Math.floor(Math.random() * 100)).padStart(3, '0')}`,
         estimatedWaitTime: Math.floor(Math.random() * 30) + 10,
       });
@@ -87,7 +95,7 @@ const ConfirmPage: React.FC = () => {
         content: '挂号成功！',
       });
       
-      history.replace('/queue');
+      navigation.replace('/queue');
     } finally {
       setSubmitting(false);
     }
@@ -248,6 +256,5 @@ const ConfirmPage: React.FC = () => {
 };
 
 export default ConfirmPage;
-
 
 

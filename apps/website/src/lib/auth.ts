@@ -7,7 +7,25 @@ import {
   markAuthExpired,
   resetTokenExpiredState,
 } from '@hospital/shared';
-import type { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
+
+interface HttpResponse<T = any> {
+  data: T;
+}
+
+interface HttpRequestConfig {
+  url?: string;
+  headers?: Record<string, string>;
+  _retry?: boolean;
+}
+
+interface HttpError {
+  config?: HttpRequestConfig;
+  response?: {
+    status?: number;
+    data?: any;
+  };
+  message?: string;
+}
 
 /** 是否正在刷新 token */
 let isRefreshing = false;
@@ -58,12 +76,19 @@ function shouldSkipRefresh(url: string): boolean {
 
 /** 重试原始请求 */
 function retryOriginalRequest(
-  config: InternalAxiosRequestConfig & { _retry?: boolean },
+  config: HttpRequestConfig,
   newToken: string,
 ) {
-  config.headers.Authorization = `Bearer ${newToken}`;
+  config.headers = {
+    ...config.headers,
+    Authorization: `Bearer ${newToken}`,
+  };
   config._retry = true;
-  return getHttpClient().request(config);
+  const request = getHttpClient().request;
+  if (!request) {
+    return Promise.reject(new Error('HTTP client does not support request retry'));
+  }
+  return request(config);
 }
 
 /**
@@ -72,11 +97,9 @@ function retryOriginalRequest(
  */
 export function setupAuthInterceptor() {
   setResponseInterceptor(
-    (response: AxiosResponse) => response,
-    async (error: AxiosError) => {
-      const originalRequest = error.config as InternalAxiosRequestConfig & {
-        _retry?: boolean;
-      };
+    (response: HttpResponse) => response,
+    async (error: HttpError) => {
+      const originalRequest = error.config;
 
       // 非 401 错误直接抛出
       if (error.response?.status !== 401 || !originalRequest) {

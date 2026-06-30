@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { history } from 'umi';
+import { navigation } from '@/utils/navigation';
 
 export interface PageHeaderProps {
   title: string;
@@ -23,7 +23,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
     if (onBack) {
       onBack();
     } else {
-      history.back();
+      navigation.back();
     }
   };
 
@@ -68,6 +68,5 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
 };
 
 export default PageHeader;
-
 
 
