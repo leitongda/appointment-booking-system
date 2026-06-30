@@ -29,6 +29,10 @@ BASELINE: dict = {
     "appointments_list": (800, 30),
     "schedules_list": (800, 30),
     "doctors_list": (600, 40),
+    # 写操作基线（更严格）
+    "appointments_create": (1200, 10),
+    "appointments_checkin": (800, 15),
+    "appointments_cancel": (800, 15),
 }
 
 # ---------------------------------------------------------------------------

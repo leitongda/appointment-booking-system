@@ -16,11 +16,20 @@ Locust 性能测试 —— 医院预约挂号系统核心接口。
         --headless \
         --users 50 --spawn-rate 5 --run-time 60s
 
+    # 高并发压测
+    locust -f tests/perf/locustfile.py \
+        --host http://localhost:8000 \
+        --headless \
+        --users 500 --spawn-rate 20 --run-time 120s
+
 场景说明：
-    - LoginUser:       权重 1，模拟管理员登录获取 token
-    - ListAppointments: 权重 3，查询预约列表（需登录）
-    - ListSchedules:    权重 2，查询排班列表（需登录）
-    - ListDoctors:      权重 4，查询医生列表（需登录）
+    - LoginUser:           权重 1，模拟管理员登录获取 token
+    - ListAppointments:    权重 3，查询预约列表（需登录）
+    - ListSchedules:       权重 2，查询排班列表（需登录）
+    - ListDoctors:         权重 4，查询医生列表（需登录）
+    - PatientBookingFlow:  权重 5，患者端挂号流程（浏览→选医生→选号源→预约）
+    - AdminCheckinFlow:    权重 2，管理员签到流程（查预约→签到）
+    - AdminCancelFlow:     权重 1，管理员取消流程（查预约→取消）
 """
 
 from locust import FastHttpUser, task, between, events
@@ -87,7 +96,7 @@ class _AuthenticatedUser(FastHttpUser):
 
 
 # ---------------------------------------------------------------------------
-# 测试场景
+# 测试场景：读操作
 # ---------------------------------------------------------------------------
 
 class LoginUser(FastHttpUser):
@@ -211,3 +220,171 @@ class ListDoctors(_AuthenticatedUser):
                 resp.failure("Token expired, re-login")
             else:
                 resp.failure(f"Unexpected status: {resp.status_code}")
+
+
+# ---------------------------------------------------------------------------
+# 测试场景：写操作（核心业务流程）
+# ---------------------------------------------------------------------------
+
+class PatientBookingFlow(_AuthenticatedUser):
+    """
+    患者端挂号流程 —— 模拟真实挂号场景。
+
+    流程：浏览医生 → 查看排班 → 创建预约
+    权重 5：最高频（挂号是系统核心功能）
+    """
+
+    weight = 5
+
+    @task(3)
+    def browse_doctors(self):
+        """浏览医生列表（高频，多个页面依赖）"""
+        params = {"page": 1, "page_size": 20}
+        with self.client.get(
+            f"{API_PREFIX}/doctors",
+            params=params,
+            headers=self._build_headers(self.token),
+            name="/api/v1/doctors [booking-flow]",
+            catch_response=True,
+        ) as resp:
+            if resp.status_code == 200:
+                resp.success()
+            elif resp.status_code == 401:
+                self.token = self._login()
+                resp.failure("Token expired")
+            else:
+                resp.failure(f"Status: {resp.status_code}")
+
+    @task(2)
+    def check_schedules(self):
+        """查看排班（中频，选择号源前必看）"""
+        params = {"page": 1, "page_size": 10}
+        with self.client.get(
+            f"{API_PREFIX}/schedules",
+            params=params,
+            headers=self._build_headers(self.token),
+            name="/api/v1/schedules [booking-flow]",
+            catch_response=True,
+        ) as resp:
+            if resp.status_code == 200:
+                resp.success()
+            elif resp.status_code == 401:
+                self.token = self._login()
+                resp.failure("Token expired")
+            else:
+                resp.failure(f"Status: {resp.status_code}")
+
+    @task(1)
+    def create_appointment(self):
+        """创建预约（低频但关键，写操作）"""
+        # 注意：实际预约需要真实的 schedule_id 和 patient_id
+        # 这里用占位数据测试 API 响应，真实压测需配置测试数据
+        payload = {
+            "schedule_id": "test-schedule-id",
+            "patient_id": "test-patient-id",
+            "symptoms": "压测自动生成",
+        }
+        with self.client.post(
+            f"{API_PREFIX}/appointments",
+            json=payload,
+            headers=self._build_headers(self.token),
+            name="/api/v1/appointments [create]",
+            catch_response=True,
+        ) as resp:
+            if resp.status_code in (200, 201):
+                resp.success()
+            elif resp.status_code == 401:
+                self.token = self._login()
+                resp.failure("Token expired")
+            elif resp.status_code == 400:
+                # 业务错误（如号源已满）是预期行为
+                resp.success()
+            else:
+                resp.failure(f"Status: {resp.status_code}")
+
+
+class AdminCheckinFlow(_AuthenticatedUser):
+    """
+    管理员签到流程 —— 模拟现场签到场景。
+
+    流程：查预约列表 → 签到
+    权重 2：中频（现场签到操作）
+    """
+
+    weight = 2
+
+    @task(2)
+    def list_confirmed(self):
+        """查询待签到预约"""
+        params = {"page": 1, "page_size": 10, "status": 1}  # 1=CONFIRMED
+        with self.client.get(
+            f"{API_PREFIX}/appointments",
+            params=params,
+            headers=self._build_headers(self.token),
+            name="/api/v1/appointments [checkin-list]",
+            catch_response=True,
+        ) as resp:
+            if resp.status_code == 200:
+                resp.success()
+            elif resp.status_code == 401:
+                self.token = self._login()
+                resp.failure("Token expired")
+            else:
+                resp.failure(f"Status: {resp.status_code}")
+
+    @task(1)
+    def checkin_appointment(self):
+        """签到（写操作）"""
+        # 注意：实际签到需要真实的 appointment_id
+        appointment_id = "test-appointment-id"
+        with self.client.post(
+            f"{API_PREFIX}/appointments/{appointment_id}/checkin",
+            json={"checkin_method": "MANUAL"},
+            headers=self._build_headers(self.token),
+            name="/api/v1/appointments/{id}/checkin",
+            catch_response=True,
+        ) as resp:
+            if resp.status_code == 200:
+                resp.success()
+            elif resp.status_code == 401:
+                self.token = self._login()
+                resp.failure("Token expired")
+            elif resp.status_code == 400:
+                # 业务错误（如已签到）是预期行为
+                resp.success()
+            else:
+                resp.failure(f"Status: {resp.status_code}")
+
+
+class AdminCancelFlow(_AuthenticatedUser):
+    """
+    管理员取消流程 —— 模拟取消预约场景。
+
+    流程：查预约 → 取消
+    权重 1：低频（取消操作不常见）
+    """
+
+    weight = 1
+
+    @task(1)
+    def cancel_appointment(self):
+        """取消预约（写操作）"""
+        # 注意：实际取消需要真实的 appointment_id
+        appointment_id = "test-appointment-id"
+        with self.client.post(
+            f"{API_PREFIX}/appointments/{appointment_id}/cancel",
+            json={"reason": "压测自动取消"},
+            headers=self._build_headers(self.token),
+            name="/api/v1/appointments/{id}/cancel",
+            catch_response=True,
+        ) as resp:
+            if resp.status_code == 200:
+                resp.success()
+            elif resp.status_code == 401:
+                self.token = self._login()
+                resp.failure("Token expired")
+            elif resp.status_code == 400:
+                # 业务错误（如已取消）是预期行为
+                resp.success()
+            else:
+                resp.failure(f"Status: {resp.status_code}")
