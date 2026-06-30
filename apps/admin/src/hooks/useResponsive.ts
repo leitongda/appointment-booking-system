@@ -1,17 +1,11 @@
 /**
  * 声明式设计 Hook
  *
- * 提供响应式断点检测和布局配置
+ * 提供响应式断点检测
  */
 import { useMemo } from 'react';
 import { Grid } from 'antd';
-import {
-  BREAKPOINTS,
-  RESPONSIVE_CONFIG,
-  TABLE_CONFIG,
-  MODAL_CONFIG,
-  FORM_LAYOUT,
-} from '@/constants/responsive';
+import { BREAKPOINTS, RESPONSIVE_CONFIG } from '@/constants/responsive';
 
 import type { Breakpoint } from '@/constants/responsive';
 
@@ -80,87 +74,6 @@ export function useResponsive(): ResponsiveState {
       config: RESPONSIVE_CONFIG,
     };
   }, [screens]);
-}
-
-/**
- * 获取表格配置
- */
-export function useTableConfig() {
-  const { breakpoint } = useResponsive();
-
-  return useMemo(() => {
-    const bp = breakpoint === 'xs' ? 'mobile' : breakpoint === 'sm' ? 'tablet' : 'desktop';
-    return {
-      pageSize: TABLE_CONFIG.pageSize[bp],
-      simplePagination: TABLE_CONFIG.simplePagination[bp],
-      density: TABLE_CONFIG.density[bp],
-      operationsWidth: TABLE_CONFIG.operationsWidth[bp],
-    };
-  }, [breakpoint]);
-}
-
-/**
- * 获取弹窗配置
- */
-export function useModalConfig() {
-  const { breakpoint } = useResponsive();
-
-  return useMemo(() => {
-    const bp = breakpoint === 'xs' ? 'mobile' : breakpoint === 'sm' ? 'tablet' : 'desktop';
-    return {
-      small: MODAL_CONFIG.small[bp],
-      medium: MODAL_CONFIG.medium[bp],
-      large: MODAL_CONFIG.large[bp],
-    };
-  }, [breakpoint]);
-}
-
-/**
- * 获取表单布局配置
- */
-export function useFormLayoutConfig() {
-  const { breakpoint } = useResponsive();
-
-  return useMemo(() => {
-    const bp = breakpoint === 'xs' ? 'mobile' : breakpoint === 'sm' ? 'tablet' : 'desktop';
-    return {
-      layout: FORM_LAYOUT.layout[bp],
-      colSpan: FORM_LAYOUT.colSpan[bp],
-      inputWidth: FORM_LAYOUT.inputWidth[bp],
-    };
-  }, [breakpoint]);
-}
-
-/**
- * 获取自适应宽度
- * @param mobileWidth 移动端宽度
- * @param desktopWidth 桌面端宽度
- */
-export function useAdaptiveWidth(
-  mobileWidth: string | number = '100%',
-  desktopWidth: string | number = 'md'
-): string | number {
-  const { isMobile } = useResponsive();
-
-  return isMobile ? mobileWidth : desktopWidth;
-}
-
-/**
- * 获取自适应列宽
- * @param mobileSpan 移动端栅格数
- * @param tabletSpan 平板栅格数
- * @param desktopSpan 桌面端栅格数
- */
-export function useAdaptiveColSpan(
-  mobileSpan: number = 24,
-  tabletSpan: number = 12,
-  desktopSpan: number = 8
-): number {
-  const { isMobile, isTablet } = useResponsive();
-
-  if (isMobile) return mobileSpan;
-  if (isTablet) return tabletSpan;
-  return desktopSpan;
 }
 
 export default useResponsive;

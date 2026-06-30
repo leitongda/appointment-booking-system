@@ -1,0 +1,38 @@
+{
+  "generated_at": "2026-06-29",
+  "methodology": "package.json × lockfile × 实际 import × 构建配置 交叉检查；每条含 import/配置证据",
+  "unused_dependencies": [
+    {"dep": "webpack-bundle-analyzer", "package": "apps/admin", "evidence": "零 import，config/scripts 零引用", "confidence": "high", "action": "pnpm remove"},
+    {"dep": "cli-progress", "package": "root", "evidence": "全仓 .mjs/.js/.ts 零引用（figlet/ora/prompts/chalk 在 deploy-frontend.mjs 命中，唯独它无）", "confidence": "high", "action": "pnpm remove"},
+    {"dep": "@tanstack/react-query", "package": "apps/temp-registration", "evidence": "排除 .umi 后无 useQuery/useMutation/QueryClient", "confidence": "high", "action": "pnpm remove"},
+    {"dep": "zustand", "package": "apps/temp-registration", "evidence": "排除 .umi 后无 create()/zustand 引用", "confidence": "high", "action": "pnpm remove"},
+    {"dep": "antd-mobile-icons", "package": "apps/temp-registration", "evidence": "零 import（patient-h5 有 2 处对照）", "confidence": "high", "action": "pnpm remove"},
+    {"dep": "react-image-crop", "package": "apps/admin", "evidence": "admin/src 零 import；真正使用者在 packages/shared/ImageCropper.tsx；admin 声明仅为 mfsu exclude", "confidence": "medium", "action": "可移除但需同步改 config/build/mfsu.ts exclude"}
+  ],
+  "wrong_classification": [
+    {"dep": "autoprefixer/postcss/tailwindcss", "packages": ["apps/patient-h5", "apps/temp-registration"], "issue": "构建期工具放在 dependencies", "action": "迁 devDependencies"},
+    {"dep": "less", "packages": ["apps/patient-miniapp", "apps/miniapp-instance"], "issue": "纯构建工具放 dependencies，与 mini-appointment 把 sass 放 devDeps 不一致", "action": "迁 devDependencies"}
+  ],
+  "duplicate_capability": [
+    {"capability": "HTTP 客户端", "locations": "apps/admin(axios) + patient-h5/temp-registration(umi-request) + packages/api(axios)", "risk": "双 HTTP 通道", "action": "统一到 @hospital/api，admin 的 axios 仅 3 处 import 可下沉"}
+  ],
+  "version_inconsistency": [
+    {"dep": "antd", "versions": "admin ^6.3.7 / doctor ^5.13.1 / shared peer >=5", "risk": "跨大版本 API/icons 不兼容", "action": "文档化决策；shared peer 放宽 >=5||>=6", "intentional": true},
+    {"dep": "@ant-design/icons", "versions": "admin ^6.2.2 / doctor ^5.2.6", "risk": "须与 antd 配套", "action": "确认 shared peer 兼容 v6"},
+    {"dep": "@ant-design/pro-components", "versions": "admin 3.1.12-0(prerelease) / doctor ^2.6.43", "risk": "跨大版本+预发布标签", "action": "锁版本防漂移"},
+    {"dep": "react", "versions": "website ^19.0.0 / 其余 ^18.2.0", "risk": "跨主版本（website 独立 Vite 可接受）", "action": "确认 @hospital/shared 类型在 react19 可用"},
+    {"dep": "@typescript-eslint", "versions": "mini-appointment: eslint-plugin ^5.20.0 vs parser ^8.61.1", "risk": "主版本严重不匹配，lint 可能静默失效", "action": "对齐同主版本"}
+  ],
+  "python_requirements": {
+    "total": 34,
+    "unused": 0,
+    "note": "全部 34 个声明包均有 import 或命令证据（含延迟 import：sentry_sdk/playwright/user_agents/xlrd；flower/minio/wechatpayv3/alibabacloud_dysmsapi 均确认）"
+  },
+  "immediately_removable": [
+    "apps/admin: webpack-bundle-analyzer",
+    "root: cli-progress",
+    "apps/temp-registration: @tanstack/react-query",
+    "apps/temp-registration: zustand",
+    "apps/temp-registration: antd-mobile-icons"
+  ]
+}

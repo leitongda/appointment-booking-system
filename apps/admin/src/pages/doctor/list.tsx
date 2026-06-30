@@ -314,6 +314,7 @@ const DoctorListPage: React.FC = () => {
       setDepartments(data ?? []);
     } catch (error) {
       console.error('加载科室失败', error);
+      message.error('加载科室失败');
     }
   }
 
@@ -323,6 +324,7 @@ const DoctorListPage: React.FC = () => {
       setStores(res.data ?? []);
     } catch (error) {
       console.error('加载门店失败', error);
+      message.error('加载门店失败');
     }
   }
 

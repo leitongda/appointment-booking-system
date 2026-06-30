@@ -1,0 +1,161 @@
+{
+  "generated_at": "2026-06-29",
+  "audit_round": 1,
+  "scope": "apps/* (Umi4 + Taro4) + apps/server (FastAPI) + packages/{api,shared,codegen}",
+  "exclusions": ["node_modules", "dist", "build", ".umi", ".turbo", "coverage", "__pycache__", "生成代码"],
+  "methodology": "Glob/Grep 静态引用分析 + codegraph 依赖图 + 入口/路由/配置回溯；动态 import / 字符串路由 / 约定式路由 / 插件注册默认降级为需人工确认",
+  "confidence_legend": {
+    "high": "静态分析明确零引用，且已检查入口/路由/配置",
+    "medium": "无直接引用，但可能由动态机制调用",
+    "low": "仅命名/目录/相似度推断"
+  },
+  "p0_high_confidence_cleanable": [
+    {
+      "type": "dead_directory",
+      "target": "apps/server/app/services/ (整目录)",
+      "path": "apps/server/app/services/{__init__.py,email_template_service.py,rule_performance_service.py,storage/}",
+      "evidence": "grep 'app\\.services' apps/server/app 命中=0；真实消费方均从 app.modules.* 导入；唯一旧路径引用在 tests/tenants/test_cache_isolation.py:326/362/379（测试 patch）",
+      "risk": "low",
+      "action": "删除整目录；将 3 处测试 patch 重定向到 app.modules.rule_engine.rule_performance_service",
+      "verified_by_coordinator": true
+    },
+    {
+      "type": "dead_file",
+      "target": "schemas/error.py 全文",
+      "path": "apps/server/app/schemas/error.py",
+      "evidence": "全仓零 'from app.schemas.error import'；ErrorResponse/ErrorDetail 与 schemas/response.py 同名冲突",
+      "risk": "low",
+      "action": "删除整个 error.py，统一用 response.ErrorResponse"
+    },
+    {
+      "type": "dead_exports",
+      "target": "schemas/admin.py 8 个登录类",
+      "path": "apps/server/app/schemas/admin.py",
+      "evidence": "AdminLoginRequest/AdminLoginResponse/PhoneLoginRequest/SmsCodeRequest/SmsLoginRequest 等 8 类 import=0；同名类在 modules/admin/schemas.py 实际被消费（AdminListResponse 除外被 stores 用）",
+      "risk": "low",
+      "action": "删除全局 admin.py 中这 8 类，保留 AdminListResponse"
+    },
+    {
+      "type": "dead_files_frontend",
+      "target": "admin 3 个整死文件 + 1 近死 hook",
+      "path": "apps/admin/src/hooks/useFormDraft.ts (~6.8KB), apps/admin/src/utils/errorHandler.ts (~7.7KB), apps/admin/src/utils/formHelper.ts (~13.6KB), apps/admin/src/hooks/useResponsive.ts (5/6 死)",
+      "evidence": "各自 grep 仅自身命中，零外部引用",
+      "risk": "low",
+      "action": "删除前 3 文件；useResponsive.ts 删 5 个死 hook (useTableConfig/useModalConfig/useFormLayoutConfig/useAdaptiveWidth/useAdaptiveColSpan)"
+    },
+    {
+      "type": "dead_api_modules",
+      "target": "packages/api 零消费模块",
+      "path": "packages/api/src/modules/{export.ts,contact.ts,account.ts}, utils/{performance.ts,retry.ts}, config.ts, hooks/useCountdown",
+      "evidence": "exportApi/contactApi/accountApi/getPerformanceMonitor/withRetry/API_CONFIG/useCountdown 在 apps/ 命中=0",
+      "risk": "low",
+      "action": "删模块 + barrel 对应行（contact 需确认 contacts 页是否直连后端）"
+    },
+    {
+      "type": "unused_dependencies",
+      "target": "5 个零引用依赖",
+      "path": "apps/admin:webpack-bundle-analyzer; 根package.json:cli-progress; apps/temp-registration:{@tanstack/react-query,zustand,antd-mobile-icons}",
+      "evidence": "import 命中=0，非脚本/配置使用",
+      "risk": "low",
+      "action": "pnpm remove"
+    },
+    {
+      "type": "repo_junk_local",
+      "target": "var/ (52MB 本地未忽略)",
+      "path": "var/",
+      "evidence": "git ls-files var/ =0；.gitignore 仅忽略 apps/server/var/",
+      "risk": "low",
+      "action": "本地删除 + .gitignore 增 '/var/'"
+    },
+    {
+      "type": "repo_junk_tracked",
+      "target": "误入版本控制的产物/缓存",
+      "path": "apps/mini-appointment-miniapp.tar.gz; .VSCodeCounter/ (9文件); .kilo/.kilocode/.opencode 被跟踪配置; packages/codegen/dist(.turbo 日志)",
+      "evidence": "git ls-files 确认被跟踪",
+      "risk": "low",
+      "action": "git rm --cached + .gitignore"
+    }
+  ],
+  "p1_needs_confirmation": [
+    {
+      "type": "dead_package",
+      "target": "packages/codegen",
+      "path": "packages/codegen/",
+      "evidence": "无 app 消费者（7 处引用全在自身内部）；CLI 形态 cli-wrapper.js",
+      "dynamic_entry": "可能被后端 lowcode codegen 以子进程方式调用",
+      "verify_method": "grep subprocess/Popen 'codegen' in apps/server；确认 lowcode API 端点是否实际调用此包",
+      "action": "确认未被 spawn 后移除，否则文档化其角色"
+    },
+    {
+      "type": "overlapping_app",
+      "target": "apps/mini-appointment-miniapp",
+      "path": "apps/mini-appointment-miniapp/",
+      "evidence": "仅 4 页，与 patient-miniapp(41页) 功能重叠；完全绕过 @hospital/api/shared 自造 util",
+      "dynamic_entry": "根 package.json 仍引用，可能有独立发布需求",
+      "verify_method": "确认是否仍作为独立临时挂号小程序发布",
+      "action": "保留则接入共享层；否则归并到 patient-miniapp"
+    },
+    {
+      "type": "orphan_page",
+      "target": "patient-h5 症状导诊页",
+      "path": "apps/patient-h5/src/pages/guide/index.tsx",
+      "evidence": ".umirc.ts 无 /guide 路由，全仓无 navigate('/guide')",
+      "dynamic_entry": "可能后端下发 URL",
+      "verify_method": "确认后端是否下发 /guide 链接",
+      "action": "补路由+入口，或删除"
+    },
+    {
+      "type": "orphan_page",
+      "target": "admin 字典管理页",
+      "path": "apps/admin/src/pages/system/dictionaries/{index,items}.tsx",
+      "evidence": "config/routes 无引用；access.ts 无 canDictionary 键；后端 /dicts /dict-options 已注册",
+      "dynamic_entry": "可能动态菜单",
+      "verify_method": "确认是否废弃",
+      "action": "补菜单+权限键，或删除"
+    },
+    {
+      "type": "orphan_page",
+      "target": "patient-miniapp lowcode 页",
+      "path": "apps/patient-miniapp/src/pages/lowcode/index.tsx",
+      "evidence": "app.config.ts pages 数组未声明；useRouter params.id 驱动",
+      "dynamic_entry": "小程序跳转目标必须在 pages 声明，否则报页面不存在",
+      "verify_method": "确认后端下发跳转是否可达",
+      "action": "加入 pages 数组或移除"
+    },
+    {
+      "type": "leak_suspicion",
+      "target": "sessionRecorder 无停止钩子",
+      "path": "apps/admin/src/utils/sessionRecorder.ts (stopSessionRecorder/forceFlush)",
+      "evidence": "initSessionRecorder 已挂载(app.tsx)，但 stop/forceFlush 零外部调用",
+      "dynamic_entry": "可能本应在卸载时调用",
+      "verify_method": "审查录制生命周期，确认是否泄漏",
+      "action": "挂到卸载逻辑或确认设计如此"
+    },
+    {
+      "type": "dead_exports",
+      "target": "~39 全局 + 22 模块级零引用 schema",
+      "path": "apps/server/app/schemas/{point_log,notification_log,user}.py 等；__init__.py 虚假 re-export",
+      "evidence": "import=0 且非任何类基类",
+      "dynamic_entry": "__init__.py re-export 链路掩盖",
+      "verify_method": "逐个核对 re-export 是否被外部消费",
+      "action": "删除或移除 __init__ 导出"
+    }
+  ],
+  "p2_duplication_opportunities": [
+    {"category": "backend_schema_boilerplate", "locations": "39 个 schema 文件 ~350 处", "evidence": "手写 alias_generator=to_camel，BaseSchema 已封装等价配置", "consolidate_to": "继承 app/schemas/base.py BaseSchema", "benefit": "high"},
+    {"category": "miniapp_self_rolled_utils", "locations": "apps/mini-appointment-miniapp/src/utils/{date,validator,auth,request}.ts ~600行", "evidence": "重写 validate/format/request，绕过 shared+api", "consolidate_to": "packages/shared/miniapp + createTaroAdapter", "benefit": "high"},
+    {"category": "web_request_triplicate", "locations": "apps/{admin,doctor,patient-h5}/src/utils/request.ts", "evidence": "三份同构骨架(拦截器+401+租户暂停)", "consolidate_to": "packages/api createWebInterceptors 工厂", "benefit": "medium"},
+    {"category": "procolumns_duplication", "locations": "admin appointment/waitlist/medical-record/follow-up 等 10+ 页", "evidence": "patientName/patientPhone/doctorName/status 列定义逐页复制", "consolidate_to": "apps/admin/src/utils/proTable.ts presets", "benefit": "medium"},
+    {"category": "status_map_divergence", "locations": "packages/shared constants vs admin constants vs 8 页面内联", "evidence": "APPOINTMENT_STATUS_MAP 文案/键集分叉", "consolidate_to": "统一引用 @hospital/shared", "benefit": "medium"},
+    {"category": "duplicate_schemas", "locations": "ChangePasswordRequest(4处)/BatchDeleteRequest(5-6处)/Notification系列双轨", "evidence": "同名 BaseModel 各自内联", "consolidate_to": "app/schemas/common.py 单一基类", "benefit": "medium"},
+    {"category": "listener_normalization_dup", "locations": "apps/server/app/modules/approval_flows/listener_service.py:84-95 _normalize_config 与 service_definitions.py:24-46 _normalize_listener", "evidence": "两处独立实现完全相同的 6 项 camelCase→snake_case 映射", "consolidate_to": "approval_flows/listener_normalizer.py 单一来源", "benefit": "medium", "round": 2}
+  ],
+  "summary": {
+    "p0_count": 8,
+    "p1_count": 7,
+    "p2_count": 6,
+    "estimated_removable_files": "3 整死文件(admin) + 1 整死目录(server/services) + 1 整死文件(schemas/error) + 7 packages/api 死模块",
+    "estimated_removable_deps": 5,
+    "estimated_local_disk_reclaim": "~250MB (var 52MB + .kilo/.kilocode/.opencode 170MB + .pnpm-store 35MB + .VSCodeCounter 0.4MB)"
+  }
+}

@@ -165,3 +165,14 @@ ink_parallax_layers.zip
 
 # Cursor MCP config contains machine-specific absolute paths
 .cursor/
+
+# Local runtime logs (not for VCS)
+/var/
+
+# IDE/tooling artifacts (machine-generated, large)
+.VSCodeCounter/
+
+# AI assistant local working dirs (machine-specific)
+.kilo/
+.kilocode/
+.opencode/

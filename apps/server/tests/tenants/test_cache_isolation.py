@@ -323,7 +323,7 @@ class TestRulePerformanceTenantIsolation:
         svc = RulePerformanceService()
 
         # 使用 patch 模拟上下文返回 None
-        with patch("app.services.rule_performance_service.get_current_tenant_id", return_value=None):
+        with patch("app.modules.rule_engine.rule_performance_service.get_current_tenant_id", return_value=None):
             key = svc._build_counter_key("check_action_window")
 
         assert "global" in key, "无租户上下文时应使用 global 占位符"
@@ -359,7 +359,7 @@ class TestRulePerformanceTenantIsolation:
         # 同租户不同类型的 key 也应该不同
         assert len(set(keys_a.values())) == 3, "同租户不同类型 key 应该不同"
 
-    @patch("app.services.rule_performance_service.get_current_tenant_id", return_value="ctx-tenant-1")
+    @patch("app.modules.rule_engine.rule_performance_service.get_current_tenant_id", return_value="ctx-tenant-1")
     def test_tenant_id_from_context_when_not_provided(self, mock_ctx):
         """测试未显式传入 tenant_id 时从上下文获取"""
         from app.modules.rule_engine.rule_performance_service import RulePerformanceService
@@ -376,7 +376,7 @@ class TestRulePerformanceTenantIsolation:
 
         svc = RulePerformanceService()
 
-        with patch("app.services.rule_performance_service.get_current_tenant_id", return_value="ctx-tenant"):
+        with patch("app.modules.rule_engine.rule_performance_service.get_current_tenant_id", return_value="ctx-tenant"):
             key = svc._build_counter_key("check_action_window", tenant_id="explicit-tenant")
 
         assert "explicit-tenant" in key, "显式传入的 tenant_id 应优先"
