@@ -481,8 +481,8 @@ const TenantFormPage: React.FC = () => {
               <ProFormText
                 name="branding.themeColor"
                 label="主题色"
-                placeholder="#1890ff"
-                extra="Hex 色值，如 #1890ff"
+                placeholder="#1677ff"
+                extra="Hex 色值，如 #1677ff"
               />
             </Space>
           </Col>

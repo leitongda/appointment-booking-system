@@ -115,14 +115,14 @@ packages/
 ### 后端核心 (`apps/server/app/`)
 
 ```
-api/v1/          # 路由注册入口 — RouterRegistration dataclass, 82 个模块动态 import
+api/v1/          # 路由注册入口 — RouterRegistration dataclass, 84 个模块动态 import
 common/          # 统一认证 (auth_unified.py), 跨模块共享工具
 core/            # config.py (Settings), redis.py, logging.py, websocket.py, security.py
 db/session.py    # 双连接池: async (asyncpg) + sync (psycopg2, 供 Celery 使用)
 enums/           # 统一枚举定义 — 所有 Enum/StrEnum/IntEnum 的单一来源
 constants/       # 统一业务常量 — dict/tuple 格式的非 Enum 常量
 middleware/      # tenant_context, exception, response, operation_log, request_log, rate_limit, prometheus, security_headers, deprecation
-models/          # SQLAlchemy 模型 (90 个模型类)
+models/          # SQLAlchemy 模型 (132 个模型类)
 schemas/         # Pydantic 请求/响应模式 (含 BaseSchema 基类统一 camelCase 配置)
 modules/         # 业务模块 (router.py + service.py, 复杂模块拆分 service_mutation.py / service_query.py)
 infrastructure/  # 基础设施层: email, sms, storage, payments, notifications, excel, image, wechat
@@ -304,7 +304,7 @@ alembic history                              # 查看迁移历史
 
 - `apps/server/app/main.py` — FastAPI 入口, 中间件栈, 生命周期 (连接池预热, 超管校验, 黑名单自动释放)
 - `apps/server/app/core/config.py` — Settings (环境变量映射, 连接池配置, 限流参数)
-- `apps/server/app/api/v1/__init__.py` — RouterRegistration dataclass, 81 个模块动态 import
+- `apps/server/app/api/v1/__init__.py` — RouterRegistration dataclass, 84 个模块动态 import
 - `apps/server/app/common/auth_unified.py` — 统一认证 (3 核心函数, User/Doctor/Admin 三角色)
 - `apps/server/app/utils/email_sync.py` — SMTP 密码 Fernet 加密/解密、Jinja2 沙箱渲染、同步邮件发送 (Celery 使用)
 - `apps/server/app/middleware/tenant_context.py` — 多租户核心 (4 种识别方式, ContextVar)

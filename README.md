@@ -101,13 +101,13 @@ appointment-booking-system/
 │   │
 │   └── server/                    # 后端服务 (FastAPI)
 │       ├── app/
-│       │   ├── api/v1/            # API 路由注册 (RouterRegistration, 60+ 模块动态 import)
+│       │   ├── api/v1/            # API 路由注册 (RouterRegistration, 84 个模块动态 import)
 │       │   ├── common/            # 统一认证、跨模块共享工具
 │       │   ├── core/              # 核心配置 (Settings, Redis, Security, WebSocket)
 │       │   ├── db/                # 数据库连接池 (async + sync)
 │       │   ├── infrastructure/    # 基础设施 (邮件/短信/支付/存储/微信/Excel/图片/通知)
 │       │   ├── middleware/        # 中间件 (租户上下文/异常/响应/操作日志/限流)
-│       │   ├── models/            # SQLAlchemy 数据模型 (40+ 表)
+│       │   ├── models/            # SQLAlchemy 数据模型 (132 个模型类)
 │       │   ├── modules/           # 业务模块 (57 模块, router.py + service.py)
 │       │   ├── schemas/           # Pydantic 请求/响应模式
 │       │   ├── seed/              # 种子数据
@@ -253,7 +253,7 @@ pnpm dev:doctor          # 医生端
 
 ## 📡 API 模块
 
-后端提供以下 RESTful API 模块（60 条路由注册，57 个业务模块）：
+后端提供以下 RESTful API 模块（84 条路由注册）：
 
 ### 核心业务
 

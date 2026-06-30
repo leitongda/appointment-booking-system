@@ -144,7 +144,7 @@ const MedicalRecordFormPage: React.FC = () => {
 
   const getFileIcon = (fileType: string) => {
     if (fileType === 'application/pdf') return <FilePdfOutlined style={{ color: '#ff4d4f' }} />;
-    if (fileType.startsWith('image/')) return <FileImageOutlined style={{ color: '#1890ff' }} />;
+    if (fileType.startsWith('image/')) return <FileImageOutlined style={{ color: '#1677ff' }} />;
     return <FileOutlined />;
   };
 

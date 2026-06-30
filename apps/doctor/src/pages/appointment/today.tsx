@@ -223,7 +223,7 @@ const TodayAppointmentPage: React.FC = () => {
             <Statistic 
               title="就诊中" 
               value={stats.inProgress}
-              valueStyle={{ color: '#1890ff' }}
+              valueStyle={{ color: '#1677ff' }}
               prefix={<Badge status="processing" />}
             />
           </ProCard>

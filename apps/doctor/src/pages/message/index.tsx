@@ -132,7 +132,7 @@ const MessagePage: React.FC = () => {
 
   const getMessageIcon = (type: string) => {
     switch (type) {
-      case 'appointment': return <CalendarOutlined style={{ color: '#1890ff' }} />;
+      case 'appointment': return <CalendarOutlined style={{ color: '#1677ff' }} />;
       case 'schedule': return <CalendarOutlined style={{ color: '#52c41a' }} />;
       case 'consultation': return <MedicineBoxOutlined style={{ color: '#722ed1' }} />;
       case 'stop_clinic': return <NotificationOutlined style={{ color: '#faad14' }} />;

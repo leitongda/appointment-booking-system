@@ -55,7 +55,7 @@ const DEVICE_OPTIONS = [
 const DEVICE_MAP: Record<string, { text: string; icon: React.ReactNode; color: string }> = {
   desktop: { text: '桌面', icon: <DesktopOutlined />, color: '#722ed1' },
   mobile: { text: '手机', icon: <MobileOutlined />, color: '#52c41a' },
-  tablet: { text: '平板', icon: <TabletOutlined />, color: '#1890ff' },
+  tablet: { text: '平板', icon: <TabletOutlined />, color: '#1677ff' },
 };
 
 const DEVICE_LABEL_MAP: Record<string, string> = {
@@ -345,7 +345,7 @@ const AccountStatsPage: React.FC = () => {
               title="总登录次数"
               value={summary?.totalLogins || 0}
               prefix={<LoginOutlined />}
-              styles={{ content: { color: '#1890ff' } }}
+              styles={{ content: { color: '#1677ff' } }}
             />
           </Card>
         </Col>

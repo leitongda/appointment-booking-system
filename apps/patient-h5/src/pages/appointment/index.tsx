@@ -23,11 +23,17 @@ const AppointmentPage: React.FC = () => {
     const currentPage = reset ? 1 : page;
     
     try {
+      // tab 状态映射。注意：'signed'/'seeing' 后端为单一 status 值（2/4），
+      // 无法一次筛多个状态，故分别单列。'invalid' 类目（爽约/过期）同理单列以覆盖最常见的查询。
       const statusMap: Record<string, number | undefined> = {
         'all': undefined,
         'pending': 1,
+        'signed': 2,
+        'seeing': 4,
         'completed': 5,
         'cancelled': 6,
+        'expired': 7,
+        'no_show': 8,
       };
       
       const result = await appointmentApi.getList({
@@ -103,8 +109,12 @@ const AppointmentPage: React.FC = () => {
       >
         <Tabs.Tab title="全部" key="all" />
         <Tabs.Tab title="待就诊" key="pending" />
+        <Tabs.Tab title="已签到" key="signed" />
+        <Tabs.Tab title="就诊中" key="seeing" />
         <Tabs.Tab title="已完成" key="completed" />
         <Tabs.Tab title="已取消" key="cancelled" />
+        <Tabs.Tab title="已过期" key="expired" />
+        <Tabs.Tab title="已爽约" key="no_show" />
       </Tabs>
       
       <PullToRefresh onRefresh={() => loadAppointments(true)}>

@@ -172,7 +172,7 @@ const DoctorAppointmentTab: React.FC<DoctorAppointmentTabProps> = ({ doctorId, d
             statistic={{
               title: '总预约数',
               value: statistics?.total ?? 0,
-              icon: <ClockCircleOutlined style={{ color: '#1890ff' }} />,
+              icon: <ClockCircleOutlined style={{ color: '#1677ff' }} />,
             }}
           />
         </Col>

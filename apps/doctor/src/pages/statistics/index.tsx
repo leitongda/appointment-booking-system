@@ -47,7 +47,7 @@ const StatisticsPage: React.FC = () => {
     yField: 'count',
     smooth: true,
     point: { size: 4, shape: 'circle' },
-    color: '#1890ff',
+    color: '#1677ff',
     height: 300,
     xAxis: {
       label: {
@@ -69,7 +69,7 @@ const StatisticsPage: React.FC = () => {
     color: ({ name }: { name: string }) => {
       const colorMap: Record<string, string> = {
         '待支付': '#FA8C16',
-        '已预约': '#1890ff',
+        '已预约': '#1677ff',
         '已签到': '#13c2c2',
         '历史候诊': '#94A3B8',
         '就诊中': '#722ed1',
@@ -78,7 +78,7 @@ const StatisticsPage: React.FC = () => {
         '已过期': '#BFBFBF',
         '已爽约': '#ff4d4f',
       };
-      return colorMap[name] || '#1890ff';
+      return colorMap[name] || '#1677ff';
     },
     height: 300,
     label: {

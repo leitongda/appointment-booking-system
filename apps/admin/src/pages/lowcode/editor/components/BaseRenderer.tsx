@@ -529,7 +529,7 @@ export function renderBaseComponent(
     case 'NutProgress':
       return (
         <div style={{ height: 4, background: '#eee', borderRadius: 2, overflow: 'hidden' }}>
-          <div style={{ height: '100%', width: `${props.percentage || 0}%`, background: props.color || '#1890ff', borderRadius: 2, transition: 'width 0.3s' }} />
+          <div style={{ height: '100%', width: `${props.percentage || 0}%`, background: props.color || '#1677ff', borderRadius: 2, transition: 'width 0.3s' }} />
         </div>
       );
 

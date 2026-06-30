@@ -363,7 +363,7 @@ const PresetModal: React.FC<PresetModalProps> = ({
                   size="small"
                   hoverable
                   style={{
-                    border: selectedPreset === preset.id ? '2px solid #1890ff' : '1px solid #d9d9d9',
+                    border: selectedPreset === preset.id ? '2px solid #1677ff' : '1px solid #d9d9d9',
                     backgroundColor: selectedPreset === preset.id ? '#e6f7ff' : undefined,
                   }}
                   onClick={() => onSelectPreset(preset.id)}
@@ -1485,7 +1485,7 @@ const RuleSetFormPage: React.FC = () => {
       {/* Tab 分组标签 */}
       <div style={{ marginBottom: 12 }}>
         <Space size="large" separator={<Divider type="vertical" />}>
-          <Text strong style={{ fontSize: 13, color: '#1890ff' }}>
+          <Text strong style={{ fontSize: 13, color: '#1677ff' }}>
             基础配置
           </Text>
           <Text type="secondary" style={{ fontSize: 13 }}>

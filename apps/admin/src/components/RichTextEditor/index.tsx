@@ -106,7 +106,7 @@ function createInsertVariableMenuClass(
           if (this.currentEditor) {
             // 插入变量占位符（带样式）
             this.currentEditor.dangerouslyInsertHtml(
-              `<span style="color: #1890ff; font-weight: bold;">{{${variable.value}}}</span>&nbsp;`,
+              `<span style="color: #1677ff; font-weight: bold;">{{${variable.value}}}</span>&nbsp;`,
             );
           }
         });

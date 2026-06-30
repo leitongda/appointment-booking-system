@@ -108,7 +108,7 @@ const RuleSetsPage: React.FC = () => {
       content: (
         <div>
           <p>确定要启用选中的 <strong>{disabledRows.length}</strong> 条规则组吗？</p>
-          <p style={{ color: '#1890ff', marginTop: 8 }}>
+          <p style={{ color: '#1677ff', marginTop: 8 }}>
             启用后，规则组将立即生效，影响对应班次类型的预约流程。
           </p>
         </div>
@@ -139,7 +139,7 @@ const RuleSetsPage: React.FC = () => {
       content: (
         <div>
           <p>确定要禁用选中的 <strong>{enabledRows.length}</strong> 条规则组吗？</p>
-          <p style={{ color: '#1890ff', marginTop: 8 }}>
+          <p style={{ color: '#1677ff', marginTop: 8 }}>
             禁用后，规则组将不再生效，已创建的预约不受影响。
           </p>
         </div>

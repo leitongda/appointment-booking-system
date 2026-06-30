@@ -152,7 +152,7 @@ const Dashboard: React.FC = () => {
     xField: 'name',
     yField: 'count',
     label: { position: 'top' as const },
-    color: '#1890ff',
+    color: '#1677ff',
     height: 280,
   } : null;
 
@@ -214,7 +214,7 @@ const Dashboard: React.FC = () => {
                 <Statistic
                   title="今日预约"
                   value={overview?.todayAppointments ?? '-'}
-                  icon={<CalendarOutlined style={{ fontSize: 40, color: '#1890ff' }} />}
+                  icon={<CalendarOutlined style={{ fontSize: 40, color: '#1677ff' }} />}
                 />
               </ProCard>
             </Col>
@@ -389,7 +389,7 @@ const Dashboard: React.FC = () => {
                         value={revisitRate.byDoctor.revisitRate}
                         precision={1}
                         suffix="%"
-                        prefix={<SyncOutlined style={{ color: '#1890ff' }} />}
+                        prefix={<SyncOutlined style={{ color: '#1677ff' }} />}
                       />
                       <div style={{ color: '#999', fontSize: 12, marginTop: 4 }}>
                         {revisitRate.byDoctor.revisitPairs} / {revisitRate.byDoctor.totalPairs} 医患对

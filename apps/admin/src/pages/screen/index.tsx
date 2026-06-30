@@ -309,7 +309,7 @@ const Screen: React.FC = () => {
       colorField: 'type',
       innerRadius: 0.6,
       radius: 0.8,
-      color: ['#1890ff', '#52c41a', '#ff4d4f', '#faad14', '#722ed1'],
+      color: ['#1677ff', '#52c41a', '#ff4d4f', '#faad14', '#722ed1'],
       label: {
         text: 'type',
         style: { fill: '#fff', fontSize: 10 },
@@ -326,8 +326,8 @@ const Screen: React.FC = () => {
       data: timeSlotStats.map(item => ({ slot: item.name, count: item.count })),
       xField: 'slot',
       yField: 'count',
-      color: '#1890ff',
-      style: { fill: 'l(270) 0:#1890ff20 1:#1890ffcc', radius: [4, 4, 0, 0] },
+      color: '#1677ff',
+      style: { fill: 'l(270) 0:#1677ff20 1:#1677ffcc', radius: [4, 4, 0, 0] },
       label: { style: { fill: '#fff', fontSize: 10 } },
       axis: {
         x: { label: { style: { fill: '#8da2c7' } } },

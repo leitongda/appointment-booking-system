@@ -144,20 +144,30 @@ export const setupResponseInterceptor = () => {
             });
             return Promise.reject(error);
           }
+          // 403 非租户场景：对齐 admin，给患者明确提示（避免"点了没反应"）
           console.warn('没有权限访问该资源');
+          Toast.show({ icon: 'fail', content: errorMessage || '没有权限访问该资源' });
           return Promise.reject(error);
         }
 
         if (error.isNotFound()) {
+          // 404：对齐 admin 提示用户，避免患者以为"点了没反应"而重复点击
           console.warn('请求的资源不存在');
+          Toast.show({ icon: 'fail', content: errorMessage || '请求的资源不存在' });
           return Promise.reject(error);
         }
 
         if (error.isServerError()) {
+          // 5xx：服务器错误必须告知用户，否则挂号核心路径静默失败会引发医患纠纷
           console.error('服务器错误:', error.data);
+          Toast.show({ icon: 'fail', content: errorMessage || '服务器开小差了，请稍后重试' });
           return Promise.reject(error);
         }
 
+        // 其他业务错误（如号源已抢光、停诊等）：必须有提示，否则患者无从得知失败原因
+        if (errorMessage) {
+          Toast.show({ icon: 'fail', content: errorMessage });
+        }
         return Promise.reject(error);
       }
 
@@ -187,26 +197,41 @@ export const setupResponseInterceptor = () => {
             });
             return Promise.reject(new ApiError(status, data?.message || '机构暂停服务', data, error?.config?.url));
           }
+          // 403 非租户场景：对齐 admin，给患者明确提示
           console.warn('没有权限访问该资源');
-          return Promise.reject(new ApiError(status, data?.data?.detail || '没有权限访问', data, error?.config?.url));
+          const _403msg = data?.data?.detail || data?.message || '没有权限访问';
+          Toast.show({ icon: 'fail', content: _403msg });
+          return Promise.reject(new ApiError(status, _403msg, data, error?.config?.url));
         }
 
-        // 404 未找到
+        // 404 未找到 — 对齐 admin 提示用户
         if (status === 404) {
           console.warn('请求的资源不存在');
-          return Promise.reject(new ApiError(status, ERROR_MESSAGES[404], data, error?.config?.url));
+          const _404msg = data?.message || ERROR_MESSAGES[404];
+          Toast.show({ icon: 'fail', content: _404msg });
+          return Promise.reject(new ApiError(status, _404msg, data, error?.config?.url));
         }
 
-        // 500 服务器错误
+        // 500 服务器错误 — 必须告知用户
         if (status >= 500) {
           console.error('服务器错误:', data);
-          return Promise.reject(new ApiError(status, data?.message || ERROR_MESSAGES[500], data, error?.config?.url));
+          const _500msg = data?.message || ERROR_MESSAGES[500];
+          Toast.show({ icon: 'fail', content: _500msg });
+          return Promise.reject(new ApiError(status, _500msg, data, error?.config?.url));
+        }
+
+        // 其他 HTTP 错误状态码（如 400/409）：也提示用户
+        if (data?.message) {
+          Toast.show({ icon: 'fail', content: data.message });
         }
       }
 
-      // 网络错误
+      // 网络错误 — 对齐 admin 提示用户（断网/超时是患者可感知的失败）
       if (!response && error instanceof Error) {
-        handleNetworkError(error, (msg) => console.error(msg));
+        handleNetworkError(error, (msg) => {
+          console.error(msg);
+          Toast.show({ icon: 'fail', content: msg });
+        });
         return Promise.reject(error);
       }
 

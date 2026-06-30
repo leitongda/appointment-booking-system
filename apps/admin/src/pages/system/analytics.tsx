@@ -189,7 +189,7 @@ const BehaviorOverviewTab: React.FC = () => {
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col xs={24} sm={12} lg={6}>
           <Card>
-            <Statistic title="页面访问量 (PV)" value={data?.total_page_views || 0} prefix={<EyeOutlined />} styles={{ content: { color: '#1890ff' } }} />
+            <Statistic title="页面访问量 (PV)" value={data?.total_page_views || 0} prefix={<EyeOutlined />} styles={{ content: { color: '#1677ff' } }} />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
@@ -212,7 +212,7 @@ const BehaviorOverviewTab: React.FC = () => {
       {data?.avg_duration && (
         <Card style={{ marginBottom: 16 }}>
           <Space>
-            <ClockCircleOutlined style={{ fontSize: 24, color: '#1890ff' }} />
+            <ClockCircleOutlined style={{ fontSize: 24, color: '#1677ff' }} />
             <div>
               <Text type="secondary">平均页面停留时长</Text>
               <Title level={4} style={{ margin: 0 }}>{formatDuration(data.avg_duration)}</Title>
@@ -358,7 +358,7 @@ const TenantActivityTab: React.FC = () => {
               title="今日活跃用户 (DAU)"
               value={data?.currentDau || 0}
               prefix={<UserOutlined />}
-              styles={{ content: { color: '#1890ff' } }}
+              styles={{ content: { color: '#1677ff' } }}
             />
           </Card>
         </Col>

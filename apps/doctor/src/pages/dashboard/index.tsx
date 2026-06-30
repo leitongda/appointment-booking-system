@@ -113,7 +113,7 @@ const Dashboard: React.FC = () => {
             <Statistic
               title="今日预约"
               value={statistics.confirmed + statistics.signedIn + statistics.inProgress + statistics.completed}
-              icon={<ClockCircleOutlined style={{ color: '#1890ff' }} />}
+              icon={<ClockCircleOutlined style={{ color: '#1677ff' }} />}
             />
           </ProCard>
         </Col>

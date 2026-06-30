@@ -403,7 +403,7 @@ const AppointmentListPage: React.FC = () => {
            access.hasPermission('appointment:refund') && (
             <a
               onClick={() => history.push(`/medical-services/appointment/${record.id}`)}
-              style={{ color: '#1890ff', fontSize: 13 }}
+              style={{ color: '#1677ff', fontSize: 13 }}
             >
               退款
             </a>

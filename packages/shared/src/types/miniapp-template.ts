@@ -62,7 +62,7 @@ export interface HomeModuleSchema {
 
 /** 设计 Token 集合，用于覆盖小程序默认视觉变量 */
 export interface DesignTokenSet {
-  /** 主色调，如 "#1890FF" */
+  /** 主色调，如 "#1677FF" */
   primary: string;
   /** 主色柔和版（浅底色），如 "#E6F7FF" */
   primarySoft: string;

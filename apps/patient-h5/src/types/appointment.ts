@@ -1,6 +1,13 @@
 import type { Appointment } from '@hospital/shared';
 
-/** 预约状态枚举 */
+/**
+ * 预约状态枚举
+ *
+ * 注意：状态码必须与后端 app/constants/appointment.py 与 @hospital/shared 的 APPOINTMENT_STATUS 严格对齐。
+ * 历史问题：本地曾把 IN_PROGRESS 错标为 3、NO_SHOW 错标为 7、缺失 EXPIRED，
+ * 导致后端返回 status=4(就诊中)/8(已爽约)/7(已过期) 时患者端查不到 config 显示空白。
+ * 此处已对齐为权威值（详见 packages/shared/src/constants/appointment.ts）。
+ */
 export enum AppointmentStatus {
   /** 待支付 */
   PENDING_PAYMENT = 0,
@@ -8,14 +15,18 @@ export enum AppointmentStatus {
   CONFIRMED = 1,
   /** 已签到 */
   SIGNED_IN = 2,
+  /** 历史候诊（后端遗留值，前端一般不展示） */
+  WAITING = 3,
   /** 就诊中 */
-  IN_PROGRESS = 3,
+  IN_PROGRESS = 4,
   /** 已完成 */
   COMPLETED = 5,
   /** 已取消 */
   CANCELLED = 6,
+  /** 已过期 */
+  EXPIRED = 7,
   /** 已爽约 */
-  NO_SHOW = 7,
+  NO_SHOW = 8,
 }
 
 /** 预约状态配置 */
@@ -42,6 +53,11 @@ export const APPOINTMENT_STATUS_CONFIG: Record<number, AppointmentStatusConfig> 
     color: 'primary',
     cssClass: 'bg-blue-100 text-blue-600',
   },
+  [AppointmentStatus.WAITING]: {
+    label: '候诊中',
+    color: 'default',
+    cssClass: 'bg-muted text-muted-foreground',
+  },
   [AppointmentStatus.IN_PROGRESS]: {
     label: '就诊中',
     color: 'primary',
@@ -54,6 +70,11 @@ export const APPOINTMENT_STATUS_CONFIG: Record<number, AppointmentStatusConfig> 
   },
   [AppointmentStatus.CANCELLED]: {
     label: '已取消',
+    color: 'default',
+    cssClass: 'bg-muted text-muted-foreground',
+  },
+  [AppointmentStatus.EXPIRED]: {
+    label: '已过期',
     color: 'default',
     cssClass: 'bg-muted text-muted-foreground',
   },

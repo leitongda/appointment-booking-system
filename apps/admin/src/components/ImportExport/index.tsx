@@ -275,7 +275,7 @@ const ImportExport: React.FC<ImportExportProps> = ({
             
             <Upload.Dragger {...uploadProps}>
               <p className="ant-upload-drag-icon">
-                <UploadOutlined style={{ fontSize: 48, color: '#1890ff' }} />
+                <UploadOutlined style={{ fontSize: 48, color: '#1677ff' }} />
               </p>
               <p className="ant-upload-text">点击或拖拽文件到此区域上传</p>
               <p className="ant-upload-hint">仅支持 .xlsx 和 .xls 格式</p>
@@ -347,7 +347,7 @@ const ImportExport: React.FC<ImportExportProps> = ({
           
           <Upload.Dragger {...uploadProps}>
             <p className="ant-upload-drag-icon">
-              <UploadOutlined style={{ fontSize: 48, color: '#1890ff' }} />
+              <UploadOutlined style={{ fontSize: 48, color: '#1677ff' }} />
             </p>
             <p className="ant-upload-text">点击或拖拽文件到此区域上传</p>
             <p className="ant-upload-hint">仅支持 .xlsx 和 .xls 格式</p>

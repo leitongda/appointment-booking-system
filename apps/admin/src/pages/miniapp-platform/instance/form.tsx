@@ -273,7 +273,7 @@ const InstanceFormPage: React.FC = () => {
                           }}
                           style={{
                             height: '100%',
-                            border: selectedTemplate === template.code ? '2px solid #1890ff' : '1px solid #d9d9d9',
+                            border: selectedTemplate === template.code ? '2px solid #1677ff' : '1px solid #d9d9d9',
                             cursor: 'pointer',
                           }}
                           styles={{ body: { padding: '12px' } }}
@@ -299,7 +299,7 @@ const InstanceFormPage: React.FC = () => {
                               <Tag color="blue">{template.category}</Tag>
                             </div>
                             {selectedTemplate === template.code && (
-                              <div style={{ color: '#1890ff', fontSize: 18 }}>✓</div>
+                              <div style={{ color: '#1677ff', fontSize: 18 }}>✓</div>
                             )}
                           </div>
                           <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>

@@ -52,18 +52,19 @@ jobs:
         working-directory: apps/server
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          # 装 dev 依赖（含 pytest-cov/pytest-asyncio），CI 需要覆盖率工具
+          pip install -r requirements-dev.txt
 
-      - name: Run unit tests
+      - name: Run unit & integration tests with coverage (report-only, no gate)
         working-directory: apps/server
         run: |
-          pytest tests/unit -v --tb=short -m unit || pytest tests/unit -v --tb=short
-        continue-on-error: false
-
-      - name: Run integration tests (SQLite in-memory)
-        working-directory: apps/server
-        run: |
-          pytest tests/integration -v --tb=short -m integration || pytest tests/integration -v --tb=short
+          # 覆盖率门禁分两步走：本次仅报告（不设 --cov-fail-under）
+          # 待跑出真实基线后，下迭代设 --cov-fail-under=<基线-5> 作为防回退门禁
+          # --cov=app 指向源码目录；term-missing 控制台展示未覆盖行；xml 供 PR comment 消费
+          pytest tests/unit tests/integration \
+            -v --tb=short \
+            --cov=app --cov-report=term-missing --cov-report=xml:coverage.xml \
+            || pytest tests/unit tests/integration -v --tb=short
         continue-on-error: false
 
       - name: Run PostgreSQL integration tests
@@ -85,6 +86,13 @@ jobs:
         run: |
           pytest tests/architecture/ -v --tb=short
 
+      - name: Document contract check (README/CLAUDE.md vs code)
+        working-directory: apps/server
+        run: |
+          # 校验 README.md / CLAUDE.md 中的路由数、模型数等关键数字与代码一致
+          # 防止文档与实现脱节（历史曾出现 CLAUDE.md 同文件内 82/81 自相矛盾）
+          python ../../scripts/check-doc-contracts.py
+
       - name: Generate test report
         if: always()
         working-directory: apps/server
@@ -92,6 +100,44 @@ jobs:
           echo "## Test Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Tests completed at: $(date)" >> $GITHUB_STEP_SUMMARY
+
+      - name: Publish coverage report
+        if: always()
+        working-directory: apps/server
+        run: |
+          echo "## 📊 Coverage Report (report-only, no gate)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "> 当前为「先报告后门禁」阶段：仅展示覆盖率，不阻断 PR。" >> $GITHUB_STEP_SUMMARY
+          echo "> 下迭代将根据本基线设 \`--cov-fail-under\` 防回退门禁。" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f coverage.xml ]; then
+            # 提取行覆盖与分支覆盖（从 coverage.xml 的 <coverage> 根节点属性）
+            python -c "
+            import xml.etree.ElementTree as ET
+            try:
+                root = ET.parse('coverage.xml').getroot()
+                lc = root.attrib.get('line-rate', '?')
+                bc = root.attrib.get('branch-rate', '?')
+                print(f'| 指标 | 比率 |')
+                print(f'|------|------|')
+                print(f'| 行覆盖 (line-rate) | {float(lc)*100:.1f}% |' if lc != '?' else f'| 行覆盖 | 无数据 |')
+                print(f'| 分支覆盖 (branch-rate) | {float(bc)*100:.1f}% |' if bc != '?' else f'| 分支覆盖 | 无数据 |')
+                print()
+                print('完整明细见 artifact: \`coverage.xml\`')
+            except Exception as e:
+                print(f'_解析 coverage.xml 失败: {e}_')
+            " >> $GITHUB_STEP_SUMMARY
+          else
+            echo "_coverage.xml 未生成（可能测试步骤失败）_" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: apps/server/coverage.xml
+          retention-days: 14
 
   # 可选：代码质量检查
   lint:

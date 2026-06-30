@@ -455,7 +455,7 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
           {circularCrop && (
             <span style={{
               padding: '2px 8px',
-              background: '#1890ff',
+              background: '#1677ff',
               color: '#fff',
               borderRadius: 4,
               fontSize: 12,
@@ -578,7 +578,7 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
             background: '#e6f7ff',
             borderRadius: 4,
             fontSize: 12,
-            color: '#1890ff',
+            color: '#1677ff',
           }}>
             提示：当前使用 {currentFormat.toUpperCase()} 格式，支持透明背景
           </div>

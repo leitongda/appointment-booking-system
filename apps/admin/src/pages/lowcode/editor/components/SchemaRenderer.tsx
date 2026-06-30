@@ -902,7 +902,7 @@ const NodeRendererInner = React.memo(function NodeRendererInner({ node, depth = 
       case 'NutProgress':
         return (
           <div style={{ height: 4, background: '#eee', borderRadius: 2, overflow: 'hidden' }}>
-            <div style={{ height: '100%', width: `${node.props.percentage || 0}%`, background: node.props.color || '#1890ff', borderRadius: 2, transition: 'width 0.3s' }} />
+            <div style={{ height: '100%', width: `${node.props.percentage || 0}%`, background: node.props.color || '#1677ff', borderRadius: 2, transition: 'width 0.3s' }} />
           </div>
         );
 

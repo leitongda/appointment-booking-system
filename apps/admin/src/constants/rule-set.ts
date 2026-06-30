@@ -660,10 +660,10 @@ export const RULE_SET_PRESETS: RuleSetPreset[] = [
  */
 export const ACTION_COLORS = {
   BOOK: {
-    primary: '#1890ff',
+    primary: '#1677ff',
     light: '#e6f7ff',
     background: 'rgba(24, 144, 255, 0.2)',
-    border: '#1890ff',
+    border: '#1677ff',
     label: '预约',
   },
   CHECKIN: {

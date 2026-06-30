@@ -251,7 +251,7 @@ const DailyRecordsPage: React.FC = () => {
             <Statistic
               title="请假"
               value={dailyStat?.leave ?? 0}
-              valueStyle={{ color: '#1890ff' }}
+              valueStyle={{ color: '#1677ff' }}
               prefix={<ExclamationCircleOutlined />}
             />
           </Card>

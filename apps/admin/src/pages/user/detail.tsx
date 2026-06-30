@@ -329,7 +329,7 @@ const UserDetailPage: React.FC = () => {
                     <Title level={4} style={{ margin: 0 }}>
                       {user?.nickname || '微信用户'}
                     </Title>
-                    {user?.gender === 1 && <ManOutlined style={{ color: '#1890ff' }} />}
+                    {user?.gender === 1 && <ManOutlined style={{ color: '#1677ff' }} />}
                     {user?.gender === 2 && <WomanOutlined style={{ color: '#eb2f96' }} />}
                     <Text type="secondary"><span data-rrweb-mask-text>{user?.phone}</span></Text>
                     <Tag color={user?.status === 1 ? 'green' : 'red'}>

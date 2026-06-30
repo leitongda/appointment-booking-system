@@ -112,6 +112,68 @@ class AppointmentFlowService(AppointmentServiceBase):
 
             await self.db.commit()
             await self.db.refresh(appointment)
+
+            # 站内信通知（签到成功）—— 对齐 call_patient 的三渠道通知模式
+            try:
+                from app.modules.unified_message.compat import MessageServiceCompat as MessageService
+
+                _signin_schedule = appointment.schedule
+                _signin_time_slot = {
+                    "morning": "上午",
+                    "afternoon": "下午",
+                    "evening": "晚间",
+                }.get(_signin_schedule.time_slot, _signin_schedule.time_slot or "") if _signin_schedule else ""
+
+                message_service = MessageService(self.db)
+                await message_service.send_appointment_notification(
+                    user_id=appointment.user_id,
+                    user_type="patient",
+                    title="签到成功",
+                    content=f"您已成功签到，{appointment.doctor_name or '医生'}医生的预约，请耐心等待叫号。",
+                    appointment_id=appointment.id,
+                    template_variables={
+                        "doctor_name": appointment.doctor_name or "医生",
+                        "appointment_date": _signin_schedule.schedule_date.strftime("%Y年%m月%d日") if _signin_schedule else "",
+                        "appointment_time": _signin_time_slot,
+                    },
+                )
+            except Exception as exc:
+                logger.warning(f"签到站内信通知发送失败: {exc}")
+
+            # 微信订阅消息推送（签到成功）—— 模板配置存在才推送，避免噪音
+            try:
+                from app.middleware.tenant_context import get_current_tenant_id
+                from app.models.user import User as _User
+                from app.tasks.notification_task import _send_wechat_notification
+
+                _signin_tenant_id = get_current_tenant_id()
+                _signin_user_result = await self.db.execute(
+                    select(_User).where(_User.id == appointment.user_id)
+                )
+                _signin_user = _signin_user_result.scalar_one_or_none()
+                if _signin_user and _signin_user.openid:
+                    _signin_schedule = appointment.schedule
+                    _signin_queue = str(appointment.queue_number) if appointment.queue_number else ""
+                    await _send_wechat_notification(
+                        db=self.db,
+                        tenant_id=_signin_tenant_id or appointment.tenant_id,
+                        openid=_signin_user.openid,
+                        template_id_config_key="checkin_success_template_id",
+                        template_data={
+                            "thing1": {"value": (appointment.doctor_name or "医生")[:20]},
+                            "thing2": {"value": f"{_signin_queue}号"},
+                            "thing3": {"value": "签到成功，请等待叫号"},
+                        },
+                        message_type="checkin_success",
+                        title="签到成功",
+                        user_id=appointment.user_id,
+                        store_id=_signin_schedule.store_id if _signin_schedule else None,
+                        related_id=appointment.id,
+                        page=f"pages/appointment/detail?id={appointment.id}",
+                    )
+            except Exception as exc:
+                logger.warning(f"签到微信推送失败（不影响主流程）: {exc}")
+
             self._dispatch_email_event(EventType.CHECKIN, appointment)
             return appointment
         except Exception as exc:
@@ -277,6 +339,39 @@ class AppointmentFlowService(AppointmentServiceBase):
         except Exception as exc:
             logger.warning(f"满意度调查通知发送失败（不影响主流程）: {exc}")
 
+        # 微信订阅消息推送（就诊完成）—— 模板配置存在才推送，避免噪音
+        try:
+            from app.middleware.tenant_context import get_current_tenant_id
+            from app.models.user import User as _User
+            from app.tasks.notification_task import _send_wechat_notification
+
+            _complete_tenant_id = get_current_tenant_id()
+            _complete_user_result = await self.db.execute(
+                select(_User).where(_User.id == appointment.user_id)
+            )
+            _complete_user = _complete_user_result.scalar_one_or_none()
+            if _complete_user and _complete_user.openid:
+                _complete_schedule = appointment.schedule
+                await _send_wechat_notification(
+                    db=self.db,
+                    tenant_id=_complete_tenant_id or appointment.tenant_id,
+                    openid=_complete_user.openid,
+                    template_id_config_key="appointment_completed_template_id",
+                    template_data={
+                        "thing1": {"value": (appointment.doctor_name or "医生")[:20]},
+                        "thing2": {"value": "就诊已完成"},
+                        "thing3": {"value": "感谢您的信任，祝您早日康复"},
+                    },
+                    message_type="visit_completed",
+                    title="就诊完成",
+                    user_id=appointment.user_id,
+                    store_id=_complete_schedule.store_id if _complete_schedule else None,
+                    related_id=appointment.id,
+                    page=f"pages/appointment/detail?id={appointment.id}",
+                )
+        except Exception as exc:
+            logger.warning(f"就诊完成微信推送失败（不影响主流程）: {exc}")
+
         self._dispatch_email_event(EventType.VISIT_COMPLETED, appointment)
         return appointment
 
@@ -348,5 +443,72 @@ class AppointmentFlowService(AppointmentServiceBase):
         appointment.status = APPOINTMENT_STATUS["NO_SHOW"]
         await self.db.commit()
         await self.db.refresh(appointment)
+
+        # 站内信通知（爽约）—— 爽约对患者是重大事件，必须告知
+        try:
+            from app.modules.unified_message.compat import MessageServiceCompat as MessageService
+
+            message_service = MessageService(self.db)
+            await message_service.send_appointment_notification(
+                user_id=appointment.user_id,
+                user_type="patient",
+                title="爽约提醒",
+                content=f"您预约的{appointment.doctor_name or '医生'}的号源因未按时就诊已被标记为爽约。如需重新预约，请前往小程序重新挂号。",
+                appointment_id=appointment.id,
+            )
+        except Exception as exc:
+            logger.warning(f"爽约站内信通知发送失败: {exc}")
+
+        # 微信订阅消息推送（爽约）—— 模板配置存在才推送，避免噪音
+        try:
+            from app.middleware.tenant_context import get_current_tenant_id
+            from app.models.user import User as _User
+            from app.tasks.notification_task import _send_wechat_notification
+
+            _noshow_tenant_id = get_current_tenant_id()
+            _noshow_user_result = await self.db.execute(
+                select(_User).where(_User.id == appointment.user_id)
+            )
+            _noshow_user = _noshow_user_result.scalar_one_or_none()
+            if _noshow_user and _noshow_user.openid:
+                _noshow_schedule = appointment.schedule
+                await _send_wechat_notification(
+                    db=self.db,
+                    tenant_id=_noshow_tenant_id or appointment.tenant_id,
+                    openid=_noshow_user.openid,
+                    template_id_config_key="appointment_no_show_template_id",
+                    template_data={
+                        "thing1": {"value": (appointment.doctor_name or "医生")[:20]},
+                        "thing2": {"value": "爽约"},
+                        "thing3": {"value": "如需就诊请重新预约"},
+                    },
+                    message_type="no_show",
+                    title="爽约提醒",
+                    user_id=appointment.user_id,
+                    store_id=_noshow_schedule.store_id if _noshow_schedule else None,
+                    related_id=appointment.id,
+                    page=f"pages/appointment/detail?id={appointment.id}",
+                )
+        except Exception as exc:
+            logger.warning(f"爽约微信推送失败（不影响主流程）: {exc}")
+
+        # WebSocket 实时通知（爽约）—— 与 pass_number/recall 一致，实时告知患者端
+        try:
+            patient_id = appointment.user_id or appointment.patient_id
+            if patient_id:
+                await notify_patient(
+                    patient_id=patient_id,
+                    message_type=WSMessageType.PATIENT_PASSED,
+                    data={
+                        "appointment_id": appointment.id,
+                        "queue_number": appointment.queue_number,
+                        "doctor_name": appointment.doctor_name,
+                        "no_show": True,
+                    },
+                    tenant_id=appointment.tenant_id,
+                )
+        except Exception as exc:
+            logger.warning(f"爽约患者实时通知失败（不影响主流程）: {exc}")
+
         self._dispatch_email_event(EventType.NO_SHOW, appointment)
         return appointment

@@ -21,7 +21,8 @@
   },
   "scripts": {
     "lint": "echo 'lint not configured'",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "gen:types": "openapi-typescript src/types/api-generated/openapi.json -o src/types/api-generated/schema.d.ts"
   },
   "dependencies": {
     "dayjs": "^1.11.10",
@@ -29,6 +30,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
+    "openapi-typescript": "^7.13.0",
     "typescript": "^5.3.3"
   },
   "peerDependencies": {

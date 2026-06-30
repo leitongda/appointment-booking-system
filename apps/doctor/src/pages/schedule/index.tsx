@@ -137,7 +137,7 @@ const SchedulePage: React.FC = () => {
         <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
           <ProCard style={{ flex: 1 }}>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 24, fontWeight: 500, color: '#1890ff' }}>{monthStats.total}</div>
+              <div style={{ fontSize: 24, fontWeight: 500, color: '#1677ff' }}>{monthStats.total}</div>
               <div style={{ color: '#666' }}>本月排班</div>
             </div>
           </ProCard>

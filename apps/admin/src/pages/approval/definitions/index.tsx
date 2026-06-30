@@ -298,7 +298,7 @@ const FlowDefinitionsPage: React.FC = () => {
         return (
           <span>
             {str.slice(0, idx)}
-            <span style={{ fontWeight: 700, color: '#1890ff' }}>
+            <span style={{ fontWeight: 700, color: '#1677ff' }}>
               {str.slice(idx, idx + searchKeyword.length)}
             </span>
             {str.slice(idx + searchKeyword.length)}
@@ -507,7 +507,7 @@ const FlowDefinitionsPage: React.FC = () => {
           <div style={{ marginBottom: 20, padding: 16, background: '#fafafa', borderRadius: 8 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
               <span style={{ fontSize: 13, color: '#333' }}>{importStatusText}</span>
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#1890ff' }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#1677ff' }}>
                 {importProgress}%
               </span>
             </div>
@@ -605,7 +605,7 @@ const FlowDefinitionsPage: React.FC = () => {
                   return false;
                 }}
               >
-                <p style={{ fontSize: 28, color: '#1890ff' }}>
+                <p style={{ fontSize: 28, color: '#1677ff' }}>
                   <UploadOutlined />
                 </p>
                 <p>JSON 文件</p>

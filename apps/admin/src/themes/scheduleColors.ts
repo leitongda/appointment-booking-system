@@ -20,7 +20,7 @@ export const APPOINTMENT_CANCELLED = '#ff4d4f'; // 已取消
 export const APPOINTMENT_COMPLETED = '#52c41a'; // 已完成
 
 // ── 甘特图时段颜色 ────────────────────────────────────────────
-export const GANTT_MORNING = '#1677ff'; // 上午 (原 #1890ff)
+export const GANTT_MORNING = '#1677ff'; // 上午 (原 #1677ff)
 export const GANTT_AFTERNOON = '#52c41a'; // 下午
 export const GANTT_EVENING = '#722ed1'; // 晚上
 export const GANTT_UNKNOWN = '#8c8c8c'; // 未知时段
@@ -60,7 +60,7 @@ export interface WindowColorConfig {
 export const WINDOW_ACTION_COLORS: Record<string, WindowColorConfig> = {
   BOOK: {
     fill: 'rgba(24, 144, 255, 0.2)',
-    stroke: '#1890ff',
+    stroke: '#1677ff',
     label: '预约',
     gradientStart: 'rgba(24, 144, 255, 0.4)',
     gradientEnd: 'rgba(24, 144, 255, 0.1)',

@@ -243,7 +243,7 @@ const ConsultationPage: React.FC = () => {
           >
             {currentPatient ? (
               <div style={{ textAlign: 'center', padding: '40px 0' }}>
-                <Avatar size={80} icon={<UserOutlined />} style={{ marginBottom: 20, backgroundColor: '#1890ff' }} />
+                <Avatar size={80} icon={<UserOutlined />} style={{ marginBottom: 20, backgroundColor: '#1677ff' }} />
                 <div style={{ fontSize: 24, fontWeight: 500, marginBottom: 8 }}>
                   {currentPatient.patientName}
                   {currentPatient.isFollowUp ? (
@@ -329,7 +329,7 @@ const ConsultationPage: React.FC = () => {
                       avatar={
                         <Avatar 
                           style={{ 
-                            backgroundColor: index === 0 ? '#52c41a' : '#1890ff',
+                            backgroundColor: index === 0 ? '#52c41a' : '#1677ff',
                             fontSize: 16 
                           }}
                         >

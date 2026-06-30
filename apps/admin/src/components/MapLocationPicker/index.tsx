@@ -438,7 +438,7 @@ const MapLocationPicker: React.FC<MapLocationPickerProps> = ({
             loading ? <Spin size="small" /> : (
               <Tooltip title="定位到当前位置">
                 <AimOutlined
-                  style={{ color: locating ? '#1890ff' : '#bbb', cursor: 'pointer', fontSize: 14 }}
+                  style={{ color: locating ? '#1677ff' : '#bbb', cursor: 'pointer', fontSize: 14 }}
                   spin={locating}
                   onClick={handleLocate}
                 />
@@ -494,7 +494,7 @@ const MapLocationPicker: React.FC<MapLocationPickerProps> = ({
 
       {value?.address && (
         <div style={{ marginTop: 8, fontSize: 12, color: '#666', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 4 }}>
-          <EnvironmentOutlined style={{ color: '#1890ff' }} />
+          <EnvironmentOutlined style={{ color: '#1677ff' }} />
           {value.province && <Tag style={{ marginInlineEnd: 0 }}>{value.province}</Tag>}
           {value.city && value.city !== value.province && <Tag style={{ marginInlineEnd: 0 }}>{value.city}</Tag>}
           {value.district && <Tag style={{ marginInlineEnd: 0 }}>{value.district}</Tag>}

@@ -71,7 +71,7 @@ const getDeviceIcon = (deviceType: string | undefined) => {
     case 'mobile':
       return <MobileOutlined style={{ fontSize: 16, color: '#52c41a' }} />;
     case 'tablet':
-      return <MobileOutlined style={{ fontSize: 16, color: '#1890ff' }} />;
+      return <MobileOutlined style={{ fontSize: 16, color: '#1677ff' }} />;
     default:
       return <DesktopOutlined style={{ fontSize: 16, color: '#722ed1' }} />;
   }
