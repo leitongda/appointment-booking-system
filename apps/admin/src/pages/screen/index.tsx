@@ -276,10 +276,10 @@ const Screen: React.FC = () => {
         xField: 'date',
         yField: 'count',
         smooth: true,
-        style: { fill: 'l(270) 0:#52c41a05 1:#52c41a30' },
-        line: { color: '#52c41a', size: 3 },
+        style: { fill: 'l(270) 0:var(--color-success)05 1:var(--color-success)30' },
+        line: { color: 'var(--color-success)', size: 3 },
         area: { style: { fillOpacity: 0.15 } },
-        point: { size: 3, color: '#52c41a' },
+        point: { size: 3, color: 'var(--color-success)' },
         axis: {
           x: { label: { style: { fill: '#8da2c7' } }, grid: { line: { style: { stroke: 'rgba(24, 144, 255, 0.05)' } } } },
           y: { label: { style: { fill: '#8da2c7' } }, grid: { line: { style: { stroke: 'rgba(24, 144, 255, 0.08)' } } } },
@@ -297,10 +297,10 @@ const Screen: React.FC = () => {
       xField: 'date',
       yField: 'revenue',
       smooth: true,
-      style: { fill: 'l(270) 0:#fa8c1605 1:#fa8c1630' },
-      line: { color: '#fa8c16', size: 3 },
+      style: { fill: 'l(270) 0:var(--color-evening)05 1:var(--color-evening)30' },
+      line: { color: 'var(--color-evening)', size: 3 },
       area: { style: { fillOpacity: 0.15 } },
-      point: { size: 3, color: '#fa8c16' },
+      point: { size: 3, color: 'var(--color-evening)' },
       axis: {
         x: { label: { style: { fill: '#8da2c7' } }, grid: { line: { style: { stroke: 'rgba(24, 144, 255, 0.05)' } } } },
         y: { label: { style: { fill: '#8da2c7' } }, grid: { line: { style: { stroke: 'rgba(24, 144, 255, 0.08)' } } } },
@@ -317,10 +317,10 @@ const Screen: React.FC = () => {
       colorField: 'type',
       innerRadius: 0.6,
       radius: 0.8,
-      color: ['#1677ff', '#52c41a', '#ff4d4f', '#faad14', '#722ed1'],
+      color: ['var(--color-primary)', 'var(--color-success)', 'var(--color-error)', 'var(--color-warning)', '#722ed1'],
       label: {
         text: 'type',
-        style: { fill: '#fff', fontSize: 10 },
+        style: { fill: 'var(--color-white)', fontSize: 10 },
       },
       legend: {
         color: { title: false, position: 'right', rowPadding: 5, label: { style: { fill: '#8da2c7', fontSize: 11 } } }
@@ -334,9 +334,9 @@ const Screen: React.FC = () => {
       data: timeSlotStats.map(item => ({ slot: item.name, count: item.count })),
       xField: 'slot',
       yField: 'count',
-      color: '#1677ff',
-      style: { fill: 'l(270) 0:#1677ff20 1:#1677ffcc', radius: [4, 4, 0, 0] },
-      label: { style: { fill: '#fff', fontSize: 10 } },
+      color: 'var(--color-primary)',
+      style: { fill: 'l(270) 0:var(--color-primary)20 1:var(--color-primary)cc', radius: [4, 4, 0, 0] },
+      label: { style: { fill: 'var(--color-white)', fontSize: 10 } },
       axis: {
         x: { label: { style: { fill: '#8da2c7' } } },
         y: { label: { style: { fill: '#8da2c7' } }, grid: { line: { style: { stroke: 'rgba(24, 144, 255, 0.05)' } } } },
@@ -352,7 +352,7 @@ const Screen: React.FC = () => {
       yField: 'count',
       color: '#00f2fe',
       style: { fill: 'l(270) 0:#00f2fe20 1:#00f2fecc', radius: [4, 4, 0, 0] },
-      label: { style: { fill: '#fff', fontSize: 10 } },
+      label: { style: { fill: 'var(--color-white)', fontSize: 10 } },
       axis: {
         x: { label: { style: { fill: '#8da2c7' } } },
         y: { label: { style: { fill: '#8da2c7' } }, grid: { line: { style: { stroke: 'rgba(24, 144, 255, 0.05)' } } } },

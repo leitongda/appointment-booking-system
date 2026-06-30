@@ -14,8 +14,8 @@ const UserStatsCard: React.FC<UserStatsCardProps> = ({ stats }) => {
     ? `${growthRate >= 0 ? '+' : ''}${growthRate.toFixed(1)}%`
     : '-';
   const growthColor = growthRate !== null && growthRate !== undefined
-    ? growthRate >= 0 ? '#52c41a' : '#f5222d'
-    : '#999';
+    ? growthRate >= 0 ? 'var(--color-success)' : '#f5222d'
+    : 'var(--color-text-tertiary)';
   const growthArrow = growthRate !== null && growthRate !== undefined
     ? (growthRate >= 0 ? '↑' : '↓')
     : '';

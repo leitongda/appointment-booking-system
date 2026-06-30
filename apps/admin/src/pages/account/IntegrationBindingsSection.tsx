@@ -9,7 +9,7 @@ import {
 import { adminApi, integrationApi, type IntegrationBindingItem } from '@hospital/api';
 
 const PROVIDER_META: Record<string, { label: string; color: string }> = {
-  dingtalk: { label: '钉钉', color: '#1677ff' },
+  dingtalk: { label: '钉钉', color: 'var(--color-primary)' },
   wecom: { label: '企业微信', color: '#07c160' },
   feishu: { label: '飞书', color: '#3370ff' },
 };
@@ -84,7 +84,7 @@ const IntegrationBindingsSection: React.FC = () => {
             ),
           }}
           renderItem={(item) => {
-            const meta = PROVIDER_META[item.provider] || { label: item.provider, color: '#999' };
+            const meta = PROVIDER_META[item.provider] || { label: item.provider, color: 'var(--color-text-tertiary)' };
             return (
               <List.Item
                 actions={[

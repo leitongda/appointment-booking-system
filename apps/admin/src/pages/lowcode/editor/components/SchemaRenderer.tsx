@@ -41,10 +41,10 @@ class NodeErrorBoundary extends Component<NodeErrorBoundaryProps, NodeErrorBound
           style={{
             padding: '12px 16px',
             margin: '4px 0',
-            border: '1px dashed #ff4d4f',
+            border: '1px dashed var(--color-error)',
             borderRadius: 4,
-            background: '#fff2f0',
-            color: '#ff4d4f',
+            background: 'var(--color-white)2f0',
+            color: 'var(--color-error)',
             fontSize: 12,
             display: 'flex',
             alignItems: 'center',
@@ -122,7 +122,7 @@ const DroppableZone = React.memo(function DroppableZone({
       aria-label="可放置区域"
       style={{
         ...style,
-        outline: isDropTarget ? '2px dashed #1677ff' : undefined,
+        outline: isDropTarget ? '2px dashed var(--color-primary)' : undefined,
         outlineOffset: isDropTarget ? -2 : undefined,
         background: isDropTarget ? 'rgba(22,119,255,0.04)' : undefined,
         transition: 'outline 0.15s, background 0.15s',
@@ -151,7 +151,7 @@ const SlotRenderer = React.memo(function SlotRenderer({
       parentId={`${node.id}__slot__${slotName}`}
       style={{
         minHeight: 32,
-        border: '1px dashed #d9d9d9',
+        border: '1px dashed var(--color-border)',
         borderRadius: 4,
         padding: 4,
         position: 'relative',
@@ -177,7 +177,7 @@ const SlotRenderer = React.memo(function SlotRenderer({
         <div
           style={{
             textAlign: 'center',
-            color: '#d9d9d9',
+            color: 'var(--color-border)',
             padding: '8px 0',
             fontSize: 11,
           }}
@@ -233,8 +233,8 @@ const NutTabsRenderer = React.memo(function NutTabsRenderer({
         style={{
           display: 'flex',
           flexShrink: 0,
-          borderBottom: '1px solid #eee',
-          background: '#fff',
+          borderBottom: '1px solid var(--color-border-secondary)',
+          background: 'var(--color-white)',
         }}
       >
         {panes.map((child, idx) => {
@@ -246,8 +246,8 @@ const NutTabsRenderer = React.memo(function NutTabsRenderer({
               style={{
                 padding: '10px 16px',
                 fontSize: 14,
-                color: isActive ? '#1677ff' : '#666',
-                borderBottom: isActive ? '2px solid #1677ff' : '2px solid transparent',
+                color: isActive ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                borderBottom: isActive ? '2px solid var(--color-primary)' : '2px solid transparent',
                 cursor: 'pointer',
                 userSelect: 'none',
               }}
@@ -285,7 +285,7 @@ const NutTabsRenderer = React.memo(function NutTabsRenderer({
               <div
                 style={{
                   textAlign: 'center',
-                  color: '#ccc',
+                  color: 'var(--color-border)',
                   padding: '20px 0',
                   fontSize: 12,
                 }}
@@ -343,7 +343,7 @@ const NodeRendererInner = React.memo(function NodeRendererInner({ node, depth = 
             style={{
               flex: 1,
               minHeight: 0,
-              background: '#f5f5f5',
+              background: 'var(--color-bg-layout)',
               padding: 0,
               position: 'relative',
               display: 'flex',
@@ -355,11 +355,11 @@ const NodeRendererInner = React.memo(function NodeRendererInner({ node, depth = 
               style={{
                 height: 44,
                 flexShrink: 0,
-                background: node.props.navigationBarBackgroundColor || '#ffffff',
+                background: node.props.navigationBarBackgroundColor || 'var(--color-white)fff',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                borderBottom: '1px solid #eee',
+                borderBottom: '1px solid var(--color-border-secondary)',
                 fontSize: 17,
                 fontWeight: 500,
               }}
@@ -384,7 +384,7 @@ const NodeRendererInner = React.memo(function NodeRendererInner({ node, depth = 
                 <div
                   style={{
                     textAlign: 'center',
-                    color: '#ccc',
+                    color: 'var(--color-border)',
                     padding: '40px 0',
                     fontSize: 13,
                   }}
@@ -457,11 +457,11 @@ const NodeRendererInner = React.memo(function NodeRendererInner({ node, depth = 
                 style={{
                   width: node.props.width,
                   height: node.props.height || '120px',
-                  background: '#f0f0f0',
+                  background: 'var(--color-border-secondary)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#999',
+                  color: 'var(--color-text-tertiary)',
                   fontSize: 13,
                   borderRadius: node.props.borderRadius,
                 }}
@@ -484,14 +484,14 @@ const NodeRendererInner = React.memo(function NodeRendererInner({ node, depth = 
                 border: 'none',
                 background:
                   node.props.type === 'primary'
-                    ? '#1677ff'
+                    ? 'var(--color-primary)'
                     : node.props.type === 'warning'
                       ? '#ff9800'
                       : node.props.type === 'danger'
-                        ? '#ff4d4f'
-                        : '#f5f5f5',
+                        ? 'var(--color-error)'
+                        : 'var(--color-bg-layout)',
                 color:
-                  node.props.type === 'primary' ? '#fff' : '#333',
+                  node.props.type === 'primary' ? 'var(--color-white)' : 'var(--color-text)',
                 fontSize: 14,
                 cursor: 'pointer',
                 opacity: node.props.disabled ? 0.5 : 1,
@@ -510,8 +510,8 @@ const NodeRendererInner = React.memo(function NodeRendererInner({ node, depth = 
               style={{
                 border: 'none',
                 borderTop: node.props.dashed
-                  ? '1px dashed #e5e5e5'
-                  : '1px solid #e5e5e5',
+                  ? '1px dashed var(--color-border)'
+                  : '1px solid var(--color-border)',
                 margin: 0,
               }}
             />
@@ -524,12 +524,12 @@ const NodeRendererInner = React.memo(function NodeRendererInner({ node, depth = 
             <div
               style={{
                 height: node.props.height || '200px',
-                background: '#e8e8e8',
+                background: 'var(--color-border)',
                 borderRadius: 8,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#999',
+                color: 'var(--color-text-tertiary)',
                 fontSize: 13,
               }}
             >
@@ -560,22 +560,22 @@ const NodeRendererInner = React.memo(function NodeRendererInner({ node, depth = 
               alignItems: 'center',
               justifyContent: 'space-between',
               padding: '12px 16px',
-              borderBottom: '1px solid #f5f5f5',
-              background: '#fff',
+              borderBottom: '1px solid var(--color-bg-layout)',
+              background: 'var(--color-white)',
             }}
           >
             <div>
-              <div style={{ fontSize: 15, color: '#333' }}>
+              <div style={{ fontSize: 15, color: 'var(--color-text)' }}>
                 {node.props.title || '标题'}
               </div>
               {node.props.description && (
-                <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>
+                <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)', marginTop: 4 }}>
                   {node.props.description}
                 </div>
               )}
             </div>
             {node.props.isLink && (
-              <span style={{ color: '#ccc', fontSize: 12 }}>›</span>
+              <span style={{ color: 'var(--color-border)', fontSize: 12 }}>›</span>
             )}
           </div>
         );
@@ -586,21 +586,21 @@ const NodeRendererInner = React.memo(function NodeRendererInner({ node, depth = 
             style={{
               margin: '8px 12px',
               padding: 12,
-              background: '#fff',
+              background: 'var(--color-white)',
               borderRadius: 8,
               boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
             }}
           >
-            <div style={{ fontSize: 16, fontWeight: 500, color: '#333' }}>
+            <div style={{ fontSize: 16, fontWeight: 500, color: 'var(--color-text)' }}>
               {node.props.title || '卡片标题'}
             </div>
             {node.props.subTitle && (
-              <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>
+              <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)', marginTop: 4 }}>
                 {node.props.subTitle}
               </div>
             )}
             {node.props.description && (
-              <div style={{ fontSize: 13, color: '#666', marginTop: 8 }}>
+              <div style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginTop: 8 }}>
                 {node.props.description}
               </div>
             )}
@@ -639,7 +639,7 @@ const NodeRendererInner = React.memo(function NodeRendererInner({ node, depth = 
             style={{
               textAlign: 'center',
               padding: '40px 0',
-              color: '#999',
+              color: 'var(--color-text-tertiary)',
               fontSize: 13,
             }}
           >
@@ -652,9 +652,9 @@ const NodeRendererInner = React.memo(function NodeRendererInner({ node, depth = 
           <div style={{ padding: '8px 12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
               {node.props.label && (
-                <span style={{ fontSize: 14, color: '#333', minWidth: 60 }}>
+                <span style={{ fontSize: 14, color: 'var(--color-text)', minWidth: 60 }}>
                   {node.props.required && (
-                    <span style={{ color: '#ff4d4f', marginRight: 4 }}>*</span>
+                    <span style={{ color: 'var(--color-error)', marginRight: 4 }}>*</span>
                   )}
                   {node.props.label}
                 </span>
@@ -668,13 +668,13 @@ const NodeRendererInner = React.memo(function NodeRendererInner({ node, depth = 
                 style={{
                   flex: 1,
                   height: 32,
-                  border: '1px solid #e5e5e5',
+                  border: '1px solid var(--color-border)',
                   borderRadius: 4,
                   padding: '0 8px',
                   fontSize: 14,
-                  color: '#333',
+                  color: 'var(--color-text)',
                   textAlign: node.props.textAlign,
-                  background: node.props.disabled ? '#f5f5f5' : '#fff',
+                  background: node.props.disabled ? 'var(--color-bg-layout)' : 'var(--color-white)',
                   outline: 'none',
                 }}
               />
@@ -687,9 +687,9 @@ const NodeRendererInner = React.memo(function NodeRendererInner({ node, depth = 
           <div style={{ padding: '8px 12px' }}>
             <div style={{ marginBottom: 4 }}>
               {node.props.label && (
-                <span style={{ fontSize: 14, color: '#333' }}>
+                <span style={{ fontSize: 14, color: 'var(--color-text)' }}>
                   {node.props.required && (
-                    <span style={{ color: '#ff4d4f', marginRight: 4 }}>*</span>
+                    <span style={{ color: 'var(--color-error)', marginRight: 4 }}>*</span>
                   )}
                   {node.props.label}
                 </span>
@@ -703,13 +703,13 @@ const NodeRendererInner = React.memo(function NodeRendererInner({ node, depth = 
               maxLength={node.props.maxLength > 0 ? node.props.maxLength : undefined}
               style={{
                 width: '100%',
-                border: '1px solid #e5e5e5',
+                border: '1px solid var(--color-border)',
                 borderRadius: 4,
                 padding: '8px',
                 fontSize: 14,
-                color: '#333',
+                color: 'var(--color-text)',
                 resize: node.props.autosize ? 'vertical' : 'none',
-                background: node.props.disabled ? '#f5f5f5' : '#fff',
+                background: node.props.disabled ? 'var(--color-bg-layout)' : 'var(--color-white)',
                 outline: 'none',
                 boxSizing: 'border-box',
               }}
@@ -722,18 +722,18 @@ const NodeRendererInner = React.memo(function NodeRendererInner({ node, depth = 
           <div style={{ padding: '8px 12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               {node.props.label && (
-                <span style={{ fontSize: 14, color: '#333' }}>{node.props.label}</span>
+                <span style={{ fontSize: 14, color: 'var(--color-text)' }}>{node.props.label}</span>
               )}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 {node.props.activeText && (
-                  <span style={{ fontSize: 12, color: '#333' }}>{node.props.activeText}</span>
+                  <span style={{ fontSize: 12, color: 'var(--color-text)' }}>{node.props.activeText}</span>
                 )}
                 <div
                   style={{
                     width: 44,
                     height: 24,
                     borderRadius: 12,
-                    background: node.props.checked ? '#1677ff' : '#e5e5e5',
+                    background: node.props.checked ? 'var(--color-primary)' : 'var(--color-border)',
                     position: 'relative',
                     cursor: node.props.disabled ? 'not-allowed' : 'pointer',
                     opacity: node.props.disabled ? 0.5 : 1,
@@ -745,7 +745,7 @@ const NodeRendererInner = React.memo(function NodeRendererInner({ node, depth = 
                       width: 20,
                       height: 20,
                       borderRadius: 10,
-                      background: '#fff',
+                      background: 'var(--color-white)',
                       position: 'absolute',
                       top: 2,
                       left: node.props.checked ? 22 : 2,
@@ -755,7 +755,7 @@ const NodeRendererInner = React.memo(function NodeRendererInner({ node, depth = 
                   />
                 </div>
                 {node.props.inactiveText && (
-                  <span style={{ fontSize: 12, color: '#999' }}>{node.props.inactiveText}</span>
+                  <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>{node.props.inactiveText}</span>
                 )}
               </div>
             </div>
@@ -767,9 +767,9 @@ const NodeRendererInner = React.memo(function NodeRendererInner({ node, depth = 
           <div style={{ padding: '8px 12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
               {node.props.label && (
-                <span style={{ fontSize: 14, color: '#333', minWidth: 60 }}>
+                <span style={{ fontSize: 14, color: 'var(--color-text)', minWidth: 60 }}>
                   {node.props.required && (
-                    <span style={{ color: '#ff4d4f', marginRight: 4 }}>*</span>
+                    <span style={{ color: 'var(--color-error)', marginRight: 4 }}>*</span>
                   )}
                   {node.props.label}
                 </span>
@@ -778,19 +778,19 @@ const NodeRendererInner = React.memo(function NodeRendererInner({ node, depth = 
                 style={{
                   flex: 1,
                   height: 32,
-                  border: '1px solid #e5e5e5',
+                  border: '1px solid var(--color-border)',
                   borderRadius: 4,
                   padding: '0 8px',
                   fontSize: 14,
-                  color: '#999',
+                  color: 'var(--color-text-tertiary)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  background: node.props.disabled ? '#f5f5f5' : '#fff',
+                  background: node.props.disabled ? 'var(--color-bg-layout)' : 'var(--color-white)',
                 }}
               >
                 <span>{node.props.placeholder || '请选择'}</span>
-                <span style={{ fontSize: 12, color: '#ccc' }}>▼</span>
+                <span style={{ fontSize: 12, color: 'var(--color-border)' }}>▼</span>
               </div>
             </div>
           </div>
@@ -802,7 +802,7 @@ const NodeRendererInner = React.memo(function NodeRendererInner({ node, depth = 
             parentId={node.id}
             style={{
               padding: node.props.border ? '12px' : '8px 0',
-              border: node.props.border ? '1px solid #e5e5e5' : 'none',
+              border: node.props.border ? '1px solid var(--color-border)' : 'none',
               borderRadius: node.props.border ? 4 : 0,
               minHeight: 40,
             }}
@@ -850,7 +850,7 @@ const NodeRendererInner = React.memo(function NodeRendererInner({ node, depth = 
 
       case 'NutSearchBar':
         return (
-          <div style={{ padding: '8px 12px', background: '#f5f5f5', borderRadius: 16 }}>
+          <div style={{ padding: '8px 12px', background: 'var(--color-bg-layout)', borderRadius: 16 }}>
             <input
               placeholder={node.props.placeholder || '搜索'}
               style={{ width: '100%', border: 'none', background: 'transparent', outline: 'none', fontSize: 14 }}
@@ -861,28 +861,28 @@ const NodeRendererInner = React.memo(function NodeRendererInner({ node, depth = 
 
       case 'NutNavBar':
         return (
-          <div style={{ height: 44, borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', padding: '0 12px', fontWeight: 500 }}>
+          <div style={{ height: 44, borderBottom: '1px solid var(--color-border-secondary)', display: 'flex', alignItems: 'center', padding: '0 12px', fontWeight: 500 }}>
             {node.props.title || '导航栏'}
           </div>
         );
 
       case 'NutIcon':
         return (
-          <span style={{ fontSize: 16, color: node.props.color || '#333' }}>
+          <span style={{ fontSize: 16, color: node.props.color || 'var(--color-text)' }}>
             [{node.props.name || 'icon'}]
           </span>
         );
 
       case 'NutTag':
         return (
-          <span style={{ background: node.props.color || '#eee', color: node.props.textColor || '#333', padding: '2px 8px', borderRadius: 4, fontSize: 12 }}>
+          <span style={{ background: node.props.color || 'var(--color-border-secondary)', color: node.props.textColor || 'var(--color-text)', padding: '2px 8px', borderRadius: 4, fontSize: 12 }}>
             {node.props.text || '标签'}
           </span>
         );
 
       case 'NutAvatar':
         return (
-          <div style={{ width: node.props.size || 40, height: node.props.size || 40, borderRadius: '50%', background: '#ddd', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#999' }}>
+          <div style={{ width: node.props.size || 40, height: node.props.size || 40, borderRadius: '50%', background: '#ddd', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: 'var(--color-text-tertiary)' }}>
             {node.props.src && isValidImageUrl(node.props.src) ? <img src={node.props.src} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} /> : '头像'}
           </div>
         );
@@ -892,7 +892,7 @@ const NodeRendererInner = React.memo(function NodeRendererInner({ node, depth = 
           <div style={{ position: 'relative', display: 'inline-block' }}>
             <span style={{ padding: '4px 8px' }}>{node.props.children || '内容'}</span>
             {node.props.value && (
-              <sup style={{ position: 'absolute', top: -4, right: -8, background: '#ff4d4f', color: '#fff', borderRadius: 10, fontSize: 10, padding: '1px 4px', minWidth: 16, textAlign: 'center' }}>
+              <sup style={{ position: 'absolute', top: -4, right: -8, background: 'var(--color-error)', color: 'var(--color-white)', borderRadius: 10, fontSize: 10, padding: '1px 4px', minWidth: 16, textAlign: 'center' }}>
                 {node.props.value}
               </sup>
             )}
@@ -901,8 +901,8 @@ const NodeRendererInner = React.memo(function NodeRendererInner({ node, depth = 
 
       case 'NutProgress':
         return (
-          <div style={{ height: 4, background: '#eee', borderRadius: 2, overflow: 'hidden' }}>
-            <div style={{ height: '100%', width: `${node.props.percentage || 0}%`, background: node.props.color || '#1677ff', borderRadius: 2, transition: 'width 0.3s' }} />
+          <div style={{ height: 4, background: 'var(--color-border-secondary)', borderRadius: 2, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${node.props.percentage || 0}%`, background: node.props.color || 'var(--color-primary)', borderRadius: 2, transition: 'width 0.3s' }} />
           </div>
         );
 
@@ -927,14 +927,14 @@ const NodeRendererInner = React.memo(function NodeRendererInner({ node, depth = 
           <input
             type="date"
             defaultValue={node.props.value || ''}
-            style={{ padding: '6px 12px', border: '1px solid #d9d9d9', borderRadius: 4, fontSize: 14 }}
+            style={{ padding: '6px 12px', border: '1px solid var(--color-border)', borderRadius: 4, fontSize: 14 }}
             readOnly
           />
         );
 
       case 'NutCalendar':
         return (
-          <div style={{ border: '1px solid #eee', borderRadius: 8, padding: 12, textAlign: 'center', color: '#999', fontSize: 12 }}>
+          <div style={{ border: '1px solid var(--color-border-secondary)', borderRadius: 8, padding: 12, textAlign: 'center', color: 'var(--color-text-tertiary)', fontSize: 12 }}>
             [日历组件]
           </div>
         );
@@ -943,16 +943,16 @@ const NodeRendererInner = React.memo(function NodeRendererInner({ node, depth = 
 
       case 'BizAppointmentCard':
         return (
-          <div style={{ margin: '8px 12px', padding: 12, background: '#fff', borderRadius: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+          <div style={{ margin: '8px 12px', padding: 12, background: 'var(--color-white)', borderRadius: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#e6f4ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#1677ff', flexShrink: 0 }}>
+              <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--color-primary-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: 'var(--color-primary)', flexShrink: 0 }}>
                 {node.props.avatar && isValidImageUrl(node.props.avatar) ? <img src={node.props.avatar} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} /> : '头像'}
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 15, fontWeight: 500, color: '#333' }}>{node.props.doctorName || '医生'}</div>
-                <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>{node.props.departmentName || '科室'} | {node.props.appointmentTime || '时间'}</div>
+                <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-text)' }}>{node.props.doctorName || '医生'}</div>
+                <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)', marginTop: 2 }}>{node.props.departmentName || '科室'} | {node.props.appointmentTime || '时间'}</div>
               </div>
-              <span style={{ fontSize: 12, padding: '2px 8px', borderRadius: 4, background: node.props.status === 'completed' ? '#f6ffed' : node.props.status === 'cancelled' ? '#fff1f0' : '#e6f4ff', color: node.props.status === 'completed' ? '#52c41a' : node.props.status === 'cancelled' ? '#ff4d4f' : '#1677ff' }}>
+              <span style={{ fontSize: 12, padding: '2px 8px', borderRadius: 4, background: node.props.status === 'completed' ? 'var(--color-success-bg)' : node.props.status === 'cancelled' ? 'var(--color-white)1f0' : 'var(--color-primary-bg)', color: node.props.status === 'completed' ? 'var(--color-success)' : node.props.status === 'cancelled' ? 'var(--color-error)' : 'var(--color-primary)' }}>
                 {node.props.statusText || '待就诊'}
               </span>
             </div>
@@ -961,16 +961,16 @@ const NodeRendererInner = React.memo(function NodeRendererInner({ node, depth = 
 
       case 'BizDoctorCard':
         return (
-          <div style={{ margin: '8px 12px', padding: 12, background: '#fff', borderRadius: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+          <div style={{ margin: '8px 12px', padding: 12, background: 'var(--color-white)', borderRadius: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
             <div style={{ display: 'flex', gap: 12 }}>
-              <div style={{ width: 64, height: 64, borderRadius: 8, background: '#e6f4ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#1677ff', flexShrink: 0 }}>
+              <div style={{ width: 64, height: 64, borderRadius: 8, background: 'var(--color-primary-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: 'var(--color-primary)', flexShrink: 0 }}>
                 {node.props.avatar && isValidImageUrl(node.props.avatar) ? <img src={node.props.avatar} style={{ width: '100%', height: '100%', borderRadius: 8, objectFit: 'cover' }} /> : '头像'}
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 15, fontWeight: 500, color: '#333' }}>{node.props.doctorName || '医生'}</div>
-                <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>{node.props.departmentName || '科室'} | {node.props.title || '职称'}</div>
-                {node.props.description && <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>{node.props.description}</div>}
-                {node.props.consultationFee && <div style={{ fontSize: 13, color: '#ff4d4f', marginTop: 4, fontWeight: 500 }}>¥{node.props.consultationFee}</div>}
+                <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-text)' }}>{node.props.doctorName || '医生'}</div>
+                <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)', marginTop: 2 }}>{node.props.departmentName || '科室'} | {node.props.title || '职称'}</div>
+                {node.props.description && <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 4 }}>{node.props.description}</div>}
+                {node.props.consultationFee && <div style={{ fontSize: 13, color: 'var(--color-error)', marginTop: 4, fontWeight: 500 }}>¥{node.props.consultationFee}</div>}
               </div>
             </div>
           </div>
@@ -981,14 +981,14 @@ const NodeRendererInner = React.memo(function NodeRendererInner({ node, depth = 
           <div style={{ padding: '8px 12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
               {node.props.label && (
-                <span style={{ fontSize: 14, color: '#333', minWidth: 80 }}>
-                  {node.props.required && <span style={{ color: '#ff4d4f', marginRight: 4 }}>*</span>}
+                <span style={{ fontSize: 14, color: 'var(--color-text)', minWidth: 80 }}>
+                  {node.props.required && <span style={{ color: 'var(--color-error)', marginRight: 4 }}>*</span>}
                   {node.props.label}
                 </span>
               )}
-              <div style={{ flex: 1, height: 32, border: '1px solid #e5e5e5', borderRadius: 4, padding: '0 8px', fontSize: 14, color: '#999', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: node.props.disabled ? '#f5f5f5' : '#fff' }}>
+              <div style={{ flex: 1, height: 32, border: '1px solid var(--color-border)', borderRadius: 4, padding: '0 8px', fontSize: 14, color: 'var(--color-text-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: node.props.disabled ? 'var(--color-bg-layout)' : 'var(--color-white)' }}>
                 <span>{node.props.placeholder || '请选择科室'}</span>
-                <span style={{ fontSize: 12, color: '#ccc' }}>▼</span>
+                <span style={{ fontSize: 12, color: 'var(--color-border)' }}>▼</span>
               </div>
             </div>
           </div>
@@ -999,14 +999,14 @@ const NodeRendererInner = React.memo(function NodeRendererInner({ node, depth = 
           <div style={{ padding: '8px 12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
               {node.props.label && (
-                <span style={{ fontSize: 14, color: '#333', minWidth: 80 }}>
-                  {node.props.required && <span style={{ color: '#ff4d4f', marginRight: 4 }}>*</span>}
+                <span style={{ fontSize: 14, color: 'var(--color-text)', minWidth: 80 }}>
+                  {node.props.required && <span style={{ color: 'var(--color-error)', marginRight: 4 }}>*</span>}
                   {node.props.label}
                 </span>
               )}
-              <div style={{ flex: 1, height: 32, border: '1px solid #e5e5e5', borderRadius: 4, padding: '0 8px', fontSize: 14, color: '#999', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: node.props.disabled ? '#f5f5f5' : '#fff' }}>
+              <div style={{ flex: 1, height: 32, border: '1px solid var(--color-border)', borderRadius: 4, padding: '0 8px', fontSize: 14, color: 'var(--color-text-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: node.props.disabled ? 'var(--color-bg-layout)' : 'var(--color-white)' }}>
                 <span>{node.props.placeholder || '请选择时间段'}</span>
-                <span style={{ fontSize: 12, color: '#ccc' }}>▼</span>
+                <span style={{ fontSize: 12, color: 'var(--color-border)' }}>▼</span>
               </div>
             </div>
           </div>
@@ -1017,7 +1017,7 @@ const NodeRendererInner = React.memo(function NodeRendererInner({ node, depth = 
           <div
             style={{
               padding: '8px 12px',
-              color: '#999',
+              color: 'var(--color-text-tertiary)',
               fontSize: 12,
               fontStyle: 'italic',
             }}
@@ -1041,7 +1041,7 @@ const NodeRendererInner = React.memo(function NodeRendererInner({ node, depth = 
         aria-label={`${node.componentName} 组件${node.props.text ? `: ${node.props.text}` : ''}`}
         tabIndex={isSelected ? 0 : -1}
         style={{
-          outline: isSelected ? '2px solid #1677ff' : isMultiSelected ? '2px solid #52c41a' : '1px dashed transparent',
+          outline: isSelected ? '2px solid var(--color-primary)' : isMultiSelected ? '2px solid var(--color-success)' : '1px dashed transparent',
           outlineOffset: isSelected || isMultiSelected ? -1 : 0,
           position: 'relative',
           transition: 'outline 0.15s',
@@ -1060,8 +1060,8 @@ const NodeRendererInner = React.memo(function NodeRendererInner({ node, depth = 
               position: 'absolute',
               top: -20,
               left: 0,
-              background: isMultiSelected ? '#52c41a' : '#1677ff',
-              color: '#fff',
+              background: isMultiSelected ? 'var(--color-success)' : 'var(--color-primary)',
+              color: 'var(--color-white)',
               fontSize: 11,
               padding: '1px 6px',
               borderRadius: 3,
@@ -1108,7 +1108,7 @@ export const SchemaRenderer: React.FC = () => {
       role="tree"
       aria-label="页面组件树"
       style={{
-        background: '#fff',
+        background: 'var(--color-white)',
         width: '100%',
         height: '100%',
         position: 'relative',

@@ -336,7 +336,7 @@ const WaitlistPage: React.FC = () => {
                 title="确定递补该候补用户吗？将自动创建预约。"
                 onConfirm={() => handlePromote(record.id)}
               >
-                <a style={{ color: '#52c41a', fontSize: 13 }}>
+                <a style={{ color: 'var(--color-success)', fontSize: 13 }}>
                   <CheckCircleOutlined /> 递补
                 </a>
               </Popconfirm>
@@ -344,7 +344,7 @@ const WaitlistPage: React.FC = () => {
                 title="确定取消该候补吗？"
                 onConfirm={() => handleCancel(record.id)}
               >
-                <a style={{ color: '#ff4d4f', fontSize: 13 }}>
+                <a style={{ color: 'var(--color-error)', fontSize: 13 }}>
                   <CloseCircleOutlined /> 取消
                 </a>
               </Popconfirm>
@@ -366,7 +366,7 @@ const WaitlistPage: React.FC = () => {
                 title="等待中"
                 value={stats.totalWaiting}
                 prefix={<ClockCircleOutlined />}
-                valueStyle={{ color: '#fa8c16' }}
+                valueStyle={{ color: 'var(--color-evening)' }}
               />
             </Card>
           </Col>
@@ -376,7 +376,7 @@ const WaitlistPage: React.FC = () => {
                 title="已递补"
                 value={stats.totalPromoted}
                 prefix={<CheckCircleOutlined />}
-                valueStyle={{ color: '#52c41a' }}
+                valueStyle={{ color: 'var(--color-success)' }}
               />
             </Card>
           </Col>
@@ -386,7 +386,7 @@ const WaitlistPage: React.FC = () => {
                 title="已取消"
                 value={stats.totalCancelled}
                 prefix={<CloseCircleOutlined />}
-                valueStyle={{ color: '#999' }}
+                valueStyle={{ color: 'var(--color-text-tertiary)' }}
               />
             </Card>
           </Col>
@@ -396,7 +396,7 @@ const WaitlistPage: React.FC = () => {
                 title="已过期"
                 value={stats.totalExpired}
                 prefix={<SyncOutlined />}
-                valueStyle={{ color: '#ff4d4f' }}
+                valueStyle={{ color: 'var(--color-error)' }}
               />
             </Card>
           </Col>

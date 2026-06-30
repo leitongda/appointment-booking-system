@@ -201,63 +201,8 @@ class ImageProcessor:
         return self._compress_image(resized, output_format), new_width, new_height
 
 
-async def get_image_settings(db) -> tuple[list, int]:
-    """
-    从数据库获取图片处理配置
-
-    Args:
-        db: 数据库会话
-
-    Returns:
-        tuple: (缩略图尺寸列表, 压缩质量)
-    """
-    from app.modules.settings.service import SettingsService
-
-    settings_service = SettingsService(db)
-
-    # 获取缩略图尺寸配置
-    sizes_str = await settings_service.get_value(
-        "image",
-        "thumbnail_sizes",
-        json.dumps(DEFAULT_THUMBNAIL_SIZES)
-    )
-
-    if isinstance(sizes_str, str):
-        try:
-            thumbnail_sizes = json.loads(sizes_str)
-        except json.JSONDecodeError:
-            thumbnail_sizes = DEFAULT_THUMBNAIL_SIZES
-    else:
-        thumbnail_sizes = sizes_str if sizes_str else DEFAULT_THUMBNAIL_SIZES
-
-    # 获取压缩质量配置
-    quality = await settings_service.get_value(
-        "image",
-        "compress_quality",
-        DEFAULT_COMPRESS_QUALITY
-    )
-
-    if isinstance(quality, str):
-        try:
-            quality = int(quality)
-        except ValueError:
-            quality = DEFAULT_COMPRESS_QUALITY
-
-    return thumbnail_sizes, quality
-
-
-async def create_image_processor(db) -> ImageProcessor:
-    """
-    创建图片处理器（从数据库读取配置）
-
-    Args:
-        db: 数据库会话
-
-    Returns:
-        ImageProcessor: 图片处理器实例
-    """
-    thumbnail_sizes, compress_quality = await get_image_settings(db)
-    return ImageProcessor(
-        thumbnail_sizes=thumbnail_sizes,
-        compress_quality=compress_quality
-    )
+# NOTE: get_image_settings 和 create_image_processor 工厂函数已删除。
+# 它们引入了 app.modules.settings.service 的反向依赖（infrastructure -> modules）。
+# 调用方应直接构造 ImageProcessor：
+#   processor = ImageProcessor(thumbnail_sizes=sizes, compress_quality=quality)
+# 配置读取由调用层（API/Service）负责。

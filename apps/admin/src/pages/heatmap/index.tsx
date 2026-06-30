@@ -196,8 +196,8 @@ const HeatmapPage: React.FC = () => {
       <div
         style={{
           overflow: 'auto',
-          background: '#fafafa',
-          border: '1px solid #f0f0f0',
+          background: 'var(--color-bg-container)',
+          border: '1px solid var(--color-border-secondary)',
           borderRadius: 8,
           padding: 16,
           display: 'flex',
@@ -211,10 +211,10 @@ const HeatmapPage: React.FC = () => {
             width,
             height,
             background:
-              'repeating-linear-gradient(0deg, #fff, #fff 39px, #f5f5f5 40px),' +
-              'repeating-linear-gradient(90deg, #fff, #fff 39px, #f5f5f5 40px)',
-            backgroundColor: '#fff',
-            border: '1px dashed #d9d9d9',
+              'repeating-linear-gradient(0deg, var(--color-white), var(--color-white) 39px, var(--color-bg-layout) 40px),' +
+              'repeating-linear-gradient(90deg, var(--color-white), var(--color-white) 39px, var(--color-bg-layout) 40px)',
+            backgroundColor: 'var(--color-white)',
+            border: '1px dashed var(--color-border)',
             position: 'relative',
           }}
         />

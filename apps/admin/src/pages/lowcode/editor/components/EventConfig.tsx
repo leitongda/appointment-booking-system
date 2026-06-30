@@ -220,11 +220,11 @@ function ActionItem({
   return (
     <div
       style={{
-        border: '1px solid #f0f0f0',
+        border: '1px solid var(--color-border-secondary)',
         borderRadius: 6,
         padding: 8,
         marginBottom: 8,
-        background: '#fafafa',
+        background: 'var(--color-bg-container)',
       }}
     >
       {/* 动作头部 */}
@@ -485,14 +485,14 @@ function EventListItem({
         justifyContent: 'space-between',
         padding: '6px 8px',
         borderRadius: 6,
-        border: '1px solid #f0f0f0',
-        background: '#fafafa',
+        border: '1px solid var(--color-border-secondary)',
+        background: 'var(--color-bg-container)',
         marginBottom: 6,
       }}
     >
       <div style={{ minWidth: 0, flex: 1 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <ThunderboltOutlined style={{ fontSize: 12, color: '#faad14' }} />
+          <ThunderboltOutlined style={{ fontSize: 12, color: 'var(--color-warning)' }} />
           <Text strong style={{ fontSize: 12 }} ellipsis>
             {event.event}
           </Text>
@@ -597,7 +597,7 @@ export const EventConfig: React.FC = () => {
         }}
       >
         <Space size={4}>
-          <ThunderboltOutlined style={{ color: '#faad14', fontSize: 13 }} />
+          <ThunderboltOutlined style={{ color: 'var(--color-warning)', fontSize: 13 }} />
           <Text strong style={{ fontSize: 13 }}>
             事件
           </Text>
@@ -619,7 +619,7 @@ export const EventConfig: React.FC = () => {
 
       {/* 事件列表 */}
       {events.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '12px 0', color: '#bbb' }}>
+        <div style={{ textAlign: 'center', padding: '12px 0', color: 'var(--color-border)' }}>
           <Text type="secondary" style={{ fontSize: 12 }}>
             暂无事件配置
           </Text>

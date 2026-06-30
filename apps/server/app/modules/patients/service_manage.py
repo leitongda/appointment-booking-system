@@ -7,7 +7,9 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import selectinload
 
 from app.common.account_sync import AccountSyncService
-from app.common.security_settings import get_default_password
+from app.modules.settings.security_helpers import get_default_password
+from app.utils.masking import is_masked_value
+from app.utils.patient_masking import mask_patient_data, mask_patient_list
 from app.constants.appointment import APPOINTMENT_STATUS
 from app.core.security import get_password_hash
 from app.middleware.exception import BusinessError
@@ -41,14 +43,18 @@ class PatientManageService(PatientsServiceBase):
         if tenant_id:
             conditions.append(Patient.tenant_id == tenant_id)
         if keyword:
-            conditions.append(
-                or_(
-                    Patient.name.ilike(f"%{keyword}%"),
-                    Patient.phone.ilike(f"%{keyword}%"),
-                    Patient.id_card.ilike(f"%{keyword}%"),
-                    Patient.card_no.ilike(f"%{keyword}%"),
-                )
-            )
+            from app.core.encryption import hash_value
+            # 姓名和卡号仍用模糊匹配（未加密）
+            keyword_conditions = [
+                Patient.name.ilike(f"%{keyword}%"),
+                Patient.card_no.ilike(f"%{keyword}%"),
+            ]
+            # 手机号和身份证号用哈希精确匹配（已加密）
+            if keyword.isdigit() and len(keyword) == 11:
+                keyword_conditions.append(Patient.phone_hash == hash_value(keyword))
+            if len(keyword) == 18 and keyword[:-1].isdigit():
+                keyword_conditions.append(Patient.id_card_hash == hash_value(keyword))
+            conditions.append(or_(*keyword_conditions))
         if store_id:
             conditions.append(or_(Patient.store_id == store_id, Patient.store_id.is_(None)))
         if conditions:
@@ -105,7 +111,7 @@ class PatientManageService(PatientsServiceBase):
                 if not is_blacklist and is_in_blacklist:
                     continue
             patient_data.append(
-                {
+                mask_patient_data({
                     "id": patient.id,
                     "userId": patient.user_id,
                     "cardNo": patient.card_no,
@@ -131,7 +137,7 @@ class PatientManageService(PatientsServiceBase):
                     "address": patient.address,
                     "userPhone": user.phone if user else None,
                     "userNickname": user.nickname if user else None,
-                }
+                })
             )
 
         return patient_data, total or 0
@@ -238,7 +244,7 @@ class PatientManageService(PatientsServiceBase):
             for member in family_members
         ]
 
-        return {
+        return mask_patient_data({
             "id": patient.id,
             "userId": patient.user_id,
             "cardNo": patient.card_no,
@@ -269,7 +275,7 @@ class PatientManageService(PatientsServiceBase):
                 "noShowCount": no_show_count or 0,
             },
             "familyMembers": family_data,
-        }
+        })
 
     async def update_patient(self, patient_id: str, data: PatientUpdate, operator_id: str | None = None) -> dict | None:
         query = select(Patient).where(Patient.id == patient_id)
@@ -445,14 +451,14 @@ class PatientManageService(PatientsServiceBase):
                 no_show_count_query = no_show_count_query.where(Appointment.tenant_id == tenant_id)
             no_show_count = await self.db.scalar(no_show_count_query)
             patient_data.append(
-                {
+                mask_patient_data({
                     "id": patient.id,
                     "name": patient.name,
                     "phone": patient.phone,
                     "idCard": patient.id_card,
                     "noShowCount": no_show_count or 0,
                     "createdAt": patient.created_at.isoformat() if patient.created_at else None,
-                }
+                })
             )
         return patient_data, total or 0
 
@@ -506,8 +512,8 @@ class PatientManageService(PatientsServiceBase):
             user_id=user.id,
             store_id=store_id,
             name=data.name,
-            phone=data.phone,
-            id_card=data.id_card,
+            phone=data.phone if not is_masked_value(data.phone) else None,
+            id_card=data.id_card if not is_masked_value(data.id_card) else None,
             gender=data.gender,
             birthday=birthday,
             relationship=data.relationship or "本人",
@@ -557,8 +563,8 @@ class PatientManageService(PatientsServiceBase):
             user_id=patient.user_id,
             store_id=patient.store_id,
             name=data.name,
-            phone=data.phone,
-            id_card=data.id_card,
+            phone=data.phone if not is_masked_value(data.phone) else None,
+            id_card=data.id_card if not is_masked_value(data.id_card) else None,
             gender=data.gender,
             birthday=birthday,
             relationship=data.relationship,

@@ -408,11 +408,11 @@ const DesignerPageInner: React.FC = () => {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#f5f5f5' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--color-bg-layout)' }}>
       {/* 顶部工具栏 */}
       <div style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        padding: '8px 16px', background: '#fff', borderBottom: '1px solid #e8e8e8',
+        padding: '8px 16px', background: 'var(--color-white)', borderBottom: '1px solid var(--color-border)',
       }}>
         <Space>
           <Button icon={<ArrowLeftOutlined />} onClick={() => history.push('/approval/definitions')}>返回</Button>
@@ -436,7 +436,7 @@ const DesignerPageInner: React.FC = () => {
                   label: (
                     <div>
                       <div style={{ fontWeight: 500 }}>{tpl.name}</div>
-                      <div style={{ fontSize: 12, color: '#999' }}>{tpl.description}</div>
+                      <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>{tpl.description}</div>
                     </div>
                   ),
                 })),
@@ -450,7 +450,7 @@ const DesignerPageInner: React.FC = () => {
             </Dropdown>
           )}
           <Button type="primary" icon={<SaveOutlined />} loading={saving} onClick={handleSave}>保存</Button>
-          <Button icon={<CheckCircleOutlined />} style={{ color: '#52c41a', borderColor: '#52c41a' }} onClick={handleActivate}>激活</Button>
+          <Button icon={<CheckCircleOutlined />} style={{ color: 'var(--color-success)', borderColor: 'var(--color-success)' }} onClick={handleActivate}>激活</Button>
         </Space>
       </div>
 
@@ -458,7 +458,7 @@ const DesignerPageInner: React.FC = () => {
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         {/* 左侧节点面板 */}
         {!readonly && (
-          <div style={{ padding: 8, background: '#fff', borderRight: '1px solid #e8e8e8', overflowY: 'auto' }}>
+          <div style={{ padding: 8, background: 'var(--color-white)', borderRight: '1px solid var(--color-border)', overflowY: 'auto' }}>
             <NodePanel />
           </div>
         )}
@@ -495,7 +495,7 @@ const DesignerPageInner: React.FC = () => {
 
         {/* 右侧属性面板 */}
         {!readonly && (
-          <div style={{ padding: 8, background: '#fff', borderLeft: '1px solid #e8e8e8', overflowY: 'auto' }}>
+          <div style={{ padding: 8, background: 'var(--color-white)', borderLeft: '1px solid var(--color-border)', overflowY: 'auto' }}>
             <PropertyPanel
               selectedNode={selectedNode}
               onUpdate={handleUpdateNode}
@@ -508,11 +508,11 @@ const DesignerPageInner: React.FC = () => {
       {/* 底部校验错误 */}
       {validationErrors.length > 0 && (
         <div style={{
-          padding: '8px 16px', background: '#fff2f0', borderTop: '1px solid #ffccc7',
+          padding: '8px 16px', background: 'var(--color-white)2f0', borderTop: '1px solid #ffccc7',
           maxHeight: 100, overflowY: 'auto',
         }}>
           {validationErrors.map((err, i) => (
-            <div key={i} style={{ color: '#ff4d4f', fontSize: 12 }}>
+            <div key={i} style={{ color: 'var(--color-error)', fontSize: 12 }}>
               <ExclamationCircleOutlined style={{ marginRight: 4 }} />{err}
             </div>
           ))}

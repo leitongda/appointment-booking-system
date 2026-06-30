@@ -5,16 +5,29 @@
 """
 import logging
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, Protocol
 
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.settings import SystemSetting
 from app.models.tenant import Tenant
-from app.modules.notification_logs.service import NotificationLogService
 
 logger = logging.getLogger(__name__)
+
+
+class UsageQuerier(Protocol):
+    """用量查询接口
+
+    用于解耦 NotificationQuotaService 对 NotificationLogService 的直接依赖。
+    """
+    async def get_channel_usage_in_period(
+        self,
+        tenant_id: str,
+        channel: str,
+        start_date: datetime,
+        end_date: datetime,
+    ) -> int: ...
 
 
 class NotificationQuotaService:
@@ -38,8 +51,9 @@ class NotificationQuotaService:
     # Redis 缓存键前缀
     CACHE_PREFIX = "notification:quota"
 
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, usage_querier: UsageQuerier):
         self.db = db
+        self.usage_querier = usage_querier
 
     async def get_quota_config(
         self, tenant_id: str, channel: str
@@ -134,8 +148,7 @@ class NotificationQuotaService:
         now = datetime.utcnow()
         month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-        service = NotificationLogService(self.db)
-        return await service.get_channel_usage_in_period(
+        return await self.usage_querier.get_channel_usage_in_period(
             tenant_id=tenant_id,
             channel=channel,
             start_date=month_start,
@@ -255,20 +268,22 @@ class NotificationQuotaService:
             "period_end": month_end.isoformat(),
         }
 
-    async def check_and_alert(self, tenant_id: str) -> list:
+    async def check_and_alert(self, tenant_id: str, notification_service=None) -> list:
         """检查用量，达 80% 或 100% 时发送告警
 
         Args:
             tenant_id: 租户ID
+            notification_service: TenantNotificationService 实例（需在 modules 层注入）
 
         Returns:
             需要发送的告警列表
         """
-        from app.infrastructure.notifications.service import TenantNotificationService
+        if notification_service is None:
+            logger.warning("TenantNotificationService 未注入，跳过配额告警")
+            return []
 
         quota_info = await self.get_quota_info(tenant_id)
         notifications = []
-        notification_service = TenantNotificationService(self.db)
 
         channels = ["sms", "email", "wechat"]  # in_app 不需要告警
 

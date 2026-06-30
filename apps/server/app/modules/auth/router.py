@@ -6,7 +6,7 @@ from app.api.deps import get_current_user
 from app.common.account_sync import AccountSyncService
 from app.common.auth_types import AccountInfo
 from app.common.auth_unified import get_current_account
-from app.common.security_settings import get_token_expire_config
+from app.modules.settings.security_helpers import get_token_expire_config
 from app.core.config import settings
 from app.core.redis import RedisCache
 from app.core.security import (
@@ -18,6 +18,8 @@ from app.core.security import (
 )
 from app.db.session import get_db
 from app.infrastructure.email.service import EmailService
+from app.modules.settings.service import SettingsService
+from app.modules.email_templates.service import EmailTemplateService
 from app.infrastructure.wechat.service import WechatService
 from app.modules.users.service import UserService
 from app.schemas.auth import (
@@ -790,7 +792,7 @@ async def email_send_code(
 
     # 发送邮件
     try:
-        email_service = EmailService(db)
+        email_service = EmailService(db, config_provider=SettingsService(db), template_provider=EmailTemplateService(db))
         await email_service.send_verification_code_email(data.email, code, data.code_type)
     except Exception:
         raise HTTPException(

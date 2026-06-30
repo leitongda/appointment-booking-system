@@ -215,17 +215,17 @@ const SupportTicketPage: React.FC = () => {
           </Col>
           <Col span={6}>
             <Card size="small">
-              <Statistic title="待处理" value={statistics.pending} valueStyle={{ color: '#faad14' }} />
+              <Statistic title="待处理" value={statistics.pending} valueStyle={{ color: 'var(--color-warning)' }} />
             </Card>
           </Col>
           <Col span={6}>
             <Card size="small">
-              <Statistic title="处理中" value={statistics.processing} valueStyle={{ color: '#1677ff' }} />
+              <Statistic title="处理中" value={statistics.processing} valueStyle={{ color: 'var(--color-primary)' }} />
             </Card>
           </Col>
           <Col span={6}>
             <Card size="small">
-              <Statistic title="已解决" value={statistics.resolved} valueStyle={{ color: '#52c41a' }} />
+              <Statistic title="已解决" value={statistics.resolved} valueStyle={{ color: 'var(--color-success)' }} />
             </Card>
           </Col>
         </Row>

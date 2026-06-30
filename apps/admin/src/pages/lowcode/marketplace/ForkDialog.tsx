@@ -95,11 +95,11 @@ const ForkDialog: React.FC<ForkDialogProps> = ({ open, template, onClose }) => {
         <div
           style={{
             height: 200,
-            background: '#fafafa',
+            background: 'var(--color-bg-container)',
             borderRadius: 8,
             overflow: 'hidden',
             marginBottom: 20,
-            border: '1px solid #f0f0f0',
+            border: '1px solid var(--color-border-secondary)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -112,7 +112,7 @@ const ForkDialog: React.FC<ForkDialogProps> = ({ open, template, onClose }) => {
               style={{ width: '100%', height: '100%', objectFit: 'contain' }}
             />
           ) : (
-            <div style={{ textAlign: 'center', color: '#bbb' }}>
+            <div style={{ textAlign: 'center', color: 'var(--color-border)' }}>
               <EyeOutlined style={{ fontSize: 36, marginBottom: 8 }} />
               <div>预览图暂未提供</div>
             </div>

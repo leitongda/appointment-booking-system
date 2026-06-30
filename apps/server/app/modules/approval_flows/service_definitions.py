@@ -15,6 +15,7 @@ from app.modules.approval_flows.schemas import (
     FlowDefinitionCreate,
     FlowDefinitionUpdate,
 )
+from app.modules.approval_flows.listener_normalizer import normalize_listener_config
 from app.utils.audit import set_create_audit, set_update_audit
 
 logger = logging.getLogger(__name__)
@@ -28,20 +29,10 @@ def _normalize_listener(listener: dict | None) -> dict:
     normalized = dict(listener)
     action = normalized.get("action") or normalized.get("actionType")
     config = normalized.get("config") or normalized.get("actionConfig") or {}
+    # config 字段的 camelCase -> snake_case 归一化委托给共享纯函数，
+    # 仅对 dict 类型生效（与原实现一致）。
     if isinstance(config, dict):
-        config = dict(config)
-        if "bodyTemplate" in config and "body_template" not in config:
-            config["body_template"] = config["bodyTemplate"]
-        if "titleTemplate" in config and "title_template" not in config:
-            config["title_template"] = config["titleTemplate"]
-        if "contentTemplate" in config and "content_template" not in config:
-            config["content_template"] = config["contentTemplate"]
-        if "userIds" in config and "user_ids" not in config:
-            config["user_ids"] = config["userIds"]
-        if "targetIds" in config and "user_ids" not in config:
-            config["user_ids"] = config["targetIds"]
-        if "callbackName" in config and "callback_action" not in config:
-            config["callback_action"] = config["callbackName"]
+        config = normalize_listener_config(config)
 
     normalized["action"] = action
     normalized["config"] = config

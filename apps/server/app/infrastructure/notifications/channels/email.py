@@ -20,6 +20,19 @@ class EmailChannel(BaseNotificationChannel):
     通过 EmailService 发送邮件通知。
     """
 
+    def __init__(self, db, email_service: EmailService | None = None):
+        super().__init__(db)
+        self._email_service = email_service
+
+    @property
+    def email_service(self) -> EmailService:
+        """懒加载 EmailService（需在 modules 层注入）"""
+        if self._email_service is None:
+            raise RuntimeError(
+                "EmailService 未注入。请在 modules 层创建 EmailChannel 时传入 email_service 参数。"
+            )
+        return self._email_service
+
     @property
     def channel_name(self) -> str:
         return "email"
@@ -59,10 +72,8 @@ class EmailChannel(BaseNotificationChannel):
                 logger.info(f"[邮件] 用户已禁用邮件通知: user={event.recipient_id}, type={event.message_type}")
                 return False
 
-            email_service = EmailService(self.db)
-
             # 尝试使用模板发送
-            success = await email_service.send_by_template(
+            success = await self.email_service.send_by_template(
                 template_code=event.template_code,
                 to_email=event.recipient_email,
                 variables=event.variables,

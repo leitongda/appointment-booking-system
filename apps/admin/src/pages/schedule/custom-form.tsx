@@ -201,7 +201,7 @@ const CustomScheduleFormPage: React.FC = () => {
 
         {/* 动态时段配置 */}
         {timePeriods.map((period, index) => (
-          <div key={period.key} style={{ background: '#fafafa', padding: 16, marginBottom: 16, borderRadius: 4 }}>
+          <div key={period.key} style={{ background: 'var(--color-bg-container)', padding: 16, marginBottom: 16, borderRadius: 4 }}>
             <Row gutter={16} align="middle">
               <Col span={4}>
                 <ProFormTimePicker

@@ -147,12 +147,12 @@ const DoctorAppointmentTab: React.FC<DoctorAppointmentTabProps> = ({ doctorId, d
             <>
               {access.hasPermission?.('appointment:cancel') && (
                 <Popconfirm title="确定取消该预约吗？" onConfirm={() => handleCancel(record.id)}>
-                  <a style={{ color: '#ff4d4f' }}>取消</a>
+                  <a style={{ color: 'var(--color-error)' }}>取消</a>
                 </Popconfirm>
               )}
               {access.hasPermission?.('appointment:update') && (
                 <Popconfirm title="确定标记为爽约吗？" onConfirm={() => handleMarkNoShow(record.id)}>
-                  <a style={{ color: '#fa8c16' }}>爽约</a>
+                  <a style={{ color: 'var(--color-evening)' }}>爽约</a>
                 </Popconfirm>
               )}
             </>
@@ -172,7 +172,7 @@ const DoctorAppointmentTab: React.FC<DoctorAppointmentTabProps> = ({ doctorId, d
             statistic={{
               title: '总预约数',
               value: statistics?.total ?? 0,
-              icon: <ClockCircleOutlined style={{ color: '#1677ff' }} />,
+              icon: <ClockCircleOutlined style={{ color: 'var(--color-primary)' }} />,
             }}
           />
         </Col>
@@ -182,7 +182,7 @@ const DoctorAppointmentTab: React.FC<DoctorAppointmentTabProps> = ({ doctorId, d
             statistic={{
               title: '待就诊',
               value: (statistics?.confirmed ?? 0) + (statistics?.signedIn ?? 0),
-              icon: <ClockCircleOutlined style={{ color: '#faad14' }} />,
+              icon: <ClockCircleOutlined style={{ color: 'var(--color-warning)' }} />,
             }}
           />
         </Col>
@@ -192,7 +192,7 @@ const DoctorAppointmentTab: React.FC<DoctorAppointmentTabProps> = ({ doctorId, d
             statistic={{
               title: '已完成',
               value: statistics?.completed ?? 0,
-              icon: <CheckCircleOutlined style={{ color: '#52c41a' }} />,
+              icon: <CheckCircleOutlined style={{ color: 'var(--color-success)' }} />,
             }}
           />
         </Col>
@@ -202,7 +202,7 @@ const DoctorAppointmentTab: React.FC<DoctorAppointmentTabProps> = ({ doctorId, d
             statistic={{
               title: '取消/爽约',
               value: (statistics?.cancelled ?? 0) + (statistics?.noShow ?? 0),
-              icon: <CloseCircleOutlined style={{ color: '#ff4d4f' }} />,
+              icon: <CloseCircleOutlined style={{ color: 'var(--color-error)' }} />,
             }}
           />
         </Col>

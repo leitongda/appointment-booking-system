@@ -224,7 +224,7 @@ const ContactsPage: React.FC = () => {
             <img src={r.avatar} alt="" style={{ width: 24, height: 24, borderRadius: '50%' }} />
           ) : null}
           <span>{r.name}</span>
-          {r.nickname && <span style={{ color: '#999', fontSize: 12 }}>({r.nickname})</span>}
+          {r.nickname && <span style={{ color: 'var(--color-text-tertiary)', fontSize: 12 }}>({r.nickname})</span>}
         </Space>
       ),
     },

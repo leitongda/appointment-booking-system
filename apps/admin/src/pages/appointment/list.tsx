@@ -423,6 +423,7 @@ const AppointmentListPage: React.FC = () => {
           actionRef={actionRef}
           rowKey="id"
           columns={columns}
+          scroll={{ x: 1200 }}
           request={async (params) => {
             const {
               current,

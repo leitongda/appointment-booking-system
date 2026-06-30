@@ -209,7 +209,7 @@ const MedicalRecordPage: React.FC = () => {
             title="确定删除该病历吗？删除后可通过管理员恢复。"
             onConfirm={() => handleDelete(record.id)}
           >
-            <a style={{ color: '#ff4d4f', fontSize: 13 }}>
+            <a style={{ color: 'var(--color-error)', fontSize: 13 }}>
               <DeleteOutlined /> 删除
             </a>
           </Popconfirm>

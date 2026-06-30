@@ -17,6 +17,8 @@ from app.core.redis import RedisCache
 from app.core.security import get_password_hash, verify_password
 from app.db.session import get_db
 from app.infrastructure.email.service import EmailService
+from app.modules.settings.service import SettingsService
+from app.modules.email_templates.service import EmailTemplateService
 from app.infrastructure.storage import get_storage
 from app.infrastructure.storage.base import build_tenant_storage_folder
 from app.models.account import Account, AccountAdmin
@@ -290,7 +292,7 @@ async def send_account_email_code(
     code = SmsService.generate_code()
     await RedisCache.set_email_code(target_email, code, scenario)
     try:
-        email_service = EmailService(db)
+        email_service = EmailService(db, config_provider=SettingsService(db), template_provider=EmailTemplateService(db))
         await email_service.send_verification_code_email(target_email, code, scenario)
     except Exception as exc:
         raise HTTPException(

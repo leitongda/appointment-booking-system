@@ -8,8 +8,8 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.common.feature_definitions import TenantFeatures
 from app.models.tenant import SubscriptionPlan, Tenant
-from app.modules.tenants.schemas import TenantFeatures
 
 
 class FeatureFlagService:

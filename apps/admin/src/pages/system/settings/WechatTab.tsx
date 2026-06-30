@@ -93,7 +93,7 @@ const WechatTab: React.FC<WechatTabProps> = ({
         </ProForm>
       </Spin>
     ) : (
-      <div style={{ textAlign: 'center', padding: '40px 0', color: '#999' }}>
+      <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--color-text-tertiary)' }}>
         请先选择门店以查看或编辑微信配置
       </div>
     )}

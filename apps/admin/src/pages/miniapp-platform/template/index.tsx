@@ -139,7 +139,7 @@ const TemplatePage: React.FC = () => {
       content: (
         <div>
           <Paragraph>您即将使用以下模板创建小程序实例：</Paragraph>
-          <div style={{ background: '#f5f5f5', padding: '12px', borderRadius: '4px', marginBottom: '12px' }}>
+          <div style={{ background: 'var(--color-bg-layout)', padding: '12px', borderRadius: '4px', marginBottom: '12px' }}>
             <Text strong style={{ fontSize: '16px' }}>{template.name}</Text>
             <br />
             <Text type="secondary">{TEMPLATE_STATIC_DATA[template.code]?.englishName}</Text>
@@ -234,7 +234,7 @@ const TemplatePage: React.FC = () => {
                       flexDirection: 'column',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      color: '#fff',
+                      color: 'var(--color-white)',
                       padding: '16px',
                       position: 'relative',
                     }}
@@ -263,7 +263,7 @@ const TemplatePage: React.FC = () => {
                   <p
                     style={{
                       minHeight: '42px',
-                      color: '#666',
+                      color: 'var(--color-text-secondary)',
                       fontSize: '13px',
                       lineHeight: '1.5',
                       marginBottom: '12px',

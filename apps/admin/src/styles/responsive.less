@@ -1,0 +1,170 @@
+/**
+ * 响应式工具类
+ *
+ * 提供常用的响应式布局工具类。
+ * 使用方式：直接在 className 中引用，如 className="responsive-hide-mobile"
+ */
+
+// ==================== 断点定义 ====================
+@breakpoint-xs: 576px;
+@breakpoint-sm: 576px;
+@breakpoint-md: 768px;
+@breakpoint-lg: 992px;
+@breakpoint-xl: 1200px;
+@breakpoint-xxl: 1600px;
+
+// ==================== 显示/隐藏 ====================
+
+// 移动端隐藏（≥768px 显示）
+.responsive-hide-mobile {
+  @media (max-width: (@breakpoint-md - 1px)) {
+    display: none !important;
+  }
+}
+
+// 桌面端隐藏（<992px 显示）
+.responsive-hide-desktop {
+  @media (min-width: @breakpoint-lg) {
+    display: none !important;
+  }
+}
+
+// 平板隐藏（<768px 或 ≥992px 显示）
+.responsive-hide-tablet {
+  @media (min-width: @breakpoint-md) and (max-width: (@breakpoint-lg - 1px)) {
+    display: none !important;
+  }
+}
+
+// ==================== 布局工具 ====================
+
+// 响应式 padding
+.responsive-padding {
+  padding: 16px;
+
+  @media (min-width: @breakpoint-lg) {
+    padding: 24px;
+  }
+
+  @media (max-width: (@breakpoint-md - 1px)) {
+    padding: 8px;
+  }
+}
+
+// 响应式 margin
+.responsive-margin {
+  margin: 16px;
+
+  @media (min-width: @breakpoint-lg) {
+    margin: 24px;
+  }
+
+  @media (max-width: (@breakpoint-md - 1px)) {
+    margin: 8px;
+  }
+}
+
+// ==================== 网格工具 ====================
+
+// 响应式网格容器
+.responsive-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 1fr;
+
+  @media (min-width: @breakpoint-sm) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (min-width: @breakpoint-md) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  @media (min-width: @breakpoint-lg) {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+// 统计卡片网格
+.stats-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(2, 1fr);
+
+  @media (min-width: @breakpoint-md) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  @media (min-width: @breakpoint-lg) {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  @media (min-width: @breakpoint-xl) {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+// ==================== 表格工具 ====================
+
+// 响应式表格容器（水平滚动）
+.responsive-table-container {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+
+  @media (max-width: (@breakpoint-md - 1px)) {
+    margin: 0 -8px;
+    padding: 0 8px;
+  }
+}
+
+// ==================== 表单工具 ====================
+
+// 响应式表单布局
+.responsive-form {
+  .ant-form-item {
+    @media (max-width: (@breakpoint-md - 1px)) {
+      margin-bottom: 12px;
+    }
+  }
+
+  .ant-form-item-label {
+    @media (max-width: (@breakpoint-md - 1px)) {
+      text-align: left;
+      padding-bottom: 4px;
+    }
+  }
+}
+
+// ==================== 卡片工具 ====================
+
+// 响应式卡片
+.responsive-card {
+  .ant-card-body {
+    padding: 16px;
+
+    @media (min-width: @breakpoint-lg) {
+      padding: 24px;
+    }
+
+    @media (max-width: (@breakpoint-md - 1px)) {
+      padding: 12px;
+    }
+  }
+}
+
+// ==================== 工具栏 ====================
+
+// 响应式工具栏（操作按钮换行）
+.responsive-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+
+  @media (max-width: (@breakpoint-md - 1px)) {
+    flex-direction: column;
+
+    > * {
+      width: 100%;
+    }
+  }
+}

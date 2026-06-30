@@ -133,7 +133,7 @@ const DictTypeListPage: React.FC = () => {
             description="删除后该类型下的所有字典项也会被禁用"
             onConfirm={() => handleDelete(record.id)}
           >
-            <a style={{ color: '#ff4d4f' }}>删除</a>
+            <a style={{ color: 'var(--color-error)' }}>删除</a>
           </Popconfirm>
         </Space>
       ),

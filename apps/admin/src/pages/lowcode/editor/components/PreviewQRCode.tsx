@@ -183,10 +183,10 @@ const PreviewQRCode: React.FC<PreviewQRCodeProps> = ({ open, onClose, pageId }) 
               {/* 二维码图片 */}
               <div
                 style={{
-                  border: '1px solid #f0f0f0',
+                  border: '1px solid var(--color-border-secondary)',
                   borderRadius: 8,
                   padding: 16,
-                  background: '#fff',
+                  background: 'var(--color-white)',
                   display: 'inline-block',
                 }}
               >
@@ -213,14 +213,14 @@ const PreviewQRCode: React.FC<PreviewQRCodeProps> = ({ open, onClose, pageId }) 
                 <div>
                   {isExpired ? (
                     <Space size={4}>
-                      <ClockCircleOutlined style={{ color: '#ff4d4f' }} />
+                      <ClockCircleOutlined style={{ color: 'var(--color-error)' }} />
                       <Typography.Text type="danger" style={{ fontSize: 13 }}>
                         二维码已过期，请点击「刷新二维码」重新生成
                       </Typography.Text>
                     </Space>
                   ) : (
                     <Space size={4}>
-                      <ClockCircleOutlined style={{ color: '#faad14' }} />
+                      <ClockCircleOutlined style={{ color: 'var(--color-warning)' }} />
                       <Typography.Text type="warning" style={{ fontSize: 13 }}>
                         剩余有效时间: {formatCountdown(remaining)}
                       </Typography.Text>
@@ -240,7 +240,7 @@ const PreviewQRCode: React.FC<PreviewQRCodeProps> = ({ open, onClose, pageId }) 
                 }}
               >
                 <Space size={4} style={{ marginBottom: 8 }}>
-                  <InfoCircleOutlined style={{ color: '#1677ff' }} />
+                  <InfoCircleOutlined style={{ color: 'var(--color-primary)' }} />
                   <Typography.Text strong style={{ fontSize: 13 }}>
                     使用说明
                   </Typography.Text>
@@ -250,7 +250,7 @@ const PreviewQRCode: React.FC<PreviewQRCodeProps> = ({ open, onClose, pageId }) 
                     margin: 0,
                     paddingLeft: 20,
                     fontSize: 12,
-                    color: '#666',
+                    color: 'var(--color-text-secondary)',
                     lineHeight: 2,
                   }}
                 >

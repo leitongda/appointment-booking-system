@@ -111,7 +111,7 @@ export const EditorTour: React.FC<EditorTourProps> = ({
         onClose={handleClose}
         onFinish={handleFinish}
         indicatorsRender={(current, total) => (
-          <span style={{ fontSize: 12, color: '#999' }}>
+          <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>
             {current + 1} / {total}
           </span>
         )}

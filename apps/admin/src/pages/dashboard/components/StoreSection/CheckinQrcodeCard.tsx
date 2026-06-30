@@ -52,7 +52,7 @@ const CheckinQrcodeCard: React.FC<CheckinQrcodeCardProps> = ({ storeId, storeNam
             size={200}
             style={{ margin: '0 auto' }}
           />
-          <div style={{ marginTop: 16, color: '#666', fontSize: 12 }}>
+          <div style={{ marginTop: 16, color: 'var(--color-text-secondary)', fontSize: 12 }}>
             请使用微信扫描此二维码进行签到
           </div>
           <Button type="link" size="small" onClick={handleDownload}>

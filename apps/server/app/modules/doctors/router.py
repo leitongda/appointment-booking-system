@@ -11,12 +11,14 @@ from app.api.deps import (
     require_permission,
 )
 from app.common.account_sync import AccountSyncService
-from app.common.security_settings import get_token_expire_config
+from app.modules.settings.security_helpers import get_token_expire_config
 from app.core.config import settings
 from app.core.redis import RedisCache
 from app.core.security import create_access_token, create_refresh_token, decode_token
 from app.db.session import get_db
 from app.infrastructure.email.service import EmailService
+from app.modules.settings.service import SettingsService
+from app.modules.email_templates.service import EmailTemplateService
 from app.models.account import Account
 from app.models.doctor import Doctor
 from app.modules.doctors.schemas import (
@@ -331,7 +333,7 @@ async def send_current_doctor_email_code(
     await RedisCache.set_email_code(target_email, code, "doctor_bind")
 
     try:
-        email_service = EmailService(db)
+        email_service = EmailService(db, config_provider=SettingsService(db), template_provider=EmailTemplateService(db))
         await email_service.send_verification_code_email(target_email, code, "doctor_bind")
     except Exception as exc:
         raise HTTPException(

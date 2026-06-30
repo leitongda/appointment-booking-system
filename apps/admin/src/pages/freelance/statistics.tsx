@@ -57,7 +57,7 @@ const FreelanceStatisticsPage: React.FC = () => {
       title: '实际支付',
       dataIndex: 'actualAmount',
       width: 120,
-      render: (v: number) => <strong style={{ color: '#52c41a' }}>¥{Number(v).toFixed(2)}</strong>,
+      render: (v: number) => <strong style={{ color: 'var(--color-success)' }}>¥{Number(v).toFixed(2)}</strong>,
     },
   ];
 
@@ -74,7 +74,7 @@ const FreelanceStatisticsPage: React.FC = () => {
       title: '实际支付',
       dataIndex: 'actualAmount',
       width: 120,
-      render: (v: number) => <strong style={{ color: '#52c41a' }}>¥{Number(v).toFixed(2)}</strong>,
+      render: (v: number) => <strong style={{ color: 'var(--color-success)' }}>¥{Number(v).toFixed(2)}</strong>,
     },
   ];
 
@@ -111,7 +111,7 @@ const FreelanceStatisticsPage: React.FC = () => {
                 precision={2}
                 prefix={<ClockCircleOutlined />}
                 suffix="元"
-                valueStyle={{ color: '#faad14' }}
+                valueStyle={{ color: 'var(--color-warning)' }}
               />
             </Card>
           </Col>

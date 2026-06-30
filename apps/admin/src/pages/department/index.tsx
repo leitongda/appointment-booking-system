@@ -56,7 +56,7 @@ const SortableRow: React.FC<SortableRowProps> = ({ children, style, ...props }) 
     ...style,
     transform: CSS.Transform.toString(transform && { ...transform, scaleY: 1 }),
     transition,
-    ...(isDragging ? { position: 'relative', zIndex: 9999, background: '#fafafa' } : {}),
+    ...(isDragging ? { position: 'relative', zIndex: 9999, background: 'var(--color-bg-container)' } : {}),
   };
 
   return (
@@ -74,7 +74,7 @@ const DragHandle: React.FC = () => {
   return (
     <HolderOutlined
       ref={setActivatorNodeRef}
-      style={{ cursor: 'grab', color: '#999', fontSize: 16, touchAction: 'none' }}
+      style={{ cursor: 'grab', color: 'var(--color-text-tertiary)', fontSize: 16, touchAction: 'none' }}
       {...listeners}
     />
   );
@@ -437,14 +437,14 @@ const DepartmentPage: React.FC = () => {
                 title="确定删除该科室吗？"
                 onConfirm={() => handleDelete(record.id)}
               >
-                <a style={{ color: '#ff4d4f', fontSize: 13 }}>
+                <a style={{ color: 'var(--color-error)', fontSize: 13 }}>
                   <DeleteOutlined /> 删除
                 </a>
               </Popconfirm>
             )}
             {moreMenuItems.length > 0 && (
               <Dropdown menu={{ items: moreMenuItems }} trigger={['click']}>
-                <a style={{ color: '#666', fontSize: 13 }}>
+                <a style={{ color: 'var(--color-text-secondary)', fontSize: 13 }}>
                   <MoreOutlined /> 更多
                 </a>
               </Dropdown>
@@ -565,12 +565,12 @@ const DepartmentPage: React.FC = () => {
                     description={
                       <Space size={0}>
                         {doctor.departmentName && (
-                          <span style={{ color: '#999' }}>
+                          <span style={{ color: 'var(--color-text-tertiary)' }}>
                             当前科室: {doctor.departmentName}
                           </span>
                         )}
                         {doctor.specialty && (
-                          <span style={{ color: '#666', fontSize: 12 }}>
+                          <span style={{ color: 'var(--color-text-secondary)', fontSize: 12 }}>
                             擅长: {doctor.specialty.length > 30 ? doctor.specialty.slice(0, 30) + '...' : doctor.specialty}
                           </span>
                         )}

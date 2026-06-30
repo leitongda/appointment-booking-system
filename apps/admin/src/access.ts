@@ -143,6 +143,7 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
       'system:email-template:delete',
     ]);
   const canEmailRecipients = isSuperAdmin || hasPermission('system:settings');
+  const canDictionary = isSuperAdmin || hasPermission('system:settings');
   const canBookingNotice = isSuperAdmin || hasPermission('system:settings');
   const canTenant = isSuperAdmin || hasAnyPermission(['tenant', 'tenant:list', 'tenant:create', 'tenant:update', 'tenant:delete']);
   const canTenantPlans = isSuperAdmin || hasAnyPermission(['tenant:plan:view', 'tenant:plan:create', 'tenant:plan:update', 'tenant:plan:delete']);
@@ -194,7 +195,8 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
     canSecuritySettings ||
     canSourceReleaseSettings ||
     canEmailTemplates ||
-    canEmailRecipients;
+    canEmailRecipients ||
+    canDictionary;
   const canPlatformManagement = canTenant || canTenantPlans || canMiniappPlatform || canLowcode;
   // 平台经营看板：仅超管可见（与后端 require_platform_admin 校验 is_super_admin 对齐）
   const canPlatformMetrics = isSuperAdmin;
@@ -299,6 +301,7 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
     canConsultationFee,
     canEmailTemplates,
     canEmailRecipients,
+    canDictionary,
     canBookingNotice,
     canTenant,
     canTenantPlans,

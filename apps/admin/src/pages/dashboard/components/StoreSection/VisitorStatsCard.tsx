@@ -13,10 +13,10 @@ const VisitorStatsCard: React.FC<VisitorStatsCardProps> = ({ stats }) => {
   const uvRate = stats?.uvWeekGrowthRate;
 
   const formatRate = (rate: number | undefined) => {
-    if (rate === null || rate === undefined) return { text: '-', color: '#999' };
+    if (rate === null || rate === undefined) return { text: '-', color: 'var(--color-text-tertiary)' };
     return {
       text: `${rate >= 0 ? '+' : ''}${rate.toFixed(1)}%`,
-      color: rate >= 0 ? '#52c41a' : '#f5222d',
+      color: rate >= 0 ? 'var(--color-success)' : '#f5222d',
     };
   };
 

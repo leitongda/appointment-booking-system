@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.auth_deps import get_current_admin
-from app.common.security_settings import get_token_expire_config
+from app.modules.settings.security_helpers import get_token_expire_config
 from app.core.security import create_access_token, create_refresh_token
 from app.db.session import get_db
 from app.infrastructure.integrations import get_provider

@@ -156,7 +156,7 @@ const SettlementsPage: React.FC = () => {
             <Card><Statistic title="已结算金额" value={statistics.totalSettledAmount} precision={2} prefix="¥" /></Card>
           </Col>
           <Col span={8}>
-            <Card><Statistic title="待结算金额" value={statistics.totalPendingAmount} precision={2} prefix="¥" valueStyle={{ color: '#faad14' }} /></Card>
+            <Card><Statistic title="待结算金额" value={statistics.totalPendingAmount} precision={2} prefix="¥" valueStyle={{ color: 'var(--color-warning)' }} /></Card>
           </Col>
         </Row>
       )}
@@ -191,7 +191,7 @@ const SettlementsPage: React.FC = () => {
               { key: '6', label: '互动金额', children: `¥${Number(currentRecord.interactionTotal).toFixed(2)}` },
               { key: '7', label: '总金额', children: <strong>¥{Number(currentRecord.totalAmount).toFixed(2)}</strong> },
               { key: '8', label: '税额', children: `¥${Number(currentRecord.taxAmount).toFixed(2)}` },
-              { key: '9', label: '实际支付', children: <strong style={{ color: '#52c41a' }}>¥{Number(currentRecord.actualAmount).toFixed(2)}</strong> },
+              { key: '9', label: '实际支付', children: <strong style={{ color: 'var(--color-success)' }}>¥{Number(currentRecord.actualAmount).toFixed(2)}</strong> },
               ...(currentRecord.rejectReason ? [{ key: '10', label: '驳回原因', children: currentRecord.rejectReason, span: 2 }] : []),
               ...(currentRecord.remark ? [{ key: '11', label: '备注', children: currentRecord.remark, span: 2 }] : []),
             ]} />

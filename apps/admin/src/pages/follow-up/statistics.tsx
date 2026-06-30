@@ -98,7 +98,7 @@ const FollowUpStatisticsPage: React.FC = () => {
                 title="已逾期"
                 value={data?.overdue ?? 0}
                 prefix={<ExclamationCircleOutlined />}
-                valueStyle={{ color: '#cf1322' }}
+                valueStyle={{ color: 'var(--color-error-active)' }}
               />
             </Card>
           </Col>
@@ -109,7 +109,7 @@ const FollowUpStatisticsPage: React.FC = () => {
                 value={data?.completionRate ?? 0}
                 suffix="%"
                 prefix={<CheckCircleOutlined />}
-                valueStyle={{ color: data && data.completionRate >= 70 ? '#3f8600' : '#cf1322' }}
+                valueStyle={{ color: data && data.completionRate >= 70 ? '#3f8600' : 'var(--color-error-active)' }}
               />
             </Card>
           </Col>
@@ -133,7 +133,7 @@ const FollowUpStatisticsPage: React.FC = () => {
                 value={data?.overdueRate ?? 0}
                 suffix="%"
                 prefix={<CloseCircleOutlined />}
-                valueStyle={{ color: data && data.overdueRate <= 10 ? '#3f8600' : '#cf1322' }}
+                valueStyle={{ color: data && data.overdueRate <= 10 ? '#3f8600' : 'var(--color-error-active)' }}
               />
             </Card>
           </Col>

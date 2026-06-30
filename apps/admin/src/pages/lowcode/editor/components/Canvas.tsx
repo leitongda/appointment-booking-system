@@ -263,11 +263,11 @@ export const EditorDndProvider: React.FC<{ children: React.ReactNode }> = ({ chi
               <div
                 style={{
                   padding: '6px 12px',
-                  background: '#e6f4ff',
-                  border: '1px solid #1677ff',
+                  background: 'var(--color-primary-bg)',
+                  border: '1px solid var(--color-primary)',
                   borderRadius: 6,
                   fontSize: 13,
-                  color: '#1677ff',
+                  color: 'var(--color-primary)',
                   opacity: 0.9,
                 }}
               >
@@ -281,11 +281,11 @@ export const EditorDndProvider: React.FC<{ children: React.ReactNode }> = ({ chi
               <div
                 style={{
                   padding: '6px 12px',
-                  background: '#f6ffed',
-                  border: '1px solid #52c41a',
+                  background: 'var(--color-success-bg)',
+                  border: '1px solid var(--color-success)',
                   borderRadius: 6,
                   fontSize: 13,
-                  color: '#52c41a',
+                  color: 'var(--color-success)',
                   opacity: 0.9,
                 }}
               >
@@ -302,8 +302,8 @@ export const EditorDndProvider: React.FC<{ children: React.ReactNode }> = ({ chi
               <div
                 style={{
                   padding: '6px 12px',
-                  background: '#fff7e6',
-                  border: '1px solid #faad14',
+                  background: 'var(--color-white)7e6',
+                  border: '1px solid var(--color-warning)',
                   borderRadius: 6,
                   fontSize: 13,
                   color: '#d48806',
@@ -325,7 +325,7 @@ export const EditorDndProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             left: indicator.left,
             width: indicator.width,
             height: 2,
-            background: '#1677ff',
+            background: 'var(--color-primary)',
             borderRadius: 1,
             boxShadow: '0 0 6px rgba(22,119,255,0.5)',
             zIndex: 10000,

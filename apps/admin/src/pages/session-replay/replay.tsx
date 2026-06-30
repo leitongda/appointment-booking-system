@@ -186,7 +186,7 @@ const SessionReplayPage: React.FC = () => {
             display: 'flex',
             justifyContent: 'center',
             padding: 16,
-            background: '#fafafa',
+            background: 'var(--color-bg-container)',
             borderRadius: 8,
             overflow: 'auto',
           }}

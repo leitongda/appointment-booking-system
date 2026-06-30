@@ -114,7 +114,7 @@ const GroupListPage: React.FC = () => {
           title="确认移除该成员？"
           onConfirm={() => handleRemoveMember(record.accountId)}
         >
-          <a style={{ color: '#ff4d4f' }}>
+          <a style={{ color: 'var(--color-error)' }}>
             <DeleteOutlined /> 移除
           </a>
         </Popconfirm>

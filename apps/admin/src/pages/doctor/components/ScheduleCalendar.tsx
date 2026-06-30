@@ -183,7 +183,7 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({ doctorId, onDateCli
           return null;
         }}
         style={{ 
-          background: '#fff',
+          background: 'var(--color-white)',
           borderRadius: 8,
           padding: 16,
         }}

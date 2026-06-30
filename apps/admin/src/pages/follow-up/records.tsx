@@ -141,7 +141,7 @@ const FollowUpRecordsPage: React.FC = () => {
             <EditOutlined /> 编辑
           </a>
           <Popconfirm title="确定删除该随访记录吗？" onConfirm={() => handleDelete(record.id)}>
-            <a style={{ color: '#ff4d4f', fontSize: 13 }}>
+            <a style={{ color: 'var(--color-error)', fontSize: 13 }}>
               <DeleteOutlined /> 删除
             </a>
           </Popconfirm>

@@ -152,7 +152,7 @@ const DayDetailDrawer: React.FC<DayDetailDrawerProps> = ({
                     onChange={() => toggleSelect(schedule.id)}
                   />
                   <span>{TIME_SLOT_LABEL[schedule.timeSlot ?? ''] || schedule.timeSlot}</span>
-                  <span style={{ fontSize: 12, color: '#666' }}>
+                  <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
                     {schedule.startTime} - {schedule.endTime}
                   </span>
                   <Tag color={pubInfo.color}>{pubInfo.text}</Tag>
@@ -233,7 +233,7 @@ const DayDetailDrawer: React.FC<DayDetailDrawerProps> = ({
 
       {/* 发布/撤回操作栏 */}
       {selectedIds.length > 0 && (
-        <div style={{ marginBottom: 12, padding: '8px 12px', background: '#f5f5f5', borderRadius: 6 }}>
+        <div style={{ marginBottom: 12, padding: '8px 12px', background: 'var(--color-bg-layout)', borderRadius: 6 }}>
           <Space>
             <span style={{ fontSize: 13 }}>已选 {selectedIds.length} 项</span>
             {onBatchPublish && (

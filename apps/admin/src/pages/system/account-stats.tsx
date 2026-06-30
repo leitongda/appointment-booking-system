@@ -53,9 +53,9 @@ const DEVICE_OPTIONS = [
 ];
 
 const DEVICE_MAP: Record<string, { text: string; icon: React.ReactNode; color: string }> = {
-  desktop: { text: '桌面', icon: <DesktopOutlined />, color: '#722ed1' },
-  mobile: { text: '手机', icon: <MobileOutlined />, color: '#52c41a' },
-  tablet: { text: '平板', icon: <TabletOutlined />, color: '#1677ff' },
+  desktop: { text: '桌面', icon: <DesktopOutlined />, color: 'var(--color-afternoon)' },
+  mobile: { text: '手机', icon: <MobileOutlined />, color: 'var(--color-success)' },
+  tablet: { text: '平板', icon: <TabletOutlined />, color: 'var(--color-primary)' },
 };
 
 const DEVICE_LABEL_MAP: Record<string, string> = {
@@ -345,7 +345,7 @@ const AccountStatsPage: React.FC = () => {
               title="总登录次数"
               value={summary?.totalLogins || 0}
               prefix={<LoginOutlined />}
-              styles={{ content: { color: '#1677ff' } }}
+              styles={{ content: { color: 'var(--color-primary)' } }}
             />
           </Card>
         </Col>
@@ -355,7 +355,7 @@ const AccountStatsPage: React.FC = () => {
               title="活跃账号数"
               value={summary?.activeAccounts || 0}
               prefix={<UserOutlined />}
-              styles={{ content: { color: '#52c41a' } }}
+              styles={{ content: { color: 'var(--color-success)' } }}
             />
           </Card>
         </Col>
@@ -366,7 +366,7 @@ const AccountStatsPage: React.FC = () => {
               value={summary?.avgDurationMinutes || 0}
               suffix="分钟"
               prefix={<ClockCircleOutlined />}
-              styles={{ content: { color: '#fa8c16' } }}
+              styles={{ content: { color: 'var(--color-evening)' } }}
             />
           </Card>
         </Col>
@@ -376,7 +376,7 @@ const AccountStatsPage: React.FC = () => {
               title="总使用时长"
               value={formatHours(summary?.totalDurationHours)}
               prefix={<FieldTimeOutlined />}
-              styles={{ content: { color: '#722ed1' } }}
+              styles={{ content: { color: 'var(--color-afternoon)' } }}
             />
           </Card>
         </Col>

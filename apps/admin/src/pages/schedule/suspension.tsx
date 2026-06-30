@@ -569,14 +569,14 @@ const SuspensionPage: React.FC = () => {
                 <Statistic
                   title="成功处置"
                   value={processResult.successCount}
-                  valueStyle={{ color: '#52c41a' }}
+                  valueStyle={{ color: 'var(--color-success)' }}
                 />
               </Col>
               <Col span={8}>
                 <Statistic
                   title="处置失败"
                   value={processResult.failedCount}
-                  valueStyle={{ color: processResult.failedCount > 0 ? '#ff4d4f' : undefined }}
+                  valueStyle={{ color: processResult.failedCount > 0 ? 'var(--color-error)' : undefined }}
                 />
               </Col>
             </Row>
@@ -653,7 +653,7 @@ const SuspensionPage: React.FC = () => {
                       dataIndex: 'error',
                       ellipsis: true,
                       render: (val: string | undefined) =>
-                        val ? <span style={{ color: '#ff4d4f' }}>{val}</span> : '-',
+                        val ? <span style={{ color: 'var(--color-error)' }}>{val}</span> : '-',
                     },
                   ]}
                 />

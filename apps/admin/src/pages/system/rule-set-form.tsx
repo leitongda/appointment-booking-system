@@ -235,16 +235,16 @@ const CoreCompletionCard: React.FC<CoreCompletionCardProps> = ({
       size="small"
       style={{
         marginBottom: 16,
-        background: isCoreCompleted ? '#f6ffed' : '#fff7e6',
+        background: isCoreCompleted ? 'var(--color-success-bg)' : 'var(--color-white)7e6',
         borderColor: isCoreCompleted ? '#b7eb8f' : '#ffd591',
       }}
     >
       <Space size="small" style={{ width: '100%' }}>
         <Space>
           {isCoreCompleted ? (
-            <CheckCircleOutlined style={{ color: '#52c41a', fontSize: 16 }} />
+            <CheckCircleOutlined style={{ color: 'var(--color-success)', fontSize: 16 }} />
           ) : (
-            <ThunderboltOutlined style={{ color: '#fa8c16', fontSize: 16 }} />
+            <ThunderboltOutlined style={{ color: 'var(--color-evening)', fontSize: 16 }} />
           )}
           <Text strong style={{ fontSize: 14 }}>
             {isCoreCompleted ? '核心配置已完成' : `核心配置进度：${completed}/${total} 项`}
@@ -363,7 +363,7 @@ const PresetModal: React.FC<PresetModalProps> = ({
                   size="small"
                   hoverable
                   style={{
-                    border: selectedPreset === preset.id ? '2px solid #1677ff' : '1px solid #d9d9d9',
+                    border: selectedPreset === preset.id ? '2px solid var(--color-primary)' : '1px solid var(--color-border)',
                     backgroundColor: selectedPreset === preset.id ? '#e6f7ff' : undefined,
                   }}
                   onClick={() => onSelectPreset(preset.id)}
@@ -1301,7 +1301,7 @@ const RuleSetFormPage: React.FC = () => {
       return (
         <Space size={4}>
           <span>{baseLabel}</span>
-          <CheckCircleOutlined style={{ color: '#52c41a', marginLeft: 4 }} />
+          <CheckCircleOutlined style={{ color: 'var(--color-success)', marginLeft: 4 }} />
         </Space>
       );
     }
@@ -1362,7 +1362,7 @@ const RuleSetFormPage: React.FC = () => {
         <Card size="small">
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
+              <tr style={{ borderBottom: '1px solid var(--color-border-secondary)' }}>
                 <th style={{ padding: '8px 12px', textAlign: 'left' }}>模板名称</th>
                 <th style={{ padding: '8px 12px', textAlign: 'left' }}>医生</th>
                 <th style={{ padding: '8px 12px', textAlign: 'left' }}>科室</th>
@@ -1373,7 +1373,7 @@ const RuleSetFormPage: React.FC = () => {
             </thead>
             <tbody>
               {ruleSet.scheduleTemplates.map((t) => (
-                <tr key={t.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                <tr key={t.id} style={{ borderBottom: '1px solid var(--color-border-secondary)' }}>
                   <td style={{ padding: '8px 12px' }}>
                     <a onClick={() => history.push(`/schedule/template/edit/${t.id}`)}>{t.name || '-'}</a>
                   </td>
@@ -1485,7 +1485,7 @@ const RuleSetFormPage: React.FC = () => {
       {/* Tab 分组标签 */}
       <div style={{ marginBottom: 12 }}>
         <Space size="large" separator={<Divider type="vertical" />}>
-          <Text strong style={{ fontSize: 13, color: '#1677ff' }}>
+          <Text strong style={{ fontSize: 13, color: 'var(--color-primary)' }}>
             基础配置
           </Text>
           <Text type="secondary" style={{ fontSize: 13 }}>

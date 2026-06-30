@@ -158,7 +158,7 @@ const VisitTypeConfigPage = () => {
                       >
                         <Select style={{ width: 100 }} options={TIME_UNIT_OPTIONS} />
                       </Form.Item>
-                      <span style={{ color: '#999' }}>内再次预约视为复诊</span>
+                      <span style={{ color: 'var(--color-text-tertiary)' }}>内再次预约视为复诊</span>
                     </Space>
                   </Form.Item>
 

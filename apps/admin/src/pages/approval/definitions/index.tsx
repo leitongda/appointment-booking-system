@@ -155,7 +155,7 @@ const FlowDefinitionsPage: React.FC = () => {
       content: (
         <div>
           <div>已选择 <b>{selectedRowKeys.length}</b> 个流程，确认删除？</div>
-          <div style={{ marginTop: 4, color: '#999', fontSize: 12 }}>
+          <div style={{ marginTop: 4, color: 'var(--color-text-tertiary)', fontSize: 12 }}>
             仅草稿状态的流程可被删除，非草稿流程将跳过。
           </div>
         </div>
@@ -298,7 +298,7 @@ const FlowDefinitionsPage: React.FC = () => {
         return (
           <span>
             {str.slice(0, idx)}
-            <span style={{ fontWeight: 700, color: '#1677ff' }}>
+            <span style={{ fontWeight: 700, color: 'var(--color-primary)' }}>
               {str.slice(idx, idx + searchKeyword.length)}
             </span>
             {str.slice(idx + searchKeyword.length)}
@@ -370,7 +370,7 @@ const FlowDefinitionsPage: React.FC = () => {
           )}
           {record.status === 'draft' && (
             <>
-              <Button type="link" size="small" style={{ color: '#52c41a' }} icon={<PlayCircleOutlined />} onClick={() => handleActivate(record.id)}>
+              <Button type="link" size="small" style={{ color: 'var(--color-success)' }} icon={<PlayCircleOutlined />} onClick={() => handleActivate(record.id)}>
                 激活
               </Button>
               <Button type="link" size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(record.id)}>
@@ -475,7 +475,7 @@ const FlowDefinitionsPage: React.FC = () => {
             </Descriptions>
 
             {/* 流程图 */}
-            <div style={{ border: '1px solid #eee', borderRadius: 8, overflow: 'hidden' }}>
+            <div style={{ border: '1px solid var(--color-border-secondary)', borderRadius: 8, overflow: 'hidden' }}>
               <FlowChartViewer
                 flowDefinition={currentFlow}
                 mode="definition"
@@ -504,10 +504,10 @@ const FlowDefinitionsPage: React.FC = () => {
       >
         {/* 进度区（导入中或导入完成后显示） */}
         {(bpmnImporting || importDone || importProgress > 0) && (
-          <div style={{ marginBottom: 20, padding: 16, background: '#fafafa', borderRadius: 8 }}>
+          <div style={{ marginBottom: 20, padding: 16, background: 'var(--color-bg-container)', borderRadius: 8 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-              <span style={{ fontSize: 13, color: '#333' }}>{importStatusText}</span>
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#1677ff' }}>
+              <span style={{ fontSize: 13, color: 'var(--color-text)' }}>{importStatusText}</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-primary)' }}>
                 {importProgress}%
               </span>
             </div>
@@ -537,20 +537,20 @@ const FlowDefinitionsPage: React.FC = () => {
                 <List.Item>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
                     {item.success ? (
-                      <CheckCircleOutlined style={{ color: '#52c41a', fontSize: 16 }} />
+                      <CheckCircleOutlined style={{ color: 'var(--color-success)', fontSize: 16 }} />
                     ) : (
-                      <CloseCircleOutlined style={{ color: '#ff4d4f', fontSize: 16 }} />
+                      <CloseCircleOutlined style={{ color: 'var(--color-error)', fontSize: 16 }} />
                     )}
-                    <FileTextOutlined style={{ color: '#999' }} />
+                    <FileTextOutlined style={{ color: 'var(--color-text-tertiary)' }} />
                     <span style={{ flex: 1, fontSize: 13 }} title={item.filename}>
                       {item.filename}
                     </span>
                     {item.success ? (
-                      <span style={{ fontSize: 12, color: '#52c41a' }}>
+                      <span style={{ fontSize: 12, color: 'var(--color-success)' }}>
                         {item.name ? `已导入：${item.name}` : '导入成功'}
                       </span>
                     ) : (
-                      <span style={{ fontSize: 12, color: '#ff4d4f' }} title={item.error}>
+                      <span style={{ fontSize: 12, color: 'var(--color-error)' }} title={item.error}>
                         {item.error}
                       </span>
                     )}
@@ -593,7 +593,7 @@ const FlowDefinitionsPage: React.FC = () => {
         {!bpmnImporting && !importDone && (
           <div style={{ display: 'flex', gap: 16 }}>
             <div style={{ flex: 1 }}>
-              <p style={{ marginBottom: 12, color: '#666', fontSize: 13 }}>
+              <p style={{ marginBottom: 12, color: 'var(--color-text-secondary)', fontSize: 13 }}>
                 上传从系统导出的 JSON 文件
               </p>
               <Upload.Dragger
@@ -605,14 +605,14 @@ const FlowDefinitionsPage: React.FC = () => {
                   return false;
                 }}
               >
-                <p style={{ fontSize: 28, color: '#1677ff' }}>
+                <p style={{ fontSize: 28, color: 'var(--color-primary)' }}>
                   <UploadOutlined />
                 </p>
                 <p>JSON 文件</p>
               </Upload.Dragger>
             </div>
             <div style={{ flex: 1 }}>
-              <p style={{ marginBottom: 12, color: '#666', fontSize: 13 }}>
+              <p style={{ marginBottom: 12, color: 'var(--color-text-secondary)', fontSize: 13 }}>
                 上传 Flowable BPMN XML 文件（支持多选）
               </p>
               <Upload.Dragger
@@ -628,7 +628,7 @@ const FlowDefinitionsPage: React.FC = () => {
                   return false;
                 }}
               >
-                <p style={{ fontSize: 28, color: '#52c41a' }}>
+                <p style={{ fontSize: 28, color: 'var(--color-success)' }}>
                   <FileOutlined />
                 </p>
                 <p>BPMN 文件（可多选）</p>

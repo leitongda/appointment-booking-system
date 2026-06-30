@@ -360,10 +360,10 @@ const CopyRuleModal: React.FC<CopyRuleModalProps> = ({
             title={
               <div>
                 复制来源：<strong>{sourceRule?.name}</strong>
-                <span style={{ marginLeft: 16, color: '#666' }}>
+                <span style={{ marginLeft: 16, color: 'var(--color-text-secondary)' }}>
                   医生：{sourceRule?.doctorName}
                 </span>
-                <span style={{ marginLeft: 16, color: '#666' }}>
+                <span style={{ marginLeft: 16, color: 'var(--color-text-secondary)' }}>
                   门店：{sourceRule?.storeName}
                 </span>
               </div>
@@ -373,7 +373,7 @@ const CopyRuleModal: React.FC<CopyRuleModalProps> = ({
             style={{ marginBottom: 16 }}
           />
 
-          <div style={{ marginBottom: 16, padding: 12, background: '#f5f5f5', borderRadius: 4 }}>
+          <div style={{ marginBottom: 16, padding: 12, background: 'var(--color-bg-layout)', borderRadius: 4 }}>
             <div style={{ marginBottom: 8, fontWeight: 500 }}>复制模式</div>
             <Radio.Group
               value={copyMode}

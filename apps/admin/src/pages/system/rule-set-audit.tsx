@@ -35,7 +35,7 @@ const getActionTag = (action: string) => {
 
 const renderChangeValue = (value: any) => {
   if (value === null || value === undefined) {
-    return <span style={{ color: '#999' }}>-</span>;
+    return <span style={{ color: 'var(--color-text-tertiary)' }}>-</span>;
   }
   if (typeof value === 'boolean') {
     return <Tag color={value ? 'success' : 'default'}>{value ? '是' : '否'}</Tag>;
@@ -52,9 +52,9 @@ const renderChangeItem = (item: ChangeItem, depth = 0) => {
   const isModify = !isAdd && !isRemove;
 
   let bgColor = 'transparent';
-  if (isAdd) bgColor = '#f6ffed';
-  if (isRemove) bgColor = '#fff1f0';
-  if (isModify) bgColor = '#fffbe6';
+  if (isAdd) bgColor = 'var(--color-success-bg)';
+  if (isRemove) bgColor = 'var(--color-white)1f0';
+  if (isModify) bgColor = 'var(--color-white)be6';
 
   return (
     <div key={item.key} style={{ marginLeft: depth * 16, marginBottom: 4 }}>
@@ -63,7 +63,7 @@ const renderChangeItem = (item: ChangeItem, depth = 0) => {
           padding: '4px 8px',
           backgroundColor: bgColor,
           borderRadius: 4,
-          border: '1px solid #f0f0f0',
+          border: '1px solid var(--color-border-secondary)',
         }}
       >
         <Space size={8}>
@@ -72,13 +72,13 @@ const renderChangeItem = (item: ChangeItem, depth = 0) => {
           </span>
           {isModify && (
             <>
-              <span style={{ color: '#ff4d4f' }}>{renderChangeValue(item.before)}</span>
+              <span style={{ color: 'var(--color-error)' }}>{renderChangeValue(item.before)}</span>
               <span>&rarr;</span>
-              <span style={{ color: '#52c41a' }}>{renderChangeValue(item.after)}</span>
+              <span style={{ color: 'var(--color-success)' }}>{renderChangeValue(item.after)}</span>
             </>
           )}
-          {isAdd && <span style={{ color: '#52c41a' }}>{renderChangeValue(item.after)}</span>}
-          {isRemove && <span style={{ color: '#ff4d4f' }}>{renderChangeValue(item.before)}</span>}
+          {isAdd && <span style={{ color: 'var(--color-success)' }}>{renderChangeValue(item.after)}</span>}
+          {isRemove && <span style={{ color: 'var(--color-error)' }}>{renderChangeValue(item.before)}</span>}
         </Space>
         {item.nested && item.nested.length > 0 && (
           <div style={{ marginTop: 4 }}>
@@ -151,13 +151,13 @@ const RuleSetAuditPage: React.FC = () => {
       search: false,
       width: 80,
       render: (_, record) => {
-        if (!record.changes) return <span style={{ color: '#999' }}>-</span>;
+        if (!record.changes) return <span style={{ color: 'var(--color-text-tertiary)' }}>-</span>;
         try {
           const data: ChangesData = JSON.parse(record.changes);
           const count = data.created ? 0 : data.deleted ? 0 : data.changes?.length || 0;
           return <Badge count={count} showZero color="blue" />;
         } catch {
-          return <span style={{ color: '#999' }}>-</span>;
+          return <span style={{ color: 'var(--color-text-tertiary)' }}>-</span>;
         }
       },
     },
@@ -166,7 +166,7 @@ const RuleSetAuditPage: React.FC = () => {
   const expandedRowRender = (record: RuleSetAuditLog) => {
     if (!record.changes) {
       return (
-        <div style={{ padding: 16, color: '#999' }}>
+        <div style={{ padding: 16, color: 'var(--color-text-tertiary)' }}>
           无详细变更信息
         </div>
       );
@@ -179,7 +179,7 @@ const RuleSetAuditPage: React.FC = () => {
         return (
           <div style={{ padding: 16 }}>
             <Tag color="success">新创建</Tag>
-            <div style={{ marginTop: 8, fontSize: 12, color: '#666' }}>
+            <div style={{ marginTop: 8, fontSize: 12, color: 'var(--color-text-secondary)' }}>
               该规则组为新创建，无变更前数据
             </div>
           </div>
@@ -190,7 +190,7 @@ const RuleSetAuditPage: React.FC = () => {
         return (
           <div style={{ padding: 16 }}>
             <Tag color="error">已删除</Tag>
-            <div style={{ marginTop: 8, fontSize: 12, color: '#666' }}>
+            <div style={{ marginTop: 8, fontSize: 12, color: 'var(--color-text-secondary)' }}>
               该规则组已被删除
             </div>
           </div>
@@ -199,7 +199,7 @@ const RuleSetAuditPage: React.FC = () => {
 
       if (!data.changes || data.changes.length === 0) {
         return (
-          <div style={{ padding: 16, color: '#999' }}>
+          <div style={{ padding: 16, color: 'var(--color-text-tertiary)' }}>
             无字段变更
           </div>
         );
@@ -215,7 +215,7 @@ const RuleSetAuditPage: React.FC = () => {
       );
     } catch (error) {
       return (
-        <div style={{ padding: 16, color: '#ff4d4f' }}>
+        <div style={{ padding: 16, color: 'var(--color-error)' }}>
           解析变更数据失败
         </div>
       );

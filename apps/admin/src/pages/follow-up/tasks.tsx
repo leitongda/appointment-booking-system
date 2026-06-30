@@ -166,7 +166,7 @@ const FollowUpTasksPage: React.FC = () => {
           {record.status === 'pending' || record.status === 'overdue' ? (
             <>
               <Popconfirm title="确定标记为已完成吗？" onConfirm={() => handleComplete(record.id)}>
-                <a style={{ color: '#52c41a', fontSize: 13 }}>
+                <a style={{ color: 'var(--color-success)', fontSize: 13 }}>
                   <CheckOutlined /> 完成
                 </a>
               </Popconfirm>
@@ -247,7 +247,7 @@ const FollowUpTasksPage: React.FC = () => {
             <Space>
               <a onClick={() => setSkipModalOpen(false)}>取消</a>
               <Popconfirm title="确定跳过此任务吗？" onConfirm={handleSkip}>
-                <a style={{ color: '#ff4d4f' }}>确认跳过</a>
+                <a style={{ color: 'var(--color-error)' }}>确认跳过</a>
               </Popconfirm>
             </Space>
           </div>

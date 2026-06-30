@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_admin
-from app.common.security_settings import get_token_expire_config
+from app.modules.settings.security_helpers import get_token_expire_config
 from app.core.redis import RedisCache
 from app.core.security import create_access_token, create_refresh_token, decode_token
 from app.db.session import get_db

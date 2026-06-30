@@ -101,7 +101,7 @@ const FreelancePortalPage: React.FC = () => {
       },
     },
     { title: '总金额', dataIndex: 'totalAmount', width: 100, render: (v: number) => `¥${Number(v).toFixed(2)}` },
-    { title: '实付', dataIndex: 'actualAmount', width: 100, render: (v: number) => <strong style={{ color: '#52c41a' }}>¥{Number(v).toFixed(2)}</strong> },
+    { title: '实付', dataIndex: 'actualAmount', width: 100, render: (v: number) => <strong style={{ color: 'var(--color-success)' }}>¥{Number(v).toFixed(2)}</strong> },
     { title: '时间', dataIndex: 'createdAt', width: 110, render: (v: string) => v ? new Date(v).toLocaleDateString('zh-CN') : '-' },
   ];
 
@@ -124,7 +124,7 @@ const FreelancePortalPage: React.FC = () => {
         </Col>
         <Col span={8}>
           <Card>
-            <Statistic title="待结算" value={data.summary.totalPending} precision={2} prefix="¥" valueStyle={{ color: '#faad14' }} />
+            <Statistic title="待结算" value={data.summary.totalPending} precision={2} prefix="¥" valueStyle={{ color: 'var(--color-warning)' }} />
           </Card>
         </Col>
       </Row>

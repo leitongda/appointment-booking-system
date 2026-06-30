@@ -209,15 +209,15 @@ const TemplateDetail: React.FC = () => {
         <div
           style={{
             height: 480,
-            background: '#fafafa',
+            background: 'var(--color-bg-container)',
             borderRadius: 8,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            border: '1px dashed #d9d9d9',
+            border: '1px dashed var(--color-border)',
           }}
         >
-          <div style={{ textAlign: 'center', color: '#bbb' }}>
+          <div style={{ textAlign: 'center', color: 'var(--color-border)' }}>
             <EyeOutlined style={{ fontSize: 48, marginBottom: 12 }} />
             <div>预览图暂未提供</div>
           </div>
@@ -230,10 +230,10 @@ const TemplateDetail: React.FC = () => {
         <div
           style={{
             height: 480,
-            background: '#fafafa',
+            background: 'var(--color-bg-container)',
             borderRadius: 8,
             overflow: 'hidden',
-            border: '1px solid #f0f0f0',
+            border: '1px solid var(--color-border-secondary)',
           }}
         >
           <img
@@ -256,7 +256,7 @@ const TemplateDetail: React.FC = () => {
             <div
               style={{
                 height: 480,
-                background: '#fafafa',
+                background: 'var(--color-bg-container)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -297,7 +297,7 @@ const TemplateDetail: React.FC = () => {
             }
           >
             <List.Item.Meta
-              avatar={<ClockCircleOutlined style={{ color: '#999', marginTop: 4 }} />}
+              avatar={<ClockCircleOutlined style={{ color: 'var(--color-text-tertiary)', marginTop: 4 }} />}
               title={
                 <Space>
                   <Text strong>v{item.version}</Text>
@@ -341,7 +341,7 @@ const TemplateDetail: React.FC = () => {
               <div
                 style={{
                   height: 120,
-                  background: '#fafafa',
+                  background: 'var(--color-bg-container)',
                   borderRadius: 4,
                   marginBottom: 8,
                   display: 'flex',
@@ -357,7 +357,7 @@ const TemplateDetail: React.FC = () => {
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
                 ) : (
-                  <EyeOutlined style={{ fontSize: 24, color: '#d9d9d9' }} />
+                  <EyeOutlined style={{ fontSize: 24, color: 'var(--color-border)' }} />
                 )}
               </div>
               <Text ellipsis style={{ fontWeight: 500 }}>
@@ -416,7 +416,7 @@ const TemplateDetail: React.FC = () => {
         extra: (
           <Space>
             <Button
-              icon={isFavorited ? <StarFilled style={{ color: '#faad14' }} /> : <StarOutlined />}
+              icon={isFavorited ? <StarFilled style={{ color: 'var(--color-warning)' }} /> : <StarOutlined />}
               onClick={handleToggleFavorite}
             >
               {isFavorited ? '已收藏' : '收藏'}
@@ -552,7 +552,7 @@ const TemplateDetail: React.FC = () => {
           {/* 模板描述 */}
           <Card title="模板描述" style={{ marginBottom: 16 }}>
             <Paragraph
-              style={{ color: '#666', lineHeight: 1.8, margin: 0 }}
+              style={{ color: 'var(--color-text-secondary)', lineHeight: 1.8, margin: 0 }}
               ellipsis={{ rows: 4, expandable: true, symbol: '展开' }}
             >
               {template.description || '暂无描述'}

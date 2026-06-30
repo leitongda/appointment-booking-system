@@ -26,8 +26,9 @@ class TenantNotificationService:
         await service.send_overdue_notification(tenant_id)
     """
 
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, email_service=None):
         self.db = db
+        self._email_service = email_service
 
     async def create_notification(
         self,
@@ -102,10 +103,14 @@ class TenantNotificationService:
             logger.error(f"外部告警推送失败 tenant={tenant_id}: {e}")
 
     async def _send_email_alert(self, tenant: Tenant, notification: TenantNotification) -> None:
-        """通过邮件发送租户告警"""
+        """通过邮件发送租户告警
+
+        需要在 modules 层创建 TenantNotificationService 时注入 email_service。
+        """
         try:
-            from app.infrastructure.email.service import EmailService
-            email_service = EmailService(self.db)
+            if not self._email_service:
+                logger.warning("EmailService 未注入，跳过邮件告警")
+                return
 
             variables = {
                 "tenant_name": tenant.name,
@@ -115,14 +120,14 @@ class TenantNotificationService:
             }
 
             # 优先使用告警模板，fallback 到直接发送
-            success = await email_service.send_by_template(
+            success = await self._email_service.send_by_template(
                 template_code="tenant_alert",
                 to_email=tenant.contact_email,
                 variables=variables,
             )
             if not success:
                 # fallback: 直接发送
-                await email_service.send_direct(
+                await self._email_service.send_direct(
                     to_email=tenant.contact_email,
                     subject=f"[{tenant.name}] {notification.title}",
                     body=notification.content,

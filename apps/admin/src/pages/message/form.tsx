@@ -217,7 +217,7 @@ const MessageFormPage: React.FC = () => {
       >
         <p><strong>标题：</strong>{previewData.title || '（空）'}</p>
         <p><strong>内容：</strong></p>
-        <div style={{ whiteSpace: 'pre-wrap', background: '#f5f5f5', padding: 12, borderRadius: 4 }}>
+        <div style={{ whiteSpace: 'pre-wrap', background: 'var(--color-bg-layout)', padding: 12, borderRadius: 4 }}>
           {previewData.content || '（空）'}
         </div>
       </Modal>

@@ -168,7 +168,7 @@ const DailyRecordsPage: React.FC = () => {
       search: false,
       render: (_, record) =>
         record.lateMinutes > 0 ? (
-          <span style={{ color: '#fa8c16' }}>{record.lateMinutes}</span>
+          <span style={{ color: 'var(--color-evening)' }}>{record.lateMinutes}</span>
         ) : (
           '-'
         ),
@@ -221,7 +221,7 @@ const DailyRecordsPage: React.FC = () => {
             <Statistic
               title="迟到"
               value={dailyStat?.late ?? 0}
-              valueStyle={{ color: '#fa8c16' }}
+              valueStyle={{ color: 'var(--color-evening)' }}
               prefix={<ClockCircleOutlined />}
             />
           </Card>
@@ -241,7 +241,7 @@ const DailyRecordsPage: React.FC = () => {
             <Statistic
               title="缺勤"
               value={dailyStat?.absent ?? 0}
-              valueStyle={{ color: '#cf1322' }}
+              valueStyle={{ color: 'var(--color-error-active)' }}
               prefix={<CloseCircleOutlined />}
             />
           </Card>
@@ -251,7 +251,7 @@ const DailyRecordsPage: React.FC = () => {
             <Statistic
               title="请假"
               value={dailyStat?.leave ?? 0}
-              valueStyle={{ color: '#1677ff' }}
+              valueStyle={{ color: 'var(--color-primary)' }}
               prefix={<ExclamationCircleOutlined />}
             />
           </Card>
@@ -261,17 +261,17 @@ const DailyRecordsPage: React.FC = () => {
             <Statistic
               title="待打卡"
               value={dailyStat?.expected ?? 0}
-              valueStyle={{ color: '#1677ff' }}
+              valueStyle={{ color: 'var(--color-primary)' }}
               prefix={<ClockCircleOutlined />}
             />
           </Card>
         </Col>
         <Col span={3}>
-          <Card loading={statsLoading} style={{ borderColor: '#ff4d4f' }}>
+          <Card loading={statsLoading} style={{ borderColor: 'var(--color-error)' }}>
             <Statistic
               title="异常"
               value={(dailyStat?.late ?? 0) + (dailyStat?.early ?? 0) + (dailyStat?.absent ?? 0)}
-              valueStyle={{ color: '#ff4d4f' }}
+              valueStyle={{ color: 'var(--color-error)' }}
               prefix={<WarningOutlined />}
             />
           </Card>

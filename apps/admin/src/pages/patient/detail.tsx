@@ -310,7 +310,7 @@ const PatientDetailPage: React.FC = () => {
       dataIndex: 'changeAmount',
       width: 100,
       render: (_, record) => (
-        <span style={{ color: record.changeAmount >= 0 ? '#52c41a' : '#ff4d4f' }}>
+        <span style={{ color: record.changeAmount >= 0 ? 'var(--color-success)' : 'var(--color-error)' }}>
           {record.changeAmount >= 0 ? '+' : ''}
           {record.changeAmount}
         </span>
@@ -357,7 +357,7 @@ const PatientDetailPage: React.FC = () => {
               title="确定删除该家庭成员吗？"
               onConfirm={() => handleDeleteFamilyMember(record.id)}
             >
-              <a style={{ color: '#ff4d4f' }}><DeleteOutlined /> 删除</a>
+              <a style={{ color: 'var(--color-error)' }}><DeleteOutlined /> 删除</a>
             </Popconfirm>
           )}
         </Space>

@@ -155,7 +155,7 @@ const ScheduleEditModal: React.FC<ScheduleEditModalProps> = ({
             添加排班
           </Button>
           {availableTimeSlots.length === 0 && (
-            <span style={{ marginLeft: 8, color: '#999', fontSize: 12 }}>
+            <span style={{ marginLeft: 8, color: 'var(--color-text-tertiary)', fontSize: 12 }}>
               所有时段已排班
             </span>
           )}
@@ -176,7 +176,7 @@ const ScheduleEditModal: React.FC<ScheduleEditModalProps> = ({
                       title="确定停诊吗？已预约的患者将收到通知。"
                       onConfirm={() => handleSuspend(schedule)}
                     >
-                      <a style={{ color: '#ff4d4f' }}>停诊</a>
+                      <a style={{ color: 'var(--color-error)' }}>停诊</a>
                     </Popconfirm>
                   ) : (
                     <a key="resume" onClick={() => handleResume(schedule)}>

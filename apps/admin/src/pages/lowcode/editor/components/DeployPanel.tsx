@@ -288,15 +288,15 @@ const DeployPanel: React.FC<DeployPanelProps> = ({ open, onClose }) => {
 
       return {
         color,
-        dot: isFailed ? <CloseCircleFilled style={{ color: '#ff4d4f' }} /> : undefined,
+        dot: isFailed ? <CloseCircleFilled style={{ color: 'var(--color-error)' }} /> : undefined,
         children: (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span>{stage.label}</span>
             {isActive && !isFailed && (
-              <SyncOutlined spin style={{ color: '#1677ff', fontSize: 12 }} />
+              <SyncOutlined spin style={{ color: 'var(--color-primary)', fontSize: 12 }} />
             )}
             {color === 'green' && (
-              <CheckCircleFilled style={{ color: '#52c41a', fontSize: 12 }} />
+              <CheckCircleFilled style={{ color: 'var(--color-success)', fontSize: 12 }} />
             )}
           </div>
         ),
@@ -346,7 +346,7 @@ const DeployPanel: React.FC<DeployPanelProps> = ({ open, onClose }) => {
           <div style={{ marginBottom: 16 }}>
             <Space direction="vertical" size={4} style={{ width: '100%' }}>
               <div>
-                <span style={{ color: '#8c8c8c', fontSize: 12 }}>状态：</span>
+                <span style={{ color: 'var(--color-text-tertiary)', fontSize: 12 }}>状态：</span>
                 <Tag color={statusConfig.color} style={{ marginLeft: 4 }}>
                   {statusConfig.label}
                 </Tag>
@@ -358,14 +358,14 @@ const DeployPanel: React.FC<DeployPanelProps> = ({ open, onClose }) => {
               </div>
               {deployStatus?.last_deploy_at && (
                 <div>
-                  <span style={{ color: '#8c8c8c', fontSize: 12 }}>
+                  <span style={{ color: 'var(--color-text-tertiary)', fontSize: 12 }}>
                     上次部署：{formatTime(deployStatus.last_deploy_at)}
                   </span>
                 </div>
               )}
               {deployStatus?.build_job && (
                 <div>
-                  <span style={{ color: '#8c8c8c', fontSize: 12 }}>
+                  <span style={{ color: 'var(--color-text-tertiary)', fontSize: 12 }}>
                     构建任务：
                     <Tooltip title={deployStatus.build_job.id}>
                       <Typography.Text code style={{ fontSize: 11 }}>
@@ -380,15 +380,15 @@ const DeployPanel: React.FC<DeployPanelProps> = ({ open, onClose }) => {
 
           {/* 流水线步骤进度 */}
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 12, color: '#8c8c8c', marginBottom: 8 }}>流水线进度</div>
+            <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)', marginBottom: 8 }}>流水线进度</div>
             <Timeline items={timelineItems} />
           </div>
 
           {/* 构建日志 (失败时展示) */}
           {currentStatus === 'failed' && deployStatus?.build_job?.build_log && (
             <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 12, color: '#8c8c8c', marginBottom: 4 }}>
-                <WarningOutlined style={{ color: '#ff4d4f', marginRight: 4 }} />
+              <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)', marginBottom: 4 }}>
+                <WarningOutlined style={{ color: 'var(--color-error)', marginRight: 4 }} />
                 构建日志
               </div>
               <pre
@@ -441,9 +441,9 @@ const DeployPanel: React.FC<DeployPanelProps> = ({ open, onClose }) => {
                 style={{
                   textAlign: 'center',
                   padding: 16,
-                  border: '1px solid #f0f0f0',
+                  border: '1px solid var(--color-border-secondary)',
                   borderRadius: 8,
-                  background: '#fafafa',
+                  background: 'var(--color-bg-container)',
                 }}
               >
                 <Spin spinning={previewLoading}>
@@ -470,12 +470,12 @@ const DeployPanel: React.FC<DeployPanelProps> = ({ open, onClose }) => {
             <div
               style={{
                 padding: 12,
-                border: '1px solid #f0f0f0',
+                border: '1px solid var(--color-border-secondary)',
                 borderRadius: 8,
-                background: '#fafafa',
+                background: 'var(--color-bg-container)',
               }}
             >
-              <div style={{ fontSize: 12, color: '#8c8c8c', marginBottom: 8 }}>版本回滚</div>
+              <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)', marginBottom: 8 }}>版本回滚</div>
               <Space.Compact style={{ width: '100%' }}>
                 <Select
                   placeholder="选择回滚目标版本"
@@ -554,11 +554,11 @@ const DeployPanel: React.FC<DeployPanelProps> = ({ open, onClose }) => {
                       <List.Item.Meta
                         avatar={
                           isCompleted ? (
-                            <CheckCircleFilled style={{ color: '#52c41a', fontSize: 16, marginTop: 4 }} />
+                            <CheckCircleFilled style={{ color: 'var(--color-success)', fontSize: 16, marginTop: 4 }} />
                           ) : isFailed ? (
-                            <CloseCircleFilled style={{ color: '#ff4d4f', fontSize: 16, marginTop: 4 }} />
+                            <CloseCircleFilled style={{ color: 'var(--color-error)', fontSize: 16, marginTop: 4 }} />
                           ) : (
-                            <ClockCircleOutlined style={{ color: '#1677ff', fontSize: 16, marginTop: 4 }} />
+                            <ClockCircleOutlined style={{ color: 'var(--color-primary)', fontSize: 16, marginTop: 4 }} />
                           )
                         }
                         title={
@@ -567,7 +567,7 @@ const DeployPanel: React.FC<DeployPanelProps> = ({ open, onClose }) => {
                           </span>
                         }
                         description={
-                          <div style={{ fontSize: 11, color: '#8c8c8c' }}>
+                          <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)' }}>
                             {item.trigger_source && <span>来源: {item.trigger_source} | </span>}
                             {item.artifact_url && (
                               <Tooltip title={item.artifact_url}>

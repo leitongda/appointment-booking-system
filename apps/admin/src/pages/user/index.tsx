@@ -115,7 +115,7 @@ const UserManagePage: React.FC = () => {
               permission="patient:update"
               icon={<CheckCircleOutlined />}
               label="启用"
-              style={{ color: '#52c41a' }}
+              style={{ color: 'var(--color-success)' }}
               confirmText="确定启用该用户吗？"
               onClick={() => handleUpdateStatus(record.id, 1)}
             />

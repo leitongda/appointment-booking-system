@@ -32,7 +32,7 @@ const TenantSuspendedPage: React.FC = () => {
       justifyContent: 'center',
       alignItems: 'center',
       minHeight: '100vh',
-      background: '#f5f5f5',
+      background: 'var(--color-bg-layout)',
     }}>
       <Result
         status="error"

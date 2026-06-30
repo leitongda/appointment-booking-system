@@ -20,7 +20,7 @@ const ConditionEdge = memo(({
         markerEnd={markerEnd}
         style={{
           ...style,
-          stroke: isDefault ? '#d9d9d9' : '#fa8c16',
+          stroke: isDefault ? 'var(--color-border)' : 'var(--color-evening)',
           strokeWidth: isDefault ? 1 : 1.5,
           strokeDasharray: isDefault ? '6,4' : undefined,
           transition: 'stroke 0.15s ease, stroke-width 0.15s ease',

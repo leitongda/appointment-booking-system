@@ -205,7 +205,7 @@ const TasksPage: React.FC = () => {
                   children: item.content || '-',
                 }))} />
               ) : (
-                <div style={{ color: '#999' }}>暂无互动记录</div>
+                <div style={{ color: 'var(--color-text-tertiary)' }}>暂无互动记录</div>
               )}
             </div>
           </>

@@ -166,7 +166,7 @@ const DictItemsPage: React.FC = () => {
             title="确定删除该字典项吗？"
             onConfirm={() => handleDelete(record.id)}
           >
-            <a style={{ color: '#ff4d4f' }}>删除</a>
+            <a style={{ color: 'var(--color-error)' }}>删除</a>
           </Popconfirm>
         </Space>
       ),

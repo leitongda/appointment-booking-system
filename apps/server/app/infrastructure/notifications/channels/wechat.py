@@ -136,7 +136,7 @@ class WechatChannel(BaseNotificationChannel):
         """
         from sqlalchemy import and_
 
-        from app.modules.unified_message.models import UnifiedTemplate
+        from app.models.unified_template import UnifiedTemplate
 
         # 先查租户模板
         stmt = select(UnifiedTemplate.wechat_template_id).where(
@@ -171,7 +171,7 @@ class WechatChannel(BaseNotificationChannel):
         """
         from sqlalchemy import and_
 
-        from app.modules.unified_message.models import UnifiedTemplate
+        from app.models.unified_template import UnifiedTemplate
 
         # 先查租户模板
         stmt = select(UnifiedTemplate.wechat_template_mapping).where(

@@ -165,7 +165,7 @@ const ApprovalInstancesPage: React.FC = () => {
               <Button
                 type="link"
                 size="small"
-                style={{ color: '#52c41a' }}
+                style={{ color: 'var(--color-success)' }}
                 onClick={() => {
                   setCurrentId(record.id);
                   setApproveModalOpen(true);

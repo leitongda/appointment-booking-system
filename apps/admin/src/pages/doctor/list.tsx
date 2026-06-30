@@ -65,9 +65,9 @@ const SortableItem: React.FC<SortableItemProps> = ({ id, doctor, index }) => {
           alignItems: 'center',
           padding: '10px 16px',
           marginBottom: 8,
-          background: isDragging ? '#fff' : '#fafafa',
+          background: isDragging ? 'var(--color-white)' : 'var(--color-bg-container)',
           borderRadius: 8,
-          border: isDragging ? '2px solid #1677ff' : '1px solid #f0f0f0',
+          border: isDragging ? '2px solid var(--color-primary)' : '1px solid var(--color-border-secondary)',
           cursor: isDragging ? 'grabbing' : 'grab',
           transition: isDragging ? 'none' : 'all 0.2s ease',
           boxShadow: isDragging ? '0 8px 24px rgba(24, 144, 255, 0.25)' : 'none',
@@ -79,8 +79,8 @@ const SortableItem: React.FC<SortableItemProps> = ({ id, doctor, index }) => {
             width: 22,
             height: 22,
             borderRadius: '50%',
-            background: index < 3 ? 'linear-gradient(135deg, #1677ff 0%, #096dd9 100%)' : '#d9d9d9',
-            color: '#fff',
+            background: index < 3 ? 'linear-gradient(135deg, var(--color-primary) 0%, #096dd9 100%)' : 'var(--color-border)',
+            color: 'var(--color-white)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -110,7 +110,7 @@ const SortableItem: React.FC<SortableItemProps> = ({ id, doctor, index }) => {
           style={{
             marginRight: 12,
             flexShrink: 0,
-            border: '1px solid #fff',
+            border: '1px solid var(--color-white)',
             boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
           }}
         >
@@ -127,12 +127,12 @@ const SortableItem: React.FC<SortableItemProps> = ({ id, doctor, index }) => {
               {doctor.title}
             </Tag>
           )}
-          <span style={{ color: '#d9d9d9' }}>|</span>
-          <span style={{ fontSize: 13, color: '#8c8c8c' }}>{doctor.departmentName || '-'}</span>
+          <span style={{ color: 'var(--color-border)' }}>|</span>
+          <span style={{ fontSize: 13, color: 'var(--color-text-tertiary)' }}>{doctor.departmentName || '-'}</span>
           {doctor.storeName && (
             <>
-              <span style={{ color: '#d9d9d9' }}>|</span>
-              <span style={{ fontSize: 13, color: '#8c8c8c' }}>{doctor.storeName}</span>
+              <span style={{ color: 'var(--color-border)' }}>|</span>
+              <span style={{ fontSize: 13, color: 'var(--color-text-tertiary)' }}>{doctor.storeName}</span>
             </>
           )}
         </div>
@@ -233,14 +233,14 @@ const RecommendedSortModal: React.FC<RecommendedSortModalProps> = ({ open, onClo
       {loading ? (
         <div style={{ textAlign: 'center', padding: '60px 0' }}>
           <Spin size="large" />
-          <div style={{ marginTop: 16, color: '#8c8c8c' }}>加载中...</div>
+          <div style={{ marginTop: 16, color: 'var(--color-text-tertiary)' }}>加载中...</div>
         </div>
       ) : doctors.length === 0 ? (
         <Empty
           description="暂无推荐医生"
           style={{ padding: '40px 0' }}
         >
-          <div style={{ color: '#8c8c8c', fontSize: 13 }}>
+          <div style={{ color: 'var(--color-text-tertiary)', fontSize: 13 }}>
             请先在医生列表中设置推荐
           </div>
         </Empty>
@@ -253,7 +253,7 @@ const RecommendedSortModal: React.FC<RecommendedSortModalProps> = ({ open, onClo
               justifyContent: 'space-between',
               marginBottom: 16,
               padding: '10px 14px',
-              background: 'linear-gradient(135deg, #e6f4ff 0%, #f0f5ff 100%)',
+              background: 'linear-gradient(135deg, var(--color-primary-bg) 0%, #f0f5ff 100%)',
               borderRadius: 8,
               border: '1px solid #bae0ff',
             }}

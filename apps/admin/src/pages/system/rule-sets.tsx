@@ -108,7 +108,7 @@ const RuleSetsPage: React.FC = () => {
       content: (
         <div>
           <p>确定要启用选中的 <strong>{disabledRows.length}</strong> 条规则组吗？</p>
-          <p style={{ color: '#1677ff', marginTop: 8 }}>
+          <p style={{ color: 'var(--color-primary)', marginTop: 8 }}>
             启用后，规则组将立即生效，影响对应班次类型的预约流程。
           </p>
         </div>
@@ -139,7 +139,7 @@ const RuleSetsPage: React.FC = () => {
       content: (
         <div>
           <p>确定要禁用选中的 <strong>{enabledRows.length}</strong> 条规则组吗？</p>
-          <p style={{ color: '#1677ff', marginTop: 8 }}>
+          <p style={{ color: 'var(--color-primary)', marginTop: 8 }}>
             禁用后，规则组将不再生效，已创建的预约不受影响。
           </p>
         </div>
@@ -387,7 +387,7 @@ const RuleSetsPage: React.FC = () => {
                   <Statistic title="总调用次数" value={perfStats.totalCalls || 0} />
                 </Col>
                 <Col span={8}>
-                  <Statistic title="慢查询数" value={perfStats.slowQueryCount || 0} valueStyle={{ color: '#cf1322' }} />
+                  <Statistic title="慢查询数" value={perfStats.slowQueryCount || 0} valueStyle={{ color: 'var(--color-error-active)' }} />
                 </Col>
                 <Col span={8}>
                   <Statistic title="调用速率" value={perfStats.callsPerMinute || 0} precision={2} suffix="次/分" />

@@ -47,17 +47,17 @@ const LowCodePreview: React.FC = () => {
       <div
         style={{
           height: 48,
-          borderBottom: '1px solid #f0f0f0',
+          borderBottom: '1px solid var(--color-border-secondary)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: '0 16px',
-          background: '#fff',
+          background: 'var(--color-white)',
         }}
       >
         <Space>
           <span style={{ fontWeight: 500 }}>页面预览</span>
-          {page && <span style={{ color: '#999' }}>— {page.name}</span>}
+          {page && <span style={{ color: 'var(--color-text-tertiary)' }}>— {page.name}</span>}
         </Space>
         <Space>
           <Segmented
@@ -92,7 +92,7 @@ const LowCodePreview: React.FC = () => {
             style={{
               width: size.width,
               height: size.height,
-              background: '#fff',
+              background: 'var(--color-white)',
               borderRadius: 12,
               boxShadow: '0 2px 12px rgba(0,0,0,0.1)',
               overflow: 'hidden',
@@ -109,7 +109,7 @@ const LowCodePreview: React.FC = () => {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#999',
+                  color: 'var(--color-text-tertiary)',
                 }}
               >
                 暂无内容

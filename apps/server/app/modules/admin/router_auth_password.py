@@ -8,6 +8,8 @@ from app.core.config import settings
 from app.core.redis import RedisCache
 from app.db.session import get_db
 from app.infrastructure.email.service import EmailService
+from app.modules.settings.service import SettingsService
+from app.modules.email_templates.service import EmailTemplateService
 from app.modules.admin.schemas import ChangePasswordRequest, UpdateProfileRequest
 from app.modules.admin.service_admins import AdminService
 from app.schemas.auth import EmailBindRequest, EmailChangeRequest, EmailSendCodeRequest, EmailUnbindRequest
@@ -116,7 +118,7 @@ async def send_current_admin_email_code(
     await RedisCache.set_email_code(target_email, code, "admin_bind")
 
     try:
-        email_service = EmailService(db)
+        email_service = EmailService(db, config_provider=SettingsService(db), template_provider=EmailTemplateService(db))
         await email_service.send_verification_code_email(target_email, code, "admin_bind")
     except Exception as exc:
         raise HTTPException(

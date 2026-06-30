@@ -3,27 +3,42 @@ import logging
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formataddr
+from typing import Protocol, Any
 
 import aiosmtplib
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
-from app.modules.email_templates.service import EmailTemplateService
-from app.modules.settings.service import SettingsService
+
+class EmailConfigProvider(Protocol):
+    """邮件配置提供者接口"""
+    async def get_email_config(self) -> dict: ...
+
+
+class EmailTemplateProvider(Protocol):
+    """邮件模板提供者接口"""
+    async def get_by_code(self, code: str) -> Any: ...
+    async def get_by_id(self, template_id: str) -> Any: ...
+    def render_template(self, template: Any, variables: dict) -> tuple[str, str]: ...
 
 
 class EmailService:
     """邮件发送服务"""
 
-    def __init__(self, db: AsyncSession):
+    def __init__(
+        self,
+        db: AsyncSession,
+        config_provider: EmailConfigProvider,
+        template_provider: EmailTemplateProvider,
+    ):
         self.db = db
-        self.settings_service = SettingsService(db)
-        self.template_service = EmailTemplateService(db)
+        self.config_provider = config_provider
+        self.template_provider = template_provider
 
     async def get_email_config(self) -> dict:
         """获取邮件配置"""
-        return await self.settings_service.get_email_config()
+        return await self.config_provider.get_email_config()
 
     async def send_email(
         self,
@@ -119,14 +134,14 @@ class EmailService:
         Returns:
             是否发送成功
         """
-        template = await self.template_service.get_by_code(template_code)
+        template = await self.template_provider.get_by_code(template_code)
         if not template:
             raise ValueError(f"邮件模板 {template_code} 不存在")
 
         if template.status != 1:
             raise ValueError(f"邮件模板 {template_code} 已禁用")
 
-        subject, content = self.template_service.render_template(template, variables)
+        subject, content = self.template_provider.render_template(template, variables)
 
         return await self.send_email(to_email, subject, content, is_html=True)
 
@@ -199,7 +214,7 @@ class EmailService:
         Returns:
             是否发送成功
         """
-        template = await self.template_service.get_by_id(template_id)
+        template = await self.template_provider.get_by_id(template_id)
         if not template:
             raise ValueError("邮件模板不存在")
 
@@ -215,6 +230,6 @@ class EmailService:
             'hospital_phone': '400-123-4567',
         }
 
-        subject, content = self.template_service.render_template(template, test_variables)
+        subject, content = self.template_provider.render_template(template, test_variables)
 
         return await self.send_email(to_email, subject, content, is_html=True)

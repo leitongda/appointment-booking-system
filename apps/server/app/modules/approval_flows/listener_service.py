@@ -57,6 +57,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.approval_flow import ApprovalFlowDefinition, ApprovalFlowNode, ApprovalInstance
 from app.modules.approval_flows.callback_registry import callback_registry
+from app.modules.approval_flows.listener_normalizer import normalize_listener_config
 
 logger = structlog.get_logger(__name__)
 
@@ -82,19 +83,11 @@ def _normalize_event(event: str | None) -> str | None:
 
 
 def _normalize_config(config: dict[str, Any] | None) -> dict[str, Any]:
-    normalized = dict(config or {})
-    aliases = {
-        "bodyTemplate": "body_template",
-        "titleTemplate": "title_template",
-        "contentTemplate": "content_template",
-        "userIds": "user_ids",
-        "targetIds": "user_ids",
-        "callbackName": "callback_action",
-    }
-    for source, target in aliases.items():
-        if source in normalized and target not in normalized:
-            normalized[target] = normalized[source]
-    return normalized
+    """归一化监听器 config（camelCase -> snake_case）。
+
+    薄包装：委托给 ``normalize_listener_config``，保持外部调用接口不变。
+    """
+    return normalize_listener_config(config)
 
 
 class ListenerService:

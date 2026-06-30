@@ -24,7 +24,7 @@ const themeStyleMetaMap = new Map<string, { label: string; color: string }>([
 const getThemeStyleMeta = (themeStyle?: string) =>
   themeStyleMetaMap.get(themeStyle || '') || {
     label: themeStyle || '未设置',
-    color: '#8c8c8c',
+    color: 'var(--color-text-tertiary)',
   };
 
 // 将科室树转换为 Antd Tree 数据格式
@@ -357,7 +357,7 @@ const StorePage: React.FC = () => {
             )}
             {access.hasPermission('store:delete') && (
               <Popconfirm title="确定删除该门店吗？" onConfirm={() => handleDelete(record.id)}>
-                <a style={{ color: '#ff4d4f', fontSize: 13 }}>
+                <a style={{ color: 'var(--color-error)', fontSize: 13 }}>
                   <DeleteOutlined /> 删除
                 </a>
               </Popconfirm>
@@ -368,18 +368,18 @@ const StorePage: React.FC = () => {
                 title="禁用后，该门店所有人员将无法登录，确定禁用吗？"
                 onConfirm={() => handleToggleStatus(record.id, 2)}
               >
-                <a style={{ color: '#ff4d4f', fontSize: 13 }}>禁用</a>
+                <a style={{ color: 'var(--color-error)', fontSize: 13 }}>禁用</a>
               </Popconfirm>
             )}
             {access.canSuperAdmin && record.status === 2 && (
-              <a onClick={() => handleToggleStatus(record.id, 1)} style={{ color: '#52c41a', fontSize: 13 }}>
+              <a onClick={() => handleToggleStatus(record.id, 1)} style={{ color: 'var(--color-success)', fontSize: 13 }}>
                 启用
               </a>
             )}
             {/* 更多操作下拉菜单 */}
             {moreMenuItems.length > 0 && (
               <Dropdown menu={{ items: moreMenuItems }} trigger={['click']}>
-                <a style={{ color: '#666', fontSize: 13 }}>
+                <a style={{ color: 'var(--color-text-secondary)', fontSize: 13 }}>
                   <MoreOutlined /> 更多
                 </a>
               </Dropdown>
@@ -441,7 +441,7 @@ const StorePage: React.FC = () => {
         ) : treeData.length === 0 ? (
           <Empty description="暂无科室数据" />
         ) : (
-          <div style={{ maxHeight: 400, overflow: 'auto', border: '1px solid #f0f0f0', borderRadius: 6, padding: 12 }}>
+          <div style={{ maxHeight: 400, overflow: 'auto', border: '1px solid var(--color-border-secondary)', borderRadius: 6, padding: 12 }}>
             <Tree
               checkable
               checkStrictly
@@ -494,7 +494,7 @@ const StorePage: React.FC = () => {
                 <span>
                   {item.title}
                   {item.description && (
-                    <span style={{ color: '#999', marginLeft: 8, fontSize: 12 }}>
+                    <span style={{ color: 'var(--color-text-tertiary)', marginLeft: 8, fontSize: 12 }}>
                       {item.description}
                     </span>
                   )}
@@ -529,10 +529,10 @@ const StorePage: React.FC = () => {
                 size={256}
                 style={{ margin: '0 auto' }}
               />
-              <div style={{ marginTop: 16, color: '#666' }}>
+              <div style={{ marginTop: 16, color: 'var(--color-text-secondary)' }}>
                 请使用微信扫描此二维码进行签到
               </div>
-              <div style={{ marginTop: 8, fontSize: 12, color: '#999' }}>
+              <div style={{ marginTop: 8, fontSize: 12, color: 'var(--color-text-tertiary)' }}>
                 二维码内容: {qrcodeContent}
               </div>
             </>

@@ -82,7 +82,7 @@ const IntegrationBindPhoneModal: React.FC<IntegrationBindPhoneModalProps> = ({
         </Button>,
       ]}
     >
-      <p style={{ color: '#666', marginBottom: 16 }}>
+      <p style={{ color: 'var(--color-text-secondary)', marginBottom: 16 }}>
         检测到您的{label}账号尚未绑定本系统管理员，请输入您在系统中登记的手机号以完成关联。
       </p>
       <Form form={form} layout="vertical">

@@ -140,7 +140,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = memo(({ selectedNode, onUpda
   if (!selectedNode) {
     return (
       <Card size="small" title="属性" style={{ width: 280 }}>
-        <div style={{ color: '#999', textAlign: 'center', padding: 20 }}>点击节点查看属性</div>
+        <div style={{ color: 'var(--color-text-tertiary)', textAlign: 'center', padding: 20 }}>点击节点查看属性</div>
       </Card>
     );
   }
@@ -296,7 +296,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = memo(({ selectedNode, onUpda
         {nodeType === 'condition' && (
           <>
             <Divider style={{ margin: '8px 0' }}>条件规则</Divider>
-            <div style={{ fontSize: 11, color: '#999', marginBottom: 8 }}>
+            <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)', marginBottom: 8 }}>
               每个目标节点内的条件组之间为 OR 关系，组内条件为 AND 关系。
             </div>
             <Form.List name="conditionGroups">
@@ -327,7 +327,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = memo(({ selectedNode, onUpda
                           onClick={() => removeTarget(targetName)}
                         />
                       }
-                      style={{ marginBottom: 8, border: '1px solid #e8e8e8' }}
+                      style={{ marginBottom: 8, border: '1px solid var(--color-border)' }}
                     >
                       <Form.List name={[targetName, 'groups']}>
                         {(groupFields, { add: addGroup, remove: removeGroup }) => (
@@ -335,13 +335,13 @@ const PropertyPanel: React.FC<PropertyPanelProps> = memo(({ selectedNode, onUpda
                             {groupFields.map(({ key: groupKey, name: groupName }, groupIdx) => (
                               <div key={groupKey}>
                                 {groupIdx > 0 && (
-                                  <Divider plain style={{ margin: '4px 0', fontSize: 11, color: '#1677ff' }}>
+                                  <Divider plain style={{ margin: '4px 0', fontSize: 11, color: 'var(--color-primary)' }}>
                                     OR
                                   </Divider>
                                 )}
                                 <Card
                                   size="small"
-                                  style={{ marginBottom: 4, background: '#fafafa', border: '1px dashed #d9d9d9' }}
+                                  style={{ marginBottom: 4, background: 'var(--color-bg-container)', border: '1px dashed var(--color-border)' }}
                                 >
                                   <Form.List name={[groupName, 'conditions']}>
                                     {(condFields, { add: addCond, remove: removeCond }) => (
@@ -469,14 +469,14 @@ const PropertyPanel: React.FC<PropertyPanelProps> = memo(({ selectedNode, onUpda
                               alignItems: 'center',
                               justifyContent: 'space-between',
                               padding: '4px 0',
-                              borderBottom: '1px solid #f0f0f0',
+                              borderBottom: '1px solid var(--color-border-secondary)',
                               cursor: 'pointer',
                             }}
                             onClick={() => handleEditListener(l)}
                           >
                             <Space size={4}>
                               <Tag color="blue" style={{ margin: 0 }}>{getListenerSummary(l)}</Tag>
-                              {l.label && <span style={{ fontSize: 12, color: '#666' }}>{l.label}</span>}
+                              {l.label && <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{l.label}</span>}
                             </Space>
                             <Button
                               type="text"

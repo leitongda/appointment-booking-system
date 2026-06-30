@@ -384,7 +384,7 @@ const TenantDetailPage: React.FC = () => {
                                       height: 20,
                                       borderRadius: 4,
                                       backgroundColor: branding.themeColor,
-                                      border: '1px solid #d9d9d9',
+                                      border: '1px solid var(--color-border)',
                                       verticalAlign: 'middle',
                                     }} />
                                     <Text>{branding.themeColor}</Text>
@@ -690,7 +690,7 @@ const TenantDetailPage: React.FC = () => {
                 <Statistic
                   title="本月取消"
                   value={usage?.monthCancelledCount || 0}
-                  styles={{ content: { color: '#cf1322' } }}
+                  styles={{ content: { color: 'var(--color-error-active)' } }}
                 />
               </Col>
               <Col span={24}>

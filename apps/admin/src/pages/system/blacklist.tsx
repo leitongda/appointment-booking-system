@@ -175,7 +175,7 @@ const BlacklistPage: React.FC = () => {
             title="确定解禁该用户吗？"
             onConfirm={() => handleRemove(record.id)}
           >
-            <a style={{ color: '#ff4d4f', fontSize: 13 }}>
+            <a style={{ color: 'var(--color-error)', fontSize: 13 }}>
               <StopOutlined /> 解禁
             </a>
           </Popconfirm>

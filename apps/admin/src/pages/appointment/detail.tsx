@@ -132,8 +132,8 @@ const AppointmentDetailPage: React.FC = () => {
           children: (
             <div>
               <strong>{isAutoRefund ? '自动退款触发' : '退款发起'}</strong>
-              <p style={{ color: '#666', margin: 0 }}>{record.createdAt || '-'}</p>
-              <p style={{ color: '#999', margin: 0 }}>
+              <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>{record.createdAt || '-'}</p>
+              <p style={{ color: 'var(--color-text-tertiary)', margin: 0 }}>
                 {isAutoRefund ? record.refundReason : `${amountText} / ${record.refundReason || '未填写原因'}`}
               </p>
             </div>
@@ -147,8 +147,8 @@ const AppointmentDetailPage: React.FC = () => {
           children: (
             <div>
               <strong>退款处理中</strong>
-              <p style={{ color: '#666', margin: 0 }}>{record.updatedAt || record.createdAt || '-'}</p>
-              <p style={{ color: '#999', margin: 0 }}>{record.refundNo}</p>
+              <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>{record.updatedAt || record.createdAt || '-'}</p>
+              <p style={{ color: 'var(--color-text-tertiary)', margin: 0 }}>{record.refundNo}</p>
             </div>
           ),
         });
@@ -160,8 +160,8 @@ const AppointmentDetailPage: React.FC = () => {
           children: (
             <div>
               <strong>退款成功</strong>
-              <p style={{ color: '#666', margin: 0 }}>{record.updatedAt || record.createdAt || '-'}</p>
-              <p style={{ color: '#999', margin: 0 }}>{amountText}</p>
+              <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>{record.updatedAt || record.createdAt || '-'}</p>
+              <p style={{ color: 'var(--color-text-tertiary)', margin: 0 }}>{amountText}</p>
             </div>
           ),
         });
@@ -173,8 +173,8 @@ const AppointmentDetailPage: React.FC = () => {
           children: (
             <div>
               <strong>退款失败</strong>
-              <p style={{ color: '#666', margin: 0 }}>{record.updatedAt || record.createdAt || '-'}</p>
-              <p style={{ color: '#999', margin: 0 }}>{record.failedReason || '请检查退款回调或微信返回信息'}</p>
+              <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>{record.updatedAt || record.createdAt || '-'}</p>
+              <p style={{ color: 'var(--color-text-tertiary)', margin: 0 }}>{record.failedReason || '请检查退款回调或微信返回信息'}</p>
             </div>
           ),
         });
@@ -334,7 +334,7 @@ const AppointmentDetailPage: React.FC = () => {
                 children: (
                   <div>
                     <strong>创建预约</strong>
-                    <p style={{ color: '#666', margin: 0 }}>{appointment?.createdAt}</p>
+                    <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>{appointment?.createdAt}</p>
                   </div>
                 ),
               },
@@ -343,7 +343,7 @@ const AppointmentDetailPage: React.FC = () => {
                 children: (
                   <div>
                     <strong>支付成功</strong>
-                    <p style={{ color: '#666', margin: 0 }}>{appointment.paymentTime}</p>
+                    <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>{appointment.paymentTime}</p>
                   </div>
                 ),
               }] : []),
@@ -352,8 +352,8 @@ const AppointmentDetailPage: React.FC = () => {
                 children: (
                   <div>
                     <strong>支付超时</strong>
-                    <p style={{ color: '#666', margin: 0 }}>{appointment?.cancelTime || '-'}</p>
-                    <p style={{ color: '#999', margin: 0 }}>系统自动过期并释放号源</p>
+                    <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>{appointment?.cancelTime || '-'}</p>
+                    <p style={{ color: 'var(--color-text-tertiary)', margin: 0 }}>系统自动过期并释放号源</p>
                   </div>
                 ),
               }] : []),
@@ -362,7 +362,7 @@ const AppointmentDetailPage: React.FC = () => {
                 children: (
                   <div>
                     <strong>签到</strong>
-                    <p style={{ color: '#666', margin: 0 }}>{appointment.signInTime}</p>
+                    <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>{appointment.signInTime}</p>
                   </div>
                 ),
               }] : []),
@@ -371,7 +371,7 @@ const AppointmentDetailPage: React.FC = () => {
                 children: (
                   <div>
                     <strong>叫号</strong>
-                    <p style={{ color: '#666', margin: 0 }}>{appointment.callTime}</p>
+                    <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>{appointment.callTime}</p>
                   </div>
                 ),
               }] : []),
@@ -380,7 +380,7 @@ const AppointmentDetailPage: React.FC = () => {
                 children: (
                   <div>
                     <strong>完成就诊</strong>
-                    <p style={{ color: '#666', margin: 0 }}>{appointment.completeTime}</p>
+                    <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>{appointment.completeTime}</p>
                   </div>
                 ),
               }] : []),
@@ -390,8 +390,8 @@ const AppointmentDetailPage: React.FC = () => {
                 children: (
                   <div>
                     <strong>{appointment?.status === 7 ? '已过期' : '已取消'}</strong>
-                    <p style={{ color: '#666', margin: 0 }}>{appointment.cancelTime}</p>
-                    {appointment.cancelReason && <p style={{ color: '#999', margin: 0 }}>原因：{appointment.cancelReason}</p>}
+                    <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>{appointment.cancelTime}</p>
+                    {appointment.cancelReason && <p style={{ color: 'var(--color-text-tertiary)', margin: 0 }}>原因：{appointment.cancelReason}</p>}
                   </div>
                 ),
               }] : []),
@@ -437,7 +437,7 @@ const AppointmentDetailPage: React.FC = () => {
             { key: '3', title: '原支付金额', render: () => `¥${(appointment?.paymentAmount ?? 0).toFixed(2)}` },
             { key: '4', title: '已退款金额', render: () => `¥${(appointment?.refundedAmount ?? 0).toFixed(2)}` },
             { key: '5', title: '可退金额', render: () => (
-              <span style={{ color: '#ff4d4f', fontWeight: 'bold' }}>
+              <span style={{ color: 'var(--color-error)', fontWeight: 'bold' }}>
                 ¥{maxRefundAmount.toFixed(2)}
               </span>
             ) },

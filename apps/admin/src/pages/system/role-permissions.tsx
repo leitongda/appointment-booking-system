@@ -64,9 +64,9 @@ import {
 const { Paragraph, Text } = Typography;
 
 const CONTROL_TYPE_ICONS: Record<PermissionControlType, ReactNode> = {
-  page: <LayoutOutlined style={{ color: '#1677ff' }} />,
+  page: <LayoutOutlined style={{ color: 'var(--color-primary)' }} />,
   tab: <AppstoreOutlined style={{ color: '#7a5af8' }} />,
-  action: <ThunderboltOutlined style={{ color: '#fa8c16' }} />,
+  action: <ThunderboltOutlined style={{ color: 'var(--color-evening)' }} />,
   api: <ApiOutlined style={{ color: '#13a8a8' }} />,
 };
 
@@ -88,16 +88,16 @@ const MODULE_ICON_MAP: Record<string, ReactNode> = {
 };
 
 const MODULE_ICON_STYLE_MAP: Record<string, { color: string; background: string; borderColor: string }> = {
-  dashboard: { color: '#1d4ed8', background: '#eff6ff', borderColor: '#bfdbfe' },
-  shop: { color: '#c2410c', background: '#fff7ed', borderColor: '#fed7aa' },
+  dashboard: { color: '#1d4ed8', background: 'var(--color-primary-bg)', borderColor: '#bfdbfe' },
+  shop: { color: '#c2410c', background: 'var(--color-white)7ed', borderColor: '#fed7aa' },
   apartment: { color: '#5b21b6', background: '#f5f3ff', borderColor: '#ddd6fe' },
-  user: { color: '#2563eb', background: '#eff6ff', borderColor: '#bfdbfe' },
+  user: { color: '#2563eb', background: 'var(--color-primary-bg)', borderColor: '#bfdbfe' },
   calendar: { color: '#0f766e', background: '#ecfeff', borderColor: '#a5f3fc' },
   schedule: { color: '#0f766e', background: '#ecfeff', borderColor: '#a5f3fc' },
-  team: { color: '#1d4ed8', background: '#eff6ff', borderColor: '#bfdbfe' },
+  team: { color: '#1d4ed8', background: 'var(--color-primary-bg)', borderColor: '#bfdbfe' },
   exception: { color: '#b91c1c', background: '#fef2f2', borderColor: '#fecaca' },
   comment: { color: '#7c3aed', background: '#f5f3ff', borderColor: '#ddd6fe' },
-  bell: { color: '#b45309', background: '#fffbeb', borderColor: '#fde68a' },
+  bell: { color: '#b45309', background: 'var(--color-white)beb', borderColor: '#fde68a' },
   fileText: { color: '#0369a1', background: '#f0f9ff', borderColor: '#bae6fd' },
   barChart: { color: '#166534', background: '#f0fdf4', borderColor: '#bbf7d0' },
   setting: { color: '#475467', background: '#f8fafc', borderColor: '#d0d5dd' },

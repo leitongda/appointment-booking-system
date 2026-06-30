@@ -85,7 +85,7 @@ const PointsPage: React.FC = () => {
         <Space direction="vertical" size={0}>
           <span>{record.userName || '-'}</span>
           {record.userPhone && (
-            <span style={{ fontSize: 12, color: '#999' }}>{record.userPhone}</span>
+            <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>{record.userPhone}</span>
           )}
         </Space>
       ),
@@ -97,7 +97,7 @@ const PointsPage: React.FC = () => {
       search: false,
       render: (_, record) => {
         const val = record.changeAmount;
-        const color = val > 0 ? '#52c41a' : val < 0 ? '#ff4d4f' : '#999';
+        const color = val > 0 ? 'var(--color-success)' : val < 0 ? 'var(--color-error)' : 'var(--color-text-tertiary)';
         const prefix = val > 0 ? '+' : '';
         return <span style={{ color, fontWeight: 500 }}>{prefix}{val}</span>;
       },

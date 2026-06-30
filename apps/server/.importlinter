@@ -20,15 +20,13 @@ ignore_imports =
     app.modules.** -> app.api.deps
     # infrastructure -> common: notification preferences, quotas, secrets (by design)
     app.infrastructure.** -> app.common.**
-    # infrastructure -> modules: known violations that need refactoring (tracked in issue #XXX)
-    app.infrastructure.email.service -> app.modules.email_templates.service
-    app.infrastructure.email.service -> app.modules.settings.service
-    app.infrastructure.image.processor -> app.modules.settings.service
-    app.infrastructure.notifications.channels.wechat -> app.modules.unified_message.models
-    app.infrastructure.notifications.quota -> app.modules.notification_logs.service
-    # common -> modules: known violations that need refactoring (tracked in issue #XXX)
-    app.common.feature_flags -> app.modules.tenants.schemas
-    app.common.security_settings -> app.modules.settings.service
+    # All infrastructure -> modules and common -> modules violations have been resolved:
+    # - email.service: factory injection (EmailConfigProvider + EmailTemplateProvider)
+    # - image.processor: dead code removed
+    # - notifications.wechat: UnifiedTemplate model moved to app.models
+    # - notifications.quota: factory injection (UsageQuerier Protocol)
+    # - feature_flags: TenantFeatures moved to app.common.feature_definitions
+    # - security_settings: moved to app.infrastructure.security_settings
     # db -> core: session needs config for connection (by design)
     app.db.** -> app.core.config
 
@@ -39,16 +37,11 @@ type = forbidden
 source_modules = app.infrastructure
 forbidden_modules = app.modules
 ignore_imports =
-    # These are known violations that need refactoring:
-    # - email service needs email_templates and settings
-    # - image processor needs settings
-    # - wechat channel needs unified_message models
-    # - notifications quota needs notification_logs
-    app.infrastructure.email.service -> app.modules.email_templates.service
-    app.infrastructure.email.service -> app.modules.settings.service
-    app.infrastructure.image.processor -> app.modules.settings.service
-    app.infrastructure.notifications.channels.wechat -> app.modules.unified_message.models
-    app.infrastructure.notifications.quota -> app.modules.notification_logs.service
+    # All infrastructure -> modules violations have been resolved:
+    # - email.service: factory injection (EmailConfigProvider + EmailTemplateProvider)
+    # - image.processor: dead code removed
+    # - notifications.wechat: UnifiedTemplate model moved to app.models
+    # - notifications.quota: factory injection (UsageQuerier Protocol)
 
 # Contract 3: Core must not depend on upper layers
 [importlinter:core-no-modules-dep]

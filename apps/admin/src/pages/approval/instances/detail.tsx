@@ -492,7 +492,7 @@ const ApprovalInstanceDetailPage: React.FC = () => {
           }
           style={{ marginBottom: 16 }}
         >
-          <div style={{ border: '1px solid #eee', borderRadius: 8, overflow: 'hidden' }}>
+          <div style={{ border: '1px solid var(--color-border-secondary)', borderRadius: 8, overflow: 'hidden' }}>
             <FlowChartViewer
               flowDefinition={flowDefinition}
               nodeStatuses={nodeStatuses}
@@ -542,11 +542,11 @@ const ApprovalInstanceDetailPage: React.FC = () => {
                       )}
                     </Space>
                     {record.comment && (
-                      <div style={{ color: '#666', marginTop: 4 }}>
+                      <div style={{ color: 'var(--color-text-secondary)', marginTop: 4 }}>
                         {record.comment}
                       </div>
                     )}
-                    <div style={{ color: '#999', fontSize: 12, marginTop: 4 }}>
+                    <div style={{ color: 'var(--color-text-tertiary)', fontSize: 12, marginTop: 4 }}>
                       {record.createdAt}
                     </div>
                   </div>

@@ -271,7 +271,7 @@ const LogPage: React.FC = () => {
                 <Paragraph
                   copyable
                   style={{
-                    background: '#f5f5f5',
+                    background: 'var(--color-bg-layout)',
                     padding: '12px',
                     borderRadius: '6px',
                     maxHeight: '300px',

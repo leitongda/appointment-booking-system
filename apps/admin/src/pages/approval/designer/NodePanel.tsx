@@ -18,11 +18,11 @@ type NodeItem = {
 };
 
 const NODE_ITEMS: NodeItem[] = [
-  { type: 'startNode',     label: '开始', icon: <PlayCircleOutlined />, accent: '#52c41a', soft: 'rgba(82,196,26,0.1)' },
-  { type: 'approvalNode',  label: '审批', icon: <AuditOutlined />,     accent: '#1677ff', soft: 'rgba(22,119,255,0.1)' },
-  { type: 'conditionNode', label: '条件', icon: <BranchesOutlined />,  accent: '#fa8c16', soft: 'rgba(250,140,22,0.1)' },
+  { type: 'startNode',     label: '开始', icon: <PlayCircleOutlined />, accent: 'var(--color-success)', soft: 'rgba(82,196,26,0.1)' },
+  { type: 'approvalNode',  label: '审批', icon: <AuditOutlined />,     accent: 'var(--color-primary)', soft: 'rgba(22,119,255,0.1)' },
+  { type: 'conditionNode', label: '条件', icon: <BranchesOutlined />,  accent: 'var(--color-evening)', soft: 'rgba(250,140,22,0.1)' },
   { type: 'ccNode',        label: '抄送', icon: <MailOutlined />,      accent: '#8c8c8c', soft: 'rgba(140,140,140,0.1)' },
-  { type: 'endNode',       label: '结束', icon: <StopOutlined />,      accent: '#ff4d4f', soft: 'rgba(255,77,79,0.1)' },
+  { type: 'endNode',       label: '结束', icon: <StopOutlined />,      accent: 'var(--color-error)', soft: 'rgba(255,77,79,0.1)' },
 ];
 
 const NodePanel: React.FC = memo(() => {

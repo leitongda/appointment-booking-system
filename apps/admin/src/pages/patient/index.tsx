@@ -130,7 +130,7 @@ const PatientPage: React.FC = () => {
       render: (_, record) => (
         <Space size={0}>
           <span>{record.userNickname || '微信用户'}</span>
-          <span style={{ color: '#999', fontSize: 12 }}>{record.userPhone}</span>
+          <span style={{ color: 'var(--color-text-tertiary)', fontSize: 12 }}>{record.userPhone}</span>
         </Space>
       ),
     },
@@ -200,14 +200,14 @@ const PatientPage: React.FC = () => {
                 description="删除后不可恢复"
                 onConfirm={() => handleDelete(record.id)}
               >
-                <a style={{ color: '#ff4d4f', fontSize: 13 }}>
+                <a style={{ color: 'var(--color-error)', fontSize: 13 }}>
                   <DeleteOutlined /> 删除
                 </a>
               </Popconfirm>
             )}
             {moreMenuItems.length > 0 && (
               <Dropdown menu={{ items: moreMenuItems }} trigger={['click']}>
-                <a style={{ color: '#666', fontSize: 13 }}>
+                <a style={{ color: 'var(--color-text-secondary)', fontSize: 13 }}>
                   <MoreOutlined /> 更多
                 </a>
               </Dropdown>

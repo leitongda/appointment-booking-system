@@ -199,7 +199,16 @@ def check_subscription_expiry():
             # 使用异步上下文发送通知
             async def send_notifications():
                 async for db_async in get_async_db_context():
-                    notification_service = TenantNotificationService(db_async)
+                    from app.infrastructure.email.service import EmailService
+                    from app.modules.settings.service import SettingsService
+                    from app.modules.email_templates.service import EmailTemplateService
+
+                    email_service = EmailService(
+                        db_async,
+                        config_provider=SettingsService(db_async),
+                        template_provider=EmailTemplateService(db_async),
+                    )
+                    notification_service = TenantNotificationService(db_async, email_service=email_service)
                     for tenant in all_tenants:
                         try:
                             # 检查并发送到期提醒
@@ -280,7 +289,16 @@ def check_usage_limits():
             async def send_notifications():
                 nonlocal total_warnings
                 async for db_async in get_async_db_context():
-                    notification_service = TenantNotificationService(db_async)
+                    from app.infrastructure.email.service import EmailService
+                    from app.modules.settings.service import SettingsService
+                    from app.modules.email_templates.service import EmailTemplateService
+
+                    email_service = EmailService(
+                        db_async,
+                        config_provider=SettingsService(db_async),
+                        template_provider=EmailTemplateService(db_async),
+                    )
+                    notification_service = TenantNotificationService(db_async, email_service=email_service)
                     for tenant in tenants:
                         try:
                             # 检查并发送用量警告

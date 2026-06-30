@@ -223,7 +223,7 @@ const UserDetailPage: React.FC = () => {
               description="删除后不可恢复"
               onConfirm={() => handleDeleteCard(record.id)}
             >
-              <a style={{ color: '#ff4d4f' }}><DeleteOutlined /> 删除</a>
+              <a style={{ color: 'var(--color-error)' }}><DeleteOutlined /> 删除</a>
             </Popconfirm>
           )}
         </Space>
@@ -276,6 +276,7 @@ const UserDetailPage: React.FC = () => {
           label="身份证号"
           width="sm"
           placeholder="请输入身份证号"
+          extra={currentCard?.idCard?.includes('***') ? '当前显示脱敏值，如需修改请重新输入完整身份证号' : undefined}
           fieldProps={{ 'data-rrweb-input-mask': true } as any}
         />
         <ProFormSelect
@@ -330,7 +331,7 @@ const UserDetailPage: React.FC = () => {
                     <Title level={4} style={{ margin: 0 }}>
                       {user?.nickname || '微信用户'}
                     </Title>
-                    {user?.gender === 1 && <ManOutlined style={{ color: '#1677ff' }} />}
+                    {user?.gender === 1 && <ManOutlined style={{ color: 'var(--color-primary)' }} />}
                     {user?.gender === 2 && <WomanOutlined style={{ color: '#eb2f96' }} />}
                     <Text type="secondary"><span data-rrweb-mask-text>{user?.phone}</span></Text>
                     <Tag color={user?.status === 1 ? 'green' : 'red'}>

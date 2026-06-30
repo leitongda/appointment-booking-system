@@ -94,7 +94,7 @@ const TimeSlotCell: React.FC<TimeSlotCellProps> = ({
     return `${timeRange} ${capacity} ${statusText}`;
   };
 
-  const publishDotColor = schedule.publishStatus === 'published' ? '#52c41a' : schedule.publishStatus === 'withdrawn' ? '#ff4d4f' : '#d9d9d9';
+  const publishDotColor = schedule.publishStatus === 'published' ? 'var(--color-success)' : schedule.publishStatus === 'withdrawn' ? 'var(--color-error)' : 'var(--color-border)';
 
   return (
     <Tooltip title={getTooltipContent()} placement="top">

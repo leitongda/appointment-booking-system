@@ -405,14 +405,14 @@ const RulePreviewCalendar: React.FC<RulePreviewCalendarProps> = ({
             return null;
           }}
           style={{
-            background: '#fff',
+            background: 'var(--color-white)',
             borderRadius: 8,
             padding: 16,
           }}
         />
       </Spin>
 
-      <div style={{ marginTop: 16, fontSize: 12, color: '#666' }}>
+      <div style={{ marginTop: 16, fontSize: 12, color: 'var(--color-text-secondary)' }}>
         <div>
           <Badge status="success" text="已有排班" /> - 蓝色标记
         </div>

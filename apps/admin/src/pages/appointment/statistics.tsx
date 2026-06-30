@@ -142,7 +142,7 @@ const AppointmentStatisticsPage: React.FC = () => {
                     <Progress
                       percent={summary.completedRate}
                       showInfo={false}
-                      strokeColor="#52c41a"
+                      strokeColor="var(--color-success)"
                       size="small"
                     />
                   }
@@ -159,7 +159,7 @@ const AppointmentStatisticsPage: React.FC = () => {
                     <Progress
                       percent={summary.noShowRate}
                       showInfo={false}
-                      strokeColor="#ff4d4f"
+                      strokeColor="var(--color-error)"
                       size="small"
                     />
                   }
@@ -176,7 +176,7 @@ const AppointmentStatisticsPage: React.FC = () => {
                     <Progress
                       percent={summary.cancelledRate}
                       showInfo={false}
-                      strokeColor="#faad14"
+                      strokeColor="var(--color-warning)"
                       size="small"
                     />
                   }
@@ -206,9 +206,9 @@ const AppointmentStatisticsPage: React.FC = () => {
                 const height = (item.count / max) * 160;
                 return (
                   <div key={index} style={{ minWidth: 40, textAlign: 'center' }}>
-                    <div style={{ height: height || 4, background: 'linear-gradient(180deg, #1677ff 0%, #69c0ff 100%)', borderRadius: '4px 4px 0 0', marginBottom: 4 }} />
-                    <div style={{ fontSize: 11, color: '#666' }}>{item.count}</div>
-                    <div style={{ fontSize: 10, color: '#999' }}>{item.date.slice(5)}</div>
+                    <div style={{ height: height || 4, background: 'linear-gradient(180deg, var(--color-primary) 0%, #69c0ff 100%)', borderRadius: '4px 4px 0 0', marginBottom: 4 }} />
+                    <div style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>{item.count}</div>
+                    <div style={{ fontSize: 10, color: 'var(--color-text-tertiary)' }}>{item.date.slice(5)}</div>
                   </div>
                 );
               })}

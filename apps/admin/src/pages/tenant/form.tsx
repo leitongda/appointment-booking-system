@@ -453,7 +453,7 @@ const TenantFormPage: React.FC = () => {
             <ProFormSwitch name="features.miniapp_live" label="小程序直播" />
           </Col>
           <Col span={24}>
-            <div style={{ fontSize: 12, color: '#999', marginBottom: 8 }}>实验性功能</div>
+            <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)', marginBottom: 8 }}>实验性功能</div>
           </Col>
           <Col span={6}>
             <ProFormSwitch name="features.beta_features" label="灰度功能总开关" />
@@ -481,8 +481,8 @@ const TenantFormPage: React.FC = () => {
               <ProFormText
                 name="branding.themeColor"
                 label="主题色"
-                placeholder="#1677ff"
-                extra="Hex 色值，如 #1677ff"
+                placeholder="var(--color-primary)"
+                extra="Hex 色值，如 var(--color-primary)"
               />
             </Space>
           </Col>

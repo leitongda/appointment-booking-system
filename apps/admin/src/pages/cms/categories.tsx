@@ -91,7 +91,7 @@ const CategoryListPage: React.FC = () => {
         title: (
           <Space>
             <span>{node.name}</span>
-            <span style={{ color: '#999', fontSize: 12 }}>/ {node.slug}</span>
+            <span style={{ color: 'var(--color-text-tertiary)', fontSize: 12 }}>/ {node.slug}</span>
             {access.hasPermission('cms:category:update') && (
               <Button
                 type="link"
@@ -131,7 +131,7 @@ const CategoryListPage: React.FC = () => {
             <select
               value={siteId || ''}
               onChange={(e) => setSiteId(e.target.value)}
-              style={{ height: 32, borderRadius: 6, borderColor: '#d9d9d9', padding: '0 8px' }}
+              style={{ height: 32, borderRadius: 6, borderColor: 'var(--color-border)', padding: '0 8px' }}
             >
               {sites.map((s) => (
                 <option key={s.id} value={s.id}>
@@ -152,7 +152,7 @@ const CategoryListPage: React.FC = () => {
         ]}
       >
         {sites.length === 0 ? (
-          <div style={{ color: '#999', padding: 24, textAlign: 'center' }}>
+          <div style={{ color: 'var(--color-text-tertiary)', padding: 24, textAlign: 'center' }}>
             暂无站点，请先在「站点管理」中创建站点。
           </div>
         ) : (
@@ -193,7 +193,7 @@ function toDataNodes(
     title: (
       <Space>
         <span>{node.name}</span>
-        <span style={{ color: '#999', fontSize: 12 }}>/ {node.slug}</span>
+        <span style={{ color: 'var(--color-text-tertiary)', fontSize: 12 }}>/ {node.slug}</span>
         {access.hasPermission('cms:category:update') && (
           <Button
             type="link"

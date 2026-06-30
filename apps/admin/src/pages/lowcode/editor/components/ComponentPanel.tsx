@@ -199,7 +199,7 @@ function DraggableSnippet({ snippet }: { snippet: SnippetTemplate }) {
   return (
     <MaterialListItem
       ref={setDragRefs}
-      accentColor="#52c41a"
+      accentColor="var(--color-success)"
       hoverBg="#f0fdf4"
       icon={iconMap[snippet.icon] || <AppstoreOutlined />}
       title={snippet.name}
@@ -236,8 +236,8 @@ function DraggableCustomSnippet({ snippet, onDelete }: { snippet: CustomSnippet;
       <div style={{ flex: 1 }}>
         <MaterialListItem
           ref={setDragRefs}
-          accentColor="#faad14"
-          hoverBg="#fffbe6"
+          accentColor="var(--color-warning)"
+          hoverBg="var(--color-white)be6"
           icon={<StarOutlined />}
           title={snippet.name}
           description="自定义模板"
@@ -253,7 +253,7 @@ function DraggableCustomSnippet({ snippet, onDelete }: { snippet: CustomSnippet;
           type="text"
           size="small"
           icon={<DeleteOutlined />}
-          style={{ color: '#999', flexShrink: 0 }}
+          style={{ color: 'var(--color-text-tertiary)', flexShrink: 0 }}
         />
       </Popconfirm>
     </div>
@@ -432,7 +432,7 @@ export const ComponentPanel: React.FC = () => {
                 key: 'custom-snippets',
                 label: (
                   <Text strong style={{ fontSize: 13 }}>
-                    <StarOutlined style={{ marginRight: 4, color: '#faad14' }} />
+                    <StarOutlined style={{ marginRight: 4, color: 'var(--color-warning)' }} />
                     我的模板 ({customSnippets.length})
                   </Text>
                 ),

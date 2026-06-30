@@ -125,7 +125,7 @@ const DataCollectionPage: React.FC = () => {
       title: '点赞奖励',
       width: 90,
       render: (_: any, record: EditableTask) => (
-        <span style={{ color: (record.editLikes ?? 0) >= 50 ? '#52c41a' : '#999' }}>
+        <span style={{ color: (record.editLikes ?? 0) >= 50 ? 'var(--color-success)' : 'var(--color-text-tertiary)' }}>
           {(record.editLikes ?? 0) >= 50 ? '¥10.00' : '-'}
         </span>
       ),

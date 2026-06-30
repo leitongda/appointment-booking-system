@@ -8,6 +8,7 @@ from app.api.deps import get_current_admin, require_permission
 from app.core.config import settings
 from app.db.session import get_db
 from app.infrastructure.notifications.quota import NotificationQuotaService
+from app.modules.notification_logs.service import NotificationLogService
 from app.middleware.tenant_context import get_current_tenant_id
 from app.models.notification_log import NotificationLog
 from app.modules.notification_logs.service import NotificationLogService
@@ -112,7 +113,7 @@ async def get_notification_quota(
             detail="无法确定租户ID",
         )
 
-    quota_service = NotificationQuotaService(db)
+    quota_service = NotificationQuotaService(db, usage_querier=NotificationLogService(db))
     quota_info = await quota_service.get_quota_info(effective_tenant_id)
 
     return NotificationQuotaInfo(**quota_info)

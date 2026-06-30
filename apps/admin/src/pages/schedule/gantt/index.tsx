@@ -502,7 +502,7 @@ const ScheduleGanttPage: React.FC = () => {
                             {isRest && (
                               <g>
                                 <rect x={cellX + layout.cellWidth - 22} y={y + 4} width={18} height={14} fill={COLOR_WARNING} rx={2} />
-                                <text x={cellX + layout.cellWidth - 13} y={y + 14} textAnchor="middle" fontSize={9} fill="#fff" fontWeight={500}>
+                                <text x={cellX + layout.cellWidth - 13} y={y + 14} textAnchor="middle" fontSize={9} fill="var(--color-white)" fontWeight={500}>
                                   休
                                 </text>
                               </g>

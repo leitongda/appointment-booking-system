@@ -70,7 +70,8 @@ ROUTER_REGISTRATIONS = [
     #  内容与消息 — 长期保留
     # --------------------------------------------------------------- #
     RouterRegistration("app.modules.content.router", "/content", ["内容管理"]),
-    RouterRegistration("app.modules.messages.router", "/messages", ["消息中心"]),
+    # /messages 路由已移除：所有前端已迁移到 /unified-messages（P2-D 消息系统合并）
+    # 旧模块 app.modules.messages 保留供数据迁移参考，不再注册路由
     RouterRegistration("app.modules.unified_message.router", "/unified-messages", ["统一消息中心"]),
     RouterRegistration("app.modules.email_templates.router", "/email-templates", ["邮件模板"]),
     RouterRegistration("app.modules.booking_notices.router", "/booking-notices", ["预约须知"]),

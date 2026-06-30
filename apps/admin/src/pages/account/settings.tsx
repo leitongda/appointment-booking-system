@@ -68,11 +68,11 @@ const formatTime = (time: string | undefined | null): string => {
 const getDeviceIcon = (deviceType: string | undefined) => {
   switch (deviceType) {
     case 'mobile':
-      return <MobileOutlined style={{ fontSize: 16, color: '#52c41a' }} />;
+      return <MobileOutlined style={{ fontSize: 16, color: 'var(--color-success)' }} />;
     case 'tablet':
-      return <MobileOutlined style={{ fontSize: 16, color: '#1677ff' }} />;
+      return <MobileOutlined style={{ fontSize: 16, color: 'var(--color-primary)' }} />;
     default:
-      return <DesktopOutlined style={{ fontSize: 16, color: '#722ed1' }} />;
+      return <DesktopOutlined style={{ fontSize: 16, color: 'var(--color-afternoon)' }} />;
   }
 };
 
@@ -205,7 +205,7 @@ const UsageOverviewTab: React.FC<UsageOverviewProps> = ({ adminId }) => {
         {historyLoading ? (
           <div style={{ textAlign: 'center', padding: 40 }}>加载中...</div>
         ) : loginHistory.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>暂无登录记录</div>
+          <div style={{ textAlign: 'center', padding: 40, color: 'var(--color-text-tertiary)' }}>暂无登录记录</div>
         ) : (
           <Timeline
             items={loginHistory.map((item) => ({

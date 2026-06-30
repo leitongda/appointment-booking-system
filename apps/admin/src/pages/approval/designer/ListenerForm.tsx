@@ -140,7 +140,7 @@ const ListenerForm: React.FC<ListenerFormProps> = memo(({
           <Form.List name="headers">
             {(fields, { add, remove }) => (
               <>
-                <div style={{ marginBottom: 4, fontSize: 12, color: '#666' }}>请求头</div>
+                <div style={{ marginBottom: 4, fontSize: 12, color: 'var(--color-text-secondary)' }}>请求头</div>
                 {fields.map(({ key, name }) => (
                   <Space key={key} style={{ display: 'flex', marginBottom: 4 }} size={4}>
                     <Form.Item name={[name, 'key']} noStyle>

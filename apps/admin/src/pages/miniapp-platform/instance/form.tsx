@@ -273,7 +273,7 @@ const InstanceFormPage: React.FC = () => {
                           }}
                           style={{
                             height: '100%',
-                            border: selectedTemplate === template.code ? '2px solid #1677ff' : '1px solid #d9d9d9',
+                            border: selectedTemplate === template.code ? '2px solid var(--color-primary)' : '1px solid var(--color-border)',
                             cursor: 'pointer',
                           }}
                           styles={{ body: { padding: '12px' } }}
@@ -299,10 +299,10 @@ const InstanceFormPage: React.FC = () => {
                               <Tag color="blue">{template.category}</Tag>
                             </div>
                             {selectedTemplate === template.code && (
-                              <div style={{ color: '#1677ff', fontSize: 18 }}>✓</div>
+                              <div style={{ color: 'var(--color-primary)', fontSize: 18 }}>✓</div>
                             )}
                           </div>
-                          <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>
+                          <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 8 }}>
                             {template.description}
                           </div>
                           <div>
@@ -321,7 +321,7 @@ const InstanceFormPage: React.FC = () => {
               {selectedTemplate && (
                 <Form.Item label="">
                   <Card size="small" style={{ background: '#f0f5ff' }}>
-                    <div style={{ fontSize: 12, color: '#666' }}>
+                    <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
                       <strong>已选模板：</strong>
                       {TEMPLATE_LIST.find(t => t.code === selectedTemplate)?.name}
                     </div>

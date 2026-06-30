@@ -6,6 +6,8 @@ from app.api.deps import get_current_admin, require_permission
 from app.core.config import settings
 from app.db.session import get_db
 from app.infrastructure.email.service import EmailService
+from app.modules.settings.service import SettingsService
+from app.modules.email_templates.service import EmailTemplateService
 from app.modules.email_templates.service import EmailTemplateService
 from app.schemas.email_template import (
     EmailTemplateCreate,
@@ -121,7 +123,7 @@ async def send_test_email(
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
 ):
-    email_service = EmailService(db)
+    email_service = EmailService(db, config_provider=SettingsService(db), template_provider=EmailTemplateService(db))
     try:
         await email_service.send_test_email(
             template_id=template_id,

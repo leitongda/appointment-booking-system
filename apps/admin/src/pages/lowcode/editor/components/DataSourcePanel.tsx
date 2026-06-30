@@ -147,7 +147,7 @@ function DraggableDataSource({ ds }: { ds: DataSource }) {
         alignItems: 'center',
         gap: 4,
         cursor: 'grab',
-        color: '#999',
+        color: 'var(--color-text-tertiary)',
         fontSize: 12,
       }}
     >
@@ -170,10 +170,10 @@ function DataSourceItem({
   onDelete: () => void;
 }) {
   const methodColors: Record<string, string> = {
-    GET: '#52c41a',
-    POST: '#1677ff',
-    PUT: '#faad14',
-    DELETE: '#ff4d4f',
+    GET: 'var(--color-success)',
+    POST: 'var(--color-primary)',
+    PUT: 'var(--color-warning)',
+    DELETE: 'var(--color-error)',
     PATCH: '#722ed1',
   };
 
@@ -203,8 +203,8 @@ function DataSourceItem({
         justifyContent: 'space-between',
         padding: '6px 8px',
         borderRadius: 6,
-        border: '1px solid #f0f0f0',
-        background: '#fafafa',
+        border: '1px solid var(--color-border-secondary)',
+        background: 'var(--color-bg-container)',
         marginBottom: 6,
       }}
     >
@@ -223,7 +223,7 @@ function DataSourceItem({
             </Tag>
             {ds.type === 'api' && (ds as ApiDataSource).method && (
               <Tag
-                color={methodColors[(ds as ApiDataSource).method] || '#999'}
+                color={methodColors[(ds as ApiDataSource).method] || 'var(--color-text-tertiary)'}
                 style={{ fontSize: 10, lineHeight: '16px', padding: '0 4px', margin: 0 }}
               >
                 {(ds as ApiDataSource).method}
@@ -265,7 +265,7 @@ function TestResultPanel({ result }: { result: DataSourceTestResponse | null }) 
 
   if (!result.success) {
     return (
-      <div style={{ marginTop: 12, padding: 12, background: '#fff2f0', borderRadius: 6, border: '1px solid #ffccc7' }}>
+      <div style={{ marginTop: 12, padding: 12, background: 'var(--color-white)2f0', borderRadius: 6, border: '1px solid #ffccc7' }}>
         <Text type="danger" style={{ fontSize: 12 }}>
           请求失败: {result.error || '未知错误'}
         </Text>
@@ -278,7 +278,7 @@ function TestResultPanel({ result }: { result: DataSourceTestResponse | null }) 
   }
 
   return (
-    <div style={{ marginTop: 12, padding: 12, background: '#f6ffed', borderRadius: 6, border: '1px solid #b7eb8f' }}>
+    <div style={{ marginTop: 12, padding: 12, background: 'var(--color-success-bg)', borderRadius: 6, border: '1px solid #b7eb8f' }}>
       <div style={{ marginBottom: 8 }}>
         <Text type="success" style={{ fontSize: 12 }}>
           请求成功
@@ -311,7 +311,7 @@ function TestResultPanel({ result }: { result: DataSourceTestResponse | null }) 
               fontSize: 10,
               maxHeight: 150,
               overflow: 'auto',
-              background: '#f5f5f5',
+              background: 'var(--color-bg-layout)',
               padding: 8,
               borderRadius: 4,
               margin: 0,
@@ -727,7 +727,7 @@ export const DataSourcePanel: React.FC = () => {
         }}
       >
         <Space size={4}>
-          <ApiOutlined style={{ color: '#1677ff' }} />
+          <ApiOutlined style={{ color: 'var(--color-primary)' }} />
           <Text strong style={{ fontSize: 13 }}>
             数据源
           </Text>
@@ -754,7 +754,7 @@ export const DataSourcePanel: React.FC = () => {
             style={{
               textAlign: 'center',
               padding: '24px 0',
-              color: '#bbb',
+              color: 'var(--color-border)',
             }}
           >
             <LinkOutlined style={{ fontSize: 24, marginBottom: 8, display: 'block' }} />
@@ -783,7 +783,7 @@ export const DataSourcePanel: React.FC = () => {
       {dataSources.length > 0 && (
         <div
           style={{
-            borderTop: '1px solid #f0f0f0',
+            borderTop: '1px solid var(--color-border-secondary)',
             paddingTop: 8,
             marginTop: 8,
           }}

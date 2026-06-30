@@ -53,6 +53,7 @@ def check_notification_quota():
             # 导入异步通知服务
             from app.db.session import get_async_db_context
             from app.infrastructure.notifications.quota import NotificationQuotaService
+            from app.modules.notification_logs.service import NotificationLogService
 
             total_alerts = 0
             checked_count = 0
@@ -61,13 +62,25 @@ def check_notification_quota():
             async def check_all_tenants():
                 nonlocal total_alerts, checked_count
                 async for db_async in get_async_db_context():
+                    from app.infrastructure.notifications.service import TenantNotificationService
+                    from app.infrastructure.email.service import EmailService
+                    from app.modules.settings.service import SettingsService
+                    from app.modules.email_templates.service import EmailTemplateService
+
+                    email_service = EmailService(
+                        db_async,
+                        config_provider=SettingsService(db_async),
+                        template_provider=EmailTemplateService(db_async),
+                    )
+                    notification_service = TenantNotificationService(db_async, email_service=email_service)
+
                     for tenant in tenants:
                         # 设置当前租户上下文
                         set_tenant_context(tenant.id, tenant.tenant_code)
 
                         try:
-                            quota_service = NotificationQuotaService(db_async)
-                            notifications = await quota_service.check_and_alert(tenant.id)
+                            quota_service = NotificationQuotaService(db_async, usage_querier=NotificationLogService(db_async))
+                            notifications = await quota_service.check_and_alert(tenant.id, notification_service=notification_service)
 
                             if notifications:
                                 total_alerts += len(notifications)
@@ -125,10 +138,11 @@ def get_tenant_notification_quota(tenant_id: str):
     """
     from app.db.session import get_async_db_context
     from app.infrastructure.notifications.quota import NotificationQuotaService
+    from app.modules.notification_logs.service import NotificationLogService
 
     async def get_quota():
         async for db_async in get_async_db_context():
-            quota_service = NotificationQuotaService(db_async)
+            quota_service = NotificationQuotaService(db_async, usage_querier=NotificationLogService(db_async))
             return await quota_service.get_quota_info(tenant_id)
 
     import asyncio

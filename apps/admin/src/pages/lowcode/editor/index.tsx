@@ -740,7 +740,7 @@ const LowCodeEditor: React.FC = () => {
       >
         <div style={{ marginBottom: 12 }}>
           <label style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>
-            页面名称 <span style={{ color: '#ff4d4f' }}>*</span>
+            页面名称 <span style={{ color: 'var(--color-error)' }}>*</span>
           </label>
           <Input
             placeholder="例如: 科室介绍"

@@ -193,7 +193,7 @@ const ContactDetail: React.FC<ContactDetailProps> = ({ contactId, open, onClose 
                   </Tag>
                 ))
               ) : (
-                <span style={{ color: '#999' }}>暂无分组</span>
+                <span style={{ color: 'var(--color-text-tertiary)' }}>暂无分组</span>
               )}
             </Card>
 
@@ -206,7 +206,7 @@ const ContactDetail: React.FC<ContactDetailProps> = ({ contactId, open, onClose 
                   </Tag>
                 ))
               ) : (
-                <span style={{ color: '#999' }}>暂无标签</span>
+                <span style={{ color: 'var(--color-text-tertiary)' }}>暂无标签</span>
               )}
             </Card>
           </>

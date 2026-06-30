@@ -6,12 +6,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.common.security_settings import get_token_expire_config
+from app.modules.settings.security_helpers import get_token_expire_config
 from app.core.config import settings
 from app.core.redis import RedisCache
 from app.core.security import create_access_token, create_refresh_token, get_rsa_public_key, rsa_decrypt
 from app.db.session import get_db
 from app.infrastructure.email.service import EmailService
+from app.modules.settings.service import SettingsService
+from app.modules.email_templates.service import EmailTemplateService
 from app.models.admin import Admin
 from app.modules.admin.helpers import build_admin_response, build_stores_list, store_admin_session
 from app.modules.admin.schemas import (
@@ -353,7 +355,7 @@ async def send_admin_email_code(
     await RedisCache.set_email_code(data.email, code, "admin_login")
 
     try:
-        email_service = EmailService(db)
+        email_service = EmailService(db, config_provider=SettingsService(db), template_provider=EmailTemplateService(db))
         await email_service.send_verification_code_email(data.email, code, "admin_login")
     except Exception as exc:
         raise HTTPException(

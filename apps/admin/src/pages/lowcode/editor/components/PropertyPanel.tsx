@@ -161,7 +161,7 @@ function VariablePicker({
     return groups.map((group) => ({
       key: group.prefix,
       label: (
-        <Text strong style={{ fontSize: 12, color: '#8c8c8c' }}>
+        <Text strong style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>
           {group.label}
         </Text>
       ),
@@ -244,8 +244,8 @@ function AutocompleteSuggestions({
         left: 0,
         right: 0,
         zIndex: 1050,
-        background: '#fff',
-        border: '1px solid #d9d9d9',
+        background: 'var(--color-white)',
+        border: '1px solid var(--color-border)',
         borderRadius: 6,
         boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
         maxHeight: 180,
@@ -262,14 +262,14 @@ function AutocompleteSuggestions({
             fontSize: 11,
             display: 'flex',
             justifyContent: 'space-between',
-            borderBottom: '1px solid #f5f5f5',
+            borderBottom: '1px solid var(--color-bg-layout)',
           }}
           onMouseDown={(e) => {
             e.preventDefault();
             onSelect(item.key);
           }}
           onMouseEnter={(e) => {
-            (e.currentTarget as HTMLDivElement).style.background = '#f5f5f5';
+            (e.currentTarget as HTMLDivElement).style.background = 'var(--color-bg-layout)';
           }}
           onMouseLeave={(e) => {
             (e.currentTarget as HTMLDivElement).style.background = '';
@@ -334,7 +334,7 @@ function ExpressionInput({
             flex: 1,
             fontFamily: 'monospace',
             fontSize: 11,
-            borderColor: invalid ? '#ff4d4f' : undefined,
+            borderColor: invalid ? 'var(--color-error)' : undefined,
           }}
           status={invalid ? 'error' : undefined}
         />
@@ -452,7 +452,7 @@ function BindingAwareFormItem({
         style={{
           cursor: 'pointer',
           fontSize: 12,
-          color: isBinding ? '#1677ff' : '#bfbfbf',
+          color: isBinding ? 'var(--color-primary)' : '#bfbfbf',
           display: 'inline-flex',
           alignItems: 'center',
           padding: '0 2px',
@@ -552,8 +552,8 @@ function StaticValueInput({
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: i18nActive ? '#1677ff' : undefined,
-                  borderColor: i18nActive ? '#1677ff' : undefined,
+                  color: i18nActive ? 'var(--color-primary)' : undefined,
+                  borderColor: i18nActive ? 'var(--color-primary)' : undefined,
                 }}
                 onClick={onI18nToggle}
               />
@@ -584,8 +584,8 @@ function StaticValueInput({
                   size="small"
                   icon={<TranslationOutlined />}
                   style={{
-                    color: i18nActive ? '#1677ff' : undefined,
-                    borderColor: i18nActive ? '#1677ff' : undefined,
+                    color: i18nActive ? 'var(--color-primary)' : undefined,
+                    borderColor: i18nActive ? 'var(--color-primary)' : undefined,
                   }}
                   onClick={onI18nToggle}
                 >
@@ -820,14 +820,14 @@ export const PropertyPanel: React.FC = () => {
               <Form.Item label="主色调" style={COMPACT_FORM_ITEM_STYLE}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <ColorPicker
-                    value={theme?.primaryColor || '#1677ff'}
+                    value={theme?.primaryColor || 'var(--color-primary)'}
                     onChange={(_, hex) => updateTheme({ ...theme, primaryColor: hex })}
                     size="small"
                   />
                   <Input
                     size="small"
                     value={theme?.primaryColor || ''}
-                    placeholder="#1677ff"
+                    placeholder="var(--color-primary)"
                     onChange={(e) => updateTheme({ ...theme, primaryColor: e.target.value || undefined })}
                   />
                 </div>
@@ -835,14 +835,14 @@ export const PropertyPanel: React.FC = () => {
               <Form.Item label="背景色" style={COMPACT_FORM_ITEM_STYLE}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <ColorPicker
-                    value={theme?.backgroundColor || '#ffffff'}
+                    value={theme?.backgroundColor || 'var(--color-white)fff'}
                     onChange={(_, hex) => updateTheme({ ...theme, backgroundColor: hex })}
                     size="small"
                   />
                   <Input
                     size="small"
                     value={theme?.backgroundColor || ''}
-                    placeholder="#ffffff"
+                    placeholder="var(--color-white)fff"
                     onChange={(e) => updateTheme({ ...theme, backgroundColor: e.target.value || undefined })}
                   />
                 </div>
@@ -924,7 +924,7 @@ export const PropertyPanel: React.FC = () => {
       >
         <Text strong>{material?.title || selectedNode.componentName}</Text>
         <a
-          style={{ fontSize: 12, color: '#ff4d4f' }}
+          style={{ fontSize: 12, color: 'var(--color-error)' }}
           onClick={() => removeNode(selectedNode.id)}
         >
           删除
@@ -1060,7 +1060,7 @@ export const PropertyPanel: React.FC = () => {
               <Form.Item label="背景色" style={COMPACT_FORM_ITEM_STYLE}>
                 <Input
                   size="small"
-                  placeholder="#ffffff"
+                  placeholder="var(--color-white)fff"
                   value={selectedNode.style?.backgroundColor || ''}
                   onChange={(e) => {
                     if (selectedNodeId) {
@@ -1090,7 +1090,7 @@ export const PropertyPanel: React.FC = () => {
               <Form.Item label="边框" style={COMPACT_FORM_ITEM_STYLE}>
                 <Input
                   size="small"
-                  placeholder="例: 1px solid #eee"
+                  placeholder="例: 1px solid var(--color-border-secondary)"
                   value={selectedNode.style?.border || ''}
                   onChange={(e) => {
                     if (selectedNodeId) {

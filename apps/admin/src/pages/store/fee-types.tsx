@@ -157,12 +157,12 @@ const StoreFeeTypesPage: React.FC = () => {
                 title="确定要删除此诊费类型吗？"
                 onConfirm={() => handleDelete(record.id)}
               >
-                <a style={{ color: '#ff4d4f' }}>删除</a>
+                <a style={{ color: 'var(--color-error)' }}>删除</a>
               </Popconfirm>
             </>
           )}
           {record.isGlobal && (
-            <span style={{ color: '#999' }}>全局类型</span>
+            <span style={{ color: 'var(--color-text-tertiary)' }}>全局类型</span>
           )}
         </Space>
       ),

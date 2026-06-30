@@ -7,6 +7,8 @@
  *   - 黑名单管理（canBlacklistSettings）
  *   - 系统监控（canSystemMonitoring，含 log / notification-logs / notification-quota / checkin-audit-logs / online-users）
  *   - 数据管理（canSystemMonitoring，含 import-export / backup）
+ *   - 字典管理（canDictionary，含 dictionaries / dictionaries/:typeId/items）
+ *   - 操作指引（无 access）
  *
  * 顶层 access: canSystemManagement
  */
@@ -100,6 +102,16 @@ const system = [
           { path: '/system/guide-tours', component: './system/guide-tours' },
           { path: '/system/guide-tours/create', name: '新建指引', component: './system/guide-tours/form', hideInMenu: true },
           { path: '/system/guide-tours/:id/edit', name: '编辑指引', component: './system/guide-tours/form', hideInMenu: true },
+        ],
+      },
+      {
+        path: '/system/dictionaries',
+        name: '字典管理',
+        icon: 'book',
+        access: 'canDictionary',
+        routes: [
+          { path: '/system/dictionaries', component: './system/dictionaries' },
+          { path: '/system/dictionaries/:typeId/items', name: '字典项', component: './system/dictionaries/items', hideInMenu: true },
         ],
       },
     ],

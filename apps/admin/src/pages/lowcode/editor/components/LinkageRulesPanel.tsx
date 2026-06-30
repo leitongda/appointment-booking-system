@@ -141,7 +141,7 @@ export const LinkageRulesPanel: React.FC = () => {
 
   if (!selectedNodeId) {
     return (
-      <div style={{ padding: 12, color: '#999', textAlign: 'center' }}>
+      <div style={{ padding: 12, color: 'var(--color-text-tertiary)', textAlign: 'center' }}>
         请先选择一个组件
       </div>
     );
@@ -157,7 +157,7 @@ export const LinkageRulesPanel: React.FC = () => {
       </div>
 
       {rules.length === 0 && (
-        <div style={{ color: '#999', textAlign: 'center', padding: 20 }}>
+        <div style={{ color: 'var(--color-text-tertiary)', textAlign: 'center', padding: 20 }}>
           暂无联动规则
         </div>
       )}
@@ -179,12 +179,12 @@ export const LinkageRulesPanel: React.FC = () => {
           }
           extra={
             <Popconfirm title="确定删除？" onConfirm={() => handleDeleteRule(rule.id)}>
-              <DeleteOutlined style={{ cursor: 'pointer', color: '#ff4d4f' }} />
+              <DeleteOutlined style={{ cursor: 'pointer', color: 'var(--color-error)' }} />
             </Popconfirm>
           }
         >
           <div style={{ marginBottom: 8 }}>
-            <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>当</div>
+            <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 4 }}>当</div>
             {rule.conditions.map((cond, i) => (
               <Space key={i} style={{ marginBottom: 4, display: 'flex' }}>
                 <Select
@@ -219,7 +219,7 @@ export const LinkageRulesPanel: React.FC = () => {
           </div>
 
           <div>
-            <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>则</div>
+            <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 4 }}>则</div>
             {rule.actions.map((action, i) => (
               <Space key={i} style={{ marginBottom: 4, display: 'flex' }}>
                 <Select

@@ -39,15 +39,15 @@ export function renderBaseComponent(
   switch (componentName) {
     case 'Page':
       return (
-        <div style={{ minHeight: 600, background: '#f5f5f5' }}>
+        <div style={{ minHeight: 600, background: 'var(--color-bg-layout)' }}>
           <div
             style={{
               height: 44,
-              background: props.navigationBarBackgroundColor || '#ffffff',
+              background: props.navigationBarBackgroundColor || 'var(--color-white)fff',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              borderBottom: '1px solid #eee',
+              borderBottom: '1px solid var(--color-border-secondary)',
               fontSize: 17,
               fontWeight: 500,
             }}
@@ -110,11 +110,11 @@ export function renderBaseComponent(
               style={{
                 width: props.width,
                 height: props.height || '120px',
-                background: '#f0f0f0',
+                background: 'var(--color-border-secondary)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#999',
+                color: 'var(--color-text-tertiary)',
                 fontSize: 13,
                 borderRadius: props.borderRadius,
               }}
@@ -136,11 +136,11 @@ export function renderBaseComponent(
               borderRadius: 6,
               border: 'none',
               background:
-                props.type === 'primary' ? '#1677ff'
+                props.type === 'primary' ? 'var(--color-primary)'
                 : props.type === 'warning' ? '#ff9800'
-                : props.type === 'danger' ? '#ff4d4f'
-                : '#f5f5f5',
-              color: props.type === 'primary' ? '#fff' : '#333',
+                : props.type === 'danger' ? 'var(--color-error)'
+                : 'var(--color-bg-layout)',
+              color: props.type === 'primary' ? 'var(--color-white)' : 'var(--color-text)',
               fontSize: 14,
               cursor: 'pointer',
               opacity: props.disabled ? 0.5 : 1,
@@ -158,7 +158,7 @@ export function renderBaseComponent(
           <hr
             style={{
               border: 'none',
-              borderTop: props.dashed ? '1px dashed #e5e5e5' : '1px solid #e5e5e5',
+              borderTop: props.dashed ? '1px dashed var(--color-border)' : '1px solid var(--color-border)',
               margin: 0,
             }}
           />
@@ -171,12 +171,12 @@ export function renderBaseComponent(
           <div
             style={{
               height: props.height || '200px',
-              background: '#e8e8e8',
+              background: 'var(--color-border)',
               borderRadius: 8,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#999',
+              color: 'var(--color-text-tertiary)',
               fontSize: 13,
             }}
           >
@@ -201,17 +201,17 @@ export function renderBaseComponent(
             alignItems: 'center',
             justifyContent: 'space-between',
             padding: '12px 16px',
-            borderBottom: '1px solid #f5f5f5',
-            background: '#fff',
+            borderBottom: '1px solid var(--color-bg-layout)',
+            background: 'var(--color-white)',
           }}
         >
           <div>
-            <div style={{ fontSize: 15, color: '#333' }}>{props.title || '标题'}</div>
+            <div style={{ fontSize: 15, color: 'var(--color-text)' }}>{props.title || '标题'}</div>
             {props.description && (
-              <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>{props.description}</div>
+              <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)', marginTop: 4 }}>{props.description}</div>
             )}
           </div>
-          {props.isLink && <span style={{ color: '#ccc', fontSize: 12 }}>›</span>}
+          {props.isLink && <span style={{ color: 'var(--color-border)', fontSize: 12 }}>›</span>}
         </div>
       );
 
@@ -221,14 +221,14 @@ export function renderBaseComponent(
           style={{
             margin: '8px 12px',
             padding: 12,
-            background: '#fff',
+            background: 'var(--color-white)',
             borderRadius: 8,
             boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
           }}
         >
-          <div style={{ fontSize: 16, fontWeight: 500, color: '#333' }}>{props.title || '卡片标题'}</div>
-          {props.subTitle && <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>{props.subTitle}</div>}
-          {props.description && <div style={{ fontSize: 13, color: '#666', marginTop: 8 }}>{props.description}</div>}
+          <div style={{ fontSize: 16, fontWeight: 500, color: 'var(--color-text)' }}>{props.title || '卡片标题'}</div>
+          {props.subTitle && <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)', marginTop: 4 }}>{props.subTitle}</div>}
+          {props.description && <div style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginTop: 8 }}>{props.description}</div>}
           {children && children.length > 0 && (
             <div style={{ marginTop: 8 }}>
               {children.map((child) => renderChild(child, depth + 1))}
@@ -254,7 +254,7 @@ export function renderBaseComponent(
     case 'NutTabs':
       return (
         <div>
-          <div style={{ display: 'flex', borderBottom: '1px solid #eee', background: '#fff' }}>
+          <div style={{ display: 'flex', borderBottom: '1px solid var(--color-border-secondary)', background: 'var(--color-white)' }}>
             {children
               ?.filter((c) => c.componentName === 'NutTabPane')
               .map((child, idx) => (
@@ -263,8 +263,8 @@ export function renderBaseComponent(
                   style={{
                     padding: '10px 16px',
                     fontSize: 14,
-                    color: idx === 0 ? '#1677ff' : '#666',
-                    borderBottom: idx === 0 ? '2px solid #1677ff' : '2px solid transparent',
+                    color: idx === 0 ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                    borderBottom: idx === 0 ? '2px solid var(--color-primary)' : '2px solid transparent',
                   }}
                 >
                   {child.props.title || '标签'}
@@ -286,7 +286,7 @@ export function renderBaseComponent(
 
     case 'NutEmpty':
       return (
-        <div style={{ textAlign: 'center', padding: '40px 0', color: '#999', fontSize: 13 }}>
+        <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--color-text-tertiary)', fontSize: 13 }}>
           {props.description || '暂无数据'}
         </div>
       );
@@ -296,8 +296,8 @@ export function renderBaseComponent(
         <div style={{ padding: '8px 12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
             {props.label && (
-              <span style={{ fontSize: 14, color: '#333', minWidth: 60 }}>
-                {props.required && <span style={{ color: '#ff4d4f', marginRight: 4 }}>*</span>}
+              <span style={{ fontSize: 14, color: 'var(--color-text)', minWidth: 60 }}>
+                {props.required && <span style={{ color: 'var(--color-error)', marginRight: 4 }}>*</span>}
                 {props.label}
               </span>
             )}
@@ -310,13 +310,13 @@ export function renderBaseComponent(
               style={{
                 flex: 1,
                 height: 32,
-                border: '1px solid #e5e5e5',
+                border: '1px solid var(--color-border)',
                 borderRadius: 4,
                 padding: '0 8px',
                 fontSize: 14,
-                color: '#333',
+                color: 'var(--color-text)',
                 textAlign: props.textAlign,
-                background: props.disabled ? '#f5f5f5' : '#fff',
+                background: props.disabled ? 'var(--color-bg-layout)' : 'var(--color-white)',
                 outline: 'none',
               }}
             />
@@ -329,8 +329,8 @@ export function renderBaseComponent(
         <div style={{ padding: '8px 12px' }}>
           <div style={{ marginBottom: 4 }}>
             {props.label && (
-              <span style={{ fontSize: 14, color: '#333' }}>
-                {props.required && <span style={{ color: '#ff4d4f', marginRight: 4 }}>*</span>}
+              <span style={{ fontSize: 14, color: 'var(--color-text)' }}>
+                {props.required && <span style={{ color: 'var(--color-error)', marginRight: 4 }}>*</span>}
                 {props.label}
               </span>
             )}
@@ -343,13 +343,13 @@ export function renderBaseComponent(
             maxLength={props.maxLength > 0 ? props.maxLength : undefined}
             style={{
               width: '100%',
-              border: '1px solid #e5e5e5',
+              border: '1px solid var(--color-border)',
               borderRadius: 4,
               padding: '8px',
               fontSize: 14,
-              color: '#333',
+              color: 'var(--color-text)',
               resize: props.autosize ? 'vertical' : 'none',
-              background: props.disabled ? '#f5f5f5' : '#fff',
+              background: props.disabled ? 'var(--color-bg-layout)' : 'var(--color-white)',
               outline: 'none',
               boxSizing: 'border-box',
             }}
@@ -361,15 +361,15 @@ export function renderBaseComponent(
       return (
         <div style={{ padding: '8px 12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            {props.label && <span style={{ fontSize: 14, color: '#333' }}>{props.label}</span>}
+            {props.label && <span style={{ fontSize: 14, color: 'var(--color-text)' }}>{props.label}</span>}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              {props.activeText && <span style={{ fontSize: 12, color: '#333' }}>{props.activeText}</span>}
+              {props.activeText && <span style={{ fontSize: 12, color: 'var(--color-text)' }}>{props.activeText}</span>}
               <div
                 style={{
                   width: 44,
                   height: 24,
                   borderRadius: 12,
-                  background: props.checked ? '#1677ff' : '#e5e5e5',
+                  background: props.checked ? 'var(--color-primary)' : 'var(--color-border)',
                   position: 'relative',
                   cursor: props.disabled ? 'not-allowed' : 'pointer',
                   opacity: props.disabled ? 0.5 : 1,
@@ -381,7 +381,7 @@ export function renderBaseComponent(
                     width: 20,
                     height: 20,
                     borderRadius: 10,
-                    background: '#fff',
+                    background: 'var(--color-white)',
                     position: 'absolute',
                     top: 2,
                     left: props.checked ? 22 : 2,
@@ -390,7 +390,7 @@ export function renderBaseComponent(
                   }}
                 />
               </div>
-              {props.inactiveText && <span style={{ fontSize: 12, color: '#999' }}>{props.inactiveText}</span>}
+              {props.inactiveText && <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>{props.inactiveText}</span>}
             </div>
           </div>
         </div>
@@ -401,8 +401,8 @@ export function renderBaseComponent(
         <div style={{ padding: '8px 12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
             {props.label && (
-              <span style={{ fontSize: 14, color: '#333', minWidth: 60 }}>
-                {props.required && <span style={{ color: '#ff4d4f', marginRight: 4 }}>*</span>}
+              <span style={{ fontSize: 14, color: 'var(--color-text)', minWidth: 60 }}>
+                {props.required && <span style={{ color: 'var(--color-error)', marginRight: 4 }}>*</span>}
                 {props.label}
               </span>
             )}
@@ -410,19 +410,19 @@ export function renderBaseComponent(
               style={{
                 flex: 1,
                 height: 32,
-                border: '1px solid #e5e5e5',
+                border: '1px solid var(--color-border)',
                 borderRadius: 4,
                 padding: '0 8px',
                 fontSize: 14,
-                color: '#999',
+                color: 'var(--color-text-tertiary)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                background: props.disabled ? '#f5f5f5' : '#fff',
+                background: props.disabled ? 'var(--color-bg-layout)' : 'var(--color-white)',
               }}
             >
               <span>{props.placeholder || '请选择'}</span>
-              <span style={{ fontSize: 12, color: '#ccc' }}>▼</span>
+              <span style={{ fontSize: 12, color: 'var(--color-border)' }}>▼</span>
             </div>
           </div>
         </div>
@@ -433,7 +433,7 @@ export function renderBaseComponent(
         <div
           style={{
             padding: props.border ? '12px' : '8px 0',
-            border: props.border ? '1px solid #e5e5e5' : 'none',
+            border: props.border ? '1px solid var(--color-border)' : 'none',
             borderRadius: props.border ? 4 : 0,
             minHeight: 40,
           }}
@@ -463,21 +463,21 @@ export function renderBaseComponent(
         <input
           type="date"
           defaultValue={props.value || ''}
-          style={{ padding: '6px 12px', border: '1px solid #d9d9d9', borderRadius: 4, fontSize: 14 }}
+          style={{ padding: '6px 12px', border: '1px solid var(--color-border)', borderRadius: 4, fontSize: 14 }}
           readOnly
         />
       );
 
     case 'NutCalendar':
       return (
-        <div style={{ border: '1px solid #eee', borderRadius: 8, padding: 12, textAlign: 'center', color: '#999', fontSize: 12 }}>
+        <div style={{ border: '1px solid var(--color-border-secondary)', borderRadius: 8, padding: 12, textAlign: 'center', color: 'var(--color-text-tertiary)', fontSize: 12 }}>
           [日历组件]
         </div>
       );
 
     case 'NutSearchBar':
       return (
-        <div style={{ padding: '8px 12px', background: '#f5f5f5', borderRadius: 16 }}>
+        <div style={{ padding: '8px 12px', background: 'var(--color-bg-layout)', borderRadius: 16 }}>
           <input
             placeholder={props.placeholder || '搜索'}
             style={{ width: '100%', border: 'none', background: 'transparent', outline: 'none', fontSize: 14 }}
@@ -488,28 +488,28 @@ export function renderBaseComponent(
 
     case 'NutNavBar':
       return (
-        <div style={{ height: 44, borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', padding: '0 12px', fontWeight: 500 }}>
+        <div style={{ height: 44, borderBottom: '1px solid var(--color-border-secondary)', display: 'flex', alignItems: 'center', padding: '0 12px', fontWeight: 500 }}>
           {props.title || '导航栏'}
         </div>
       );
 
     case 'NutIcon':
       return (
-        <span style={{ fontSize: 16, color: props.color || '#333' }}>
+        <span style={{ fontSize: 16, color: props.color || 'var(--color-text)' }}>
           [{props.name || 'icon'}]
         </span>
       );
 
     case 'NutTag':
       return (
-        <span style={{ background: props.color || '#eee', color: props.textColor || '#333', padding: '2px 8px', borderRadius: 4, fontSize: 12 }}>
+        <span style={{ background: props.color || 'var(--color-border-secondary)', color: props.textColor || 'var(--color-text)', padding: '2px 8px', borderRadius: 4, fontSize: 12 }}>
           {props.text || '标签'}
         </span>
       );
 
     case 'NutAvatar':
       return (
-        <div style={{ width: props.size || 40, height: props.size || 40, borderRadius: '50%', background: '#ddd', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#999' }}>
+        <div style={{ width: props.size || 40, height: props.size || 40, borderRadius: '50%', background: '#ddd', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: 'var(--color-text-tertiary)' }}>
           {props.src && isValidImageUrl(props.src) ? <img src={props.src} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} /> : '头像'}
         </div>
       );
@@ -519,7 +519,7 @@ export function renderBaseComponent(
         <div style={{ position: 'relative', display: 'inline-block' }}>
           <span style={{ padding: '4px 8px' }}>{props.children || '内容'}</span>
           {props.value && (
-            <sup style={{ position: 'absolute', top: -4, right: -8, background: '#ff4d4f', color: '#fff', borderRadius: 10, fontSize: 10, padding: '1px 4px', minWidth: 16, textAlign: 'center' }}>
+            <sup style={{ position: 'absolute', top: -4, right: -8, background: 'var(--color-error)', color: 'var(--color-white)', borderRadius: 10, fontSize: 10, padding: '1px 4px', minWidth: 16, textAlign: 'center' }}>
               {props.value}
             </sup>
           )}
@@ -528,24 +528,24 @@ export function renderBaseComponent(
 
     case 'NutProgress':
       return (
-        <div style={{ height: 4, background: '#eee', borderRadius: 2, overflow: 'hidden' }}>
-          <div style={{ height: '100%', width: `${props.percentage || 0}%`, background: props.color || '#1677ff', borderRadius: 2, transition: 'width 0.3s' }} />
+        <div style={{ height: 4, background: 'var(--color-border-secondary)', borderRadius: 2, overflow: 'hidden' }}>
+          <div style={{ height: '100%', width: `${props.percentage || 0}%`, background: props.color || 'var(--color-primary)', borderRadius: 2, transition: 'width 0.3s' }} />
         </div>
       );
 
     // 业务组件
     case 'BizAppointmentCard':
       return (
-        <div style={{ margin: '8px 12px', padding: 12, background: '#fff', borderRadius: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+        <div style={{ margin: '8px 12px', padding: 12, background: 'var(--color-white)', borderRadius: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#e6f4ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#1677ff', flexShrink: 0 }}>
+            <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--color-primary-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: 'var(--color-primary)', flexShrink: 0 }}>
               {props.avatar && isValidImageUrl(props.avatar) ? <img src={props.avatar} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} /> : '头像'}
             </div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 15, fontWeight: 500, color: '#333' }}>{props.doctorName || '医生'}</div>
-              <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>{props.departmentName || '科室'} | {props.appointmentTime || '时间'}</div>
+              <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-text)' }}>{props.doctorName || '医生'}</div>
+              <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)', marginTop: 2 }}>{props.departmentName || '科室'} | {props.appointmentTime || '时间'}</div>
             </div>
-            <span style={{ fontSize: 12, padding: '2px 8px', borderRadius: 4, background: props.status === 'completed' ? '#f6ffed' : props.status === 'cancelled' ? '#fff1f0' : '#e6f4ff', color: props.status === 'completed' ? '#52c41a' : props.status === 'cancelled' ? '#ff4d4f' : '#1677ff' }}>
+            <span style={{ fontSize: 12, padding: '2px 8px', borderRadius: 4, background: props.status === 'completed' ? 'var(--color-success-bg)' : props.status === 'cancelled' ? 'var(--color-white)1f0' : 'var(--color-primary-bg)', color: props.status === 'completed' ? 'var(--color-success)' : props.status === 'cancelled' ? 'var(--color-error)' : 'var(--color-primary)' }}>
               {props.statusText || '待就诊'}
             </span>
           </div>
@@ -554,16 +554,16 @@ export function renderBaseComponent(
 
     case 'BizDoctorCard':
       return (
-        <div style={{ margin: '8px 12px', padding: 12, background: '#fff', borderRadius: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+        <div style={{ margin: '8px 12px', padding: 12, background: 'var(--color-white)', borderRadius: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
           <div style={{ display: 'flex', gap: 12 }}>
-            <div style={{ width: 64, height: 64, borderRadius: 8, background: '#e6f4ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#1677ff', flexShrink: 0 }}>
+            <div style={{ width: 64, height: 64, borderRadius: 8, background: 'var(--color-primary-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: 'var(--color-primary)', flexShrink: 0 }}>
               {props.avatar && isValidImageUrl(props.avatar) ? <img src={props.avatar} style={{ width: '100%', height: '100%', borderRadius: 8, objectFit: 'cover' }} /> : '头像'}
             </div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 15, fontWeight: 500, color: '#333' }}>{props.doctorName || '医生'}</div>
-              <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>{props.departmentName || '科室'} | {props.title || '职称'}</div>
-              {props.description && <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>{props.description}</div>}
-              {props.consultationFee && <div style={{ fontSize: 13, color: '#ff4d4f', marginTop: 4, fontWeight: 500 }}>¥{props.consultationFee}</div>}
+              <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-text)' }}>{props.doctorName || '医生'}</div>
+              <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)', marginTop: 2 }}>{props.departmentName || '科室'} | {props.title || '职称'}</div>
+              {props.description && <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 4 }}>{props.description}</div>}
+              {props.consultationFee && <div style={{ fontSize: 13, color: 'var(--color-error)', marginTop: 4, fontWeight: 500 }}>¥{props.consultationFee}</div>}
             </div>
           </div>
         </div>
@@ -574,14 +574,14 @@ export function renderBaseComponent(
         <div style={{ padding: '8px 12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
             {props.label && (
-              <span style={{ fontSize: 14, color: '#333', minWidth: 80 }}>
-                {props.required && <span style={{ color: '#ff4d4f', marginRight: 4 }}>*</span>}
+              <span style={{ fontSize: 14, color: 'var(--color-text)', minWidth: 80 }}>
+                {props.required && <span style={{ color: 'var(--color-error)', marginRight: 4 }}>*</span>}
                 {props.label}
               </span>
             )}
-            <div style={{ flex: 1, height: 32, border: '1px solid #e5e5e5', borderRadius: 4, padding: '0 8px', fontSize: 14, color: '#999', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: props.disabled ? '#f5f5f5' : '#fff' }}>
+            <div style={{ flex: 1, height: 32, border: '1px solid var(--color-border)', borderRadius: 4, padding: '0 8px', fontSize: 14, color: 'var(--color-text-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: props.disabled ? 'var(--color-bg-layout)' : 'var(--color-white)' }}>
               <span>{props.placeholder || '请选择科室'}</span>
-              <span style={{ fontSize: 12, color: '#ccc' }}>▼</span>
+              <span style={{ fontSize: 12, color: 'var(--color-border)' }}>▼</span>
             </div>
           </div>
         </div>
@@ -592,14 +592,14 @@ export function renderBaseComponent(
         <div style={{ padding: '8px 12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
             {props.label && (
-              <span style={{ fontSize: 14, color: '#333', minWidth: 80 }}>
-                {props.required && <span style={{ color: '#ff4d4f', marginRight: 4 }}>*</span>}
+              <span style={{ fontSize: 14, color: 'var(--color-text)', minWidth: 80 }}>
+                {props.required && <span style={{ color: 'var(--color-error)', marginRight: 4 }}>*</span>}
                 {props.label}
               </span>
             )}
-            <div style={{ flex: 1, height: 32, border: '1px solid #e5e5e5', borderRadius: 4, padding: '0 8px', fontSize: 14, color: '#999', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: props.disabled ? '#f5f5f5' : '#fff' }}>
+            <div style={{ flex: 1, height: 32, border: '1px solid var(--color-border)', borderRadius: 4, padding: '0 8px', fontSize: 14, color: 'var(--color-text-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: props.disabled ? 'var(--color-bg-layout)' : 'var(--color-white)' }}>
               <span>{props.placeholder || '请选择时间段'}</span>
-              <span style={{ fontSize: 12, color: '#ccc' }}>▼</span>
+              <span style={{ fontSize: 12, color: 'var(--color-border)' }}>▼</span>
             </div>
           </div>
         </div>
@@ -607,7 +607,7 @@ export function renderBaseComponent(
 
     default:
       return (
-        <div style={{ padding: '8px 12px', color: '#999', fontSize: 12, fontStyle: 'italic' }}>
+        <div style={{ padding: '8px 12px', color: 'var(--color-text-tertiary)', fontSize: 12, fontStyle: 'italic' }}>
           [{componentName}]
         </div>
       );

@@ -94,3 +94,44 @@
 - `dead-code-candidates.json` — 机器可读候选列表
 - `dependency-audit.json` — 依赖审计结果
 - `architecture-dependency-summary.md` — 模块依赖与循环依赖摘要
+
+---
+
+# 执行与调查日志（2026-06-30）
+
+## 已执行清理（P0，全部验证通过）
+
+| 分片 | 动作 | 验证 |
+|------|------|------|
+| Shard1 后端 | 删 `app/services/` 整目录；3 处 stale patch 重定向到 `app.modules.rule_engine.rule_performance_service.get_current_tenant_id`；删 `schemas/error.py`；`schemas/admin.py` 移除 8 个零引用类（保留 AdminListResponse） | test_cache_isolation.py 13 passed ✓ |
+| Shard2 packages/api | 删 `export.ts`/`contact.ts`/`config.ts` + barrel 清理 | tsc 无错 ✓ |
+| Shard3 admin | 删 `useFormDraft`/`errorHandler`/`formHelper`；`useResponsive` 移除 5 死 hook | 残留引用=0 ✓ |
+| Shard4 依赖+卫生 | 移除 5 死依赖；删 `var/`(52MB)；`git rm --cached` 27 个误入库文件；.gitignore 补 5 条 | 变更范围干净 ✓ |
+
+**安全护栏救回 4 项误判**：`account/useCountdown/performance/retry` 在 packages/api 内部有活跃消费者（useEmailBinding、request.ts、doctor.ts、admin.ts），正确跳过。
+
+## 已执行架构修复（P3）
+
+**wechatAuth 隐式循环依赖 —— 已修复并验证** ✓
+- `packages/shared/src/miniapp/wechatAuth.ts` 移除运行时 `import { userApi } from '@hospital/api'`，`getProfile` 改为注入参数（依赖反转，与 ImageUpload 的 onUpload 范式一致），仅保留 `import type`。
+- 6 个调用点（patient-miniapp LoginPopup/profile + miniapp-instance 4 个 Profile shell）传 `userApi.getProfile`；LoginPopup 补 userApi import。
+- 验证：shared 仅余 type import（运行时循环断开），packages/shared tsc 无错。
+
+## 调查结论（P1/P2 复核）
+
+| 项 | 原判定 | 复核结论 | 处置 |
+|----|--------|----------|------|
+| `packages/codegen` | P1 死包 | **误判** — 被 `lowcode/codegen_service.py` subprocess 调用（cli-wrapper.js/dist） | **从死代码清单移除** |
+| sessionRecorder 泄漏 | P1 嫌疑 | **误判** — `init` 已注册 beforeunload/pagehide/visibilitychange 兜底 flush，MAX_QUEUE_SIZE=500 防堆积；stop/forceFlush 是公开 API 非该调未调 | **无需修复** |
+| BaseSchema 批量替换 | P2 高收益机械重构 | **误判** — schedule.py 等文件请求 schema 用 2 字段 ConfigDict、响应 schema 用 4 字段，是**刻意差异**；盲转会改变序列化行为 | **降级为设计重构**，需先引分层基类，**禁止盲批量** |
+| patient-h5 `/guide` | P1 孤立页 | 确认 config 式路由无自动挂载 + 无内部跳转；后端 seed 的 `/pages/guide/index` 是小程序路径，与此无关 | **需产品确认**：删 or 补路由 |
+| admin `dictionaries` | P1 孤立页 | 后端 `/dicts`/`/dict-options` 已就绪，前端页未挂菜单 = 半成品 | **需产品决策**：挂菜单 or 删页 |
+| patient-miniapp `lowcode` | P1 孤立页 | Taro 须在 app.config pages 声明才能跳转 | **需确认后端是否下发**，是则补 pages |
+| mini-appointment-miniapp | P1 重叠 app | 确认 4 页、零引用 @hospital/api/shared、完全独立 | **需产品决策**：保持独立 or 接入共享层 |
+
+## 仍待处理（按优先级）
+
+1. **P3 后端软循环**（appointments↔waitlist、approval_flows↔leave_requests、payments↔refunds）+ **infrastructure 反向耦合 6 处** —— 每项需独立 PLAN，行为相关，建议逐个推进。
+2. **P1 三个孤立页面 + mini-appointment** —— 纯产品决策，需你拍板。
+3. **P2 重复实现**（web request.ts 三份、ProColumns presets、监听器归一化重复、重复 schema 定义）—— 中等收益重构，可分批。
+4. **P3 上帝服务拆分**（schedules/service_mutation.py 1623 行、unified_message/service.py 974 行）—— 大重构。

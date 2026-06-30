@@ -2,7 +2,7 @@ import { View, Text, Button as TaroButton, Image, Input as TaroInput } from '@ta
 import Taro from '@tarojs/taro';
 import { Button } from '@nutui/nutui-react-taro';
 import { useState, useEffect, useCallback } from 'react';
-import { authApi } from '@hospital/api';
+import { authApi, userApi } from '@hospital/api';
 import { getStoreId } from '../utils/store';
 import { applyWechatLoginResult, finalizeWechatUserBinding } from '../utils/wechatAuth';
 import { HospitalIcon } from './Icons';
@@ -74,7 +74,7 @@ const LoginPopup: React.FC<LoginPopupProps> = ({
       const storeId = getStoreId();
       const result = await authApi.wechatLogin(code, storeId || undefined);
 
-      const resolution = await applyWechatLoginResult(result);
+      const resolution = await applyWechatLoginResult(result, userApi.getProfile);
       if (resolution.status === 'needs-profile') {
         // 新用户，显示设置头像昵称界面
         setOpenid(resolution.openid);

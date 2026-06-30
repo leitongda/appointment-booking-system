@@ -203,7 +203,7 @@ export function ProfilePremium() {
 
       const storeId = getStoreId();
       const result = await authApi.wechatLogin(code, storeId || undefined);
-      const resolution = await applyWechatLoginResult(result);
+      const resolution = await applyWechatLoginResult(result, userApi.getProfile);
       if (resolution.status === 'needs-profile') {
         setOpenid(resolution.openid);
         setShowUserInfo(true);

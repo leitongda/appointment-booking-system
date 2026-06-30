@@ -11,13 +11,13 @@ export const EDITOR_LAYOUT = {
 export const EDITOR_COLORS = {
   border: '#e5e7eb',
   borderSubtle: '#eef0f3',
-  panelBg: '#ffffff',
+  panelBg: 'var(--color-white)fff',
   workspaceBg: '#f3f4f6',
   itemBg: '#f8fafc',
   itemHoverBg: '#eef6ff',
   textSecondary: '#6b7280',
   textMuted: '#9ca3af',
-  primary: '#1677ff',
+  primary: 'var(--color-primary)',
   primaryBg: 'rgba(22,119,255,0.06)',
 } as const;
 

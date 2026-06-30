@@ -236,7 +236,7 @@ const ProfilePage = () => {
       const storeId = getStoreId();
       const result = await authApi.wechatLogin(code, storeId || undefined);
 
-      const resolution = await applyWechatLoginResult(result);
+      const resolution = await applyWechatLoginResult(result, userApi.getProfile);
       if (resolution.status === 'needs-profile') {
         // 新用户，显示设置头像昵称弹窗
         setOpenid(resolution.openid);

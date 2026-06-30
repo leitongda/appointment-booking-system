@@ -274,7 +274,7 @@ const ExaminationReportPage: React.FC = () => {
             title="确定删除该报告吗？此操作不可恢复。"
             onConfirm={() => handleDelete(record.id)}
           >
-            <a style={{ color: '#ff4d4f', fontSize: 13 }}>
+            <a style={{ color: 'var(--color-error)', fontSize: 13 }}>
               <DeleteOutlined /> 删除
             </a>
           </Popconfirm>
@@ -410,7 +410,7 @@ const ExaminationReportPage: React.FC = () => {
             >
               <Button icon={<PlusOutlined />}>选择文件</Button>
             </Upload>
-            <div style={{ color: '#999', fontSize: 12, marginTop: 4 }}>
+            <div style={{ color: 'var(--color-text-tertiary)', fontSize: 12, marginTop: 4 }}>
               支持 PDF、JPEG、PNG、WebP，最大 20MB
             </div>
           </Form.Item>

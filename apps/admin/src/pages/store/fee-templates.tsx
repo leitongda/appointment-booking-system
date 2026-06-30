@@ -159,7 +159,7 @@ const StoreFeeTemplatesPage: React.FC = () => {
       key: 'globalRef',
       width: 200,
       render: (_: any, record: StoreFeeTemplateWithType) => (
-        <span style={{ color: '#999' }}>
+        <span style={{ color: 'var(--color-text-tertiary)' }}>
           初诊: ¥{Number(record.globalInitialFee || 0).toFixed(2)} / 
           复诊: ¥{Number(record.globalFollowUpFee || 0).toFixed(2)}
         </span>
@@ -244,7 +244,7 @@ const StoreFeeTemplatesPage: React.FC = () => {
           />
 
           {templates.length === 0 && !loading && (
-            <div style={{ textAlign: 'center', padding: '40px 0', color: '#999' }}>
+            <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--color-text-tertiary)' }}>
               暂无诊费类型，请先到配置中心 - 诊费类型添加全局诊费类型，或点击&quot;管理诊费类型&quot;创建门店专属类型
             </div>
           )}

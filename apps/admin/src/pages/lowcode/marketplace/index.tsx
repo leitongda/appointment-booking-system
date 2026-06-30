@@ -78,7 +78,7 @@ const TemplateCard: React.FC<{ item: LowCodeTemplate; onClick: (id: string) => v
       <div
         style={{
           height: 180,
-          background: '#f5f5f5',
+          background: 'var(--color-bg-layout)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -92,7 +92,7 @@ const TemplateCard: React.FC<{ item: LowCodeTemplate; onClick: (id: string) => v
             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           />
         ) : (
-          <EyeOutlined style={{ fontSize: 36, color: '#bbb' }} />
+          <EyeOutlined style={{ fontSize: 36, color: 'var(--color-border)' }} />
         )}
       </div>
     }
@@ -128,7 +128,7 @@ const TemplateCard: React.FC<{ item: LowCodeTemplate; onClick: (id: string) => v
                 WebkitLineClamp: 2,
                 WebkitBoxOrient: 'vertical',
                 overflow: 'hidden',
-                color: '#666',
+                color: 'var(--color-text-secondary)',
                 fontSize: 13,
                 lineHeight: '20px',
                 minHeight: 40,
@@ -139,14 +139,14 @@ const TemplateCard: React.FC<{ item: LowCodeTemplate; onClick: (id: string) => v
           </Tooltip>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Space size={12}>
-              <span style={{ fontSize: 12, color: '#999' }}>
+              <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>
                 <ForkOutlined /> {item.forkCount}
               </span>
-              <span style={{ fontSize: 12, color: '#999' }}>
+              <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>
                 <LikeOutlined /> {item.likeCount}
               </span>
             </Space>
-            <span style={{ fontSize: 12, color: '#999' }}>{item.authorName || '未知'}</span>
+            <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>{item.authorName || '未知'}</span>
           </div>
         </Space>
       }
@@ -243,8 +243,8 @@ const Marketplace: React.FC = () => {
                     padding: '6px 12px',
                     borderRadius: 6,
                     cursor: 'pointer',
-                    background: activeCategory === cat.key ? '#e6f4ff' : 'transparent',
-                    color: activeCategory === cat.key ? '#1677ff' : '#333',
+                    background: activeCategory === cat.key ? 'var(--color-primary-bg)' : 'transparent',
+                    color: activeCategory === cat.key ? 'var(--color-primary)' : 'var(--color-text)',
                     fontWeight: activeCategory === cat.key ? 500 : 400,
                     transition: 'all 0.2s',
                   }}
@@ -264,7 +264,7 @@ const Marketplace: React.FC = () => {
               <Col flex="auto">
                 <Input
                   placeholder="搜索模板名称或描述"
-                  prefix={<SearchOutlined style={{ color: '#bbb' }} />}
+                  prefix={<SearchOutlined style={{ color: 'var(--color-border)' }} />}
                   allowClear
                   value={keyword}
                   onChange={(e) => handleKeywordChange(e.target.value)}

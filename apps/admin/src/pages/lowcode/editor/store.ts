@@ -110,7 +110,7 @@ const DEFAULT_SCHEMA: LowCodeSchema = {
   componentName: 'Page',
   props: {
     navigationBarTitleText: '新页面',
-    navigationBarBackgroundColor: '#ffffff',
+    navigationBarBackgroundColor: 'var(--color-white)fff',
     navigationBarTextStyle: 'black',
   },
   children: [],

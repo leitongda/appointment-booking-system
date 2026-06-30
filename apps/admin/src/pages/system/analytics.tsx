@@ -189,22 +189,22 @@ const BehaviorOverviewTab: React.FC = () => {
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col xs={24} sm={12} lg={6}>
           <Card>
-            <Statistic title="页面访问量 (PV)" value={data?.total_page_views || 0} prefix={<EyeOutlined />} styles={{ content: { color: '#1677ff' } }} />
+            <Statistic title="页面访问量 (PV)" value={data?.total_page_views || 0} prefix={<EyeOutlined />} styles={{ content: { color: 'var(--color-primary)' } }} />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <Card>
-            <Statistic title="独立访客数 (UV)" value={data?.total_unique_users || 0} prefix={<UserOutlined />} styles={{ content: { color: '#52c41a' } }} />
+            <Statistic title="独立访客数 (UV)" value={data?.total_unique_users || 0} prefix={<UserOutlined />} styles={{ content: { color: 'var(--color-success)' } }} />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <Card>
-            <Statistic title="点击次数" value={data?.total_clicks || 0} prefix={<AimOutlined />} styles={{ content: { color: '#faad14' } }} />
+            <Statistic title="点击次数" value={data?.total_clicks || 0} prefix={<AimOutlined />} styles={{ content: { color: 'var(--color-warning)' } }} />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <Card>
-            <Statistic title="搜索次数" value={data?.total_searches || 0} prefix={<SearchOutlined />} styles={{ content: { color: '#722ed1' } }} />
+            <Statistic title="搜索次数" value={data?.total_searches || 0} prefix={<SearchOutlined />} styles={{ content: { color: 'var(--color-afternoon)' } }} />
           </Card>
         </Col>
       </Row>
@@ -212,7 +212,7 @@ const BehaviorOverviewTab: React.FC = () => {
       {data?.avg_duration && (
         <Card style={{ marginBottom: 16 }}>
           <Space>
-            <ClockCircleOutlined style={{ fontSize: 24, color: '#1677ff' }} />
+            <ClockCircleOutlined style={{ fontSize: 24, color: 'var(--color-primary)' }} />
             <div>
               <Text type="secondary">平均页面停留时长</Text>
               <Title level={4} style={{ margin: 0 }}>{formatDuration(data.avg_duration)}</Title>
@@ -358,7 +358,7 @@ const TenantActivityTab: React.FC = () => {
               title="今日活跃用户 (DAU)"
               value={data?.currentDau || 0}
               prefix={<UserOutlined />}
-              styles={{ content: { color: '#1677ff' } }}
+              styles={{ content: { color: 'var(--color-primary)' } }}
             />
           </Card>
         </Col>
@@ -368,7 +368,7 @@ const TenantActivityTab: React.FC = () => {
               title="本周活跃用户 (WAU)"
               value={data?.currentWau || 0}
               prefix={<TeamOutlined />}
-              styles={{ content: { color: '#52c41a' } }}
+              styles={{ content: { color: 'var(--color-success)' } }}
             />
           </Card>
         </Col>
@@ -378,7 +378,7 @@ const TenantActivityTab: React.FC = () => {
               title="本月活跃用户 (MAU)"
               value={data?.currentMau || 0}
               prefix={<TeamOutlined />}
-              styles={{ content: { color: '#722ed1' } }}
+              styles={{ content: { color: 'var(--color-afternoon)' } }}
             />
           </Card>
         </Col>

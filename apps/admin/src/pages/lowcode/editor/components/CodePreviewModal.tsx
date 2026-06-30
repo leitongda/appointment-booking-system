@@ -254,8 +254,8 @@ const CodePreviewModal: React.FC<CodePreviewModalProps> = ({
             style={{
               margin: 0,
               padding: '12px 16px',
-              background: '#fafafa',
-              border: '1px solid #f0f0f0',
+              background: 'var(--color-bg-container)',
+              border: '1px solid var(--color-border-secondary)',
               borderRadius: 6,
               maxHeight: 480,
               overflow: 'auto',

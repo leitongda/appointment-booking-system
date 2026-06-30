@@ -13,9 +13,9 @@ const CHANNEL_CONFIG: Record<string, { text: string; color: string; quotaKey: ke
 };
 
 const CHANNEL_COLORS: Record<string, string> = {
-  blue: '#1677ff',
+  blue: 'var(--color-primary)',
   cyan: '#13c2c2',
-  green: '#52c41a',
+  green: 'var(--color-success)',
   purple: '#722ed1',
 };
 
@@ -183,7 +183,7 @@ const NotificationQuotaPage: React.FC = () => {
                         </Space>
                         <Typography.Text type="secondary">{percent}%</Typography.Text>
                       </div>
-                      <Progress percent={percent} showInfo={false} strokeColor={CHANNEL_COLORS[config.color] || '#1677ff'} />
+                      <Progress percent={percent} showInfo={false} strokeColor={CHANNEL_COLORS[config.color] || 'var(--color-primary)'} />
                     </div>
                   );
                 })}
@@ -216,7 +216,7 @@ const NotificationQuotaPage: React.FC = () => {
                     style={{
                       width: 16,
                       height,
-                      background: '#1677ff',
+                      background: 'var(--color-primary)',
                       borderRadius: '2px 2px 0 0',
                     }}
                   />

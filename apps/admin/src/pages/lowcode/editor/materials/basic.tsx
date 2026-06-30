@@ -11,14 +11,14 @@ export const basicMaterials: MaterialComponent[] = [
     defaultProps: {
       text: '文本内容',
       fontSize: '14px',
-      color: '#333333',
+      color: 'var(--color-text)333',
       fontWeight: 'normal',
       textAlign: 'left',
     },
     configureSchema: [
       { key: 'text', label: '文本内容', type: 'textarea' },
       { key: 'fontSize', label: '字号', type: 'input', defaultValue: '14px' },
-      { key: 'color', label: '颜色', type: 'color', defaultValue: '#333333' },
+      { key: 'color', label: '颜色', type: 'color', defaultValue: 'var(--color-text)333' },
       {
         key: 'fontWeight',
         label: '字重',

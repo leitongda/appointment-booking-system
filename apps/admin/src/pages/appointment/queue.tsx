@@ -288,7 +288,7 @@ const AppointmentQueuePage: React.FC = () => {
           <Button onClick={refreshQueue}>刷新</Button>
           <Tooltip title={pollingEnabled ? '自动刷新已开启（30秒）' : '自动刷新已关闭'}>
             <Space>
-              <span style={{ color: '#666', fontSize: 12 }}>自动刷新</span>
+              <span style={{ color: 'var(--color-text-secondary)', fontSize: 12 }}>自动刷新</span>
               <Switch size="small" checked={pollingEnabled} onChange={setPollingEnabled} />
             </Space>
           </Tooltip>

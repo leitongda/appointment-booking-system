@@ -288,7 +288,7 @@ const ScheduleDetailCalendarPage: React.FC = () => {
             />
           </div>
           <div style={{ marginTop: 2 }}>
-            <span style={{ fontSize: 10, color: '#666' }}>
+            <span style={{ fontSize: 10, color: 'var(--color-text-secondary)' }}>
               {totalBookedSlots}/{totalSlots}
             </span>
           </div>
@@ -402,14 +402,14 @@ const ScheduleDetailCalendarPage: React.FC = () => {
             return null;
           }}
           style={{
-            background: '#fff',
+            background: 'var(--color-white)',
             borderRadius: 8,
             padding: 16,
           }}
         />
       </Spin>
 
-      <div style={{ marginTop: 16, fontSize: 12, color: '#666' }}>
+      <div style={{ marginTop: 16, fontSize: 12, color: 'var(--color-text-secondary)' }}>
         <div>
           <Badge status="success" text="正常" /> - 可预约
         </div>

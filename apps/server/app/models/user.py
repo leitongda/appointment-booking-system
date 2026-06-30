@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, Numeric, String, UniqueConstraint
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, LargeBinary, Numeric, String, UniqueConstraint
 from sqlalchemy.orm import relationship as orm_relationship
 
 from app.db.base import AuditMixin, Base
@@ -54,6 +54,11 @@ class Patient(Base, AuditMixin):
     name = Column(String(50), nullable=False)
     phone = Column(String(20), nullable=False)
     id_card = Column(String(18))
+    # 敏感数据加密列（阶段 1：新增，阶段 2：迁移数据，阶段 3：删除明文列）
+    phone_encrypted = Column(LargeBinary, nullable=True, comment='手机号加密存储')
+    phone_hash = Column(String(64), nullable=True, index=True, comment='手机号哈希（SHA-256）')
+    id_card_encrypted = Column(LargeBinary, nullable=True, comment='身份证号加密存储')
+    id_card_hash = Column(String(64), nullable=True, index=True, comment='身份证号哈希（SHA-256）')
     gender = Column(Integer)
     age = Column(Integer, comment="年龄")  # 新增年龄字段
     birthday = Column(DateTime)

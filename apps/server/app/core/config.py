@@ -160,7 +160,13 @@ class Settings(BaseSettings):
     TENCENT_SMS_APP_ID: str | None = None
     TENCENT_SMS_SIGN_NAME: str | None = None
     TENCENT_SMS_REGION: str = "ap-guangzhou"
-    
+
+    # KMS 密钥管理配置
+    KMS_PROVIDER: str = "local"  # local / aliyun / tencent
+    KMS_KEY_ID: str | None = None  # KMS 密钥 ID（阿里云/腾讯云）
+    ENCRYPTION_KEY: str | None = None  # 本地加密密钥（base64 编码的 32 字节，仅 local 模式）
+    ENCRYPTION_KEY_PREVIOUS: str | None = None  # 旧密钥（密钥轮换期间用于解密历史数据）
+
     # 存储配置
     STORAGE_TYPE: str = "local"  # local / minio / cos
     

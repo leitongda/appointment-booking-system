@@ -116,17 +116,17 @@ export const StateVariablePanel: React.FC = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <div style={{ fontWeight: 500 }}>{variable.label || key}</div>
-                <div style={{ fontSize: 12, color: '#999' }}>
+                <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>
                   {key} · {variable.type}
                 </div>
               </div>
               <Space size={4}>
                 <EditOutlined
-                  style={{ cursor: 'pointer', color: '#999' }}
+                  style={{ cursor: 'pointer', color: 'var(--color-text-tertiary)' }}
                   onClick={() => setEditingKey(key)}
                 />
                 <Popconfirm title="确定删除？" onConfirm={() => handleDelete(key)}>
-                  <DeleteOutlined style={{ cursor: 'pointer', color: '#ff4d4f' }} />
+                  <DeleteOutlined style={{ cursor: 'pointer', color: 'var(--color-error)' }} />
                 </Popconfirm>
               </Space>
             </div>

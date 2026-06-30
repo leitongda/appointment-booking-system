@@ -311,7 +311,7 @@ const ShareDialog: React.FC<ShareDialogProps> = ({ open, onClose }) => {
               )}
             </div>
             <div>
-              <span style={{ fontSize: 12, color: '#999' }}>预设标签：</span>
+              <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>预设标签：</span>
               {PRESET_TAGS.filter((t) => !tags.includes(t)).map((tag) => (
                 <Tag
                   key={tag}
@@ -342,7 +342,7 @@ const ShareDialog: React.FC<ShareDialogProps> = ({ open, onClose }) => {
                     style={{
                       width: 160,
                       height: 90,
-                      border: '1px solid #d9d9d9',
+                      border: '1px solid var(--color-border)',
                       borderRadius: 6,
                       overflow: 'hidden',
                       position: 'relative',
@@ -369,7 +369,7 @@ const ShareDialog: React.FC<ShareDialogProps> = ({ open, onClose }) => {
                           e.stopPropagation();
                           handleRemoveThumbnail();
                         }}
-                        style={{ color: '#ff4d4f', background: 'rgba(255,255,255,0.8)' }}
+                        style={{ color: 'var(--color-error)', background: 'rgba(255,255,255,0.8)' }}
                       />
                     </div>
                   </div>
@@ -378,24 +378,24 @@ const ShareDialog: React.FC<ShareDialogProps> = ({ open, onClose }) => {
                     style={{
                       width: 160,
                       height: 90,
-                      border: '1px dashed #d9d9d9',
+                      border: '1px dashed var(--color-border)',
                       borderRadius: 6,
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',
                       justifyContent: 'center',
                       cursor: uploading ? 'not-allowed' : 'pointer',
-                      background: '#fafafa',
+                      background: 'var(--color-bg-container)',
                     }}
                   >
-                    <UploadOutlined style={{ fontSize: 20, color: '#999', marginBottom: 4 }} />
-                    <span style={{ fontSize: 12, color: '#999' }}>
+                    <UploadOutlined style={{ fontSize: 20, color: 'var(--color-text-tertiary)', marginBottom: 4 }} />
+                    <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>
                       {uploading ? '上传中...' : '上传缩略图'}
                     </span>
                   </div>
                 )}
               </Upload>
-              <span style={{ fontSize: 12, color: '#999' }}>
+              <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>
                 建议尺寸 800x450，支持 JPG/PNG，最大 5MB
               </span>
             </Space>

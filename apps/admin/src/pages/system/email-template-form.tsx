@@ -172,7 +172,7 @@ const EmailTemplateFormPage: React.FC = () => {
             <span>
               可用变量：
               {EMAIL_TEMPLATE_VARIABLES.map((v) => (
-                <code key={v.value} style={{ marginLeft: 8, color: '#1677ff' }}>
+                <code key={v.value} style={{ marginLeft: 8, color: 'var(--color-primary)' }}>
                   {`{{${v.value}}}`}
                 </code>
               ))}

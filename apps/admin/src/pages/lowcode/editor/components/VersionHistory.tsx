@@ -118,8 +118,8 @@ const VersionHistory: React.FC<VersionHistoryProps> = ({ open, onClose }) => {
               return (
                 <List.Item
                   style={{
-                    backgroundColor: isCurrent ? '#f6ffed' : undefined,
-                    borderLeft: isCurrent ? '3px solid #52c41a' : undefined,
+                    backgroundColor: isCurrent ? 'var(--color-success-bg)' : undefined,
+                    borderLeft: isCurrent ? '3px solid var(--color-success)' : undefined,
                     padding: '12px 16px',
                   }}
                   actions={

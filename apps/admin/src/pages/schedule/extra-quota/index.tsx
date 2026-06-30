@@ -175,7 +175,7 @@ const ExtraQuotaPage: React.FC = () => {
       render: (_, record) => {
         if (record.approvalStatus !== 'pending') {
           return record.reviewedAt ? (
-            <span style={{ color: '#999', fontSize: 12 }}>
+            <span style={{ color: 'var(--color-text-tertiary)', fontSize: 12 }}>
               {record.reviewerName ? `${record.reviewerName} ` : ''}已审批
             </span>
           ) : null;
@@ -230,7 +230,7 @@ const ExtraQuotaPage: React.FC = () => {
         width={420}
       >
         {currentRecord && (
-          <div style={{ marginBottom: 16, padding: '8px 12px', background: '#f5f5f5', borderRadius: 6 }}>
+          <div style={{ marginBottom: 16, padding: '8px 12px', background: 'var(--color-bg-layout)', borderRadius: 6 }}>
             <div>医生：{currentRecord.doctorName}</div>
             <div>
               日期：{currentRecord.scheduleDate}{' '}

@@ -82,7 +82,7 @@ const GenerateScheduleModal: React.FC<GenerateScheduleModalProps> = ({
               title={
                 <div>
                   <div>规则：<strong>{currentTemplate.name}</strong></div>
-                  <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
+                  <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 4 }}>
                     医生：{currentTemplate.doctorName} | 科室：{currentTemplate.departmentName} |
                     星期：{(currentTemplate.weekdays || []).map((w: number) => WEEKDAY_MAP[w]).join('、')}
                     {currentTemplate.breakTimes && currentTemplate.breakTimes.length > 0 && (
@@ -106,7 +106,7 @@ const GenerateScheduleModal: React.FC<GenerateScheduleModalProps> = ({
 
           {/* 快捷选择按钮 */}
           <div style={{ marginBottom: 16 }}>
-            <div style={{ marginBottom: 8, color: '#666' }}>快捷选择：</div>
+            <div style={{ marginBottom: 8, color: 'var(--color-text-secondary)' }}>快捷选择：</div>
             <Space wrap>
               {[
                 { label: '1个月', months: 1 },
@@ -201,7 +201,7 @@ const GenerateScheduleModal: React.FC<GenerateScheduleModalProps> = ({
                     {preview.templateName} - {preview.doctorName} ({preview.departmentName})
                   </span>
                   {preview.dailyDurationHours !== undefined && (
-                    <span style={{ marginLeft: 16, color: '#666', fontSize: 12 }}>
+                    <span style={{ marginLeft: 16, color: 'var(--color-text-secondary)', fontSize: 12 }}>
                       每日总时长：{preview.dailyDurationHours}小时
                       {preview.dailyDurationMinutes !== undefined && preview.dailyDurationMinutes > 0 && `${preview.dailyDurationMinutes}分钟`}
                     </span>

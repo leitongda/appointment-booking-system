@@ -223,7 +223,7 @@ const AttendanceRecordsPage: React.FC = () => {
       search: false,
       render: (_, record) =>
         record.lateMinutes > 0 ? (
-          <span style={{ color: '#fa8c16' }}>{record.lateMinutes}</span>
+          <span style={{ color: 'var(--color-evening)' }}>{record.lateMinutes}</span>
         ) : (
           '-'
         ),

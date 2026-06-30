@@ -136,7 +136,7 @@ export const getRuleSetColumns = (handlers: ColumnHandlers): ProColumns<RuleSet>
         )}
         {handlers.canSuperAdmin && (
           <a
-            style={{ color: '#ff4d4f' }}
+            style={{ color: 'var(--color-error)' }}
             onClick={() => {
               const shiftTypesText = record.shiftTypes && record.shiftTypes.length > 0
                 ? record.shiftTypes.map(st => st.name).join('、')

@@ -12,6 +12,8 @@ from app.models.appointment import Appointment
 from app.models.user import Patient, User
 from app.modules.patients.common import PatientsServiceBase
 from app.utils.audit import set_create_audit, set_update_audit
+from app.utils.masking import is_masked_value
+from app.utils.patient_masking import mask_patient_data
 
 
 class UserManageService(PatientsServiceBase):
@@ -182,7 +184,7 @@ class UserManageService(PatientsServiceBase):
             card_noshow_map = {}
 
         cards_data = [
-            {
+            mask_patient_data({
                 "id": card.id,
                 "cardNo": card.card_no,
                 "name": card.name,
@@ -197,7 +199,7 @@ class UserManageService(PatientsServiceBase):
                 "appointmentCount": card_appt_map.get(card.id, 0),
                 "noShowCount": card_noshow_map.get(card.id, 0),
                 "createdAt": card.created_at.isoformat() if card.created_at else None,
-            }
+            })
             for card in cards
         ]
 
@@ -348,8 +350,8 @@ class UserManageService(PatientsServiceBase):
             user_id=user_id,
             tenant_id=tenant_id or user.tenant_id,
             name=data.name,
-            phone=data.phone,
-            id_card=data.id_card,
+            phone=data.phone if not is_masked_value(data.phone) else None,
+            id_card=data.id_card if not is_masked_value(data.id_card) else None,
             gender=data.gender,
             birthday=birthday,
             relationship=data.relationship,
@@ -367,7 +369,7 @@ class UserManageService(PatientsServiceBase):
         set_create_audit(card, operator_id)
         self.db.add(card)
         await self.db.commit()
-        return {
+        return mask_patient_data({
             "id": card.id,
             "userId": card.user_id,
             "cardNo": card.card_no,
@@ -381,7 +383,7 @@ class UserManageService(PatientsServiceBase):
             "appointmentCount": 0,
             "noShowCount": 0,
             "createdAt": card.created_at.isoformat() if card.created_at else None,
-        }
+        })
 
     async def update_card(self, user_id: str, card_id: str, data, operator_id: str | None = None) -> dict | None:
         query = select(Patient).where(and_(Patient.id == card_id, Patient.user_id == user_id))
@@ -421,7 +423,7 @@ class UserManageService(PatientsServiceBase):
         if tenant_id:
             no_show_count_query = no_show_count_query.where(Appointment.tenant_id == tenant_id)
         no_show_count = await self.db.scalar(no_show_count_query)
-        return {
+        return mask_patient_data({
             "id": card.id,
             "userId": card.user_id,
             "cardNo": card.card_no,
@@ -437,7 +439,7 @@ class UserManageService(PatientsServiceBase):
             "appointmentCount": appointment_count or 0,
             "noShowCount": no_show_count or 0,
             "createdAt": card.created_at.isoformat() if card.created_at else None,
-        }
+        })
 
     async def delete_card(self, user_id: str, card_id: str) -> bool:
         query = select(Patient).where(and_(Patient.id == card_id, Patient.user_id == user_id))

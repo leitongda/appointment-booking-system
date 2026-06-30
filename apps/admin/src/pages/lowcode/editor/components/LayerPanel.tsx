@@ -127,7 +127,7 @@ function LayerTreeNode({
         padding: '4px 8px',
         borderRadius: 6,
         cursor: 'pointer',
-        background: isSelected ? '#e6f4ff' : 'transparent',
+        background: isSelected ? 'var(--color-primary-bg)' : 'transparent',
         borderLeft: isSelected ? `2px solid ${EDITOR_COLORS.primary}` : '2px solid transparent',
         opacity: isHidden ? 0.45 : 1,
         transition: 'background 0.12s, opacity 0.12s',
@@ -184,7 +184,7 @@ function LayerTreeNode({
           fontSize: 12,
           flex: 1,
           minWidth: 0,
-          color: isSelected ? EDITOR_COLORS.primary : '#333',
+          color: isSelected ? EDITOR_COLORS.primary : 'var(--color-text)',
         }}
       >
         {node.componentName}
@@ -226,7 +226,7 @@ function LayerTreeNode({
           {node.componentName !== 'Page' && (
             <Tooltip title="删除">
               <DeleteOutlined
-                style={{ fontSize: 13, color: '#ff4d4f', cursor: 'pointer' }}
+                style={{ fontSize: 13, color: 'var(--color-error)', cursor: 'pointer' }}
                 onClick={() => onDelete(node.id)}
               />
             </Tooltip>

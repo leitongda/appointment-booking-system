@@ -30,13 +30,13 @@ dayjs.extend(relativeTime);
 
 /** 状态 -> 颜色映射 */
 const STATUS_COLOR_MAP: Record<DeployStatus, { badge: 'success' | 'processing' | 'warning' | 'error' | 'default'; dot: string; label: string }> = {
-  published: { badge: 'success', dot: '#52c41a', label: '已发布' },
-  building: { badge: 'processing', dot: '#1677ff', label: '构建中' },
+  published: { badge: 'success', dot: 'var(--color-success)', label: '已发布' },
+  building: { badge: 'processing', dot: 'var(--color-primary)', label: '构建中' },
   built: { badge: 'processing', dot: '#13c2c2', label: '已构建' },
-  uploading: { badge: 'processing', dot: '#1677ff', label: '上传中' },
+  uploading: { badge: 'processing', dot: 'var(--color-primary)', label: '上传中' },
   uploaded: { badge: 'processing', dot: '#13c2c2', label: '已上传' },
-  auditing: { badge: 'warning', dot: '#faad14', label: '审核中' },
-  failed: { badge: 'error', dot: '#ff4d4f', label: '构建失败' },
+  auditing: { badge: 'warning', dot: 'var(--color-warning)', label: '审核中' },
+  failed: { badge: 'error', dot: 'var(--color-error)', label: '构建失败' },
   idle: { badge: 'default', dot: '#bfbfbf', label: '待部署' },
 };
 
@@ -260,19 +260,19 @@ const DeployStatusIndicator: React.FC<DeployStatusIndicatorProps> = ({ pageId })
           gap: 6,
           padding: '4px 10px',
           borderRadius: 6,
-          border: '1px solid #f0f0f0',
-          background: '#fafafa',
+          border: '1px solid var(--color-border-secondary)',
+          background: 'var(--color-bg-container)',
           cursor: 'pointer',
           transition: 'border-color 0.2s, background 0.2s',
           userSelect: 'none',
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.borderColor = '#d9d9d9';
-          e.currentTarget.style.background = '#f5f5f5';
+          e.currentTarget.style.borderColor = 'var(--color-border)';
+          e.currentTarget.style.background = 'var(--color-bg-layout)';
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.borderColor = '#f0f0f0';
-          e.currentTarget.style.background = '#fafafa';
+          e.currentTarget.style.borderColor = 'var(--color-border-secondary)';
+          e.currentTarget.style.background = 'var(--color-bg-container)';
         }}
       >
         <Badge status={statusCfg.badge} />

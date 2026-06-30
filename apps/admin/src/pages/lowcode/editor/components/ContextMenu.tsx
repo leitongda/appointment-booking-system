@@ -109,7 +109,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ nodeId, x, y, onClose 
           position: 'fixed',
           left: x,
           top: y,
-          background: '#fff',
+          background: 'var(--color-white)',
           borderRadius: 6,
           boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
           padding: '4px 0',
@@ -119,7 +119,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ nodeId, x, y, onClose 
       >
         {menuItems.map((item, i) => {
           if (item.type === 'divider') {
-            return <div key={i} role="separator" style={{ height: 1, background: '#f0f0f0', margin: '4px 0' }} />;
+            return <div key={i} role="separator" style={{ height: 1, background: 'var(--color-border-secondary)', margin: '4px 0' }} />;
           }
           return (
             <div
@@ -142,14 +142,14 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ nodeId, x, y, onClose 
                 fontSize: 13,
               }}
             onMouseEnter={(e) => {
-              (e.currentTarget as HTMLElement).style.background = '#f5f5f5';
+              (e.currentTarget as HTMLElement).style.background = 'var(--color-bg-layout)';
             }}
             onMouseLeave={(e) => {
               (e.currentTarget as HTMLElement).style.background = 'transparent';
             }}
             >
               <span>{item.label}</span>
-              <span style={{ color: '#999', fontSize: 11 }}>{item.shortcut}</span>
+              <span style={{ color: 'var(--color-text-tertiary)', fontSize: 11 }}>{item.shortcut}</span>
             </div>
           );
         })}
@@ -165,7 +165,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ nodeId, x, y, onClose 
       >
         <div style={{ marginTop: 12 }}>
           <label style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>
-            Snippet 名称 <span style={{ color: '#ff4d4f' }}>*</span>
+            Snippet 名称 <span style={{ color: 'var(--color-error)' }}>*</span>
           </label>
           <Input
             placeholder="例如: 用户信息卡片"

@@ -200,13 +200,13 @@ const NotificationLogsPage: React.FC = () => {
         </Col>
         <Col span={4}>
           <Card loading={statsLoading}>
-            <Statistic title="失败" value={stats?.failed || 0} styles={{ content: { color: '#cf1322' } }} />
+            <Statistic title="失败" value={stats?.failed || 0} styles={{ content: { color: 'var(--color-error-active)' } }} />
           </Card>
         </Col>
         <Col span={4}>
           <Card loading={statsLoading}>
             <Statistic title="失败率" value={stats?.failureRate || 0} precision={2} suffix="%"
-              styles={{ content: { color: (stats?.failureRate || 0) > 5 ? '#cf1322' : '#3f8600' } }}
+              styles={{ content: { color: (stats?.failureRate || 0) > 5 ? 'var(--color-error-active)' : '#3f8600' } }}
             />
           </Card>
         </Col>

@@ -51,7 +51,7 @@ const DoctorDetailPage: React.FC = () => {
         </Avatar>
         <div>
           <h2 style={{ margin: '0 0 8px' }}>{doctor?.name}</h2>
-          <p style={{ color: '#666', margin: '0 0 8px' }}>{doctor?.title}</p>
+          <p style={{ color: 'var(--color-text-secondary)', margin: '0 0 8px' }}>{doctor?.title}</p>
           <Space>
             {doctor?.isRecommended === 1 && <Tag color="orange">推荐医生</Tag>}
             <Tag color={doctor?.status === 1 ? 'green' : 'default'}>

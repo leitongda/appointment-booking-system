@@ -107,12 +107,12 @@ export const displayMaterials: MaterialComponent[] = [
     defaultProps: {
       name: 'star',
       size: '20px',
-      color: '#333333',
+      color: 'var(--color-text)333',
     },
     configureSchema: [
       { key: 'name', label: '图标名称', type: 'input', defaultValue: 'star' },
       { key: 'size', label: '尺寸', type: 'input', defaultValue: '20px' },
-      { key: 'color', label: '颜色', type: 'color', defaultValue: '#333333' },
+      { key: 'color', label: '颜色', type: 'color', defaultValue: 'var(--color-text)333' },
     ],
   },
   {
