@@ -8,8 +8,8 @@
 设计要点：
 - 打破 ``modules/appointments`` 与 ``modules/waitlist`` 的循环依赖：
   方向 B（appointments → waitlist）由同步调用改为 Celery 事件。
-- 失败不重试：与历史行为一致（递补失败不影响取消主流程），
-  失败可见性从 cancel 调用栈的 logger.warning 迁移到此处 logger.error。
+- 瞬时故障（DB 抖动、锁冲突）指数退避重试 3 次；用尽后放弃（取消主流程已成功），
+  由 ``reconcile_stuck_promotions`` 周期告警兜底"号源空转"风险。
 - 不传 ORM 对象：payload 仅携带可序列化标量。
 - WaitlistService.auto_promote 是 async 方法（依赖 AsyncSession + async 的
   AppointmentService.create），因此通过 ``async_session_maker`` +
@@ -28,8 +28,7 @@ logger = logging.getLogger(__name__)
 @celery_app.task(
     name="app.tasks.waitlist_promotion_task.handle_appointment_cancelled",
     bind=True,
-    autoretry_for=(),
-    max_retries=0,
+    max_retries=3,
     time_limit=120,
     soft_time_limit=90,
 )
@@ -48,8 +47,9 @@ def handle_appointment_cancelled(self, payload: dict[str, Any]) -> dict[str, Any
         结果摘要字典（供 Flower / 日志观测）。
 
     异常策略:
-        全程 try/except：任何异常仅 logger.error，不外抛、不重试，
-        与"递补失败不影响取消"的历史语义保持一致。
+        瞬时故障（DB 抖动、锁冲突）指数退避重试 3 次（count=2^retries）；
+        用尽后仅 logger.error，不外抛 —— 取消主流程已成功，号源空转由
+        ``reconcile_stuck_promotions`` 周期告警兜底。
     """
     tenant_id = payload.get("tenant_id")
     schedule_id = payload.get("schedule_id")
@@ -104,10 +104,24 @@ def handle_appointment_cancelled(self, payload: dict[str, Any]) -> dict[str, Any
             "promoted_count": promoted_count,
         }
     except Exception as e:  # noqa: BLE001 — 递补失败需吞掉，不影响取消
-        # 失败不重试、不外抛（与"递补失败不影响取消"的历史语义一致）
+        # 瞬时故障（DB 抖动、锁冲突）指数退避重试；用尽后放弃（取消已成功，
+        # 号源空转由 reconcile_stuck_promotions 周期告警兜底）。
+        if self.request.retries < self.max_retries:
+            logger.warning(
+                "[WaitlistPromotion] 递补失败，将重试 %d/%d: tenant=%s "
+                "schedule=%s appointment=%s error=%s",
+                self.request.retries + 1,
+                self.max_retries,
+                tenant_id,
+                schedule_id,
+                appointment_id,
+                e,
+            )
+            raise self.retry(exc=e, countdown=2 ** self.request.retries) from None
         logger.error(
-            "[WaitlistPromotion] 候补自动递补失败: tenant=%s schedule=%s "
-            "appointment=%s error=%s",
+            "[WaitlistPromotion] 候补递补重试 %d 次仍失败，放弃（号源已释放，"
+            "需核查 reconcile 告警）: tenant=%s schedule=%s appointment=%s error=%s",
+            self.max_retries,
             tenant_id,
             schedule_id,
             appointment_id,
@@ -120,4 +134,57 @@ def handle_appointment_cancelled(self, payload: dict[str, Any]) -> dict[str, Any
             "schedule_id": schedule_id,
             "appointment_id": appointment_id,
             "error": str(e),
+            "exhausted_retries": True,
         }
+
+
+@celery_app.task(
+    name="app.tasks.waitlist_promotion_task.reconcile_stuck_promotions",
+    time_limit=60,
+    soft_time_limit=45,
+)
+def reconcile_stuck_promotions() -> dict[str, Any]:
+    """周期性探测卡在 PROCESSING 的候补（递补 task 异常崩溃未回退的异常态）。
+
+    PROCESSING 是 ``WaitlistService.auto_promote`` 内部的瞬态（毫秒级
+    set→resolve 为 PROMOTED/WAITING）。若被周期任务观测到，几乎必然是
+    递补 task 在 set PROCESSING 后、resolve 前崩溃（worker kill / OOM /
+    异常未捕获路径），status 未回退 WAITING。
+
+    本任务**仅告警**（结构化 error 日志，便于 Flower/日志系统告警），**不自动
+    重置/重投** —— 避免误判正常在途递补（虽概率极低）。运营据此决定是否人工
+    介入；自动重投/outbox 补偿属后续可靠性增强。
+    """
+    try:
+        from sqlalchemy import select
+
+        from app.db.session import get_sync_db
+        from app.models.waitlist import WaitlistEntry
+
+        db_gen = get_sync_db()
+        db = next(db_gen)
+        try:
+            stuck = db.execute(
+                select(
+                    WaitlistEntry.id,
+                    WaitlistEntry.schedule_id,
+                    WaitlistEntry.tenant_id,
+                ).where(WaitlistEntry.status == "PROCESSING")
+            ).all()
+        finally:
+            db_gen.close()
+
+        if stuck:
+            logger.error(
+                "[WaitlistPromotionReconcile] 检测到 %d 条候补卡在 PROCESSING"
+                "（递补 task 异常未回退，核查号源是否空转）: entries=%s",
+                len(stuck),
+                [(row.id, row.schedule_id, str(row.tenant_id)) for row in stuck],
+            )
+            return {"stuck_count": len(stuck), "ids": [row.id for row in stuck]}
+        return {"stuck_count": 0}
+    except Exception as e:  # noqa: BLE001 — 探测失败不应中断 beat 调度
+        logger.error(
+            "[WaitlistPromotionReconcile] 探测失败: %s", e, exc_info=True
+        )
+        return {"ok": False, "error": str(e)}

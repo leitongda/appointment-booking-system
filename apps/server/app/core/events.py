@@ -24,6 +24,9 @@ EVENT_TYPE_LABELS: dict[str, str] = {
 }
 
 
+# NOTE: 目前仅 APPOINTMENT_CANCELLED → waitlist_promotion_task 一条链路，刻意单函数实现。
+# 当出现第 2 个事件副作用时，重构为 EVENT_TASK_ROUTES 注册表 + 通用 dispatch(event_type, payload)，
+# 避免每个事件 copy 一份 dispatch_xxx_event。当前抽象单 use-case 不划算（YAGNI）。
 def dispatch_appointment_event(
     tenant_id: str | None,
     event_type: str,

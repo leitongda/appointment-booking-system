@@ -5,9 +5,12 @@
 - 正确解析 payload 并调用 WaitlistService.auto_promote
 - 设置租户上下文（ContextVar）
 - payload 缺少 schedule_id 时安全跳过
-- auto_promote 抛异常时被吞掉、不外抛、不重试
+- auto_promote 抛异常时指数退避重试 3 次；用尽后才吞掉、返回 ok=False
 """
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+from celery.exceptions import Retry
 
 from app.tasks.waitlist_promotion_task import handle_appointment_cancelled
 
@@ -111,8 +114,8 @@ class TestHandleAppointmentCancelled:
         assert result["ok"] is True
         assert result["promoted_count"] == 0
 
-    def test_exception_is_swallowed(self):
-        """auto_promote 抛异常时被吞掉：不外抛、不重试、返回 ok=False"""
+    def test_exception_retries_when_under_limit(self):
+        """未用尽重试次数时，auto_promote 抛异常触发指数退避重试（countdown=2^retries）"""
         fake_session = MagicMock()
         fake_service = MagicMock()
         fake_service.auto_promote = AsyncMock(side_effect=RuntimeError("boom"))
@@ -128,16 +131,60 @@ class TestHandleAppointmentCancelled:
             mock_session_maker.return_value = session_cm
             mock_waitlist_cls.return_value = fake_service
 
-            # 不应外抛
-            result = handle_appointment_cancelled(
-                {
-                    "tenant_id": "tenant-9",
-                    "schedule_id": "sched-9",
-                    "appointment_id": "appt-9",
-                    "reason": "APPOINTMENT_CANCELLED",
-                }
+            # 模拟 Celery worker 拦截 retry 信号（self.retry 实际抛 Retry）
+            with patch.object(
+                handle_appointment_cancelled, "retry"
+            ) as mock_retry:
+                mock_retry.side_effect = Retry()
+                with pytest.raises(Retry):
+                    handle_appointment_cancelled(
+                        {
+                            "tenant_id": "tenant-9",
+                            "schedule_id": "sched-9",
+                            "appointment_id": "appt-9",
+                            "reason": "APPOINTMENT_CANCELLED",
+                        }
+                    )
+
+        mock_retry.assert_called_once()
+        # 首次（retries=0）：countdown = 2^0 = 1
+        assert mock_retry.call_args.kwargs["countdown"] == 1
+        assert isinstance(mock_retry.call_args.kwargs["exc"], RuntimeError)
+
+    def test_exception_swallowed_after_retries_exhausted(self):
+        """重试次数用尽后，auto_promote 抛异常被吞掉，返回 ok=False（取消已成功，号源空转由 reconcile 告警）"""
+        fake_session = MagicMock()
+        fake_service = MagicMock()
+        fake_service.auto_promote = AsyncMock(side_effect=RuntimeError("boom"))
+
+        with patch(
+            "app.db.session.async_session_maker"
+        ) as mock_session_maker, patch(
+            "app.modules.waitlist.service.WaitlistService"
+        ) as mock_waitlist_cls:
+            session_cm = MagicMock()
+            session_cm.__aenter__ = AsyncMock(return_value=fake_session)
+            session_cm.__aexit__ = AsyncMock(return_value=None)
+            mock_session_maker.return_value = session_cm
+            mock_waitlist_cls.return_value = fake_service
+
+            # 模拟已用尽重试次数
+            handle_appointment_cancelled.push_request(
+                retries=handle_appointment_cancelled.max_retries
             )
+            try:
+                result = handle_appointment_cancelled(
+                    {
+                        "tenant_id": "tenant-9",
+                        "schedule_id": "sched-9",
+                        "appointment_id": "appt-9",
+                        "reason": "APPOINTMENT_CANCELLED",
+                    }
+                )
+            finally:
+                handle_appointment_cancelled.pop_request()
 
         assert result["ok"] is False
         assert "boom" in result["error"]
         assert result["schedule_id"] == "sched-9"
+        assert result["exhausted_retries"] is True

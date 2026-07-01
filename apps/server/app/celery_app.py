@@ -99,6 +99,13 @@ celery_app.conf.update(
             "options": {"queue": "notification"},
         },
 
+        # 候补递补卡死探测 - 每10分钟（递补 task 崩溃未回退 PROCESSING 的告警兜底）
+        "waitlist-promotion-stuck-reconcile": {
+            "task": "app.tasks.waitlist_promotion_task.reconcile_stuck_promotions",
+            "schedule": crontab(minute="*/10"),  # 每10分钟
+            "options": {"queue": "scheduled"},
+        },
+
         # 预约提醒（旧版兼容）- 已禁用，由新版 appointment-reminder-scheduler 替代
         # "appointment-reminder-legacy": {
         #     "task": "app.tasks.notification_task.send_appointment_reminder_task",
