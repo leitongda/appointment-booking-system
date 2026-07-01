@@ -1,9 +1,42 @@
 /**
  * 数据验证工具函数
+ *
+ * ────────────────────────────────────────────────────────────────────────────
+ * 与 @hospital/shared 的对齐说明（改动前必读）
+ * ────────────────────────────────────────────────────────────────────────────
+ * 本文件刻意**不导入** `@hospital/shared`（保持小程序独立发布），但其中以下逻辑
+ * 在 `packages/shared` 内有同名实现，改动必须双侧同步评估，避免校验漂移：
+ *
+ * | 逻辑                 | 本文件实现                    | shared 对应实现                                |
+ * | -------------------- | ----------------------------- | ---------------------------------------------- |
+ * | 手机号正则           | `validatePhone`               | `REGEX.PHONE` (`constants/common.ts`)          |
+ * | 身份证格式正则       | `validateIdCard` 内 idCardRegex| `REGEX.ID_CARD` (`constants/common.ts`)        |
+ * | 身份证校验码算法     | `validateIdCard` ISO 7064 MOD 11-2 | shared 仅做格式正则，**未计算校验码**     |
+ *
+ * 对齐结论（核对日期 2026-07-01）：
+ * 1. **手机号正则**：本文件 `/^1[3-9]\d{9}$/` 与 `REGEX.PHONE` **完全一致**。
+ * 2. **身份证校验码算法**：本文件采用国标 GB 11643-1999 / ISO 7064 MOD 11-2
+ *    （加权因子 `[7,9,10,5,8,4,2,1,6,3,7,9,10,5,8,4,2]`，`sum % 11` 索引
+ *    `['1','0','X','9','8','7','6','5','4','3','2']`，末位 X 统一大写比较），
+ *    这是**标准实现**；shared 当前**未提供**校验码算法（仅 18 位格式正则），
+ *    因此本文件算法**不与 shared 冲突**，反而更严格。
+ *    若未来 shared 新增校验码算法，必须以 GB 11643-1999 为准保持一致。
+ * 3. **身份证格式正则**：本文件兼容 15 位 + 18 位（`admin` 端 `PATTERNS.ID_CARD`
+ *    同款宽松正则）；shared `REGEX.ID_CARD` 仅匹配 18 位且校验出生日期段，更严格。
+ *    小程序端出于兼容老人/历史 15 位号源，保留宽松正则 + 校验码双重校验。
+ *
+ * 红线：任何对加权因子 / `sum % 11` / 末位 X 处理的修改，都意味着与国标或 shared
+ * 产生漂移，PR 必须同步更新 shared 侧并说明。
+ * ────────────────────────────────────────────────────────────────────────────
  */
 
 /**
  * 验证手机号
+ *
+ * 正则 `/^1[3-9]\d{9}$/` 已与 `@hospital/shared` 的 `REGEX.PHONE`
+ * （`packages/shared/src/constants/common.ts`）对齐，完全一致。
+ * 改动需同步 shared。
+ *
  * @param phone 手机号
  */
 export function validatePhone(phone: string): boolean {
@@ -13,27 +46,41 @@ export function validatePhone(phone: string): boolean {
 
 /**
  * 验证身份证号
+ *
+ * 校验流程（已与 `@hospital/shared` 核对，见文件顶部对齐说明）：
+ * 1. 格式正则：兼容 15 位 / 18 位（与 admin `PATTERNS.ID_CARD` 同款）。
+ * 2. 18 位号码额外执行 GB 11643-1999 / ISO 7064 MOD 11-2 校验码算法
+ *    （加权因子 + mod 11 + 末位 X 大写比较）。shared 当前仅做格式正则、
+ *    未计算校验码；本实现更严格，且与国标一致，不与 shared 冲突。
+ *
+ * 校验码算法：加权因子 `[7,9,10,5,8,4,2,1,6,3,7,9,10,5,8,4,2]`，
+ * `checkCodes[sum % 11]` 索引表 `['1','0','X','9','8','7','6','5','4','3','2']`，
+ * 末位统一 `toUpperCase()` 后比较（X 大写）。
+ *
  * @param idCard 身份证号
  */
 export function validateIdCard(idCard: string): boolean {
-  // 15位或18位身份证号
+  // 15位或18位身份证号（末位可能是数字或 X/x）
   const idCardRegex = /(^\d{15}$)|(^\d{18}$)|(^\d{17}(\d|X|x)$)/;
-  
+
   if (!idCardRegex.test(idCard)) {
     return false;
   }
 
-  // 18位身份证校验
+  // 18位身份证校验码（GB 11643-1999 / ISO 7064 MOD 11-2）
   if (idCard.length === 18) {
+    // 加权因子（与 shared 对齐：shared 暂未实现，此处为标准国标因子）
     const factors = [7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2];
+    // sum % 11 对应的校验码映射表（索引 0~10）
     const checkCodes = ['1', '0', 'X', '9', '8', '7', '6', '5', '4', '3', '2'];
-    
+
     let sum = 0;
     for (let i = 0; i < 17; i++) {
-      sum += parseInt(idCard[i]) * factors[i];
+      sum += parseInt(idCard[i], 10) * factors[i];
     }
-    
+
     const checkCode = checkCodes[sum % 11];
+    // 末位 X 统一大写比较
     return idCard[17].toUpperCase() === checkCode;
   }
 

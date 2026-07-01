@@ -1,5 +1,22 @@
 # 医疗挂号小程序系统
 
+> **⚠️ 独立发布项目说明（务必先读）**
+>
+> 本项目（`apps/mini-appointment-miniapp`）是**独立发布的扫码挂号微信小程序**
+> （具备 `project.config.json`，单独审核上架），**刻意不依赖** monorepo 中的
+> `@hospital/api` 与 `@hospital/shared`，自维护 `src/utils/`（request / validator /
+> date 等）。这样设计是为了：
+> - 保持小程序包体积最小、避免引入面向多端的冗余依赖；
+> - 独立发版节奏（微信审核周期），不与 admin/doctor/patient-h5 同步发布。
+>
+> **代价**：部分工具逻辑与 `@hospital/shared` 存在同名实现（典型如身份证/手机号校验、
+> 脱敏函数），随时间可能出现**校验漂移**（drift）。
+>
+> **维护红线**：如需改动 `src/utils/validator.ts` 中的身份证校验码算法、手机号正则、
+> 脱敏规则等，**必须同步评估 `packages/shared/src/` 下的同名逻辑**（当前对应
+> `constants/common.ts` 的 `REGEX` 与 `utils/validate.ts`、`utils/format.ts`），
+> 反之亦然。两处算法的一致性结论已在 `validator.ts` 顶部注释中记录。
+
 基于 **Taro + React + TypeScript** 开发的医疗挂号小程序，支持多租户、微信登录、预约挂号、扫码签到等核心功能。
 
 ## 项目概述
