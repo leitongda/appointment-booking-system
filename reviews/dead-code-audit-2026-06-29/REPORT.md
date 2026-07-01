@@ -129,9 +129,56 @@
 | patient-miniapp `lowcode` | P1 孤立页 | Taro 须在 app.config pages 声明才能跳转 | **需确认后端是否下发**，是则补 pages |
 | mini-appointment-miniapp | P1 重叠 app | 确认 4 页、零引用 @hospital/api/shared、完全独立 | **需产品决策**：保持独立 or 接入共享层 |
 
-## 仍待处理（按优先级）
+## Round 3 执行 + 紧急修复（2026-06-30，workflow 8-agent 并行）
 
-1. **P3 后端软循环**（appointments↔waitlist、approval_flows↔leave_requests、payments↔refunds）+ **infrastructure 反向耦合 6 处** —— 每项需独立 PLAN，行为相关，建议逐个推进。
-2. **P1 三个孤立页面 + mini-appointment** —— 纯产品决策，需你拍板。
-3. **P2 重复实现**（web request.ts 三份、ProColumns presets、监听器归一化重复、重复 schema 定义）—— 中等收益重构，可分批。
-4. **P3 上帝服务拆分**（schedules/service_mutation.py 1623 行、unified_message/service.py 974 行）—— 大重构。
+### 已执行（验证通过）
+| 项 | 动作 | 验证 |
+|----|------|------|
+| E1 监听器归一化 | 新建 `approval_flows/listener_normalizer.py`，`_normalize_config`/`_normalize_listener` 改为薄包装 | 70 tests passed，6 项行为一致性核对通过 |
+| E2 admin 字典页挂载 | `config/routes/system.ts` 加 dictionaries 路由组 + `access.ts` 加 `canDictionary` | 路由/权限/跳转路径三处对齐，结构平衡 |
+| E3 miniapp lowcode 可达 | `app.config.ts` pages 数组加 `pages/lowcode/index` | Taro 配置合法，6 页全部命中文件 |
+| **紧急 P0：image 包破损修复** | workflow P4 调查发现 `infrastructure/image/__init__.py` 导出已删函数 → `import` 直接 ImportError（图片上传功能在分支上已坏）。修：`__init__.py` 删 stale 导出；`upload/router.py` 改为就地读 `SettingsService.get_by_category("image")` + 构造 `ImageProcessor`（依赖反转） | import 链恢复，44 upload/image tests passed |
+| P4 infrastructure 反向耦合 | 上述修复后，infrastructure → modules 的 6 处 live 反向 import **全部清零**（5 处分支已做、image 收尾本轮完成） | grep live 反向 import = 0 |
+
+### 已产出精确方案（5 份，待审批执行）
+| 方案 | 风险 | 行为变化 | 核心做法 |
+|------|------|----------|----------|
+| **P1 payments↔refunds 循环** | **低** | **无** | 循环根因是一个 6 行纯函数 `_generate_out_trade_no` 错放在 PaymentService 类上。抽到 `payment_ordering.py` 模块级函数，两端 import，refunds 不再实例化 PaymentService。交叉点 B（payments→refunds 单向编排）保留 lazy import。4 文件。**最该先做。** |
+| P2 approval_flows↔leave_requests 循环 | 中 | 无（注册时机变） | DIP：引擎定义 Protocol 回调接口，业务回调迁出引擎包到各业务模块自注册。引擎不再 import 业务 service。~9 文件。 |
+| P3 appointments↔waitlist 循环 | 中 | **有（同步→异步）** | 事件驱动：appointments 取消发 Celery 事件，waitlist 监听递补。递补变异步（增一个调度周期延迟），需 PR 标注。7 文件。 |
+| P5 request.ts 三份收敛 | 中 | 无（逐端如实参数化） | packages/api 抽 `createWebInterceptors()` 工厂，三端瘦身调用，调用点零改动。5 文件。 |
+
+## Round 4 执行（2026-06-30，workflow 4-agent 并行架构重构）
+
+| 方案 | 风险 | 结果 | 验证 |
+|------|------|------|------|
+| **P1 payments↔refunds 循环** | 低 | **done** | 抽 `payment_ordering.py` 纯函数；77 tests pass；顶层 import 双向 OK，不再 lazy import |
+| **P2 approval_flows↔leave_requests 循环** | 中 | **done** | DIP：业务回调迁出引擎、业务侧自注册；89 tests pass；引擎零业务 import；两种 import 顺序无错 |
+| **P3 appointments↔waitlist 循环** | 中 | **done** | 事件驱动：Celery task 异步递补；P3 自身 8 用例全绿；lint-imports 7 契约全守、core→modules 边切断 |
+| **P5 request.ts 三份收敛** | 中 | **done** | `createWebInterceptors()` 工厂；packages/api + 三端 tsc 全 exit 0；零 UI 依赖；调用点零改动 |
+
+**P3 行为变化（已标注，需 PR 说明）**：候补递补从"取消同 HTTP 响应内同步"改为"Celery 异步触发"（延迟约一个调度周期）；Celery worker 必须运行否则递补不发生。失败可见性从 cancel 调用栈 logger.warning 移至 task logger.error。`send_task` 按名投递避免 core→modules 静态依赖（保 importlinter）。
+
+**P3 发现的附带技术修正**：任务描述要求"sync db session"，但 `WaitlistService.auto_promote` 是 async，agent 改用 `async_session_maker + loop.run_until_complete` 异步桥接（同 notification_task 范式）——功能正确性必要修正，已注明。
+
+### 新发现的遗留测试债（非本轮引入，建议单独修）
+P3 验证时暴露 7 个 pre-existing 失败（已核实非本轮改动所致）：
+- 5 个 cancel 测试：`pytest.raises(ValueError)` 但 cancel() 抛 `BusinessError`（异常类型历史漂移）
+- 2 个 waitlist add 测试（`service_mutation.py`）：同类 ValueError/BusinessError 不匹配
+
+## Round 5 执行（2026-06-30，workflow 3-agent 并行收尾）
+
+| Shard | 结果 | 验证 |
+|-------|------|------|
+| **S1 遗留测试修复** | done | test_appointment_cancel.py + test_waitlist.py：**34 passed / 0 failed**（7 个 ValueError→BusinessError 失败全修）。仅改测试，未碰生产；其余仍用 ValueError 的测试（生产确实抛 ValueError）正确保留 |
+| **S2 ProColumns presets** | done | 新建 `admin/src/utils/columnPresets.tsx`（5 个列工厂 + overrides），改造 5 页（appointment/list、medical-record、waitlist、follow-up/tasks、follow-up/records）；admin tsc exit 0。跳过有据（queue 用 antd ColumnsType、detail 是 Descriptions、状态列各页字典不同不抹平） |
+| **S3 重复 schema 收敛** | partial（护栏生效） | 新建 `schemas/common.py`（BatchDeleteRequest/SortOrderItem/SortOrderRequest），合并 cms/content 两模块；165 tests pass。**正确跳过**：ChangePasswordRequest（4 处校验严重不齐，强合并会改 400→422 错误码）、contacts/approval_flows BatchDeleteRequest（基类+错误消息差异）、StoreInfo（序列化机制不同） |
+
+## 仍待处理（需你决策/单独排期）
+
+> 至此所有可安全自动执行的清理项已完成。剩余项要么需产品决策、要么需设计级重构、要么有实质行为差异需逐项人工裁定：
+
+1. **S3 跳过的重复 schema（需逐项裁定）**：ChangePasswordRequest 4 处校验不齐（doctors 版无 schema 校验、auth 版无 max_length、错误码 400 vs 422）—— 需先定"统一密码策略"再合并；contacts/approval_flows BatchDeleteRequest、StoreInfo 同理。
+2. **产品决策**：A1 patient-h5 `/guide` 孤立页（删 or 补路由）、A4 mini-appointment-miniapp（独立 / 接入 / 废弃）。
+3. **BaseSchema 统一（设计重构）**：已证实盲转不安全（请求/响应 schema 刻意用 2 字段 vs 4 字段 ConfigDict）。正确做法是先引 `BaseRequestSchema`（2 字段）/保留 `BaseSchema`（4 字段）分层基类，再逐类按其当前 ConfigDict 精确匹配转换。
+4. **上帝服务拆分**：schedules/service_mutation.py（1623 行）、unified_message/service.py（974 行）—— 大重构，建议有明确功能触发点再做。
