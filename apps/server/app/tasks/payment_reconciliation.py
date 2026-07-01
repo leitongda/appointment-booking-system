@@ -18,6 +18,7 @@ from app.middleware.tenant_context import clear_tenant_context, set_tenant_conte
 from app.models.appointment import Appointment
 from app.models.tenant import Tenant
 from app.modules.appointments.common import APPOINTMENT_STATUS
+from app.modules.payments.payment_ordering import generate_out_trade_no
 
 logger = logging.getLogger(__name__)
 
@@ -114,13 +115,14 @@ def _reconcile_tenant_payments(
                 )
                 continue
 
-            # 生成商户订单号（与 PaymentService._generate_out_trade_no 规则一致）
-            if not appointment.appointment_no:
+            # 生成商户订单号（复用统一纯函数；缺失 appointment_no 时跳过本条，不中断整批对账）
+            try:
+                out_trade_no = generate_out_trade_no(appointment)
+            except ValueError:
                 logger.warning(
                     f"预约 {appointment.id} 缺少 appointment_no，跳过对账"
                 )
                 continue
-            out_trade_no = appointment.appointment_no
 
             # 调用微信支付查询接口
             # WeChatPayService.query_order 是 async def，必须在同步 worker 里 asyncio.run 包装。
