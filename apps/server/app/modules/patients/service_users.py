@@ -369,7 +369,9 @@ class UserManageService(PatientsServiceBase):
         set_create_audit(card, operator_id)
         self.db.add(card)
         await self.db.commit()
-        return mask_patient_data({
+        # 写操作（创建/更新就诊卡）返回原始手机号，与 PatientManageService 家人管理
+        # 保持一致：调用方刚录入该号码，需要明文用于后续挂号/确认，不脱敏。
+        return {
             "id": card.id,
             "userId": card.user_id,
             "cardNo": card.card_no,
@@ -383,7 +385,7 @@ class UserManageService(PatientsServiceBase):
             "appointmentCount": 0,
             "noShowCount": 0,
             "createdAt": card.created_at.isoformat() if card.created_at else None,
-        })
+        }
 
     async def update_card(self, user_id: str, card_id: str, data, operator_id: str | None = None) -> dict | None:
         query = select(Patient).where(and_(Patient.id == card_id, Patient.user_id == user_id))
@@ -423,7 +425,9 @@ class UserManageService(PatientsServiceBase):
         if tenant_id:
             no_show_count_query = no_show_count_query.where(Appointment.tenant_id == tenant_id)
         no_show_count = await self.db.scalar(no_show_count_query)
-        return mask_patient_data({
+        # 写操作（创建/更新就诊卡）返回原始手机号，与 PatientManageService 家人管理
+        # 保持一致：调用方刚录入该号码，需要明文用于后续挂号/确认，不脱敏。
+        return {
             "id": card.id,
             "userId": card.user_id,
             "cardNo": card.card_no,
@@ -439,7 +443,7 @@ class UserManageService(PatientsServiceBase):
             "appointmentCount": appointment_count or 0,
             "noShowCount": no_show_count or 0,
             "createdAt": card.created_at.isoformat() if card.created_at else None,
-        })
+        }
 
     async def delete_card(self, user_id: str, card_id: str) -> bool:
         query = select(Patient).where(and_(Patient.id == card_id, Patient.user_id == user_id))
