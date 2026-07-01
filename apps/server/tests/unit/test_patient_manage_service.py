@@ -18,6 +18,7 @@ from uuid import uuid4
 from unittest.mock import MagicMock
 
 from app.middleware.exception import BusinessError
+from app.core.encryption import hash_value
 from app.models.user import User, Patient
 from app.models.appointment import Appointment
 from app.models.schedule import Schedule
@@ -73,6 +74,8 @@ class TestGetList:
             name="张三",
             phone="13900000001",
             id_card="110101199001011111",
+            phone_hash=hash_value("13900000001"),
+            id_card_hash=hash_value("110101199001011111"),
             is_default=True,
             created_at=datetime.now(),
             updated_at=datetime.now(),
@@ -83,6 +86,8 @@ class TestGetList:
             name="李四",
             phone="13900000002",
             id_card="110101199001012222",
+            phone_hash=hash_value("13900000002"),
+            id_card_hash=hash_value("110101199001012222"),
             is_default=False,
             created_at=datetime.now(),
             updated_at=datetime.now(),
@@ -92,23 +97,22 @@ class TestGetList:
 
         service = PatientManageService(db_session)
 
-        # 按姓名搜索
+        # 按姓名搜索（name 未加密，走 ilike 模糊匹配）
         items, total = await service.get_list(keyword="张三")
         assert total >= 1
         found = any(p["name"] == "张三" for p in items)
         assert found
 
-        # 按手机搜索
+        # 按手机号搜索（phone 加密 → 盲索引 phone_hash 精确匹配，需完整 11 位）
         items, total = await service.get_list(keyword="13900000002")
         assert total >= 1
-        found = any(p["phone"] == "13900000002" for p in items)
-        assert found
+        # 该手机号属李四；列表经 mask_patient_data 脱敏，按稳定字段 name 断言
+        assert any(p["name"] == "李四" for p in items)
 
-        # 按身份证搜索
-        items, total = await service.get_list(keyword="2222")
+        # 按身份证搜索（id_card 加密 → 盲索引 id_card_hash 精确匹配，需完整 18 位）
+        items, total = await service.get_list(keyword="110101199001012222")
         assert total >= 1
-        found = any(p["idCard"] == "110101199001012222" for p in items)
-        assert found
+        assert any(p["name"] == "李四" for p in items)
 
     @pytest.mark.asyncio
     async def test_get_list_with_store_filter(
