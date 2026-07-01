@@ -23,4 +23,3 @@ export * from './workflow';
 //   import { components, SchemaOf } from '@hospital/shared/src/types/api-generated';
 //   type ApptRes = SchemaOf<'AppointmentResponse'>;
 // 新代码优先使用生成类型；手写类型迁移为 re-export 生成类型后再从上方移除。
-
