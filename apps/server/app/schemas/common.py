@@ -6,18 +6,21 @@
 错误信息不变）。
 
 注意：
-    - 基类一律使用 ``BaseModel``（而非 ``BaseSchema``），以保持与原始
-      定义一致的请求解析语义（不额外引入 camelCase 别名）。某些原始
-      定义（如 contacts 模块）使用 ``BaseSchema``，因其序列化语义不同，
-      未纳入本文件，保留原处。
+    - 基类统一使用 ``BaseSchema``（继承自 BaseModel，含 ``alias_generator=to_camel``
+      + ``populate_by_name=True``）。这样既接受 snake_case 也接受 camelCase
+      输入，兼容前端 camelCase 契约（如 ChangePasswordRequest 的
+      oldPassword/newPassword）与既有 snake_case 调用方。符合 CLAUDE.md
+      的 Schema 基类规则。
     - 出现字段集或校验规则存在实质差异的同名 schema 时，不要强行合并，
       保留各自定义并在本文件 docstring 中记录差异原因。
 """
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from app.schemas.base import BaseSchema
 
 
-class BatchDeleteRequest(BaseModel):
+class BatchDeleteRequest(BaseSchema):
     """通用批量删除请求体。
 
     收敛自 ``app/modules/content/schemas.py`` 与 ``app/modules/cms/schemas.py``
@@ -34,7 +37,7 @@ class BatchDeleteRequest(BaseModel):
     ids: list[str] = Field(..., min_length=1, description="要删除的ID列表")
 
 
-class SortOrderItem(BaseModel):
+class SortOrderItem(BaseSchema):
     """通用排序项。
 
     收敛自 ``app/modules/content/schemas.py`` 与 ``app/modules/cms/schemas.py``
@@ -50,7 +53,7 @@ class SortOrderItem(BaseModel):
     sort_order: int = Field(..., ge=0)
 
 
-class SortOrderRequest(BaseModel):
+class SortOrderRequest(BaseSchema):
     """通用批量排序请求体（容器）。
 
     收敛自 ``app/modules/cms/schemas.py`` —— ``SortOrderRequest``。
@@ -63,7 +66,7 @@ class SortOrderRequest(BaseModel):
     items: list[SortOrderItem] = Field(..., min_length=1, description="排序项列表")
 
 
-class ChangePasswordRequest(BaseModel):
+class ChangePasswordRequest(BaseSchema):
     """通用修改密码请求体。
 
     统一收敛四处历史定义，字段集完全一致（``old_password`` /
