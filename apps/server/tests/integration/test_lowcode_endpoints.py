@@ -4,6 +4,12 @@ import pytest
 from httpx import AsyncClient
 
 
+@pytest.fixture
+async def admin_headers(super_admin_token: str) -> dict:
+    """鉴权头：复用 conftest 的 super_admin_token（仓内标准 auth fixture）。"""
+    return {"Authorization": f"Bearer {super_admin_token}"}
+
+
 @pytest.mark.integration
 class TestLowCodePageEndpoints:
     """低代码页面端点集成测试。"""
