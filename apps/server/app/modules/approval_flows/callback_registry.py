@@ -1,17 +1,28 @@
 """业务模块回调注册表
 
-业务模块在启动时注册自己的回调函数，引擎在审批完成时调用。
+业务模块在自身 ``__init__.py`` 被加载时注册自己的回调函数（依赖倒置），
+引擎在审批完成时通过 ``execute`` 反向调用。引擎包零业务 service import。
 
-当前状态: 已完整接入。leave_request 和 extra_quota 的回调处理器在
-business_callbacks.py 中定义，通过 __init__.py 的 register_builtin_callbacks()
-在模块加载时自动注册。发起端通过 _start_approval_if_configured() 调用
-ApprovalEngine.start_instance()。
+接入示例（业务模块内）::
+
+    # <biz_module>/callbacks.py
+    async def handle_my_approval(action, instance, db): ...
+
+    # <biz_module>/__init__.py
+    from app.modules.approval_flows.callback_registry import callback_registry
+    from <biz_module>.callbacks import handle_my_approval
+    callback_registry.register("my_business_type", handle_my_approval)
+
+实际接入的业务类型：``leave_request``、``extra_quota``，回调文件分别位于
+``leave_requests/callbacks.py`` 与 ``schedules/callbacks_extra_quota.py``。
+发起端通过业务 service 内的 ``_start_approval_if_configured()`` 调用
+``ApprovalEngine.start_instance()``（函数内 lazy import，合法单向业务→引擎）。
 """
 import logging
-from collections.abc import Callable
-from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.modules.approval_flows.types import BusinessCallback
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +32,7 @@ class CallbackRegistry:
     业务模块回调注册表。
 
     用法:
-        # 在业务模块中注册
+        # 在业务模块 __init__.py 中注册
         async def my_callback(action: str, instance: ApprovalInstance, db: AsyncSession):
             if action == "on_approved":
                 ...
@@ -35,10 +46,18 @@ class CallbackRegistry:
     """
 
     def __init__(self):
-        self._handlers: dict[str, Callable] = {}
+        # 形参标注为 BusinessCallback（Protocol），仅用于静态类型提示；
+        # 运行时任何符合签名的可调用对象都可注册，故用下界不做 isinstance 强校验。
+        self._handlers: dict[str, BusinessCallback] = {}
 
-    def register(self, business_type: str, handler: Callable):
-        """注册业务回调处理器"""
+    def register(self, business_type: str, handler: BusinessCallback):
+        """注册业务回调处理器。
+
+        Args:
+            business_type: 业务类型标识（如 ``"leave_request"``、``"extra_quota"``）。
+            handler: 符合 :class:`~app.modules.approval_flows.types.BusinessCallback`
+                协议的 async 可调用对象。
+        """
         self._handlers[business_type] = handler
         logger.info(f"注册审批回调: {business_type}")
 
@@ -50,7 +69,7 @@ class CallbackRegistry:
         self,
         business_type: str,
         action: str,
-        instance: Any,
+        instance,
         db: AsyncSession,
     ):
         """

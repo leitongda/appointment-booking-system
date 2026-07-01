@@ -15,8 +15,8 @@
 | `service_instances.py` | 审批实例服务层（委托给引擎） |
 | `assignee_resolver.py` | 审批人解析（角色/用户/部门/动态字段） |
 | `condition_evaluator.py` | 条件分支评估（eq/neq/gt/gte/lt/lte/in/not_in/contains/exists） |
-| `callback_registry.py` | 业务模块回调注册表 |
-| `business_callbacks.py` | 内置业务回调处理器 |
+| `callback_registry.py` | 业务模块回调注册表（业务侧自注册，引擎零业务依赖） |
+| `types.py` | 引擎对外契约：`BusinessCallback` Protocol + 共享工具（仅依赖 models） |
 
 ### 数据模型
 
@@ -77,14 +77,18 @@ pending -> completed
 
 | 业务类型 | 发起端 | 回调端 | 说明 |
 |----------|--------|--------|------|
-| `leave_request` | `_start_approval_if_configured()` | `handle_leave_request_approval()` | 停诊/调班审批 |
-| `extra_quota` | `_start_approval_if_configured()` | `handle_extra_quota_approval()` | 加号审批 |
+| `leave_request` | `leave_requests/service.py::_start_approval_if_configured()` | `leave_requests/callbacks.py::handle_leave_request_approval()` | 停诊/调班审批 |
+| `extra_quota` | `schedules/service_extra_quota.py::_start_approval_if_configured()` | `schedules/callbacks_extra_quota.py::handle_extra_quota_approval()` | 加号审批 |
 
 ### 接入模式
 
 1. **发起端**: 业务模块在创建申请时调用 `ApprovalEngine.start_instance()`，捕获 `FlowNotFoundError` 作为无流程定义时的 fallback
-2. **回调端**: 在 `business_callbacks.py` 中定义处理器，在 `__init__.py` 中通过 `register_builtin_callbacks()` 注册
+2. **回调端**: 在业务模块内实现 `BusinessCallback` 协议的处理器（如 `leave_requests/callbacks.py`），并在业务模块 `__init__.py` 中通过 `callback_registry.register(business_type, handler)` 自注册（依赖倒置：引擎包不再反向 import 业务 service）
 3. **Fallback**: 无流程定义时，业务模块使用各自的旧审核入口（`review()`/`approve()`/`reject()`）
+
+> 注册时机说明：回调由业务模块 `__init__.py` 加载时注册。当前架构下业务模块由
+> `app/api/v1/__init__.py` 动态 import 注册路由，因此应用启动后回调必然就绪；
+> 仅当单独 import 引擎包而未 import 业务包时，对应回调不会注册（调用 `execute` 时静默跳过）。
 
 ## Celery 异步任务
 

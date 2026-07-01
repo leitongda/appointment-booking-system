@@ -113,9 +113,10 @@ class ApprovalEngine:
 
         业务模块接入指南:
         1. 发起端: 在创建申请时调用本方法，捕获 FlowNotFoundError 作为无流程定义的 fallback
-        2. 回调端: 通过 callback_registry.register(business_type, handler) 注册回调，
-           处理 on_approved / on_rejected / on_cancelled 事件，执行业务逻辑
-        3. 已接入的业务类型: leave_request, extra_quota (见 business_callbacks.py)
+        2. 回调端: 在业务模块 __init__.py 中通过 callback_registry.register(business_type, handler)
+           注册回调，处理 on_approved / on_rejected / on_cancelled 事件，执行业务逻辑
+        3. 已接入的业务类型: leave_request (见 leave_requests/callbacks.py)、
+           extra_quota (见 schedules/callbacks_extra_quota.py)
         """
         tenant_id = get_current_tenant_id()
 

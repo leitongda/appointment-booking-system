@@ -177,8 +177,9 @@ class LeaveRequestService:
         """审核申请（旧审核入口，作为无通用审批流程定义时的 fallback）。
 
         通用引擎已完整接入：发起端通过 _start_approval_if_configured() 调用
-        ApprovalEngine.start_instance()，回调端通过 business_callbacks.py 的
-        handle_leave_request_approval() 处理审批结果。本方法仅在未配置流程定义时使用。
+        ApprovalEngine.start_instance()，回调端通过 leave_requests/callbacks.py 的
+        handle_leave_request_approval() 处理审批结果（由 leave_requests/__init__.py
+        自注册到 callback_registry）。本方法仅在未配置流程定义时使用。
         """
         request = await self.get_by_id(request_id)
         if not request:

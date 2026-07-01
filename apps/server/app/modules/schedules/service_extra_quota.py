@@ -140,8 +140,9 @@ class ExtraQuotaService:
         """审批通过加号申请（旧审核入口，作为无通用审批流程定义时的 fallback）。
 
         通用引擎已完整接入：发起端通过 _start_approval_if_configured() 调用
-        ApprovalEngine.start_instance()，回调端通过 business_callbacks.py 的
-        handle_extra_quota_approval() 处理审批结果。本方法仅在未配置流程定义时使用。
+        ApprovalEngine.start_instance()，回调端通过 schedules/callbacks_extra_quota.py
+        的 handle_extra_quota_approval() 处理审批结果（由 schedules/__init__.py
+        自注册到 callback_registry）。本方法仅在未配置流程定义时使用。
         """
         request = await self._get_request(request_id, tenant_id)
         if not request:
