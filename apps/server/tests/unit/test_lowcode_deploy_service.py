@@ -127,46 +127,41 @@ def _make_mock_db(*execute_results):
 
 
 class TestStartDeploy:
-    """trigger_deploy 应完成完整的 codegen -> build -> upload -> audit 流水线。"""
+    """trigger_deploy 触发异步部署: 状态置为 building 并派发 Celery 构建任务。
+
+    确认的状态机: trigger → building → auditing → published。
+    trigger_deploy 仅负责 trigger 阶段: 置 building + 创建 BuildJob + 派发 Celery，
+    构建完成后由 Celery 任务推进到 auditing，因此立即返回应为 building。
+    """
 
     @pytest.mark.asyncio
     async def test_trigger_deploy_success(self):
-        """正常部署流程: 页面存在且已关联小程序实例，应走完 4 个阶段。"""
+        """正常触发: 页面存在且已关联小程序实例，应置 building 并返回 build_job_id。"""
         page = _make_page(deploy_status=DEPLOY_STATUS_IDLE)
-        build_job = _make_build_job(id="build-001")
 
-        # execute 调用顺序:
-        # 1. _load_page -> select(LowCodePage)
+        # execute 调用顺序 (确认状态机 trigger 阶段):
+        # 1. _update_deploy_status -> building: commit+refresh  (先于 _create_build_job)
         # 2. _create_build_job -> commit+refresh
-        # 3. _update_deploy_status -> building: commit+refresh
-        # 4. _update_deploy_status -> built: commit+refresh
-        # 5. _update_deploy_status -> uploading: commit+refresh
-        # 6. _update_deploy_status -> uploaded: commit+refresh
-        # 7. _update_deploy_status -> auditing: commit+refresh
         db = _make_mock_db(
             _mock_result(page),        # 1. _load_page
-            _mock_result(page),        # 2. refresh after _create_build_job
-            _mock_result(page),        # 3. refresh: building
-            _mock_result(page),        # 4. refresh: built
-            _mock_result(page),        # 5. refresh: uploading
-            _mock_result(page),        # 6. refresh: uploaded
-            _mock_result(page),        # 7. refresh: auditing
+            _mock_result(page),        # 2. refresh: building
+            _mock_result(page),        # 3. refresh after _create_build_job
         )
 
         service = LowCodeDeployService(db)
 
-        result = await service.trigger_deploy(
-            tenant_id="tenant-001",
-            page_id="page-001",
-            updated_by="admin-001",
-        )
+        with patch(
+            "app.tasks.lowcode_deploy_task.build_lowcode_page_task"
+        ) as mock_task:
+            result = await service.trigger_deploy(
+                tenant_id="tenant-001",
+                page_id="page-001",
+                updated_by="admin-001",
+            )
 
-        # 验证返回结构
-        assert result["deploy_status"] == DEPLOY_STATUS_AUDITING
+        # 验证返回结构: trigger 阶段返回 building
+        assert result["deploy_status"] == DEPLOY_STATUS_BUILDING
         assert "build_job_id" in result
-        assert "audit_id" in result
-        assert "artifact_url" in result
-        assert result["audit_id"] == "audit_page-001"
 
         # 验证 BuildJob 被添加到 session
         db.add.assert_called()
@@ -174,38 +169,34 @@ class TestStartDeploy:
         assert isinstance(added_obj, BuildJob)
         assert added_obj.tenant_id == "tenant-001"
         assert added_obj.lowcode_page_id == "page-001"
+        assert added_obj.trigger_source == "lowcode_deploy"
 
-        # 验证 commit 被多次调用
-        assert db.commit.await_count >= 6
+        # 验证 Celery 任务被派发
+        mock_task.delay.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_trigger_deploy_records_build_job_status(self):
-        """部署成功后，BuildJob 应标记为 completed 并记录 artifact_url。"""
+        """触发后 BuildJob 应以 pending 状态入队，等待 Celery 推进。"""
         page = _make_page(deploy_status=DEPLOY_STATUS_IDLE)
 
         db = _make_mock_db(
-            _mock_result(page),
-            _mock_result(page),
-            _mock_result(page),
-            _mock_result(page),
-            _mock_result(page),
-            _mock_result(page),
-            _mock_result(page),
+            _mock_result(page),        # _load_page
+            _mock_result(page),        # refresh: building
+            _mock_result(page),        # refresh after _create_build_job
         )
 
         service = LowCodeDeployService(db)
-        await service.trigger_deploy(
-            tenant_id="tenant-001",
-            page_id="page-001",
-        )
+        with patch("app.tasks.lowcode_deploy_task.build_lowcode_page_task"):
+            await service.trigger_deploy(
+                tenant_id="tenant-001",
+                page_id="page-001",
+            )
 
         # BuildJob 被添加到 db
         added = db.add.call_args_list[0][0][0]
         assert isinstance(added, BuildJob)
-        # 部署完成后 BuildJob 的 status 应为 completed
-        assert added.status == "completed"
-        assert added.artifact_url is not None
-        assert added.finished_at is not None
+        # trigger 阶段 BuildJob 入队时为 pending，构建结果由 Celery 任务回填
+        assert added.status == "pending"
 
 
 # ===========================================================================
@@ -468,16 +459,18 @@ class TestDeployWithFeatureDisabled:
         mock_service.trigger_deploy = AsyncMock(
             return_value={
                 "build_job_id": "build-001",
-                "audit_id": "audit_page-001",
-                "deploy_status": "auditing",
-                "artifact_url": "artifact://build/build-001",
+                # 确认状态机: trigger 阶段返回 building
+                "deploy_status": "building",
+                "message": "部署任务已提交，正在异步执行",
             }
         )
         mock_service_cls.return_value = mock_service
 
-        mock_admin = MagicMock()
-        mock_admin.tenant_id = "tenant-001"
-        mock_admin.id = "admin-001"
+        # get_current_admin 返回 dict (AccountInfo.to_dict())，按 dict 访问
+        mock_admin = {
+            "tenant_id": "tenant-001",
+            "id": "admin-001",
+        }
         mock_db = AsyncMock()
 
         result = await deploy_page(
@@ -496,9 +489,9 @@ class TestDeployWithFeatureDisabled:
             page_id="page-001",
             updated_by="admin-001",
         )
-        # 返回正确的结果
+        # 返回正确的结果 (trigger 阶段为 building)
         assert result.build_job_id == "build-001"
-        assert result.deploy_status == "auditing"
+        assert result.deploy_status == "building"
 
 
 # ===========================================================================
@@ -647,23 +640,21 @@ class TestConcurrentDeployGuard:
         page = _make_page(deploy_status=DEPLOY_STATUS_IDLE)
 
         db = _make_mock_db(
-            _mock_result(page),
-            _mock_result(page),
-            _mock_result(page),
-            _mock_result(page),
-            _mock_result(page),
-            _mock_result(page),
-            _mock_result(page),
+            _mock_result(page),       # _load_page
+            _mock_result(page),       # refresh: building
+            _mock_result(page),       # refresh after _create_build_job
         )
 
         service = LowCodeDeployService(db)
 
-        result = await service.trigger_deploy(
-            tenant_id="tenant-001",
-            page_id="page-001",
-        )
+        with patch("app.tasks.lowcode_deploy_task.build_lowcode_page_task"):
+            result = await service.trigger_deploy(
+                tenant_id="tenant-001",
+                page_id="page-001",
+            )
 
-        assert result["deploy_status"] == DEPLOY_STATUS_AUDITING
+        # 确认状态机: trigger 阶段返回 building
+        assert result["deploy_status"] == DEPLOY_STATUS_BUILDING
 
     @pytest.mark.asyncio
     async def test_deploy_allowed_from_failed(self):
@@ -671,23 +662,21 @@ class TestConcurrentDeployGuard:
         page = _make_page(deploy_status=DEPLOY_STATUS_FAILED)
 
         db = _make_mock_db(
-            _mock_result(page),
-            _mock_result(page),
-            _mock_result(page),
-            _mock_result(page),
-            _mock_result(page),
-            _mock_result(page),
-            _mock_result(page),
+            _mock_result(page),       # _load_page
+            _mock_result(page),       # refresh: building
+            _mock_result(page),       # refresh after _create_build_job
         )
 
         service = LowCodeDeployService(db)
 
-        result = await service.trigger_deploy(
-            tenant_id="tenant-001",
-            page_id="page-001",
-        )
+        with patch("app.tasks.lowcode_deploy_task.build_lowcode_page_task"):
+            result = await service.trigger_deploy(
+                tenant_id="tenant-001",
+                page_id="page-001",
+            )
 
-        assert result["deploy_status"] == DEPLOY_STATUS_AUDITING
+        # 确认状态机: trigger 阶段返回 building
+        assert result["deploy_status"] == DEPLOY_STATUS_BUILDING
 
     @pytest.mark.asyncio
     async def test_deploy_allowed_from_published(self):
@@ -695,23 +684,21 @@ class TestConcurrentDeployGuard:
         page = _make_page(deploy_status=DEPLOY_STATUS_PUBLISHED)
 
         db = _make_mock_db(
-            _mock_result(page),
-            _mock_result(page),
-            _mock_result(page),
-            _mock_result(page),
-            _mock_result(page),
-            _mock_result(page),
-            _mock_result(page),
+            _mock_result(page),       # _load_page
+            _mock_result(page),       # refresh: building
+            _mock_result(page),       # refresh after _create_build_job
         )
 
         service = LowCodeDeployService(db)
 
-        result = await service.trigger_deploy(
-            tenant_id="tenant-001",
-            page_id="page-001",
-        )
+        with patch("app.tasks.lowcode_deploy_task.build_lowcode_page_task"):
+            result = await service.trigger_deploy(
+                tenant_id="tenant-001",
+                page_id="page-001",
+            )
 
-        assert result["deploy_status"] == DEPLOY_STATUS_AUDITING
+        # 确认状态机: trigger 阶段返回 building
+        assert result["deploy_status"] == DEPLOY_STATUS_BUILDING
 
 
 # ===========================================================================
@@ -720,32 +707,34 @@ class TestConcurrentDeployGuard:
 
 
 class TestDeployFailurePaths:
-    """验证部署流水线在异常时正确标记失败状态。"""
+    """验证部署流水线在异常时正确处理状态。"""
 
     @pytest.mark.asyncio
     async def test_trigger_deploy_failure_marks_status_failed(self):
-        """部署阶段抛出异常时，deploy_status 应被标记为 failed。"""
-        page = _make_page(deploy_status=DEPLOY_STATUS_IDLE)
+        """页面未关联小程序实例时，trigger_deploy 应抛出 DeployError 且不改变状态。
 
-        db = _make_mock_db(
-            _mock_result(page),       # _load_page
-            _mock_result(page),       # refresh after _create_build_job
-            _mock_result(page),       # refresh: building
+        确认状态机: trigger → building → auditing → published。
+        trigger_deploy 在置 building 前会校验 miniapp_instance_id；
+        缺失时直接抛出 DeployError，deploy_status 维持原值 (idle)，
+        真正的 failed 状态由 Celery 构建任务失败时回填。
+        """
+        page = _make_page(
+            deploy_status=DEPLOY_STATUS_IDLE,
+            miniapp_instance_id=None,
         )
+
+        db = _make_mock_db(_mock_result(page))  # _load_page
 
         service = LowCodeDeployService(db)
 
-        # 让 codegen 阶段失败
-        with patch.object(service, "_stage_codegen", side_effect=RuntimeError("codegen 失败")):
-            with pytest.raises(DeployError, match="部署失败"):
-                await service.trigger_deploy(
-                    tenant_id="tenant-001",
-                    page_id="page-001",
-                )
+        with pytest.raises(DeployError, match="未关联小程序实例"):
+            await service.trigger_deploy(
+                tenant_id="tenant-001",
+                page_id="page-001",
+            )
 
-        # 验证页面状态被更新为 failed
-        assert page.deploy_status == DEPLOY_STATUS_FAILED
-        assert page.last_deploy_at is not None
+        # 校验失败发生在置 building 之前: 状态不变、未派发构建任务
+        assert page.deploy_status == DEPLOY_STATUS_IDLE
 
 
 # ===========================================================================

@@ -720,16 +720,18 @@ class TestDeployEndpointEnforcesFeatureFlag:
         mock_service.trigger_deploy = AsyncMock(
             return_value={
                 "build_job_id": "build-001",
-                "audit_id": "audit_001",
-                "deploy_status": "auditing",
-                "artifact_url": "artifact://build/build-001",
+                # 确认状态机: trigger 阶段返回 building
+                "deploy_status": "building",
+                "message": "部署任务已提交，正在异步执行",
             }
         )
         mock_service_cls.return_value = mock_service
 
-        mock_admin = MagicMock()
-        mock_admin.tenant_id = "tenant-001"
-        mock_admin.id = "admin-001"
+        # get_current_admin 返回 dict (AccountInfo.to_dict())，按 dict 访问
+        mock_admin = {
+            "tenant_id": "tenant-001",
+            "id": "admin-001",
+        }
         mock_db = AsyncMock()
 
         result = await deploy_page(
@@ -750,9 +752,9 @@ class TestDeployEndpointEnforcesFeatureFlag:
             updated_by="admin-001",
         )
 
-        # 返回正确的部署结果
+        # 返回正确的部署结果 (trigger 阶段为 building)
         assert result.build_job_id == "build-001"
-        assert result.deploy_status == "auditing"
+        assert result.deploy_status == "building"
 
 
 # ===========================================================================
