@@ -13,6 +13,7 @@ from datetime import datetime, date, time
 from uuid import uuid4
 from sqlalchemy import select
 
+from app.middleware.exception import BusinessError
 from app.models.user import User, Patient
 from app.models.appointment import Appointment
 from app.models.schedule import Schedule
@@ -90,7 +91,7 @@ class TestAddFamilyMember:
             id_card="110101199001011111",
         )
 
-        with pytest.raises(ValueError, match="已存在"):
+        with pytest.raises(BusinessError, match="已存在"):
             await service.add_family_member(
                 patient_id=test_patient.id,
                 data=data,
@@ -456,7 +457,7 @@ class TestDeleteFamilyMember:
 
         service = PatientManageService(db_session)
 
-        with pytest.raises(ValueError, match="预约记录"):
+        with pytest.raises(BusinessError, match="预约记录"):
             await service.delete_family_member(
                 patient_id=test_patient.id,
                 member_id=member.id,
@@ -668,7 +669,7 @@ class TestUserManageServiceFamilyMember:
             id_card="110101199001019999",
         )
 
-        with pytest.raises(ValueError, match="已存在"):
+        with pytest.raises(BusinessError, match="已存在"):
             await service.create_card(
                 user_id=test_user.id,
                 data=data,
@@ -790,7 +791,7 @@ class TestUserManageServiceFamilyMember:
 
         service = UserManageService(db_session)
 
-        with pytest.raises(ValueError, match="预约记录"):
+        with pytest.raises(BusinessError, match="预约记录"):
             await service.delete_card(
                 user_id=test_user.id,
                 card_id=test_patient.id,
@@ -806,7 +807,7 @@ class TestUserManageServiceFamilyMember:
         """删除用户最后一张就诊卡应失败"""
         service = UserManageService(db_session)
 
-        with pytest.raises(ValueError, match="至少需要保留一张"):
+        with pytest.raises(BusinessError, match="至少需要保留一张"):
             await service.delete_card(
                 user_id=test_user.id,
                 card_id=test_patient.id,

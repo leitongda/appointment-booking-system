@@ -13,6 +13,7 @@ from datetime import datetime
 
 from app.modules.appointments.service_flow import AppointmentFlowService
 from app.modules.appointments.common import APPOINTMENT_STATUS
+from app.middleware.exception import BusinessError
 from app.models.appointment import Appointment
 
 
@@ -104,7 +105,7 @@ class TestPassNumberWrongStatus:
         appointment_id = test_appointment.id
 
         # 2. 执行过号并验证异常
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(BusinessError) as exc_info:
             await appointment_flow_service.pass_number(appointment_id)
 
         # 3. 验证错误消息
@@ -126,7 +127,7 @@ class TestPassNumberWrongStatus:
         await db_session.commit()
         await db_session.refresh(test_appointment)
 
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(BusinessError) as exc_info:
             await appointment_flow_service.pass_number(test_appointment.id)
 
         assert "当前状态不可过号" in str(exc_info.value)
@@ -145,7 +146,7 @@ class TestPassNumberWrongStatus:
         await db_session.commit()
         await db_session.refresh(test_appointment)
 
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(BusinessError) as exc_info:
             await appointment_flow_service.pass_number(test_appointment.id)
 
         assert "当前状态不可过号" in str(exc_info.value)

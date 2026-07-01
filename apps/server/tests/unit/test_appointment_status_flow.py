@@ -19,6 +19,7 @@ from datetime import datetime
 from unittest.mock import AsyncMock, patch, MagicMock
 from contextlib import asynccontextmanager
 
+from app.middleware.exception import BusinessError
 from app.models.appointment import Appointment
 from app.modules.appointments.service import AppointmentService, APPOINTMENT_STATUS
 
@@ -155,7 +156,7 @@ class TestFullStatusFlow:
             new_callable=AsyncMock
         ):
             # 尝试签到（应该失败，因为已过签到时间窗口）
-            with pytest.raises(ValueError) as exc_info:
+            with pytest.raises(BusinessError) as exc_info:
                 await appointment_service.sign_in(
                     appointment_id=appointment.id,
                     is_admin=True
@@ -194,7 +195,7 @@ class TestInvalidStatusTransition:
             f"状态应为已取消(6)，实际为 {appointment.status}"
 
         # 尝试签到（应该抛出 ValueError）
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(BusinessError) as exc_info:
             await appointment_service.sign_in(
                 appointment_id=appointment.id,
                 is_admin=True
@@ -223,7 +224,7 @@ class TestInvalidStatusTransition:
         await db_session.refresh(appointment)
 
         # 尝试签到（应该抛出 ValueError）
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(BusinessError) as exc_info:
             await appointment_service.sign_in(
                 appointment_id=appointment.id,
                 is_admin=True
@@ -249,7 +250,7 @@ class TestInvalidStatusTransition:
         await db_session.refresh(appointment)
 
         # 尝试签到（应该抛出 ValueError）
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(BusinessError) as exc_info:
             await appointment_service.sign_in(
                 appointment_id=appointment.id,
                 is_admin=True
@@ -275,7 +276,7 @@ class TestInvalidStatusTransition:
         assert appointment.status == APPOINTMENT_STATUS['CONFIRMED']
 
         # 尝试叫号（应该抛出 ValueError）
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(BusinessError) as exc_info:
             await appointment_service.call_patient(
                 appointment_id=appointment.id
             )
@@ -301,7 +302,7 @@ class TestInvalidStatusTransition:
         await db_session.refresh(appointment)
 
         # 尝试再次取消（应该抛出 ValueError）
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(BusinessError) as exc_info:
             await appointment_service.cancel(
                 appointment_id=appointment.id,
                 user_id=appointment.user_id,

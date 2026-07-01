@@ -17,6 +17,7 @@ from datetime import datetime, date, time, timedelta
 from uuid import uuid4
 from unittest.mock import MagicMock
 
+from app.middleware.exception import BusinessError
 from app.models.user import User, Patient
 from app.models.appointment import Appointment
 from app.models.schedule import Schedule
@@ -336,7 +337,7 @@ class TestCreatePatient:
             is_default=False,
         )
 
-        with pytest.raises(ValueError, match="已存在"):
+        with pytest.raises(BusinessError, match="已存在"):
             await service.create_patient(
                 data=data,
                 store_id=test_store.id,
@@ -450,7 +451,7 @@ class TestFamilyMember:
             id_card="110101199901016666",
         )
 
-        with pytest.raises(ValueError, match="已存在"):
+        with pytest.raises(BusinessError, match="已存在"):
             await service.add_family_member(
                 patient_id=test_patient.id,
                 data=data,
@@ -647,7 +648,7 @@ class TestFamilyMember:
 
         service = PatientManageService(db_session)
 
-        with pytest.raises(ValueError, match="预约记录"):
+        with pytest.raises(BusinessError, match="预约记录"):
             await service.delete_family_member(
                 patient_id=test_patient.id,
                 member_id=member.id,
@@ -944,7 +945,7 @@ class TestDeletePatient:
 
         service = PatientManageService(db_session)
 
-        with pytest.raises(ValueError, match="预约记录"):
+        with pytest.raises(BusinessError, match="预约记录"):
             await service.delete_patient(test_patient.id)
 
     @pytest.mark.asyncio
@@ -957,7 +958,7 @@ class TestDeletePatient:
         """删除用户最后一张就诊卡应失败"""
         service = PatientManageService(db_session)
 
-        with pytest.raises(ValueError, match="至少需要保留一张"):
+        with pytest.raises(BusinessError, match="至少需要保留一张"):
             await service.delete_patient(test_patient.id)
 
     @pytest.mark.asyncio

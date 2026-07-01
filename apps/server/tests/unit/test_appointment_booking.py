@@ -12,6 +12,7 @@ from uuid import uuid4
 from decimal import Decimal
 import pytz
 
+from app.middleware.exception import BusinessError
 from app.models.appointment import Appointment
 from app.schemas.appointment import AppointmentCreate
 from app.modules.appointments.service_booking import AppointmentBookingService
@@ -94,7 +95,7 @@ class TestCancelPermission:
         """测试非本人取消预约失败"""
         service = AppointmentBookingService(db_session)
 
-        with pytest.raises(ValueError, match="无权操作此预约"):
+        with pytest.raises(BusinessError, match="无权操作此预约"):
             await service.cancel(
                 appointment_id=test_appointment.id,
                 user_id="other_user_id",
@@ -154,7 +155,7 @@ class TestCancelTimeWindow:
         test_appointment.cancel_close_at = now + timedelta(hours=2)
         await db_session.commit()
 
-        with pytest.raises(ValueError, match="未到取消时间窗口"):
+        with pytest.raises(BusinessError, match="未到取消时间窗口"):
             await service.cancel(
                 appointment_id=test_appointment.id,
                 user_id=test_user.id,
@@ -179,7 +180,7 @@ class TestCancelTimeWindow:
         test_appointment.cancel_close_at = now - timedelta(hours=1)
         await db_session.commit()
 
-        with pytest.raises(ValueError, match="已过取消时间窗口"):
+        with pytest.raises(BusinessError, match="已过取消时间窗口"):
             await service.cancel(
                 appointment_id=test_appointment.id,
                 user_id=test_user.id,
@@ -210,7 +211,7 @@ class TestTenantConsistency:
         with patch('app.middleware.tenant_context.get_current_tenant_id', return_value=str(uuid4())), \
              patch('app.common.quota.check_quota', new_callable=AsyncMock):
 
-            with pytest.raises(ValueError, match="排班不属于当前租户"):
+            with pytest.raises(BusinessError, match="排班不属于当前租户"):
                 await service.create(
                     user_id=test_user.id,
                     data=appointment_data,
@@ -262,7 +263,7 @@ class TestTenantConsistency:
             )
             mock_rule_engine.get_applicable_rule_set = AsyncMock(return_value=None)
 
-            with pytest.raises(ValueError, match="就诊人不属于当前租户"):
+            with pytest.raises(BusinessError, match="就诊人不属于当前租户"):
                 await service.create(
                     user_id=test_user.id,
                     data=appointment_data,

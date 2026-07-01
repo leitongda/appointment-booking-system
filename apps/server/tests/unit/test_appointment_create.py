@@ -15,6 +15,7 @@ from uuid import uuid4
 import pytest
 from sqlalchemy import select
 
+from app.middleware.exception import BusinessError
 from app.models.appointment import Appointment
 from app.models.blacklist import Blacklist
 from app.models.schedule import Schedule
@@ -219,7 +220,7 @@ class TestCreateAppointmentScheduleFull:
             mock_rule_engine_cls.return_value = mock_rule_engine
 
             # 执行创建预约，预期抛出异常
-            with pytest.raises(ValueError) as exc_info:
+            with pytest.raises(BusinessError) as exc_info:
                 await service.create(
                     user_id=test_user.id,
                     data=appointment_data
@@ -287,7 +288,7 @@ class TestCreateAppointmentScheduleFull:
             )
 
             # 执行创建预约，预期抛出异常
-            with pytest.raises(ValueError) as exc_info:
+            with pytest.raises(BusinessError) as exc_info:
                 await service.create(
                     user_id=test_user.id,
                     data=appointment_data
@@ -346,7 +347,7 @@ class TestCreateAppointmentDuplicate:
             )
 
             # 执行创建预约，预期抛出异常
-            with pytest.raises(ValueError) as exc_info:
+            with pytest.raises(BusinessError) as exc_info:
                 await service.create(
                     user_id=test_user.id,
                     data=appointment_data
@@ -504,7 +505,7 @@ class TestCreateAppointmentDuplicate:
             mock_rule_engine.check_action_window = AsyncMock(return_value=default_mocks['check_action_window'])
             mock_rule_engine.get_applicable_rule_set = AsyncMock(return_value=default_mocks['get_applicable_rule_set'])
 
-            with pytest.raises(ValueError) as exc_info:
+            with pytest.raises(BusinessError) as exc_info:
                 await service.create(user_id=test_user.id, data=appointment_data)
 
         assert "同一天同一时段已有预约" in str(exc_info.value)
@@ -578,7 +579,7 @@ class TestCreateAppointmentDefaultRules:
             mock_rule_engine.check_action_window = AsyncMock(return_value=default_mocks['check_action_window'])
             mock_rule_engine.get_applicable_rule_set = AsyncMock(return_value=default_mocks['get_applicable_rule_set'])
 
-            with pytest.raises(ValueError) as exc_info:
+            with pytest.raises(BusinessError) as exc_info:
                 await service.create(user_id=test_user.id, data=appointment_data)
 
         assert "当日预约已达上限" in str(exc_info.value)
@@ -625,7 +626,7 @@ class TestCreateAppointmentDefaultRules:
             mock_rule_engine.check_action_window = AsyncMock(return_value=default_mocks['check_action_window'])
             mock_rule_engine.get_applicable_rule_set = AsyncMock(return_value=default_mocks['get_applicable_rule_set'])
 
-            with pytest.raises(ValueError) as exc_info:
+            with pytest.raises(BusinessError) as exc_info:
                 await service.create(user_id=test_user.id, data=appointment_data)
 
         assert "当前不允许当天预约" in str(exc_info.value)
@@ -697,7 +698,7 @@ class TestCreateAppointmentDefaultRules:
             mock_rule_engine.check_action_window = AsyncMock(return_value=default_mocks['check_action_window'])
             mock_rule_engine.get_applicable_rule_set = AsyncMock(return_value=default_mocks['get_applicable_rule_set'])
 
-            with pytest.raises(ValueError) as exc_info:
+            with pytest.raises(BusinessError) as exc_info:
                 await service.create(user_id=test_user.id, data=appointment_data)
 
         assert "同一医生预约已达上限" in str(exc_info.value)
@@ -736,7 +737,7 @@ class TestCreateAppointmentDefaultRules:
             mock_rule_engine.check_action_window = AsyncMock(return_value=default_mocks['check_action_window'])
             mock_rule_engine.get_applicable_rule_set = AsyncMock(return_value=default_mocks['get_applicable_rule_set'])
 
-            with pytest.raises(ValueError) as exc_info:
+            with pytest.raises(BusinessError) as exc_info:
                 await service.create(user_id=test_user.id, data=appointment_data)
 
         assert "黑名单用户禁止预约" in str(exc_info.value)
@@ -866,7 +867,7 @@ class TestCreateAppointmentConcurrent:
             )
 
             # 执行创建预约，预期抛出异常
-            with pytest.raises(ValueError) as exc_info:
+            with pytest.raises(BusinessError) as exc_info:
                 await service.create(
                     user_id=test_user.id,
                     data=appointment_data
@@ -969,7 +970,7 @@ class TestCreateAppointmentConcurrent:
                     async with lock:
                         results["success"] += 1
 
-            except ValueError as e:
+            except BusinessError as e:
                 if "号源已满" in str(e) or "已预约此时段" in str(e):
                     async with lock:
                         results["failure"] += 1
@@ -1010,7 +1011,7 @@ class TestCreateAppointmentConcurrent:
                     )
                     results["success"] += 1
 
-            except ValueError as e:
+            except BusinessError as e:
                 if "号源已满" in str(e):
                     results["failure"] += 1
                 else:
@@ -1052,7 +1053,7 @@ class TestCreateAppointmentValidation:
 
         service = AppointmentService(db_session)
 
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(BusinessError) as exc_info:
             await service.create(
                 user_id=test_user.id,
                 data=appointment_data
@@ -1093,7 +1094,7 @@ class TestCreateAppointmentValidation:
                 return_value=default_mocks['get_applicable_rule_set']
             )
 
-            with pytest.raises(ValueError) as exc_info:
+            with pytest.raises(BusinessError) as exc_info:
                 await service.create(
                     user_id=test_user.id,
                     data=appointment_data
@@ -1124,7 +1125,7 @@ class TestCreateAppointmentValidation:
 
         service = AppointmentService(db_session)
 
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(BusinessError) as exc_info:
             await service.create(
                 user_id=test_user.id,
                 data=appointment_data

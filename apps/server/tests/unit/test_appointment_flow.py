@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, patch, MagicMock
 from uuid import uuid4
 import pytz
 
+from app.middleware.exception import BusinessError
 from app.models.appointment import Appointment
 from app.modules.appointments.service_flow import AppointmentFlowService
 from app.modules.appointments.common import APPOINTMENT_STATUS
@@ -42,7 +43,7 @@ class TestSignInFailureLogging:
                     is_admin=False,
                     checkin_method='QR_CODE',
                 )
-            except ValueError:
+            except BusinessError:
                 pass
 
         # 验证失败日志被创建

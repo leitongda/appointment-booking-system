@@ -15,6 +15,7 @@ from unittest.mock import AsyncMock, patch, MagicMock
 from uuid import uuid4
 import pytz
 
+from app.middleware.exception import BusinessError
 from app.models.appointment import Appointment
 from app.models.schedule import Schedule
 from app.modules.appointments.service import AppointmentService, APPOINTMENT_STATUS
@@ -78,7 +79,7 @@ class TestCallPatient:
         test_appointment.status = APPOINTMENT_STATUS["CONFIRMED"]
         await db_session.commit()
 
-        with pytest.raises(ValueError, match="患者未签到"):
+        with pytest.raises(BusinessError, match="患者未签到"):
             await appointment_service.call_patient(test_appointment.id)
 
 class TestComplete:
@@ -193,7 +194,7 @@ class TestCancelSignIn:
         test_appointment.status = APPOINTMENT_STATUS["CONFIRMED"]
         await db_session.commit()
 
-        with pytest.raises(ValueError, match="只有已签到状态"):
+        with pytest.raises(BusinessError, match="只有已签到状态"):
             await appointment_service.cancel_sign_in(test_appointment.id)
 
 
@@ -255,7 +256,7 @@ class TestPassNumber:
         test_appointment.status = APPOINTMENT_STATUS["CONFIRMED"]
         await db_session.commit()
 
-        with pytest.raises(ValueError, match="当前状态不可过号"):
+        with pytest.raises(BusinessError, match="当前状态不可过号"):
             await appointment_service.pass_number(test_appointment.id)
 
 
@@ -302,7 +303,7 @@ class TestRecall:
         test_appointment.status = APPOINTMENT_STATUS["SIGNED"]
         await db_session.commit()
 
-        with pytest.raises(ValueError, match="只有过号状态可以重新叫号"):
+        with pytest.raises(BusinessError, match="只有过号状态可以重新叫号"):
             await appointment_service.recall(test_appointment.id)
 
 
@@ -365,7 +366,7 @@ class TestMarkNoShow:
         test_appointment.status = APPOINTMENT_STATUS["SIGNED"]
         await db_session.commit()
 
-        with pytest.raises(ValueError, match="当前状态不可标记爽约"):
+        with pytest.raises(BusinessError, match="当前状态不可标记爽约"):
             await appointment_service.mark_no_show(test_appointment.id)
 
 

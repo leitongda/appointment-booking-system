@@ -11,6 +11,7 @@ from datetime import datetime, date, time, timedelta
 from unittest.mock import AsyncMock, patch, MagicMock
 import pytz
 
+from app.middleware.exception import BusinessError
 from app.modules.appointments.service import AppointmentService, APPOINTMENT_STATUS
 from app.models.appointment import Appointment
 from app.models.schedule import Schedule
@@ -166,7 +167,7 @@ class TestSignInWrongStatus:
         user_id = test_user.id
 
         # 2. 执行签到并验证异常
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(BusinessError) as exc_info:
             await appointment_service.sign_in(
                 appointment_id=appointment_id,
                 user_id=user_id,
@@ -192,7 +193,7 @@ class TestSignInWrongStatus:
         await db_session.commit()
         await db_session.refresh(test_appointment)
 
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(BusinessError) as exc_info:
             await appointment_service.sign_in(
                 appointment_id=test_appointment.id,
                 user_id=test_user.id,
@@ -215,7 +216,7 @@ class TestSignInWrongStatus:
         await db_session.commit()
         await db_session.refresh(test_appointment)
 
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(BusinessError) as exc_info:
             await appointment_service.sign_in(
                 appointment_id=test_appointment.id,
                 user_id=test_user.id,
@@ -257,7 +258,7 @@ class TestSignInTimeWindow:
         user_id = test_user.id
 
         # 2. 执行签到并验证异常
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(BusinessError) as exc_info:
             await appointment_service.sign_in(
                 appointment_id=appointment_id,
                 user_id=user_id,
@@ -291,7 +292,7 @@ class TestSignInTimeWindow:
         await db_session.refresh(test_appointment)
 
         # 2. 执行签到并验证异常
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(BusinessError) as exc_info:
             await appointment_service.sign_in(
                 appointment_id=test_appointment.id,
                 user_id=test_user.id,
@@ -362,7 +363,7 @@ class TestSignInPermission:
         # 使用一个不存在的用户ID
         wrong_user_id = "wrong_user_id_12345"
 
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(BusinessError) as exc_info:
             await appointment_service.sign_in(
                 appointment_id=test_appointment.id,
                 user_id=wrong_user_id,
