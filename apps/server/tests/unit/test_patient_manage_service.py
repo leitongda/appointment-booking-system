@@ -200,7 +200,8 @@ class TestGetDetail:
         assert result is not None
         assert result["id"] == test_patient.id
         assert result["name"] == test_patient.name
-        assert result["phone"] == test_patient.phone
+        # 管理端返回脱敏后的手机号（隐私合规）
+        assert result["phone"] == "138****8002"
         assert "statistics" in result
         assert "familyMembers" in result
 
@@ -288,7 +289,8 @@ class TestCreatePatient:
 
         assert result is not None
         assert result["name"] == "新患者"
-        assert result["phone"] == "13900009999"
+        # 管理端返回脱敏后的手机号（隐私合规）
+        assert result["phone"] == "139****9999"
         assert result["source"] == 2  # 管理端创建
 
     @pytest.mark.asyncio
@@ -383,7 +385,8 @@ class TestUpdatePatient:
 
         assert result is not None
         assert result["name"] == "更新后的名字"
-        assert result["phone"] == "13900008888"
+        # 管理端返回脱敏后的手机号（隐私合规）
+        assert result["phone"] == "139****8888"
 
 
 class TestFamilyMember:
