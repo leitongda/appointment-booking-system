@@ -190,17 +190,10 @@ class ArticleResponse(BaseModel):
 
 
 # ============================================================
-# 通用：批量删除 / 排序
+# 通用：批量删除 / 排序 — 收敛至 app.schemas.common
 # ============================================================
-
-class BatchDeleteRequest(BaseModel):
-    ids: list[str] = Field(..., min_length=1, description="要删除的ID列表")
-
-
-class SortOrderItem(BaseModel):
-    id: str
-    sort_order: int = Field(..., ge=0)
-
-
-class SortOrderRequest(BaseModel):
-    items: list[SortOrderItem] = Field(..., min_length=1, description="排序项列表")
+from app.schemas.common import (  # noqa: E402, F401
+    BatchDeleteRequest,
+    SortOrderItem,
+    SortOrderRequest,
+)

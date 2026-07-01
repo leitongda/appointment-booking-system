@@ -126,14 +126,8 @@ class ContentVersionResponse(BaseModel):
 
 
 # ========== 批量操作 ==========
-
-class BatchDeleteRequest(BaseModel):
-    ids: list[str] = Field(..., min_length=1, description="要删除的ID列表")
-
-
-class SortOrderItem(BaseModel):
-    id: str
-    sort_order: int = Field(..., ge=0)
+# BatchDeleteRequest / SortOrderItem 收敛至 app.schemas.common（行为等价）
+from app.schemas.common import BatchDeleteRequest, SortOrderItem  # noqa: E402, F401
 
 
 class BannerSortRequest(BaseModel):
