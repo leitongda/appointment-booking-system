@@ -7,7 +7,12 @@ import { history, useAccess, useModel } from '@umijs/max';
 import { appointmentApi, storeApi, dataApi, doctorApi, departmentApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import { fetchAllData } from '@/utils/fetchAllData';
-import { rrwebMaskTextCell } from '@/utils/tableCellProps';
+import {
+  patientNameColumn,
+  patientPhoneColumn,
+  doctorNameColumn,
+  departmentNameColumn,
+} from '@/utils/columnPresets';
 import { PAGINATION_CONFIG } from '@/constants/pagination';
 import { REFUND_STATUS_MAP, REFUND_STATUS_COLOR, APPOINTMENT_STATUS_TAG, REFUNDABLE_APPOINTMENT_STATUSES } from '@hospital/shared';
 import type { Appointment } from '@hospital/shared';
@@ -176,26 +181,9 @@ const AppointmentListPage: React.FC = () => {
       copyable: true,
       search: false,
     },
-    {
-      title: '患者',
-      dataIndex: 'patientName',
-      width: 80,
-      search: false,
-      onCell: rrwebMaskTextCell,
-    },
-    {
-      title: '手机号',
-      dataIndex: 'patientPhone',
-      width: 120,
-      search: false,
-      onCell: rrwebMaskTextCell,
-    },
-    {
-      title: '医生',
-      dataIndex: 'doctorName',
-      width: 80,
-      search: false,
-    },
+    patientNameColumn({ width: 80 }),
+    patientPhoneColumn({ width: 120 }),
+    doctorNameColumn({ width: 80 }),
     // 医生下拉选择器（仅搜索，不在表格中显示）
     {
       title: '医生',
@@ -223,12 +211,7 @@ const AppointmentListPage: React.FC = () => {
         }
       },
     },
-    {
-      title: '科室',
-      dataIndex: 'departmentName',
-      width: 100,
-      search: false,
-    },
+    departmentNameColumn({ width: 100 }),
     // 科室下拉选择器（仅搜索，不在表格中显示）
     {
       title: '科室',

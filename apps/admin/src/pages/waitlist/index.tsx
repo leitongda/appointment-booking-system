@@ -10,6 +10,7 @@ import type { Store, Department, Doctor } from '@hospital/shared';
 import { createListRequest } from '@/utils/proTable';
 import { fetchAllData } from '@/utils/fetchAllData';
 import { rrwebMaskTextCell } from '@/utils/tableCellProps';
+import { patientNameColumn } from '@/utils/columnPresets';
 import { PAGINATION_CONFIG } from '@/constants/pagination';
 import ListPageSkeleton from '@/components/ListPageSkeleton';
 import dayjs from 'dayjs';
@@ -275,13 +276,7 @@ const WaitlistPage: React.FC = () => {
       width: 80,
       search: false,
     },
-    {
-      title: '患者',
-      dataIndex: 'patientName',
-      width: 80,
-      search: false,
-      onCell: rrwebMaskTextCell,
-    },
+    patientNameColumn({ width: 80 }),
     {
       title: '排队位置',
       dataIndex: 'position',

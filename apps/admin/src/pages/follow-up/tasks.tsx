@@ -7,6 +7,11 @@ import { departmentApi, doctorApi, followUpApi } from '@hospital/api';
 import type { FollowUpTask, FollowUpTaskListItem } from '@hospital/api';
 import { createListRequest } from '@/utils/proTable';
 import { fetchAllData } from '@/utils/fetchAllData';
+import {
+  patientNameColumn,
+  doctorNameColumn,
+  departmentNameColumn,
+} from '@/utils/columnPresets';
 import dayjs from 'dayjs';
 
 const STATUS_MAP: Record<string, { text: string; color: string }> = {
@@ -130,9 +135,9 @@ const FollowUpTasksPage: React.FC = () => {
       },
     },
     { title: '任务编号', dataIndex: 'taskNo', width: 140, copyable: true, search: false },
-    { title: '患者', dataIndex: 'patientName', width: 90, search: false },
-    { title: '医生', dataIndex: 'doctorName', width: 90, search: false },
-    { title: '科室', dataIndex: 'departmentName', width: 110, search: false },
+    patientNameColumn({ width: 90 }),
+    doctorNameColumn({ width: 90 }),
+    departmentNameColumn({ width: 110 }),
     { title: '计划', dataIndex: 'planName', width: 120, ellipsis: true, search: false },
     { title: '步骤', dataIndex: 'stepOrder', width: 60, search: false, render: (_, r) => r.stepOrder ? `第${r.stepOrder}步` : '-' },
     {

@@ -16,6 +16,10 @@ import type { FollowUpRecord, FollowUpRecordListItem } from '@hospital/api';
 import { createListRequest } from '@/utils/proTable';
 import { fetchAllData } from '@/utils/fetchAllData';
 import { rrwebMaskTextCell } from '@/utils/tableCellProps';
+import {
+  patientNameColumn,
+  doctorNameColumn,
+} from '@/utils/columnPresets';
 import dayjs from 'dayjs';
 
 const CONDITION_MAP: Record<string, { text: string; color: string }> = {
@@ -104,8 +108,8 @@ const FollowUpRecordsPage: React.FC = () => {
         },
       },
     },
-    { title: '患者', dataIndex: 'patientName', width: 100, search: false, onCell: rrwebMaskTextCell },
-    { title: '医生', dataIndex: 'doctorName', width: 100, search: false },
+    patientNameColumn({ width: 100 }),
+    doctorNameColumn({ width: 100 }),
     {
       title: '随访日期',
       dataIndex: 'followUpDate',

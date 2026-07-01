@@ -7,7 +7,11 @@ import { departmentApi, doctorApi, medicalRecordApi } from '@hospital/api';
 import type { MedicalRecord, MedicalRecordListItem } from '@hospital/api';
 import { createListRequest } from '@/utils/proTable';
 import { fetchAllData } from '@/utils/fetchAllData';
-import { rrwebMaskTextCell } from '@/utils/tableCellProps';
+import {
+  patientNameColumn,
+  doctorNameColumn,
+  departmentNameColumn,
+} from '@/utils/columnPresets';
 import dayjs from 'dayjs';
 
 const STATUS_MAP: Record<number, { text: string; color: string }> = {
@@ -142,25 +146,9 @@ const MedicalRecordPage: React.FC = () => {
       copyable: true,
       search: false,
     },
-    {
-      title: '患者',
-      dataIndex: 'patientName',
-      width: 100,
-      search: false,
-      onCell: rrwebMaskTextCell,
-    },
-    {
-      title: '医生',
-      dataIndex: 'doctorName',
-      width: 100,
-      search: false,
-    },
-    {
-      title: '科室',
-      dataIndex: 'departmentName',
-      width: 110,
-      search: false,
-    },
+    patientNameColumn({ width: 100 }),
+    doctorNameColumn({ width: 100 }),
+    departmentNameColumn({ width: 110 }),
     {
       title: '诊断',
       dataIndex: 'diagnosis',
