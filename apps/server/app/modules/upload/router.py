@@ -1,5 +1,4 @@
 import io
-import json
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
@@ -81,22 +80,14 @@ async def upload_image(
         if generate_thumbnails and content_type != "image/svg+xml":
             # 依赖反转：图片设置由调用方（modules 层）从 SettingsService 读取后
             # 注入 ImageProcessor，infrastructure 不再反向依赖 modules。
+            # 注意：get_by_category 返回的是已解析的标量（int/list/str），
+            # 不是 {value: ...} dict（_parse_value 已对 thumbnail_sizes 做
+            # json.loads、对 compress_quality 转 int）。
             settings_service = SettingsService(db)
             image_data = await settings_service.get_by_category("image")
-            thumbnail_sizes = None
-            raw_sizes = image_data.get("thumbnail_sizes")
-            if isinstance(raw_sizes, dict):
-                try:
-                    thumbnail_sizes = json.loads(raw_sizes.get("value", "[]"))
-                except (json.JSONDecodeError, TypeError, ValueError):
-                    thumbnail_sizes = None
-            raw_quality = image_data.get("compress_quality")
+            thumbnail_sizes = image_data.get("thumbnail_sizes")  # 已解析的 list 或 None
             try:
-                compress_quality = (
-                    int(raw_quality.get("value", 85))
-                    if isinstance(raw_quality, dict)
-                    else 85
-                )
+                compress_quality = int(image_data.get("compress_quality", 85))
             except (TypeError, ValueError):
                 compress_quality = 85
             processor = ImageProcessor(
