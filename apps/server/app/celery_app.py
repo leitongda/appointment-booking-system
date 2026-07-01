@@ -357,6 +357,7 @@ celery_app.autodiscover_tasks([
     "app.tasks.attendance_stat_task",
     "app.tasks.attendance_alert_task",
     "app.tasks.attendance_cleanup_task",
+    "app.tasks.waitlist_promotion_task",
 ])
 
 # Flower 监控配置

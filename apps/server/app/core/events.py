@@ -24,6 +24,56 @@ EVENT_TYPE_LABELS: dict[str, str] = {
 }
 
 
+def dispatch_appointment_event(
+    tenant_id: str | None,
+    event_type: str,
+    payload: dict[str, Any],
+) -> None:
+    """
+    分发预约业务事件（fire-and-forget）
+
+    通过 Celery 异步任务驱动预约事件的副作用（如候补自动递补），
+    不阻塞调用方主流程，投递失败仅记录日志。
+
+    采用 ``celery_app.send_task(name, ...)`` 按任务名投递，而非 import 任务模块，
+    以避免 ``app.core`` 静态依赖 ``app.modules``（违反 importlinter 的
+    core-no-modules-dep / core-no-common-dep 契约）。任务实现模块由 Celery
+    autodiscover 注册，运行期通过名字解析。
+
+    payload 只携带可序列化的标量数据（schedule_id / appointment_id /
+    tenant_id / reason），禁止传入 ORM 对象，避免跨进程引用与序列化失败。
+
+    Args:
+        tenant_id: 租户ID（落入任务上下文 ContextVar）
+        event_type: 事件类型（EventType 枚举值，用于日志）
+        payload: 事件载荷（必须含 schedule_id；appointment_id/reason 可选）
+    """
+    try:
+        from app.celery_app import celery_app
+
+        # 注入 tenant_id 到 payload，供 task 还原租户上下文
+        task_payload = {
+            "tenant_id": tenant_id,
+            "schedule_id": payload.get("schedule_id"),
+            "appointment_id": payload.get("appointment_id"),
+            "reason": payload.get("reason", "APPOINTMENT_CANCELLED"),
+        }
+        celery_app.send_task(
+            "app.tasks.waitlist_promotion_task.handle_appointment_cancelled",
+            kwargs={"payload": task_payload},
+        )
+        logger.info(
+            f"[EventDispatch] 已投递预约事件: event={event_type}, "
+            f"tenant={tenant_id}, schedule={task_payload.get('schedule_id')}"
+        )
+    except Exception as e:
+        # 投递失败不影响业务主流程（取消仍成功）
+        logger.warning(
+            f"[EventDispatch] 预约事件投递失败: event={event_type}, "
+            f"tenant={tenant_id}, error={e}"
+        )
+
+
 def dispatch_event_email(
     store_id: str,
     event_type: str,

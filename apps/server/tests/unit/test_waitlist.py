@@ -18,6 +18,7 @@ from sqlalchemy import select
 
 from app.models.waitlist import WaitlistEntry
 from app.models.schedule import Schedule
+from app.middleware.exception import BusinessError
 from app.modules.waitlist.service import WaitlistService
 from app.modules.appointments.service import AppointmentService
 
@@ -89,7 +90,7 @@ class TestAddToWaitlist:
             mock_rule_engine_cls.return_value = mock_rule_engine
             mock_rule_engine.get_capacity_policy = AsyncMock(return_value=None)
 
-            with pytest.raises(ValueError, match="您已在候补队列中"):
+            with pytest.raises(BusinessError, match="您已在候补队列中"):
                 await service.add_to_waitlist(
                     user_id=test_user.id,
                     patient_id=test_patient.id,
@@ -170,7 +171,7 @@ class TestAddToWaitlist:
             mock_rule_engine_cls.return_value = mock_rule_engine
             mock_rule_engine.get_capacity_policy = AsyncMock(return_value=mock_policy)
 
-            with pytest.raises(ValueError, match="候补队列已满"):
+            with pytest.raises(BusinessError, match="候补队列已满"):
                 await service.add_to_waitlist(
                     user_id=test_user.id,
                     patient_id=patients[5].id,

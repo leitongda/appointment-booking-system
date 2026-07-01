@@ -7,7 +7,7 @@ from sqlalchemy import update as sa_update
 from sqlalchemy.orm import selectinload
 
 from app.core.error_codes import ErrorCode
-from app.core.events import EventType
+from app.core.events import EventType, dispatch_appointment_event
 from app.core.redis import RedisCache
 from app.middleware.exception import BusinessError
 from app.models.appointment import Appointment
@@ -655,14 +655,22 @@ class AppointmentBookingService(AppointmentServiceBase):
 
             await self.db.commit()
 
+        # 候补自动递补：由同步调用改为事件驱动（打破 appointments → waitlist 循环依赖）。
+        # 仅在已确认/已签到取消分支触发；待支付取消在上方 status==0 分支已 early return。
+        # commit 成功后再投递，保证取消已落库；投递失败不影响取消主流程。
         if schedule:
             try:
-                from app.modules.waitlist.service import WaitlistService
-
-                waitlist_service = WaitlistService(self.db)
-                await waitlist_service.auto_promote(schedule_id=appointment.schedule_id, reason="APPOINTMENT_CANCELLED")
+                dispatch_appointment_event(
+                    tenant_id=current_tenant_id,
+                    event_type=EventType.APPOINTMENT_CANCELLED,
+                    payload={
+                        "schedule_id": appointment.schedule_id,
+                        "appointment_id": appointment.id,
+                        "reason": "APPOINTMENT_CANCELLED",
+                    },
+                )
             except Exception as exc:
-                logger.warning(f"候补自动递补失败: {exc}")
+                logger.warning(f"候补递补事件投递失败: {exc}")
 
         await self.db.refresh(appointment)
 

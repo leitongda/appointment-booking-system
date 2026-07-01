@@ -12,6 +12,7 @@ from unittest.mock import AsyncMock, patch, MagicMock
 import pytz
 from contextlib import asynccontextmanager
 
+from app.middleware.exception import BusinessError
 from app.modules.appointments.service import AppointmentService, APPOINTMENT_STATUS
 from app.models.appointment import Appointment
 from app.models.schedule import Schedule
@@ -58,15 +59,11 @@ class TestCancelAppointmentSuccess:
         test_appointment.cancel_close_at = now + timedelta(hours=1)
         await db_session.commit()
 
-        # Mock 候补递补和消息服务（WaitlistService 在函数内部导入）
+        # Mock 候补递补事件分发与消息服务（候补递补已改为事件驱动，不再同步调用 WaitlistService）
         # Mock Redis 分布式锁（测试环境无 Redis）
-        with patch('app.modules.waitlist.service.WaitlistService') as mock_waitlist_cls, \
+        with patch('app.modules.appointments.service_booking.dispatch_appointment_event') as mock_dispatch, \
              patch('app.modules.messages.service_messages.MessageService') as mock_msg_cls, \
              patch('app.core.redis.RedisCache.tenant_distributed_lock', return_value=mock_distributed_lock()):
-
-            mock_waitlist = MagicMock()
-            mock_waitlist_cls.return_value = mock_waitlist
-            mock_waitlist.auto_promote = AsyncMock()
 
             mock_msg = MagicMock()
             mock_msg_cls.return_value = mock_msg
@@ -87,6 +84,14 @@ class TestCancelAppointmentSuccess:
         assert result.cancel_time is not None, "取消时间应被记录"
         assert result.cancel_reason == "测试取消", "取消原因应保存"
 
+        # 验证：已确认预约取消后投递 APPOINTMENT_CANCELLED 事件（异步触发候补递补）
+        mock_dispatch.assert_called_once()
+        _, kwargs = mock_dispatch.call_args
+        assert kwargs["event_type"] == "appointment_cancelled"
+        assert kwargs["payload"]["schedule_id"] == test_appointment.schedule_id
+        assert kwargs["payload"]["appointment_id"] == appointment_id
+        assert kwargs["payload"]["reason"] == "APPOINTMENT_CANCELLED"
+
         # 验证排班号源+1
         await db_session.refresh(test_appointment)
         schedule_result = await db_session.execute(
@@ -106,15 +111,11 @@ class TestCancelAppointmentSuccess:
         """测试管理员取消预约（无需时间窗检查）"""
         appointment_id = test_appointment.id
 
-        # Mock 候补递补和消息服务（WaitlistService 在函数内部导入）
+        # Mock 候补递补事件分发与消息服务（候补递补已改为事件驱动）
         # Mock Redis 分布式锁（测试环境无 Redis）
-        with patch('app.modules.waitlist.service.WaitlistService') as mock_waitlist_cls, \
+        with patch('app.modules.appointments.service_booking.dispatch_appointment_event') as mock_dispatch, \
              patch('app.modules.messages.service_messages.MessageService') as mock_msg_cls, \
              patch('app.core.redis.RedisCache.tenant_distributed_lock', return_value=mock_distributed_lock()):
-
-            mock_waitlist = MagicMock()
-            mock_waitlist_cls.return_value = mock_waitlist
-            mock_waitlist.auto_promote = AsyncMock()
 
             mock_msg = MagicMock()
             mock_msg_cls.return_value = mock_msg
@@ -132,6 +133,9 @@ class TestCancelAppointmentSuccess:
         assert result is not None
         assert result.status == APPOINTMENT_STATUS['CANCELLED']
         assert result.cancel_reason == "管理员取消"
+
+        # 验证：管理员取消已确认预约同样投递事件
+        mock_dispatch.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_cancel_pending_appointment_success(
@@ -155,7 +159,8 @@ class TestCancelAppointmentSuccess:
         mock_lock.__aenter__ = AsyncMock(return_value=None)
         mock_lock.__aexit__ = AsyncMock(return_value=None)
 
-        with patch('app.modules.messages.service_messages.MessageService') as mock_msg_cls, \
+        with patch('app.modules.appointments.service_booking.dispatch_appointment_event') as mock_dispatch, \
+             patch('app.modules.messages.service_messages.MessageService') as mock_msg_cls, \
              patch('app.core.redis.RedisCache.tenant_distributed_lock', return_value=mock_lock) as mock_dist_lock:
             mock_msg = MagicMock()
             mock_msg_cls.return_value = mock_msg
@@ -173,6 +178,9 @@ class TestCancelAppointmentSuccess:
         assert result.cancel_reason == "待支付取消"
         mock_dist_lock.assert_called_once()
         assert mock_dist_lock.call_args.args[0] == f"appointment:cancel:{test_appointment.id}"
+
+        # 验证：待支付取消不触发候补递补事件（待支付早 return 分支不发事件）
+        mock_dispatch.assert_not_called()
 
         schedule_result = await db_session.execute(
             Schedule.__table__.select().where(Schedule.id == test_appointment.schedule_id)
@@ -197,7 +205,7 @@ class TestCancelAppointmentWrongStatus:
         test_appointment.status = APPOINTMENT_STATUS['COMPLETED']
         await db_session.commit()
 
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(BusinessError) as exc_info:
             await appointment_service.cancel(
                 appointment_id=test_appointment.id,
                 user_id=test_user.id,
@@ -219,7 +227,7 @@ class TestCancelAppointmentWrongStatus:
         test_appointment.status = APPOINTMENT_STATUS['CANCELLED']
         await db_session.commit()
 
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(BusinessError) as exc_info:
             await appointment_service.cancel(
                 appointment_id=test_appointment.id,
                 user_id=test_user.id,
@@ -249,7 +257,7 @@ class TestCancelAppointmentTimeWindow:
         test_appointment.cancel_close_at = now + timedelta(hours=24)
         await db_session.commit()
 
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(BusinessError) as exc_info:
             await appointment_service.cancel(
                 appointment_id=test_appointment.id,
                 user_id=test_user.id,
@@ -275,7 +283,7 @@ class TestCancelAppointmentTimeWindow:
         test_appointment.cancel_close_at = now - timedelta(hours=1)
         await db_session.commit()
 
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(BusinessError) as exc_info:
             await appointment_service.cancel(
                 appointment_id=test_appointment.id,
                 user_id=test_user.id,
@@ -298,7 +306,7 @@ class TestCancelAppointmentPermission:
         """测试非预约用户不可取消"""
         wrong_user_id = "wrong_user_id_12345"
 
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(BusinessError) as exc_info:
             await appointment_service.cancel(
                 appointment_id=test_appointment.id,
                 user_id=wrong_user_id,
@@ -343,13 +351,9 @@ class TestCancelAppointmentConcurrent:
         mock_lock.__aenter__ = AsyncMock(return_value=None)
         mock_lock.__aexit__ = AsyncMock(return_value=None)
 
-        with patch('app.modules.waitlist.service.WaitlistService') as mock_waitlist_cls, \
+        with patch('app.modules.appointments.service_booking.dispatch_appointment_event') as mock_dispatch, \
              patch('app.modules.messages.service_messages.MessageService') as mock_msg_cls, \
              patch('app.core.redis.RedisCache.tenant_distributed_lock', return_value=mock_lock) as mock_dist_lock:
-
-            mock_waitlist = MagicMock()
-            mock_waitlist_cls.return_value = mock_waitlist
-            mock_waitlist.auto_promote = AsyncMock()
 
             mock_msg = MagicMock()
             mock_msg_cls.return_value = mock_msg
@@ -368,6 +372,9 @@ class TestCancelAppointmentConcurrent:
         mock_dist_lock.assert_called_once()
         call_args = mock_dist_lock.call_args
         assert 'appointment:cancel:' in call_args[0][0], "锁名应包含 appointment:cancel:"
+
+        # 验证：已确认预约取消后投递候补递补事件（与分布式锁共同验证取消主路径）
+        mock_dispatch.assert_called_once()
 
 
 class TestCancelAppointmentNonExistent:
