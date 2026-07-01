@@ -1,4 +1,5 @@
 import io
+import json
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
@@ -7,9 +8,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_admin
 from app.core.logging import logger
 from app.db.session import get_db
-from app.infrastructure.image.processor import create_image_processor
+from app.infrastructure.image.processor import ImageProcessor
 from app.infrastructure.storage import get_storage
 from app.infrastructure.storage.base import build_tenant_storage_folder
+from app.modules.settings.service import SettingsService
 from app.modules.upload.schemas import ThumbnailInfo, TransferRequest, UploadResponse
 
 router = APIRouter()
@@ -77,7 +79,30 @@ async def upload_image(
         tenant_folder = build_tenant_storage_folder(folder, current_admin.get("tenant_id"))
 
         if generate_thumbnails and content_type != "image/svg+xml":
-            processor = await create_image_processor(db)
+            # 依赖反转：图片设置由调用方（modules 层）从 SettingsService 读取后
+            # 注入 ImageProcessor，infrastructure 不再反向依赖 modules。
+            settings_service = SettingsService(db)
+            image_data = await settings_service.get_by_category("image")
+            thumbnail_sizes = None
+            raw_sizes = image_data.get("thumbnail_sizes")
+            if isinstance(raw_sizes, dict):
+                try:
+                    thumbnail_sizes = json.loads(raw_sizes.get("value", "[]"))
+                except (json.JSONDecodeError, TypeError, ValueError):
+                    thumbnail_sizes = None
+            raw_quality = image_data.get("compress_quality")
+            try:
+                compress_quality = (
+                    int(raw_quality.get("value", 85))
+                    if isinstance(raw_quality, dict)
+                    else 85
+                )
+            except (TypeError, ValueError):
+                compress_quality = 85
+            processor = ImageProcessor(
+                thumbnail_sizes=thumbnail_sizes,
+                compress_quality=compress_quality,
+            )
             file_io = io.BytesIO(content)
             original_img, thumbnails = processor.process(file_io, content_type)
             original_result = await storage.upload(
