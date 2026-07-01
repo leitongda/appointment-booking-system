@@ -1,19 +1,26 @@
 /**
- * API 请求配置 - 医生端
- * 配置 @hospital/api 包的请求和响应拦截器
+ * API 请求配置（医生端）
+ *
+ * 本文件仅保留「医生端专有差异」：EXCLUDE_TOKEN_PATHS、UI 反馈依赖（antd
+ * message/Modal）、401 登录过期流程（Modal + history.push 跳转，无 isPublicEntryRoute
+ * 判定、无 rememberReturnPath）、403 租户暂停跳 /tenant-suspended、请求错误回调不打印
+ * console.error。其余共享骨架（token 注入、错误状态码分类分发、ApiError vs 原始 Axios
+ * 双路径、网络错误兜底）由 @hospital/api 的 createWebInterceptors() 工厂提供。
+ *
+ * 对外导出 setupRequestInterceptor / setupResponseInterceptor / initApiConfig 签名不变，
+ * 调用点（app.tsx）零改动。
  */
+import { createWebInterceptors, type RawAxiosErrorRenderer } from '@hospital/api';
+import { ApiError, ERROR_MESSAGES } from '@hospital/api';
 import {
-  setRequestInterceptor,
-  setResponseInterceptor,
-  ApiError,
-  ERROR_MESSAGES,
-  shouldAddToken,
-  handleNetworkError,
-} from '@hospital/api';
-import { getToken, handleTokenExpired, markAuthExpired, shouldSilenceAuthExpiredFeedback, parseTenantError, markTenantSuspended } from '@hospital/shared';
+  handleTokenExpired,
+  markAuthExpired,
+  shouldSilenceAuthExpiredFeedback,
+  parseTenantError,
+  markTenantSuspended,
+} from '@hospital/shared';
 import { history } from 'umi';
 import { message, Modal } from 'antd';
-import type { InternalAxiosRequestConfig } from 'axios';
 
 /**
  * 不需要自动添加 token 的接口路径
@@ -25,34 +32,40 @@ const EXCLUDE_TOKEN_PATHS = [
 ];
 
 /**
- * 配置请求拦截器
+ * UI 反馈依赖（医生端仅用 message.error，showWarning 退化为 showError）
  */
-export const setupRequestInterceptor = () => {
-  setRequestInterceptor(
-    (config: InternalAxiosRequestConfig) => {
-      if (config.url && shouldAddToken(config.url, EXCLUDE_TOKEN_PATHS)) {
-        const token = getToken();
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-      }
-      return config;
-    },
-    (error) => {
-      return Promise.reject(error);
-    }
-  );
+const errorDeps = {
+  showError: (msg: string) => message.error(msg),
+  showWarning: (opts: { message: string; description?: string; duration?: number }) =>
+    message.error(`${opts.message}${opts.description ? '：' + opts.description : ''}`),
 };
 
 /**
- * 处理 401 错误的通用逻辑
+ * 401 登录过期 Modal（医生端专用：history.push 跳 /login）
  */
-const handle401 = (errorMessage: string, requestUrl?: string) => {
-  const isProtectedRequest = !requestUrl || shouldAddToken(requestUrl, EXCLUDE_TOKEN_PATHS);
-  if (!isProtectedRequest) {
-    return;
-  }
+const showLoginExpiredModal = (content: string) => {
+  Modal.confirm({
+    title: '登录已过期',
+    content: content || '您的登录已失效，请重新登录。',
+    okText: '重新登录',
+    cancelButtonProps: { style: { display: 'none' } },
+    closable: false,
+    maskClosable: false,
+    onOk: () => {
+      Modal.destroyAll();
+      history.push('/login');
+    },
+  });
+};
 
+/**
+ * 401 认证失效流程（医生端）：
+ * markAuthExpired → shouldSilenceAuthExpiredFeedback 静默判定（无 isPublicEntryRoute）→
+ * handleTokenExpired(Modal 跳 /login)。无 rememberReturnPath。
+ *
+ * 工厂已在外层完成 isProtectedRequest 过滤，此处无需再判。
+ */
+const onUnauthorized = ({ message: errorMessage }: { requestUrl: string; message: string }) => {
   markAuthExpired();
 
   if (shouldSilenceAuthExpiredFeedback()) {
@@ -60,120 +73,104 @@ const handle401 = (errorMessage: string, requestUrl?: string) => {
     return;
   }
 
-  handleTokenExpired(() => {
-    Modal.confirm({
-      title: '登录已过期',
-      content: errorMessage || '您的登录已失效，请重新登录。',
-      okText: '重新登录',
-      cancelButtonProps: { style: { display: 'none' } },
-      closable: false,
-      maskClosable: false,
-      onOk: () => {
-        Modal.destroyAll();
-        history.push('/login');
-      },
-    });
-  });
+  handleTokenExpired(() => showLoginExpiredModal(errorMessage));
+};
+
+/**
+ * 403 租户暂停（医生端）：markTenantSuspended + window.location.href 跳 /tenant-suspended
+ */
+const onTenantSuspended = ({ reason }: { reason: ReturnType<typeof parseTenantError>; message: string }) => {
+  if (reason) {
+    markTenantSuspended(reason);
+    window.location.href = '/tenant-suspended';
+  }
+};
+
+/**
+ * 原始 Axios 路径的端点级渲染（医生端）：
+ * 医生端瘦身前的原始 Axios 路径对 403/404/5xx 分别处理，且 5xx 使用
+ * ERROR_MESSAGES[status]（而非后端 errorMsg），401 由工厂默认路径处理（onUnauthorized）。
+ * 此 renderer 仅接管 403/404/5xx/其他，对 401 返回 undefined 交回工厂。
+ */
+const rawAxiosErrorRenderer: RawAxiosErrorRenderer = (status, data, requestUrl) => {
+  if (status === 401) return undefined; // 交回工厂默认 401 处理
+
+  const errorMsg =
+    data?.detail || data?.data?.detail || data?.message || ERROR_MESSAGES[status] || '请求失败';
+
+  if (status === 403) {
+    const tenantReason = parseTenantError(data);
+    if (tenantReason) {
+      onTenantSuspended({
+        reason: tenantReason,
+        message: data?.message || '该机构订阅已到期，暂不支持新预约，请联系机构续费。',
+      });
+      return new ApiError(status, errorMsg, data, requestUrl);
+    }
+    message.error(errorMsg);
+    return new ApiError(status, errorMsg, data, requestUrl);
+  }
+
+  if (status === 404) {
+    message.error(errorMsg);
+    return new ApiError(status, errorMsg, data, requestUrl);
+  }
+
+  if (status >= 500) {
+    message.error(ERROR_MESSAGES[status] || ERROR_MESSAGES[500]);
+    return new ApiError(status, errorMsg, data, requestUrl);
+  }
+
+  message.error(errorMsg);
+  return new ApiError(status, errorMsg, data, requestUrl);
+};
+
+// 创建拦截器（工厂内部注册到全局 axios 实例）
+const interceptors = createWebInterceptors({
+  excludeTokenPaths: EXCLUDE_TOKEN_PATHS,
+  deps: errorDeps,
+  // 医生端不注入 X-Tenant-ID，也不注入 store_id
+  logRequestError: false, // 医生端瘦身前请求错误回调仅 reject，不打印 console.error
+  onUnauthorized,
+  onTenantSuspended,
+  rawAxiosErrorRenderer,
+  // 医生端不使用结构化错误码 / RSA 静默重试
+  serverErrorMessageMode: 'fallback',
+  // 医生端原始 Axios 消息链（renderer 内同样使用）：detail || data.detail || message || statusFallback
+  axiosErrorMessageChain: ['detail', 'data.detail', 'message', 'statusFallback'],
+});
+
+/**
+ * 拦截器是否已注册（幂等保护，避免重复 apply 导致拦截器链重复）。
+ */
+let interceptorsApplied = false;
+
+const applyOnce = () => {
+  if (interceptorsApplied) return;
+  interceptorsApplied = true;
+  interceptors.apply();
+};
+
+/**
+ * 配置请求拦截器
+ */
+export const setupRequestInterceptor = () => {
+  applyOnce();
 };
 
 /**
  * 配置响应拦截器
  */
 export const setupResponseInterceptor = () => {
-  setResponseInterceptor(
-    undefined,
-    (error) => {
-      // 处理 ApiError（@hospital/api 响应拦截器已解析的业务错误）
-      if (error instanceof ApiError) {
-        const { code, message: errorMessage, url: requestUrl } = error;
-
-        if (error.isUnauthorized()) {
-          handle401(errorMessage || ERROR_MESSAGES[401], requestUrl);
-          return Promise.reject(error);
-        }
-
-        if (error.isForbidden()) {
-          // 检查是否为租户暂停
-          const tenantReason = parseTenantError(error);
-          if (tenantReason) {
-            markTenantSuspended(tenantReason);
-            window.location.href = '/tenant-suspended';
-            return Promise.reject(error);
-          }
-          message.error(errorMessage || ERROR_MESSAGES[403]);
-          return Promise.reject(error);
-        }
-
-        if (error.isNotFound()) {
-          message.error(errorMessage || ERROR_MESSAGES[404]);
-          return Promise.reject(error);
-        }
-
-        if (error.isServerError()) {
-          message.error(ERROR_MESSAGES[code] || ERROR_MESSAGES[500]);
-          return Promise.reject(error);
-        }
-
-        // 其他业务错误
-        if (errorMessage) {
-          message.error(errorMessage);
-        }
-        return Promise.reject(error);
-      }
-
-      // 处理原始 Axios HTTP 错误
-      const response = error?.response;
-      if (response) {
-        const { status, data } = response;
-        const errorMsg = data?.detail || data?.data?.detail || data?.message || ERROR_MESSAGES[status] || '请求失败';
-        const requestUrl = error?.config?.url || '';
-
-        if (status === 401) {
-          handle401(errorMsg, requestUrl);
-          return Promise.reject(new ApiError(status, errorMsg, data, requestUrl));
-        }
-
-        if (status === 403) {
-          // 检查是否为租户暂停
-          const tenantReason = parseTenantError(data);
-          if (tenantReason) {
-            markTenantSuspended(tenantReason);
-            window.location.href = '/tenant-suspended';
-            return Promise.reject(new ApiError(status, errorMsg, data, requestUrl));
-          }
-          message.error(errorMsg);
-          return Promise.reject(new ApiError(status, errorMsg, data, requestUrl));
-        }
-
-        if (status === 404) {
-          message.error(errorMsg);
-          return Promise.reject(new ApiError(status, errorMsg, data, requestUrl));
-        }
-
-        if (status >= 500) {
-          message.error(ERROR_MESSAGES[status] || ERROR_MESSAGES[500]);
-          return Promise.reject(new ApiError(status, errorMsg, data, requestUrl));
-        }
-
-        message.error(errorMsg);
-        return Promise.reject(new ApiError(status, errorMsg, data, requestUrl));
-      }
-
-      // 网络错误
-      if (error instanceof Error) {
-        handleNetworkError(error, (msg) => message.error(msg));
-        return Promise.reject(error);
-      }
-
-      return Promise.reject(error);
-    }
-  );
+  applyOnce();
 };
 
 /**
  * 初始化所有请求配置
  */
 export const initApiConfig = () => {
-  setupRequestInterceptor();
-  setupResponseInterceptor();
+  applyOnce();
 };
+
+// 维持瘦身高前的 re-export 兼容性（ApiError / ERROR_MESSAGES 原本即来自 @hospital/api）
+export { ApiError, ERROR_MESSAGES };

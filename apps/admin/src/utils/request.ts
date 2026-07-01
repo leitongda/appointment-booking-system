@@ -1,21 +1,32 @@
 /**
- * API 请求配置
- * 配置 @hospital/api 包的请求和响应拦截器
+ * API 请求配置（机构端）
+ *
+ * 本文件仅保留「机构端专有差异」：EXCLUDE_TOKEN_PATHS、UI 反馈依赖（antd
+ * message/notification/Modal）、401 登录过期流程（Modal + window.location.href 跳转 +
+ * isPublicEntryRoute/shouldSilenceAuthExpiredFeedback 静默判定 + rememberReturnPath 记忆回跳）、
+ * 403 租户暂停跳 /tenant-suspended。其余共享骨架（token/X-Tenant-ID 注入、错误状态码分类分发、
+ * ApiError vs 原始 Axios 双路径、结构化错误码、RSA 静默重试、网络错误兜底）由
+ * @hospital/api 的 createWebInterceptors() 工厂提供。
+ *
+ * 对外导出 setupRequestInterceptor / setupResponseInterceptor / initApiConfig 签名不变，
+ * 调用点（initApp.ts）零改动。
  */
+import { createWebInterceptors, type RawAxiosErrorRenderer } from '@hospital/api';
 import {
-  setRequestInterceptor,
-  setResponseInterceptor,
   ApiError,
   ERROR_MESSAGES,
-  getRequestPath,
-  shouldAddToken,
-  handleStructuredErrorCode,
   isRsaDecryptError,
-  handleNetworkError,
 } from '@hospital/api';
-import { getToken, getStorage, STORAGE_KEYS, handleTokenExpired, markAuthExpired, shouldSilenceAuthExpiredFeedback, isPublicEntryRoute, parseTenantError, markTenantSuspended, rememberReturnPath } from '@hospital/shared';
+import {
+  handleTokenExpired,
+  markAuthExpired,
+  shouldSilenceAuthExpiredFeedback,
+  isPublicEntryRoute,
+  parseTenantError,
+  markTenantSuspended,
+  rememberReturnPath,
+} from '@hospital/shared';
 import { message, Modal, notification } from 'antd';
-import type { InternalAxiosRequestConfig } from 'axios';
 
 /**
  * 不需要自动添加 token 的接口路径
@@ -35,7 +46,7 @@ const EXCLUDE_TOKEN_PATHS = [
 ];
 
 /**
- * 结构化错误码处理的 UI 依赖
+ * 结构化错误码处理的 UI 依赖（message.error / notification.warning）
  */
 const errorDeps = {
   showError: (msg: string) => message.error(msg),
@@ -44,220 +55,129 @@ const errorDeps = {
 };
 
 /**
+ * 401 登录过期 Modal（机构端专用：window.location.href 跳 /login）
+ */
+const showLoginExpiredModal = (content: string) => {
+  Modal.confirm({
+    title: '登录已过期',
+    content: content || '您的登录已失效，请重新登录。',
+    okText: '重新登录',
+    cancelButtonProps: { style: { display: 'none' } },
+    closable: false,
+    maskClosable: false,
+    onOk: () => {
+      Modal.destroyAll();
+      window.location.href = '/login';
+    },
+  });
+};
+
+/**
+ * 401 认证失效流程（机构端）：
+ * markAuthExpired → 静默判定（登录页/根路径/无 token 仅清理不弹框）→
+ * rememberReturnPath → handleTokenExpired(Modal 跳 /login)
+ *
+ * 注意：工厂已在外层完成 isProtectedRequest（登录接口不触发）过滤，此处无需再判。
+ */
+const onUnauthorized = ({ message: errorMessage }: { requestUrl: string; message: string }) => {
+  markAuthExpired();
+
+  // 登录页/根路径下绝不弹认证失效 Modal，仅静默清理 token。
+  // shouldSilenceAuthExpiredFeedback 覆盖"公共入口页"与"已无 token"两种场景。
+  if (shouldSilenceAuthExpiredFeedback() || isPublicEntryRoute()) {
+    handleTokenExpired();
+    return;
+  }
+
+  // 在清理 token / 弹框跳转前记忆当前业务页，供重新登录后回跳。
+  // 必须在 handleTokenExpired（内部 removeToken）之前调用，否则 onPageChange
+  // 短路分支不会写入 LAST_PATH。
+  rememberReturnPath();
+
+  handleTokenExpired(() => showLoginExpiredModal(errorMessage));
+};
+
+/**
+ * 403 租户暂停（机构端）：markTenantSuspended + window.location.href 跳 /tenant-suspended
+ */
+const onTenantSuspended = ({ reason }: { reason: ReturnType<typeof parseTenantError>; message: string }) => {
+  if (reason) {
+    markTenantSuspended(reason);
+    window.location.href = '/tenant-suspended';
+  }
+};
+
+/**
+ * 原始 Axios 路径下 RSA 解密失败需要静默重试的登录接口片段
+ */
+const RSA_LOGIN_PATH_GLOBS = ['/admin/login', '/admin/phone-login'];
+
+/**
+ * 原始 Axios 路径的端点级渲染：机构端与默认分发一致，但需保证返回的 ApiError
+ * 携带结构化错误信封字段（errorCode/errorDetails），与瘦身高前逐字等价。
+ * 这里返回 undefined 交回工厂默认分发（工厂已正确构造 ApiError 含结构化字段）。
+ *
+ * 注：admin 瘦身前的原始 Axios 路径用 errorMsg 链路 = detail || message || statusFallback，
+ * 与工厂默认 axiosErrorMessageChain 一致，故无需覆盖。
+ */
+const rawAxiosErrorRenderer: RawAxiosErrorRenderer = () => undefined;
+
+// 创建拦截器（工厂内部注册到全局 axios 实例）
+const interceptors = createWebInterceptors({
+  excludeTokenPaths: EXCLUDE_TOKEN_PATHS,
+  deps: errorDeps,
+  injectTenantHeader: true,
+  onUnauthorized,
+  onTenantSuspended,
+  useStructuredErrorCode: true,
+  useRsaRetry: true,
+  rsaLoginPathGlobs: RSA_LOGIN_PATH_GLOBS,
+  serverErrorMessageMode: 'fallback',
+  axiosErrorMessageChain: ['detail', 'message', 'statusFallback'],
+  rawAxiosErrorRenderer,
+});
+
+/**
+ * 拦截器是否已注册（幂等保护，避免重复 apply 导致拦截器链重复）。
+ */
+let interceptorsApplied = false;
+
+const applyOnce = () => {
+  if (interceptorsApplied) return;
+  interceptorsApplied = true;
+  interceptors.apply();
+};
+
+/**
  * 配置请求拦截器
- * 自动在请求头中添加 Authorization token
- * 注意：登录相关接口不添加 token，避免携带过期 token 导致的问题
+ * 自动在请求头中添加 Authorization token 与 X-Tenant-ID（登录相关接口不添加 token）
+ *
+ * 注意：工厂 apply() 同时注册请求与响应拦截器，此处通过 applyOnce 幂等保护。
  */
 export const setupRequestInterceptor = () => {
-  setRequestInterceptor(
-    (config: InternalAxiosRequestConfig) => {
-      // 登录相关接口不添加 token
-      if (config.url && shouldAddToken(config.url, EXCLUDE_TOKEN_PATHS)) {
-        const token = getToken();
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-      }
-
-      // 添加租户上下文 Header：从 localStorage 读取当前租户 ID
-      const currentTenantId = getStorage<string>(STORAGE_KEYS.CURRENT_TENANT_ID);
-      if (currentTenantId) {
-        config.headers['X-Tenant-ID'] = currentTenantId;
-      }
-
-      return config;
-    },
-    (error) => {
-      console.error('请求错误:', error);
-      return Promise.reject(error);
-    }
-  );
+  applyOnce();
 };
 
 /**
  * 配置响应拦截器
  * 处理 API 业务错误和 HTTP 错误，提供用户友好的错误提示
+ *
+ * 工厂 apply() 已一并注册响应拦截器；保留本导出仅为维持对外签名不变
+ * （initApp.ts 仅调用 initApiConfig，历史调用点可能单独调用本函数）。
  */
 export const setupResponseInterceptor = () => {
-  setResponseInterceptor(
-    undefined,  // 不处理成功响应，避免干扰数据格式
-    (error) => {
-      // 处理 ApiError（包含业务错误码）
-      if (error instanceof ApiError) {
-        const { code, message: errorMessage } = error;
-
-        // 结构化错误码处理
-        if (handleStructuredErrorCode(error, errorDeps)) {
-          return Promise.reject(error);
-        }
-
-        // 401 未授权 - 弹框确认后跳转登录页
-        if (error.isUnauthorized()) {
-          const requestUrl = error.url || '';
-          const isProtectedRequest = !requestUrl || shouldAddToken(requestUrl, EXCLUDE_TOKEN_PATHS);
-
-          if (!isProtectedRequest) {
-            return Promise.reject(error);
-          }
-
-          markAuthExpired();
-
-          // 登录页/根路径下绝不弹认证失效 Modal，仅静默清理 token。
-          // shouldSilenceAuthExpiredFeedback 覆盖"公共入口页"与"已无 token"两种场景。
-          if (shouldSilenceAuthExpiredFeedback() || isPublicEntryRoute()) {
-            handleTokenExpired();
-            return Promise.reject(error);
-          }
-
-          // 在清理 token / 弹框跳转前记忆当前业务页，供重新登录后回跳。
-          // 必须在 handleTokenExpired（内部 removeToken）之前调用，否则 onPageChange
-          // 短路分支不会写入 LAST_PATH。
-          rememberReturnPath();
-
-          handleTokenExpired(() => {
-            Modal.confirm({
-              title: '登录已过期',
-              content: errorMessage || '您的登录已失效，请重新登录。',
-              okText: '重新登录',
-              cancelButtonProps: { style: { display: 'none' } },
-              closable: false,
-              maskClosable: false,
-              onOk: () => {
-                Modal.destroyAll();
-                window.location.href = '/login';
-              },
-            });
-          });
-          return Promise.reject(error);
-        }
-
-        // 403 禁止访问
-        if (error.isForbidden()) {
-          const tenantReason = parseTenantError(error);
-          if (tenantReason) {
-            markTenantSuspended(tenantReason);
-            window.location.href = '/tenant-suspended';
-            return Promise.reject(error);
-          }
-          message.error(errorMessage || ERROR_MESSAGES[403]);
-          return Promise.reject(error);
-        }
-
-        // 404 未找到
-        if (error.isNotFound()) {
-          message.error(errorMessage || ERROR_MESSAGES[404]);
-          return Promise.reject(error);
-        }
-
-        // 服务器错误 (5xx)
-        if (error.isServerError()) {
-          message.error(ERROR_MESSAGES[code] || ERROR_MESSAGES[500]);
-          return Promise.reject(error);
-        }
-
-        // 密码解密错误（400状态码 + 解密失败消息）- 登录接口会自动重试，不显示错误
-        if (code === 400 && errorMessage && isRsaDecryptError(errorMessage)) {
-          const requestUrl = error.url || '';
-          if (requestUrl.includes('/admin/login') || requestUrl.includes('/admin/phone-login')) {
-            return Promise.reject(error);
-          }
-        }
-
-        // 其他业务错误，显示后端返回的消息
-        if (errorMessage) {
-          message.error(errorMessage);
-        }
-
-        return Promise.reject(error);
-      }
-
-      // 处理原始 Axios 错误（带 response 的 HTTP 错误）
-      const response = error?.response;
-      if (response) {
-        const { status, data } = response;
-        const errorMsg = data?.detail || data?.message || ERROR_MESSAGES[status] || '请求失败';
-        const requestUrl = error?.config?.url || error?.request?.responseURL || '';
-        // 提取结构化错误信息
-        const structuredError = data?.error;
-        const errorCode = structuredError?.code || data?.error_code;
-        const errorDetails = structuredError?.details;
-
-        // 构建 ApiError 以复用结构化错误处理
-        const apiError = new ApiError(status, errorMsg, data, requestUrl, errorCode, errorDetails);
-        if (handleStructuredErrorCode(apiError, errorDeps)) {
-          return Promise.reject(apiError);
-        }
-
-        // 401 未授权
-        if (status === 401) {
-          const isProtectedRequest = !requestUrl || shouldAddToken(requestUrl, EXCLUDE_TOKEN_PATHS);
-
-          if (!isProtectedRequest) {
-            return Promise.reject(new ApiError(status, errorMsg, data, requestUrl, errorCode, errorDetails));
-          }
-
-          markAuthExpired();
-
-          // 登录页/根路径下绝不弹认证失效 Modal，仅静默清理 token。
-          if (shouldSilenceAuthExpiredFeedback() || isPublicEntryRoute()) {
-            handleTokenExpired();
-            return Promise.reject(new ApiError(status, errorMsg, data, requestUrl, errorCode, errorDetails));
-          }
-          // 在清理 token / 弹框跳转前记忆当前业务页，供重新登录后回跳。
-          rememberReturnPath();
-          handleTokenExpired(() => {
-            Modal.confirm({
-              title: '登录已过期',
-              content: errorMsg || '您的登录已失效，请重新登录。',
-              okText: '重新登录',
-              cancelButtonProps: { style: { display: 'none' } },
-              closable: false,
-              maskClosable: false,
-              onOk: () => {
-                Modal.destroyAll();
-                window.location.href = '/login';
-              },
-            });
-          });
-          return Promise.reject(new ApiError(status, errorMsg, data, requestUrl, errorCode, errorDetails));
-        }
-
-        // 密码解密错误 - 登录接口自动重试
-        if (status === 400 && errorMsg && isRsaDecryptError(errorMsg)) {
-          if (requestUrl.includes('/admin/login') || requestUrl.includes('/admin/phone-login')) {
-            return Promise.reject(new ApiError(status, errorMsg, data, requestUrl, errorCode, errorDetails));
-          }
-        }
-
-        // 403 — 检查是否为租户暂停
-        if (status === 403) {
-          const tenantReason = parseTenantError(data);
-          if (tenantReason) {
-            markTenantSuspended(tenantReason);
-            window.location.href = '/tenant-suspended';
-            return Promise.reject(new ApiError(status, errorMsg, data, requestUrl, errorCode, errorDetails));
-          }
-        }
-        message.error(errorMsg);
-        return Promise.reject(new ApiError(status, errorMsg, data, requestUrl, errorCode, errorDetails));
-      }
-
-      // 网络错误或其他错误
-      if (error instanceof Error) {
-        handleNetworkError(error, (msg) => message.error(msg));
-        return Promise.reject(error);
-      }
-
-      return Promise.reject(error);
-    }
-  );
+  applyOnce();
 };
 
 /**
  * 初始化所有请求配置
  */
 export const initApiConfig = () => {
-  setupRequestInterceptor();
-  setupResponseInterceptor();
+  applyOnce();
   console.log('✓ API 请求配置已初始化');
 };
+
+// 保持对 ApiError / ERROR_MESSAGES / isRsaDecryptError 的 re-export，
+// 供 admin 内其他模块（如有）按原路径导入。这些符号原本即来自 @hospital/api，
+// 此处显式 re-export 维持瘦身高前的导入兼容性。
+export { ApiError, ERROR_MESSAGES, isRsaDecryptError };

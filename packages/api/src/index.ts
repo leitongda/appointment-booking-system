@@ -23,6 +23,17 @@ export {
 } from './utils/error-handling';
 export type { ErrorHandlingDeps } from './utils/error-handling';
 
+// 导出 Web 拦截器工厂（admin / doctor / patient-h5 三端 request.ts 共享骨架）
+export { createWebInterceptors } from './web-interceptors';
+export type {
+  WebInterceptorOptions,
+  WebInterceptorDeps,
+  WebInterceptors,
+  UnauthorizedContext,
+  TenantSuspendedContext,
+  RawAxiosErrorRenderer,
+} from './web-interceptors';
+
 // 导出性能监控和重试工具
 export {
   getPerformanceMonitor,
