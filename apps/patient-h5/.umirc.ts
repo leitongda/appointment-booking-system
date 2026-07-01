@@ -46,6 +46,7 @@ export default defineConfig({
         { path: '/home', component: '@/pages/home' },
         { path: '/department', component: '@/pages/department' },
         { path: '/department/:id', component: '@/pages/department/detail' },
+        { path: '/guide', component: '@/pages/guide', name: '症状导诊' },
         { path: '/doctor', component: '@/pages/doctor' },
         { path: '/doctor/:id', component: '@/pages/doctor/detail' },
         { path: '/booking/:doctorId', component: '@/pages/booking' },
