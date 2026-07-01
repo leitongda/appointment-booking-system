@@ -57,15 +57,9 @@ class AdminUserUpdate(BaseModel):
     avatar: str | None = Field(None, description="头像URL")
     gender: int | None = Field(None, ge=0, le=2, description="性别: 0未知 1男 2女")
 
-class ChangePasswordRequest(BaseModel):
-    """修改密码请求"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
-    old_password: str = Field(..., min_length=6, max_length=20, description="旧密码")
-    new_password: str = Field(..., min_length=6, max_length=20, description="新密码")
+# NOTE: ChangePasswordRequest 已收敛到 app.schemas.common（统一密码策略 6-20 位）。
+# 原 old/new min_length=6, max_length=20 与统一版完全等价，无行为变化。
+# 请改为: from app.schemas.common import ChangePasswordRequest
 
 class BindPhoneRequest(BaseModel):
     """绑定手机号请求"""

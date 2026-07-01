@@ -23,7 +23,6 @@ from app.models.account import Account
 from app.models.doctor import Doctor
 from app.modules.doctors.schemas import (
     BatchSortRequest,
-    ChangePasswordRequest,
     CheckUsernameRequest,
     CheckUsernameResponse,
     DoctorLoginRequest,
@@ -32,6 +31,7 @@ from app.modules.doctors.schemas import (
     GenerateUsernameResponse,
 )
 from app.modules.doctors.service import DoctorService
+from app.schemas.common import ChangePasswordRequest
 from app.schemas.auth import (
     EmailBindRequest,
     EmailChangeRequest,
@@ -935,12 +935,8 @@ async def change_doctor_password(
             detail="新密码不能与原密码相同"
         )
 
-    # 密码长度验证
-    if not (6 <= len(data.new_password) <= 20):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="密码长度必须为6-20位"
-        )
+    # 密码长度校验已迁移到 Pydantic schema 层（app.schemas.common.ChangePasswordRequest），
+    # 由 min_length=6/max_length=20 在 422 拦截；不再在此处手动 raise HTTPException(400)。
 
     # 密码策略校验
     policy = await get_tenant_password_policy(db, current_doctor.tenant_id)

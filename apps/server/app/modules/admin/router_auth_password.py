@@ -10,7 +10,8 @@ from app.db.session import get_db
 from app.infrastructure.email.service import EmailService
 from app.modules.settings.service import SettingsService
 from app.modules.email_templates.service import EmailTemplateService
-from app.modules.admin.schemas import ChangePasswordRequest, UpdateProfileRequest
+from app.modules.admin.schemas import UpdateProfileRequest
+from app.schemas.common import ChangePasswordRequest
 from app.modules.admin.service_admins import AdminService
 from app.schemas.auth import EmailBindRequest, EmailChangeRequest, EmailSendCodeRequest, EmailUnbindRequest
 

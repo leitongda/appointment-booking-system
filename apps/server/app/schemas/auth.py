@@ -89,15 +89,9 @@ class RefreshTokenRequest(BaseModel):
     
     refresh_token: str = Field(..., description="刷新令牌")
 
-class ChangePasswordRequest(BaseModel):
-    """修改密码请求"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-
-    old_password: str = Field(..., min_length=6, description="旧密码")
-    new_password: str = Field(..., min_length=6, max_length=20, description="新密码")
+# NOTE: ChangePasswordRequest 已收敛到 app.schemas.common（统一密码策略 6-20 位）。
+# 原定义 old_password 无 max_length，统一版补齐 max_length=20（收紧，符合只紧不松）。
+# 请改为: from app.schemas.common import ChangePasswordRequest
 
 class ForgotPasswordRequest(BaseModel):
     """忘记密码请求"""

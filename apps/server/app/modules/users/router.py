@@ -9,9 +9,9 @@ from app.infrastructure.storage import get_storage
 from app.infrastructure.storage.base import build_tenant_storage_folder
 from app.modules.users.schemas import AvatarUploadResponse
 from app.modules.users.service import PatientService, UserService
+from app.schemas.common import ChangePasswordRequest
 from app.schemas.user import (
     BindPhoneRequest,
-    ChangePasswordRequest,
     PatientCreate,
     PatientResponse,
     PatientUpdate,

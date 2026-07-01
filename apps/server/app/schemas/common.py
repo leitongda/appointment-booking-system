@@ -61,3 +61,34 @@ class SortOrderRequest(BaseModel):
     """
 
     items: list[SortOrderItem] = Field(..., min_length=1, description="排序项列表")
+
+
+class ChangePasswordRequest(BaseModel):
+    """通用修改密码请求体。
+
+    统一收敛四处历史定义，字段集完全一致（``old_password`` /
+    ``new_password``，无 confirm/captcha/token 等附加字段），校验取**最严格**
+    版本：两字段均 ``min_length=6, max_length=20``。
+
+    原始各处校验强度（合并前）：
+        - ``app/schemas/user.py``: old/new 均 ``min_length=6, max_length=20``
+          （已是目标强度，本次直接采用）。
+        - ``app/schemas/auth.py``: old 仅 ``min_length=6``（无 max），
+          new ``min_length=6, max_length=20`` —— 本次为 old 补齐 ``max_length=20``。
+        - ``app/modules/admin/schemas.py``: 同 auth.py（old 无 max）—— 补齐。
+        - ``app/modules/doctors/schemas.py``: old/new 均为裸 ``str``（无 schema
+          校验），长度靠 ``doctors/router.py`` 手动 ``HTTPException(400,
+          '密码长度必须为6-20位')``。本次迁移到 Pydantic schema 层，由
+          ``min_length/max_length`` 在 422 拦截（见行为变更说明）。
+
+    **行为变更**：
+        - doctors 改密端点（``POST /doctors/change-password``）长度校验从
+          service 层 ``HTTPException(400, '密码长度必须为6-20位')`` 迁移到
+          Pydantic schema 层 422（Pydantic 默认英文消息）。前端若依赖
+          HTTP 400 状态码或该中文消息需适配。
+        - auth/admin 改密端点：old_password 超长（>20）原本 200 通过（无
+          max 校验）现在会被 422 拦截——属于收紧，符合"只紧不松"红线。
+    """
+
+    old_password: str = Field(..., min_length=6, max_length=20, description="旧密码")
+    new_password: str = Field(..., min_length=6, max_length=20, description="新密码")

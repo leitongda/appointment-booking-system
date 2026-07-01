@@ -23,7 +23,6 @@ from app.modules.email_templates.service import EmailTemplateService
 from app.infrastructure.wechat.service import WechatService
 from app.modules.users.service import UserService
 from app.schemas.auth import (
-    ChangePasswordRequest,
     EmailBindRequest,
     EmailChangeRequest,
     EmailLoginRequest,
@@ -39,6 +38,7 @@ from app.schemas.auth import (
     UserInfo,
     to_camel,
 )
+from app.schemas.common import ChangePasswordRequest
 from app.schemas.response import ErrorResponse
 from app.schemas.user import UserResponse
 from app.schemas.wechat import (

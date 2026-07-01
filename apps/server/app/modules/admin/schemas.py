@@ -223,9 +223,9 @@ class OperationLogResponse(BaseModel):
         by_alias=True,
     )
 
-class ChangePasswordRequest(BaseModel):
-    old_password: str = Field(..., min_length=6)
-    new_password: str = Field(..., min_length=6, max_length=20)
+# NOTE: ChangePasswordRequest 已收敛到 app.schemas.common（统一密码策略 6-20 位）。
+# 原定义 old_password 无 max_length，统一版补齐 max_length=20（收紧，符合只紧不松）。
+# 请改为: from app.schemas.common import ChangePasswordRequest
 
 class UpdateProfileRequest(BaseModel):
     name: str | None = Field(None, max_length=50)
