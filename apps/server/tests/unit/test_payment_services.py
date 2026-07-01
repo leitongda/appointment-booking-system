@@ -4,7 +4,7 @@
 覆盖 PaymentService 的以下功能:
 1. create_payment_order - 创建支付订单完整流程（happy path + 错误路径）
 2. _get_appointment_by_out_trade_no - 商户订单号反查预约（新格式 + 历史 APPT 格式）
-3. _generate_out_trade_no - 商户订单号生成
+3. generate_out_trade_no - 商户订单号生成（payment_ordering 模块级纯函数）
 4. handle_payment_callback 边界场景 - 非成功事件、金额不一致、out_trade_no 缺失
 
 不覆盖（已在其他测试文件中覆盖）:
@@ -33,6 +33,7 @@ from app.models.schedule import Schedule
 from app.models.store import Store
 from app.models.tenant import Tenant
 from app.models.user import Patient, User
+from app.modules.payments.payment_ordering import generate_out_trade_no
 from app.modules.payments.service import PaymentService
 
 
@@ -564,7 +565,7 @@ class TestPaymentServiceGetAppointmentByOutTradeNo:
 
 
 class TestPaymentServiceGenerateOutTradeNo:
-    """测试 _generate_out_trade_no 的生成逻辑"""
+    """测试 generate_out_trade_no 的生成逻辑"""
 
     @pytest.mark.asyncio
     @pytest.mark.unit
@@ -584,8 +585,7 @@ class TestPaymentServiceGenerateOutTradeNo:
         )
         await db_session.commit()
 
-        service = PaymentService(db_session)
-        result = service._generate_out_trade_no(appointment)
+        result = generate_out_trade_no(appointment)
 
         assert result == "YY20260401120000QRST"
 
@@ -604,10 +604,8 @@ class TestPaymentServiceGenerateOutTradeNo:
             appointment_no=None,  # 缺少 appointment_no
         )
 
-        service = PaymentService(db_session)
-
         with pytest.raises(ValueError, match="预约缺少 appointment_no"):
-            service._generate_out_trade_no(fake_appointment)
+            generate_out_trade_no(fake_appointment)
 
 
 # ==================== TestPaymentServiceCallbackEdgeCases ====================

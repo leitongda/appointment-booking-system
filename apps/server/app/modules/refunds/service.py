@@ -33,10 +33,9 @@ class RefundService:
 
     def _get_payment_out_trade_no(self, appointment: Appointment) -> str:
         """复用支付模块的商户订单号规则，确保退款永远指向同一原订单。"""
-        from app.modules.payments.service import PaymentService
+        from app.modules.payments.payment_ordering import generate_out_trade_no
 
-        payment_service = PaymentService(self.db)
-        return payment_service._generate_out_trade_no(appointment)
+        return generate_out_trade_no(appointment)
 
     async def _get_refund_appointment(
         self,

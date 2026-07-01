@@ -18,6 +18,7 @@ from app.infrastructure.payments.wechat_pay_service import WeChatPayService
 from app.middleware.tenant_context import get_current_tenant_id
 from app.models.appointment import Appointment
 from app.models.miniapp_platform import PaymentProfile
+from app.modules.payments.payment_ordering import generate_out_trade_no
 
 logger = logging.getLogger(__name__)
 
@@ -106,7 +107,7 @@ class PaymentService:
         )
 
         # 6. 生成商户订单号
-        out_trade_no = self._generate_out_trade_no(appointment)
+        out_trade_no = generate_out_trade_no(appointment)
 
         # 7. 调用微信统一下单
         order_result = await wxpay_service.create_order(
@@ -473,17 +474,6 @@ class PaymentService:
             return legacy_result.scalar_one_or_none()
 
         return None
-
-    def _generate_out_trade_no(self, appointment: Appointment) -> str:
-        """生成商户订单号。
-
-        微信支付 V3 要求 out_trade_no 长度 6-32 字符。
-        appointment_no 形如 YY+yyyymmddHHMMSS+4 字符随机串=22 字符，符合要求且租户内唯一。
-        历史数据若曾使用 APPT+UUID(40字符)会被微信拒单，回调反查保留兼容。
-        """
-        if not appointment.appointment_no:
-            raise ValueError(f"预约缺少 appointment_no，无法生成商户订单号: {appointment.id}")
-        return appointment.appointment_no
 
     def _generate_miniapp_pay_sign(
         self,
