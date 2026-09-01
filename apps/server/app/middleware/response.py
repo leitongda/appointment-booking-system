@@ -16,6 +16,17 @@ EXCLUDED_PATHS = {
     "/api/v1/openapi.json",
 }
 
+_REBUILT_RESPONSE_EXCLUDED_HEADERS = {"content-length", "content-encoding"}
+
+
+def _forward_headers(response: Response) -> dict[str, str]:
+    """复制重建响应时仍应保留的原响应头。"""
+    return {
+        key: value
+        for key, value in response.headers.items()
+        if key.lower() not in _REBUILT_RESPONSE_EXCLUDED_HEADERS
+    }
+
 
 class UnifiedResponseMiddleware(BaseHTTPMiddleware):
     """统一响应格式中间件
@@ -39,6 +50,10 @@ class UnifiedResponseMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
         
         response = await call_next(request)
+
+        content_disposition = response.headers.get("content-disposition", "")
+        if "attachment" in content_disposition.lower():
+            return response
         
         # 只处理 JSON 响应
         if response.headers.get("content-type", "").startswith("application/json"):
@@ -57,7 +72,8 @@ class UnifiedResponseMiddleware(BaseHTTPMiddleware):
                 if isinstance(data, dict) and "code" in data and "message" in data:
                     return JSONResponse(
                         content=data,
-                        status_code=response.status_code
+                        status_code=response.status_code,
+                        headers=_forward_headers(response),
                     )
                 
                 # 包装为统一格式
@@ -71,15 +87,16 @@ class UnifiedResponseMiddleware(BaseHTTPMiddleware):
                 
                 return JSONResponse(
                     content=wrapped_data,
-                    status_code=response.status_code
+                    status_code=response.status_code,
+                    headers=_forward_headers(response),
                 )
             except json.JSONDecodeError:
                 # 如果不是 JSON，直接返回原响应
                 return Response(
                     content=body,
                     status_code=response.status_code,
-                    media_type=response.media_type
+                    media_type=response.media_type,
+                    headers=_forward_headers(response),
                 )
         
         return response
-
