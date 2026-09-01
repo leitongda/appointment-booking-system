@@ -209,7 +209,7 @@ async def delete_medical_record(
 
     # 权限校验：仅创建医生或管理员可删除
     doctor_id = current_user.get("doctor_id")
-    is_admin = current_user.get("role") in ("admin", "super_admin")
+    is_admin = current_user.get("is_admin")
     if not is_admin and record.doctor_id != doctor_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="仅创建医生或管理员可删除病历")
 

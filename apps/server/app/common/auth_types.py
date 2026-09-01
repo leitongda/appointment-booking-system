@@ -220,7 +220,11 @@ class AccountInfo:
             admin_data = {
                 "name": self.name,
                 "avatar": self.avatar,
-                "is_admin": self.role_type == RoleType.ADMIN,
+                # is_admin 与 is_admin property 保持一致：管理员与运营人员都为 True。
+                # 此前为 role_type == RoleType.ADMIN，导致 operator 的 is_admin=False，
+                # 下游所有用 current_user.get("is_admin") 判定 admin 分支的代码对
+                # 运营人员失效（预约列表/详情/取消/签到/支付等约 10 处）。
+                "is_admin": True,
                 "is_operator": self.role_type == RoleType.OPERATOR,
             }
             if self.admin_info:

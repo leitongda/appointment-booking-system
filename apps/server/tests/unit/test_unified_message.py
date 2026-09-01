@@ -233,13 +233,13 @@ class TestUnifiedMessageService:
         service = UnifiedMessageService(db_session)
 
         # Mock Redis 去重
-        with patch("app.modules.unified_message.service.get_redis") as mock_redis:
+        with patch("app.modules.unified_message.service_send.get_redis") as mock_redis:
             mock_client = AsyncMock()
             mock_client.set.return_value = True  # 首次发送
             mock_redis.return_value = mock_client
 
             # Mock 渠道注册表
-            with patch("app.modules.unified_message.service.channel_registry") as mock_registry:
+            with patch("app.modules.unified_message.service_send.channel_registry") as mock_registry:
                 mock_registry.is_available.return_value = False  # 无可用渠道
 
                 result = await service.send(sample_event)
@@ -262,7 +262,7 @@ class TestUnifiedMessageService:
         service = UnifiedMessageService(db_session)
 
         # Mock Redis 返回已存在
-        with patch("app.modules.unified_message.service.get_redis") as mock_redis:
+        with patch("app.modules.unified_message.service_send.get_redis") as mock_redis:
             mock_client = AsyncMock()
             mock_client.set.return_value = False  # 重复
             mock_redis.return_value = mock_client

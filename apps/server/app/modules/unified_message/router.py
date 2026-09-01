@@ -6,7 +6,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_admin, get_current_user, require_permission
+from app.api.deps import (
+    get_current_account_dict,
+    get_current_admin,
+    require_permission,
+)
 from app.db.session import get_db
 from app.modules.unified_message.schemas import (
     BatchSendResult,
@@ -82,7 +86,7 @@ async def get_my_messages(
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_account_dict),
 ):
     """获取当前用户的消息列表（从 JWT 自动提取用户信息）"""
     user_id, user_type = _get_user_info(current_user)
@@ -106,7 +110,7 @@ async def get_my_messages(
 @router.get("/unread-count", response_model=UnreadCountResponse, summary="获取未读数")
 async def get_unread_count(
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_account_dict),
 ):
     """获取未读消息数量（从 JWT 自动提取用户信息）"""
     user_id, user_type = _get_user_info(current_user)
@@ -119,7 +123,7 @@ async def get_unread_count(
 async def mark_as_read(
     message_id: str,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_account_dict),
 ):
     """标记消息为已读（从 JWT 自动提取用户信息）"""
     user_id, _ = _get_user_info(current_user)
@@ -135,7 +139,7 @@ async def mark_as_read(
 async def mark_all_as_read(
     message_type: str | None = Query(None, description="消息类型"),
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_account_dict),
 ):
     """标记所有消息为已读（从 JWT 自动提取用户信息）"""
     user_id, user_type = _get_user_info(current_user)
@@ -149,7 +153,7 @@ async def mark_all_as_read(
 async def delete_message(
     message_id: str,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_account_dict),
 ):
     """删除消息（从 JWT 自动提取用户信息）"""
     user_id, _ = _get_user_info(current_user)
@@ -164,7 +168,7 @@ async def delete_message(
 @router.delete("/clear/read", summary="清空已读消息")
 async def clear_read_messages(
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_account_dict),
 ):
     """清空已读消息（从 JWT 自动提取用户信息）"""
     user_id, user_type = _get_user_info(current_user)
@@ -343,7 +347,7 @@ async def delete_rule(
 async def get_message(
     message_id: str,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_account_dict),
 ):
     """获取消息详情（从 JWT 自动提取用户信息）"""
     user_id, _ = _get_user_info(current_user)

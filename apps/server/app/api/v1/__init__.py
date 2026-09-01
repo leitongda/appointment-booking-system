@@ -70,9 +70,8 @@ ROUTER_REGISTRATIONS = [
     #  内容与消息 — 长期保留
     # --------------------------------------------------------------- #
     RouterRegistration("app.modules.content.router", "/content", ["内容管理"]),
-    # /messages 路由已移除：所有前端已迁移到 /unified-messages（P2-D 消息系统合并）
-    # 旧模块 app.modules.messages 保留供数据迁移参考，不再注册路由
     RouterRegistration("app.modules.unified_message.router", "/unified-messages", ["统一消息中心"]),
+    RouterRegistration("app.modules.messages.router", "/messages", ["消息中心"], deprecated=True),
     RouterRegistration("app.modules.email_templates.router", "/email-templates", ["邮件模板"]),
     RouterRegistration("app.modules.booking_notices.router", "/booking-notices", ["预约须知"]),
     RouterRegistration("app.modules.notification_logs.router", "/notification-logs", ["通知日志"]),
@@ -134,6 +133,7 @@ ROUTER_REGISTRATIONS = [
     RouterRegistration("app.modules.approval_flows.router", "/approval-flows", ["审批流管理"]),
     RouterRegistration("app.modules.approval_flows.router_instances", "/approval-instances", ["审批实例"]),
     RouterRegistration("app.modules.common_services.router", "/common-services", ["常见服务"]),
+    RouterRegistration("app.modules.common_services.router", "/content", ["常见服务"]),
     RouterRegistration("app.modules.feedbacks.router", "/feedbacks", ["用户反馈"]),
     RouterRegistration("app.modules.guide_tours.router", "/guide-tours", ["操作指引"]),
     RouterRegistration("app.modules.guide_tours.router_admin", "/admin/guide-tours", ["操作指引管理"]),

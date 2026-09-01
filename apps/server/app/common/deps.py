@@ -10,6 +10,7 @@
 # 数据库相关
 # 认证相关
 from app.common.auth_deps import (
+    get_current_account_dict,
     get_current_admin,
     get_current_doctor,
     get_current_doctor_by_token,
@@ -63,6 +64,7 @@ __all__ = [
     "get_current_super_admin",
     "get_optional_user",
     "get_current_user_or_admin",
+    "get_current_account_dict",
     # 租户相关
     "get_current_tenant",
     "get_current_tenant_or_404",

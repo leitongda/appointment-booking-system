@@ -205,7 +205,7 @@ class TestChannelFailureHandling:
             content="测试内容",
         )
 
-        with patch("app.modules.unified_message.service.channel_registry") as mock_registry:
+        with patch("app.modules.unified_message.service_send.channel_registry") as mock_registry:
             # 模拟渠道不可用
             mock_registry.is_available.return_value = False
 
@@ -233,7 +233,7 @@ class TestChannelFailureHandling:
 
         service = UnifiedMessageService(db_session)
 
-        with patch("app.modules.unified_message.service.channel_registry") as mock_registry:
+        with patch("app.modules.unified_message.service_send.channel_registry") as mock_registry:
             # 模拟第一个渠道失败，第二个成功
             mock_registry.is_available.side_effect = lambda ch: ch != "wechat"
             mock_registry.get.side_effect = lambda ch: MagicMock() if ch != "wechat" else None
@@ -259,12 +259,12 @@ class TestQuietHoursBoundary:
         service = UnifiedMessageService.__new__(UnifiedMessageService)
 
         # 当前时间在静默时段内
-        with patch("app.modules.unified_message.service.datetime") as mock_datetime:
+        with patch("app.modules.unified_message.service_send.datetime") as mock_datetime:
             mock_datetime.now.return_value.time.return_value = time(23, 0)
             assert service._in_quiet_hours("22:00", "23:30") is True
 
         # 当前时间在静默时段外
-        with patch("app.modules.unified_message.service.datetime") as mock_datetime:
+        with patch("app.modules.unified_message.service_send.datetime") as mock_datetime:
             mock_datetime.now.return_value.time.return_value = time(21, 0)
             assert service._in_quiet_hours("22:00", "23:30") is False
 
@@ -273,16 +273,16 @@ class TestQuietHoursBoundary:
         service = UnifiedMessageService.__new__(UnifiedMessageService)
 
         # 当前时间在跨午夜静默时段内（23:00 - 07:00）
-        with patch("app.modules.unified_message.service.datetime") as mock_datetime:
+        with patch("app.modules.unified_message.service_send.datetime") as mock_datetime:
             mock_datetime.now.return_value.time.return_value = time(23, 30)
             assert service._in_quiet_hours("23:00", "07:00") is True
 
-        with patch("app.modules.unified_message.service.datetime") as mock_datetime:
+        with patch("app.modules.unified_message.service_send.datetime") as mock_datetime:
             mock_datetime.now.return_value.time.return_value = time(6, 0)
             assert service._in_quiet_hours("23:00", "07:00") is True
 
         # 当前时间在跨午夜静默时段外
-        with patch("app.modules.unified_message.service.datetime") as mock_datetime:
+        with patch("app.modules.unified_message.service_send.datetime") as mock_datetime:
             mock_datetime.now.return_value.time.return_value = time(12, 0)
             assert service._in_quiet_hours("23:00", "07:00") is False
 
@@ -538,7 +538,7 @@ class TestFullSendFlow:
             content="测试内容",
         )
 
-        with patch("app.modules.unified_message.service.channel_registry") as mock_registry:
+        with patch("app.modules.unified_message.service_send.channel_registry") as mock_registry:
             mock_registry.is_available.return_value = True
 
             # registry.get() 返回一个类（callable），其实例有 mock 方法
@@ -580,7 +580,7 @@ class TestFullSendFlow:
             content="测试内容",
         )
 
-        with patch("app.modules.unified_message.service.channel_registry") as mock_registry:
+        with patch("app.modules.unified_message.service_send.channel_registry") as mock_registry:
             mock_registry.is_available.return_value = True
 
             mock_channel_instance = AsyncMock()

@@ -246,3 +246,25 @@ async def get_current_user_or_admin(
     # 调用统一函数
     account = await get_current_account(credentials, db)
     return account.to_dict()
+
+
+async def get_current_account_dict(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: AsyncSession = Depends(get_db)
+) -> dict:
+    """统一账号入口（dict 返回）
+
+    根据 Token 中的 type 字段自动分发到 admin/doctor/user 认证逻辑，
+    然后转换为旧格式 dict 返回。
+
+    用于需要同时支持多端（admin / doctor / user）访问、且只读收件人
+    身份（id + role_type）的接口，例如统一消息收件箱。相比
+    get_current_user（只查 User 表），它不会把 admin/doctor token
+    误判为“账号不存在”。
+
+    返回 dict 的字段与 get_current_user_or_admin 完全一致，包含：
+    id、role_type、tenant_id、phone 等，调用方可直接复用 _get_user_info
+    提取 user_id / user_type。
+    """
+    account = await get_current_account(credentials, db)
+    return account.to_dict()
