@@ -137,8 +137,8 @@ async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用，请联系管理员")
     
     access_delta, refresh_delta, expires_seconds = await get_token_expire_config(db)
-    access_token = create_access_token(data={"sub": user.id}, expires_delta=access_delta)
-    refresh_token = create_refresh_token(data={"sub": user.id}, expires_delta=refresh_delta)
+    access_token = create_access_token(data={"sub": user.id, "role_type": "user"}, expires_delta=access_delta)
+    refresh_token = create_refresh_token(data={"sub": user.id, "role_type": "user"}, expires_delta=refresh_delta)
 
     login_resp = LoginResponse(
         access_token=access_token,
@@ -260,7 +260,20 @@ async def refresh_token(data: RefreshTokenRequest, db: AsyncSession = Depends(ge
     if not payload or payload.get("type") != "refresh":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="身份验证失败，请重新登录")
 
+    # 安全加固：本端点仅服务用户(user)角色 refresh token。
+    # admin/doctor 的 refresh token 必须走各自的 /admin/refresh、/doctors/refresh，
+    # 否则一旦未来账号表 ID 共享将导致跨表续期（权限降级/横向移动）。
+    role_type = payload.get("role_type")
+    if role_type not in (None, "user"):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="身份验证失败，请重新登录")
+
     user_id = payload.get("sub")
+
+    # 轮换校验：旧 refresh token 续期后已入黑名单，拒绝重复使用
+    tenant_id = payload.get("tenant_id")
+    if await RedisCache.is_refresh_token_blacklisted(data.refresh_token, tenant_id=tenant_id):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="登录凭证已失效，请重新登录")
+
     user_service = UserService(db)
     user = await user_service.get_by_id(user_id)
 
@@ -277,14 +290,13 @@ async def refresh_token(data: RefreshTokenRequest, db: AsyncSession = Depends(ge
         remaining_ttl = max(1, int(exp_ts - _dt.utcnow().timestamp()))
     except Exception:
         remaining_ttl = 86400  # fallback 24h
-    tenant_id = payload.get("tenant_id")
     await RedisCache.add_refresh_token_to_blacklist(
         data.refresh_token, tenant_id=tenant_id, ttl=remaining_ttl
     )
 
     access_delta, refresh_delta, expires_seconds = await get_token_expire_config(db)
-    access_token = create_access_token(data={"sub": user.id}, expires_delta=access_delta)
-    new_refresh_token = create_refresh_token(data={"sub": user.id}, expires_delta=refresh_delta)
+    access_token = create_access_token(data={"sub": user.id, "role_type": "user"}, expires_delta=access_delta)
+    new_refresh_token = create_refresh_token(data={"sub": user.id, "role_type": "user"}, expires_delta=refresh_delta)
 
     return TokenResponse(
         access_token=access_token,
@@ -516,8 +528,8 @@ async def wechat_login(data: WechatLoginRequest, db: AsyncSession = Depends(get_
             
             # 直接返回 token
             access_delta, refresh_delta, expires_seconds = await get_token_expire_config(db)
-            access_token = create_access_token(data={"sub": user.id}, expires_delta=access_delta)
-            refresh_token = create_refresh_token(data={"sub": user.id}, expires_delta=refresh_delta)
+            access_token = create_access_token(data={"sub": user.id, "role_type": "user"}, expires_delta=access_delta)
+            refresh_token = create_refresh_token(data={"sub": user.id, "role_type": "user"}, expires_delta=refresh_delta)
 
             return WechatLoginResponse(
                 is_new_user=False,
@@ -589,8 +601,8 @@ async def wechat_get_phone(data: WechatPhoneRequest, db: AsyncSession = Depends(
         
         # 生成 token
         access_delta, refresh_delta, expires_seconds = await get_token_expire_config(db)
-        access_token = create_access_token(data={"sub": user.id}, expires_delta=access_delta)
-        refresh_token = create_refresh_token(data={"sub": user.id}, expires_delta=refresh_delta)
+        access_token = create_access_token(data={"sub": user.id, "role_type": "user"}, expires_delta=access_delta)
+        refresh_token = create_refresh_token(data={"sub": user.id, "role_type": "user"}, expires_delta=refresh_delta)
 
         return LoginResponse(
             access_token=access_token,
@@ -648,8 +660,8 @@ async def wechat_bind_phone(data: WechatBindPhoneRequest, db: AsyncSession = Dep
     
     # 生成 token
     access_delta, refresh_delta, expires_seconds = await get_token_expire_config(db)
-    access_token = create_access_token(data={"sub": user.id}, expires_delta=access_delta)
-    refresh_token = create_refresh_token(data={"sub": user.id}, expires_delta=refresh_delta)
+    access_token = create_access_token(data={"sub": user.id, "role_type": "user"}, expires_delta=access_delta)
+    refresh_token = create_refresh_token(data={"sub": user.id, "role_type": "user"}, expires_delta=refresh_delta)
 
     return LoginResponse(
         access_token=access_token,
@@ -712,8 +724,8 @@ async def wechat_bind_userinfo(data: WechatBindUserInfoRequest, db: AsyncSession
     
     # 生成 token
     access_delta, refresh_delta, expires_seconds = await get_token_expire_config(db)
-    access_token = create_access_token(data={"sub": user.id}, expires_delta=access_delta)
-    refresh_token = create_refresh_token(data={"sub": user.id}, expires_delta=refresh_delta)
+    access_token = create_access_token(data={"sub": user.id, "role_type": "user"}, expires_delta=access_delta)
+    refresh_token = create_refresh_token(data={"sub": user.id, "role_type": "user"}, expires_delta=refresh_delta)
 
     return LoginResponse(
         access_token=access_token,
@@ -854,8 +866,8 @@ async def email_login(
 
     # 生成 token
     access_delta, refresh_delta, expires_seconds = await get_token_expire_config(db)
-    access_token = create_access_token(data={"sub": user.id}, expires_delta=access_delta)
-    refresh_token = create_refresh_token(data={"sub": user.id}, expires_delta=refresh_delta)
+    access_token = create_access_token(data={"sub": user.id, "role_type": "user"}, expires_delta=access_delta)
+    refresh_token = create_refresh_token(data={"sub": user.id, "role_type": "user"}, expires_delta=refresh_delta)
 
     email_login_resp = LoginResponse(
         access_token=access_token,

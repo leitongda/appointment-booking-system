@@ -62,12 +62,16 @@ async def refresh_admin_token(
     if not admin_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="无效的刷新凭证，请重新登录")
 
+    # 轮换校验：旧 refresh token 续期后已入黑名单，拒绝重复使用
+    token_tenant_id = payload.get("tenant_id")
+    if await RedisCache.is_refresh_token_blacklisted(data.refresh_token, tenant_id=token_tenant_id):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="登录凭证已失效，请重新登录")
+
     service = AdminService(db)
     admin = await service.get_by_id(admin_id)
     if not admin or admin.status != 1:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="账号不存在或已被禁用，请检查后重试")
 
-    token_tenant_id = payload.get("tenant_id")
     if token_tenant_id and token_tenant_id != admin.tenant_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="租户信息不匹配，请重新登录")
 
