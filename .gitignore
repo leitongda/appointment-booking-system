@@ -176,3 +176,10 @@ ink_parallax_layers.zip
 .kilo/
 .kilocode/
 .opencode/
+.mimosa/**
+.reasonix/
+reasonix.toml
+
+# Local review artifacts & personal scripts
+/reviews/
+scripts/gen_referral_code.py
