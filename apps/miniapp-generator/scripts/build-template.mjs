@@ -22,7 +22,7 @@ const templateCode = getArg('template') || 'modern-general';
 const instanceId = getArg('instance-id') || '';
 const version = getArg('version') || '1.0.0';
 
-console.log(`\n🚀 Building miniapp-instance`);
+console.log(`\n🚀 Building miniapp-generator`);
 console.log(`   Template: ${templateCode}`);
 console.log(`   Version: ${version}`);
 console.log(`   Instance: ${instanceId || 'local'}\n`);

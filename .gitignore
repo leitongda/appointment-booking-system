@@ -176,7 +176,7 @@ ink_parallax_layers.zip
 .kilo/
 .kilocode/
 .opencode/
-.mimosa/**
+.mimosa/
 .reasonix/
 reasonix.toml
 

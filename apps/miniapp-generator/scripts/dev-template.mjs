@@ -22,7 +22,7 @@ const templateCode = getArg('template') || 'modern-general';
 const apiUrl = getArg('api-url') || '';
 const watch = getArg('watch') !== 'false';
 
-console.log(`\n🔧 Starting dev server for miniapp-instance`);
+console.log(`\n🔧 Starting dev server for miniapp-generator`);
 console.log(`   Template: ${templateCode}`);
 console.log(`   API URL: ${apiUrl || 'default'}`);
 console.log(`   Watch: ${watch}\n`);

@@ -1,6 +1,6 @@
 {
   "miniprogramRoot": "dist/",
-  "projectname": "hospital-miniapp-instance",
+  "projectname": "hospital-miniapp-generator",
   "description": "多风格小程序模板生成器",
   "appid": "wx0000000000000000",
   "setting": {

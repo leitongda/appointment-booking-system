@@ -102,8 +102,7 @@ apps/
   doctor/                    # 医生端工作台 (Umi 4, port 9103)
   patient-h5/                # 患者端 H5 (Umi 4, port 9102)
   patient-miniapp/           # 患者端微信小程序 (Taro 4 + NutUI)
-  mini-appointment-miniapp/  # 临时挂号小程序 (独立 Taro 项目)
-  miniapp-instance/          # 多实例小程序
+  miniapp-generator/         # 多风格小程序模板生成器 (按模板配置批量产出实例)
   temp-registration/         # 临时挂号 H5 (Umi 4)
   website/                   # 官网/营销站点
   server/                    # 后端 API 服务 (FastAPI, port 9000)

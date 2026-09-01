@@ -33,7 +33,7 @@ class BuildInfoPlugin {
 
 export default defineConfig(async () => {
   const baseConfig: UserConfigExport = {
-    projectName: 'hospital-miniapp-instance',
+    projectName: 'hospital-miniapp-generator',
     date: '2026-1-1',
     designWidth: 375,
     deviceRatio: {

@@ -1,5 +1,5 @@
 {
-  "name": "@hospital/miniapp-instance",
+  "name": "@hospital/miniapp-generator",
   "version": "1.0.0",
   "private": true,
   "description": "多风格小程序模板生成器 — 支持通过模板配置生成不同风格的小程序实例",

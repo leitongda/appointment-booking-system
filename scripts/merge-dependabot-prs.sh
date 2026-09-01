@@ -182,19 +182,19 @@ main "$@"
 #
 #   正确做法（手动，不要用本脚本）：
 #     1. git checkout -b chore/taro-4.2-upgrade origin/main
-#     2. 手动把 3 个小程序 app（patient-miniapp / miniapp-instance / mini-appointment-miniapp）
+#     2. 手动把 2 个小程序 app（patient-miniapp / miniapp-generator）
 #        的 package.json 里所有 @tarojs/* 从 4.1.9 改成 4.2.0
 #     3. pnpm install           # 重新生成 lockfile，确保全部 @tarojs/* 统一到 4.2.0
 #     4. pnpm -r --filter="@hospital/patient-miniapp" build:weapp   # 逐 app 验证构建
-#        （以及 miniapp-instance / mini-appointment-miniapp 各跑一次）
+#        （以及 miniapp-generator 各跑一次）
 #     5. 验证通过后开 PR 合并；同时关闭 5 个 Dependabot 分支对应的 PR
 #
 # 【typescript-eslint/parser-8.60.0（parser 5→8 major）】
 #   为什么不能直接合：只升了 parser，配套的 @typescript-eslint/eslint-plugin 仍是 5.x，
 #   版本不一致 → ESLint 报错。需等 Dependabot 开出 eslint-plugin 的升级 PR，或手动配套升。
 #
-#   正确做法：在 mini-appointment-miniapp/package.json 把 parser 和 eslint-plugin 同时升到 ^8.x，
-#   pnpm install 后重跑 lint 验证。
+#   正确做法：在相应 Taro app（patient-miniapp / miniapp-generator）的 package.json
+#   把 parser 和 eslint-plugin 同时升到 ^8.x，pnpm install 后重跑 lint 验证。
 
 # =============================================================================
 # 附录 B：与功能分支 feat/third-party-integrations 的冲突处理

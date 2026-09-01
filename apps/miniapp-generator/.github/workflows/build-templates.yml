@@ -5,13 +5,13 @@ on:
     branches:
       - main
     paths:
-      - 'apps/miniapp-instance/**'
+      - 'apps/miniapp-generator/**'
       - '.github/workflows/build-templates.yml'
   pull_request:
     branches:
       - main
     paths:
-      - 'apps/miniapp-instance/**'
+      - 'apps/miniapp-generator/**'
   workflow_dispatch:
 
 env:
@@ -59,7 +59,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build template ${{ matrix.template_code }}
-        working-directory: apps/miniapp-instance
+        working-directory: apps/miniapp-generator
         env:
           TARO_APP_TEMPLATE_CODE: ${{ matrix.template_code }}
           CI: true
@@ -72,7 +72,7 @@ jobs:
           echo "Build completed in ${DURATION}s"
 
       - name: Verify build output
-        working-directory: apps/miniapp-instance
+        working-directory: apps/miniapp-generator
         run: |
           FILE_COUNT=$(find dist -type f 2>/dev/null | wc -l)
           echo "Template ${{ matrix.template_code }} file count: $FILE_COUNT"
@@ -86,7 +86,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: miniapp-template-${{ matrix.template_code }}
-          path: apps/miniapp-instance/dist/
+          path: apps/miniapp-generator/dist/
           retention-days: 7
           if-no-files-found: error
 

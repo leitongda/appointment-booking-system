@@ -1,5 +1,5 @@
 // 小程序共享模块
-// 统一导出 patient-miniapp 和 miniapp-instance 共用的工具函数、hooks、组件
+// 统一导出 patient-miniapp 和 miniapp-generator 共用的工具函数、hooks、组件
 
 // 工具函数
 export * from './url';
