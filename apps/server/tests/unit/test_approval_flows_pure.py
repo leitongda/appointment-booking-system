@@ -4,6 +4,7 @@
 - ConditionEvaluator 所有操作符 + 边界
 - CallbackRegistry 注册/注销/执行/异常
 """
+import asyncio
 import json
 import pytest
 from unittest.mock import AsyncMock, MagicMock
@@ -386,8 +387,7 @@ class TestCallbackRegistry:
         instance = MagicMock()
         db = MagicMock()
 
-        import asyncio
-        asyncio.get_event_loop().run_until_complete(
+        asyncio.run(
             registry.execute("test_type", "on_approved", instance, db)
         )
         handler.assert_called_once_with("on_approved", instance, db)
@@ -398,8 +398,7 @@ class TestCallbackRegistry:
         registry.register("test_type", handler)
         registry.unregister("test_type")
 
-        import asyncio
-        asyncio.get_event_loop().run_until_complete(
+        asyncio.run(
             registry.execute("test_type", "on_approved", MagicMock(), MagicMock())
         )
         handler.assert_not_called()
@@ -407,20 +406,18 @@ class TestCallbackRegistry:
     def test_execute_unregistered_type(self):
         """未注册的 business_type 不崩溃"""
         registry = CallbackRegistry()
-        import asyncio
-        asyncio.get_event_loop().run_until_complete(
+        asyncio.run(
             registry.execute("unknown_type", "on_approved", MagicMock(), MagicMock())
         )
 
     def test_execute_handler_exception(self):
         """处理器异常自然传播到调用方"""
-        import asyncio
         registry = CallbackRegistry()
         handler = AsyncMock(side_effect=RuntimeError("boom"))
         registry.register("fail_type", handler)
 
         with pytest.raises(RuntimeError):
-            asyncio.get_event_loop().run_until_complete(
+            asyncio.run(
                 registry.execute("fail_type", "on_approved", MagicMock(), MagicMock())
             )
 
@@ -433,8 +430,7 @@ class TestCallbackRegistry:
         registry.register("biz", handler1)
         registry.register("biz", handler2)
 
-        import asyncio
-        asyncio.get_event_loop().run_until_complete(
+        asyncio.run(
             registry.execute("biz", "on_approved", MagicMock(), MagicMock())
         )
         handler1.assert_not_called()

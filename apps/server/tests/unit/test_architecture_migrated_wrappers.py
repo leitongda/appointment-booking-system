@@ -48,11 +48,10 @@ DELETED_WRAPPERS = [
     "wechat_service.py",
 ]
 
-# These files contain actual implementations and remain in app/services/
+# These files contain actual implementations and remain in their module homes.
 REMAINING_IMPLEMENTATIONS = [
-    "__init__.py",
-    "email_template_service.py",
-    "rule_performance_service.py",
+    "app/modules/email_templates/service.py",
+    "app/modules/rule_engine/rule_performance_service.py",
 ]
 
 
@@ -78,6 +77,5 @@ def test_deleted_wrappers_no_longer_exist():
 
 def test_remaining_implementations_still_exist():
     """验证包含实际业务逻辑的文件仍保留"""
-    services_dir = _SERVER_ROOT / "app" / "services"
-    for filename in REMAINING_IMPLEMENTATIONS:
-        assert (services_dir / filename).exists(), f"{filename} should still exist"
+    for relative_path in REMAINING_IMPLEMENTATIONS:
+        assert (_SERVER_ROOT / relative_path).exists(), f"{relative_path} should still exist"

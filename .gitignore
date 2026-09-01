@@ -178,6 +178,7 @@ ink_parallax_layers.zip
 .opencode/
 .mimosa/
 .reasonix/
+.zcode/
 reasonix.toml
 
 # Local review artifacts & personal scripts

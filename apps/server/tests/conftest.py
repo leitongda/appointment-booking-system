@@ -18,7 +18,7 @@ import pytest
 import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.pool import NullPool, StaticPool
 
 # 添加项目根目录到路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -46,14 +46,18 @@ from app.models.rule_set import RuleSet, ShiftType
 from app.models.tenant import Tenant, SubscriptionPlan
 from app.models.refund import RefundRecord
 from app.models.account import Account, AccountAdmin, AccountDoctor, AccountUser
+from app.models.lowcode_audit_log import LowCodePageAuditLog
 from app.models.schedule_room import ScheduleRoom
 from app.modules.appointments.service import AppointmentService
 
 
 # ==================== 测试配置 ====================
 
-# 使用内存 SQLite 进行测试（快速、隔离）
-TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+# 默认使用内存 SQLite（快速、隔离）；CI/本地可通过 TEST_DATABASE_URL 指向真实
+# PostgreSQL（如 postgresql+asyncpg://test:test@localhost:5433/test_db），
+# 以覆盖 JSONB/ILIKE/on_conflict 等 SQLite 无法验证的路径。
+TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL", "sqlite+aiosqlite:///:memory:")
+_IS_SQLITE = TEST_DATABASE_URL.startswith("sqlite")
 
 
 # ==================== 数据库 Fixtures ====================
@@ -64,12 +68,20 @@ TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 @pytest_asyncio.fixture(scope="function")
 async def test_engine():
     """创建测试数据库引擎（每个测试函数独立）"""
-    engine = create_async_engine(
-        TEST_DATABASE_URL,
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-        echo=False,
-    )
+    if _IS_SQLITE:
+        engine = create_async_engine(
+            TEST_DATABASE_URL,
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+            echo=False,
+        )
+    else:
+        # PG: function 级事件循环下连接不可跨测试复用，NullPool 保证每测试独立连接
+        engine = create_async_engine(
+            TEST_DATABASE_URL,
+            poolclass=NullPool,
+            echo=False,
+        )
 
     async with engine.begin() as conn:
         # 低代码模型有重复索引定义 (column index=True + explicit Index 同名),
