@@ -1,11 +1,11 @@
 from datetime import date, datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 
-from app.schemas.response import to_camel
+from app.schemas.base import BaseSchema
 
 
-class DoctorScheduleResponse(BaseModel):
+class DoctorScheduleResponse(BaseSchema):
     id: str
     doctor_id: str | None = None
     store_id: str | None = None
@@ -18,14 +18,7 @@ class DoctorScheduleResponse(BaseModel):
     status: int
     is_rest_day: bool | None = False
 
-    model_config = ConfigDict(
-        from_attributes=True,
-        populate_by_name=True,
-        alias_generator=to_camel,
-        by_alias=True,
-    )
-
-class DoctorAppointmentResponse(BaseModel):
+class DoctorAppointmentResponse(BaseSchema):
     id: str
     appointment_no: str
     patient_id: str | None = None
@@ -41,14 +34,7 @@ class DoctorAppointmentResponse(BaseModel):
     symptom_description: str | None = None
     is_follow_up: bool = False
 
-    model_config = ConfigDict(
-        from_attributes=True,
-        populate_by_name=True,
-        alias_generator=to_camel,
-        by_alias=True,
-    )
-
-class QueuePatientResponse(BaseModel):
+class QueuePatientResponse(BaseSchema):
     id: str
     appointment_no: str
     queue_number: int | None = None
@@ -57,14 +43,7 @@ class QueuePatientResponse(BaseModel):
     sign_in_time: datetime | None = None
     call_time: datetime | None = None
 
-    model_config = ConfigDict(
-        from_attributes=True,
-        populate_by_name=True,
-        alias_generator=to_camel,
-        by_alias=True,
-    )
-
-class PatientHistoryResponse(BaseModel):
+class PatientHistoryResponse(BaseSchema):
     id: str
     appointment_no: str
     schedule_date: date | None = None
@@ -73,13 +52,6 @@ class PatientHistoryResponse(BaseModel):
     complete_time: datetime | None = None
     symptom_description: str | None = None
     has_medical_record: bool = False
-
-    model_config = ConfigDict(
-        from_attributes=True,
-        populate_by_name=True,
-        alias_generator=to_camel,
-        by_alias=True,
-    )
 
 class FollowUpBookingRequest(BaseModel):
     schedule_id: str

@@ -27,3 +27,30 @@ class BaseSchema(BaseModel):
         from_attributes=True,
         by_alias=True,
     )
+
+
+class BaseRequestSchema(BaseModel):
+    """请求型 Schema 基类（仅 camelCase 别名 + populate_by_name）。
+
+    与 ``BaseSchema`` 的差异：**不**含 ``from_attributes`` 与 ``by_alias``。
+    用于纯入参 schema（请求体解析），刻意避免：
+        - ``from_attributes=True``：请求体不应从 ORM 对象构造
+        - ``by_alias=True``：请求解析阶段不需要默认按 alias 序列化
+
+    等价于：
+        class MyReq(BaseModel):
+            model_config = ConfigDict(
+                alias_generator=to_camel,
+                populate_by_name=True,
+            )
+
+    选择基类的规则（迁移时逐类精确匹配其原 ConfigDict）：
+        - 原 ConfigDict 恰为上述 2 字段 → ``BaseRequestSchema``
+        - 原 ConfigDict 恰为 4 字段（含 from_attributes + by_alias）→ ``BaseSchema``
+        - 原配置有任何额外字段或不同 alias_generator → 保持手写，不迁移
+    """
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+

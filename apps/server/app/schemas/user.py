@@ -4,29 +4,22 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas.base import BaseRequestSchema, BaseSchema
 from app.schemas.response import to_camel
 
 # 与前端 @hospital/shared PATIENT_RELATIONSHIP 保持一致
 RELATIONSHIP_TYPE = Literal["本人", "父母", "子女", "配偶", "其他"]
 
 # ========== 用户相关 ==========
-class UserBase(BaseModel):
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
+class UserBase(BaseRequestSchema):
+
     phone: str = Field(..., min_length=11, max_length=11, description="手机号")
     nickname: str | None = Field(None, max_length=50)
     avatar: str | None = None
     gender: int | None = Field(0, ge=0, le=2, description="性别: 0未知 1男 2女")
 
-class UserCreate(BaseModel):
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
+class UserCreate(BaseRequestSchema):
+
     phone: str = Field("", max_length=11, description="手机号，微信用户可为空")
     email: str | None = Field(None, max_length=100, description="邮箱")
     password: str = Field("", max_length=20, description="密码，微信用户可为空")
@@ -35,22 +28,14 @@ class UserCreate(BaseModel):
     nickname: str | None = Field(None, max_length=50, description="昵称")
     avatar: str | None = Field(None, description="头像URL")
 
-class UserUpdate(BaseModel):
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
+class UserUpdate(BaseRequestSchema):
 
     nickname: str | None = Field(None, max_length=50)
     avatar: str | None = None
     gender: int | None = Field(None, ge=0, le=2)
 
-class AdminUserUpdate(BaseModel):
+class AdminUserUpdate(BaseRequestSchema):
     """管理员更新用户信息"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     nickname: str | None = Field(None, max_length=50, description="昵称")
     phone: str | None = Field(None, min_length=11, max_length=11, description="手机号")
@@ -61,39 +46,33 @@ class AdminUserUpdate(BaseModel):
 # 原 old/new min_length=6, max_length=20 与统一版完全等价，无行为变化。
 # 请改为: from app.schemas.common import ChangePasswordRequest
 
-class BindPhoneRequest(BaseModel):
+class BindPhoneRequest(BaseRequestSchema):
     """绑定手机号请求"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
+
     phone: str = Field(..., min_length=11, max_length=11, description="新手机号")
     code: str | None = Field(None, max_length=6, description="验证码（可选）")
 
 class UserInDB(UserBase):
+    """用户入库模型
+    NOTE: 继承自 UserBase（现 BaseRequestSchema，2-field 配置），本类有 4-field model_config 覆盖父类配置。
+    若改 BaseSchema 会丢掉继承字段（phone/nickname/avatar/gender），故保留手写 model_config。
+    """
     model_config = ConfigDict(
         alias_generator=to_camel,
         populate_by_name=True,
         from_attributes=True,
         by_alias=True,
     )
-    
+
     id: str
     status: int
     points: int = 0
     created_at: datetime
     updated_at: datetime
 
-class UserResponse(BaseModel):
+class UserResponse(BaseSchema):
     """用户信息响应"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        from_attributes=True,
-        by_alias=True,
-    )
-    
+
     id: str = Field(..., description="用户ID")
     phone: str | None = Field(None, description="手机号")
     email: str | None = Field(None, description="邮箱")
@@ -105,12 +84,8 @@ class UserResponse(BaseModel):
     has_password: bool = Field(False, description="是否已设置密码")
 
 # ========== 就诊人相关 ==========
-class PatientBase(BaseModel):
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
+class PatientBase(BaseRequestSchema):
+
     name: str = Field(..., max_length=50, description="姓名")
     phone: str = Field(..., min_length=11, max_length=11)
     id_card: str | None = Field(None, max_length=18, description="身份证号")
@@ -132,13 +107,9 @@ class PatientBase(BaseModel):
 class PatientCreate(PatientBase):
     pass
 
-class PatientCreateByAdmin(BaseModel):
+class PatientCreateByAdmin(BaseRequestSchema):
     """管理员创建患者（会同时创建用户）"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
+
     name: str = Field(..., max_length=50, description="姓名")
     phone: str = Field(..., min_length=11, max_length=11, description="手机号")
     id_card: str | None = Field(None, max_length=18, description="身份证号")
@@ -155,13 +126,9 @@ class PatientCreateByAdmin(BaseModel):
     ethnicity: str = Field("汉族", max_length=20, description="民族")
     address: str | None = Field(None, max_length=255, description="详细地址")
 
-class FamilyMemberCreate(BaseModel):
+class FamilyMemberCreate(BaseRequestSchema):
     """添加家庭成员（亲友）"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
+
     name: str = Field(..., max_length=50, description="姓名")
     phone: str = Field(..., min_length=11, max_length=11, description="手机号")
     id_card: str | None = Field(None, max_length=18, description="身份证号")
@@ -178,12 +145,8 @@ class FamilyMemberCreate(BaseModel):
     ethnicity: str = Field("汉族", max_length=20, description="民族")
     address: str | None = Field(None, max_length=255, description="详细地址")
 
-class PatientUpdate(BaseModel):
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
+class PatientUpdate(BaseRequestSchema):
+
     name: str | None = Field(None, max_length=50)
     phone: str | None = Field(None, min_length=11, max_length=11)
     id_card: str | None = Field(None, max_length=18)
@@ -200,15 +163,9 @@ class PatientUpdate(BaseModel):
     ethnicity: str | None = Field(None, max_length=20)
     address: str | None = Field(None, max_length=255)
 
-class PatientResponse(BaseModel):
+class PatientResponse(BaseSchema):
     """就诊人信息响应"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        from_attributes=True,
-        by_alias=True,
-    )
-    
+
     id: str = Field(..., description="就诊人ID")
     user_id: str | None = Field(None, description="所属用户ID")
     name: str | None = Field(None, description="姓名")
@@ -232,15 +189,9 @@ class PatientResponse(BaseModel):
     created_at: datetime | None = Field(None, description="创建时间")
 
 # ========== 患者详情响应（管理后台） ==========
-class PatientListItemResponse(BaseModel):
+class PatientListItemResponse(BaseSchema):
     """患者列表项"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        from_attributes=True,
-        by_alias=True,
-    )
-    
+
     id: str
     user_id: str | None = None
     card_no: str | None = None
@@ -262,26 +213,23 @@ class PatientListItemResponse(BaseModel):
     user_nickname: str | None = None
 
 class PatientStatistics(BaseModel):
-    """患者统计信息"""
+    """患者统计信息
+    NOTE: 原 ConfigDict 为 {alias_generator, populate_by_name, by_alias=True}（3 字段，无 from_attributes），
+    与 BaseSchema（4 字段）不一致，保留手写配置避免行为变化。
+    """
     model_config = ConfigDict(
         alias_generator=to_camel,
         populate_by_name=True,
         by_alias=True,
     )
-    
+
     appointment_count: int = Field(0, description="预约总数")
     completed_count: int = Field(0, description="已完成数")
     no_show_count: int = Field(0, description="爽约数")
 
-class PatientDetailResponse(BaseModel):
+class PatientDetailResponse(BaseSchema):
     """患者详情响应"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        from_attributes=True,
-        by_alias=True,
-    )
-    
+
     # 基本信息
     id: str
     user_id: str | None = None
@@ -305,13 +253,13 @@ class PatientDetailResponse(BaseModel):
     last_visit_date: str | None = None
     is_blacklist: bool = False
     created_at: str | None = None
-    
+
     # 用户信息
     nickname: str | None = None
     points: int = 0
-    
+
     # 统计信息
     statistics: PatientStatistics
-    
+
     # 家庭成员
     family_members: list[PatientListItemResponse] = []

@@ -1,24 +1,21 @@
-from app.schemas.response import to_camel
-
 """随访模块 Schema"""
 from datetime import date, datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
 
 from app.enums.general import PatientCondition, SelfReportStatus, TaskStatus  # noqa: F401 — re-export
+from app.schemas.base import BaseRequestSchema, BaseSchema
 
 # ========== 计划步骤 ==========
 
-class FollowUpPlanStepCreate(BaseModel):
-    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+class FollowUpPlanStepCreate(BaseRequestSchema):
 
     step_order: int = Field(..., ge=1, description="步骤顺序")
     name: str = Field(..., max_length=100, description="步骤名称")
     days_after_visit: int = Field(..., ge=1, description="就诊后第几天")
     description: str | None = Field(None, description="步骤说明")
 
-class FollowUpPlanStepResponse(BaseModel):
-    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, from_attributes=True, by_alias=True)
+class FollowUpPlanStepResponse(BaseSchema):
 
     id: str
     plan_id: str
@@ -31,8 +28,7 @@ class FollowUpPlanStepResponse(BaseModel):
 
 # ========== 计划 ==========
 
-class FollowUpPlanCreate(BaseModel):
-    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+class FollowUpPlanCreate(BaseRequestSchema):
 
     name: str = Field(..., max_length=200, description="计划名称")
     description: str | None = Field(None, description="计划描述")
@@ -41,8 +37,7 @@ class FollowUpPlanCreate(BaseModel):
     diagnosis_name: str | None = Field(None, description="诊断名称")
     steps: list[FollowUpPlanStepCreate] = Field(..., min_length=1, description="随访步骤")
 
-class FollowUpPlanUpdate(BaseModel):
-    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+class FollowUpPlanUpdate(BaseRequestSchema):
 
     name: str | None = Field(None, max_length=200, description="计划名称")
     description: str | None = Field(None, description="计划描述")
@@ -51,13 +46,11 @@ class FollowUpPlanUpdate(BaseModel):
     diagnosis_name: str | None = Field(None, description="诊断名称")
     status: int | None = Field(None, ge=0, le=1, description="状态 0=停用 1=启用")
 
-class FollowUpPlanStepsUpdate(BaseModel):
-    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+class FollowUpPlanStepsUpdate(BaseRequestSchema):
 
     steps: list[FollowUpPlanStepCreate] = Field(..., min_length=1, description="随访步骤（全量替换）")
 
-class FollowUpPlanResponse(BaseModel):
-    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, from_attributes=True, by_alias=True)
+class FollowUpPlanResponse(BaseSchema):
 
     id: str
     name: str
@@ -71,8 +64,7 @@ class FollowUpPlanResponse(BaseModel):
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
-class FollowUpPlanListResponse(BaseModel):
-    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, from_attributes=True, by_alias=True)
+class FollowUpPlanListResponse(BaseSchema):
 
     id: str
     name: str
@@ -84,8 +76,7 @@ class FollowUpPlanListResponse(BaseModel):
 
 # ========== 任务 ==========
 
-class FollowUpTaskCreate(BaseModel):
-    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+class FollowUpTaskCreate(BaseRequestSchema):
 
     patient_id: str = Field(..., description="患者ID")
     doctor_id: str = Field(..., description="医生ID")
@@ -95,8 +86,7 @@ class FollowUpTaskCreate(BaseModel):
     scheduled_date: date = Field(..., description="计划随访日期")
     description: str | None = Field(None, description="备注")
 
-class FollowUpTaskGenerateRequest(BaseModel):
-    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+class FollowUpTaskGenerateRequest(BaseRequestSchema):
 
     patient_id: str = Field(..., description="患者ID")
     doctor_id: str = Field(..., description="医生ID")
@@ -106,13 +96,11 @@ class FollowUpTaskGenerateRequest(BaseModel):
     medical_record_id: str | None = Field(None, description="病历ID")
     base_date: date | None = Field(None, description="基准日期，不传=今天")
 
-class FollowUpTaskSkipRequest(BaseModel):
-    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+class FollowUpTaskSkipRequest(BaseRequestSchema):
 
     reason: str = Field(..., max_length=500, description="跳过原因")
 
-class FollowUpTaskResponse(BaseModel):
-    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, from_attributes=True, by_alias=True)
+class FollowUpTaskResponse(BaseSchema):
 
     id: str
     task_no: str | None = None
@@ -135,8 +123,7 @@ class FollowUpTaskResponse(BaseModel):
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
-class FollowUpTaskListResponse(BaseModel):
-    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, from_attributes=True, by_alias=True)
+class FollowUpTaskListResponse(BaseSchema):
 
     id: str
     task_no: str | None = None
@@ -151,8 +138,7 @@ class FollowUpTaskListResponse(BaseModel):
 
 # ========== 记录 ==========
 
-class FollowUpRecordCreate(BaseModel):
-    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+class FollowUpRecordCreate(BaseRequestSchema):
 
     task_id: str | None = Field(None, description="关联任务ID，不传=独立记录")
     patient_id: str = Field(..., description="患者ID")
@@ -166,8 +152,7 @@ class FollowUpRecordCreate(BaseModel):
     next_follow_up_date: date | None = Field(None, description="下次随访日期")
     attachments: list[str] | None = Field(None, description="附件URL列表")
 
-class FollowUpRecordUpdate(BaseModel):
-    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+class FollowUpRecordUpdate(BaseRequestSchema):
 
     content: str | None = Field(None, description="随访内容")
     patient_condition: PatientCondition | None = Field(None, description="患者状况")
@@ -175,8 +160,7 @@ class FollowUpRecordUpdate(BaseModel):
     next_follow_up_date: date | None = Field(None, description="下次随访日期")
     attachments: list[str] | None = Field(None, description="附件URL列表")
 
-class FollowUpRecordResponse(BaseModel):
-    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, from_attributes=True, by_alias=True)
+class FollowUpRecordResponse(BaseSchema):
 
     id: str
     task_id: str | None = None
@@ -195,8 +179,7 @@ class FollowUpRecordResponse(BaseModel):
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
-class FollowUpRecordListResponse(BaseModel):
-    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, from_attributes=True, by_alias=True)
+class FollowUpRecordListResponse(BaseSchema):
 
     id: str
     patient_name: str | None = None
@@ -209,8 +192,7 @@ class FollowUpRecordListResponse(BaseModel):
 
 # ========== 患者自报告 ==========
 
-class SelfReportCreate(BaseModel):
-    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+class SelfReportCreate(BaseRequestSchema):
 
     task_id: str | None = Field(None, description="关联随访任务ID")
     report_date: datetime | None = Field(None, description="测量时间，不传=当前时间")
@@ -224,8 +206,7 @@ class SelfReportCreate(BaseModel):
     notes: str | None = Field(None, description="备注")
     attachments: list[str] | None = Field(None, description="附件URL列表")
 
-class SelfReportResponse(BaseModel):
-    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, from_attributes=True, by_alias=True)
+class SelfReportResponse(BaseSchema):
 
     id: str
     task_id: str | None = None
@@ -246,8 +227,7 @@ class SelfReportResponse(BaseModel):
     reviewed_by: str | None = None
     created_at: datetime | None = None
 
-class SelfReportListResponse(BaseModel):
-    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, from_attributes=True, by_alias=True)
+class SelfReportListResponse(BaseSchema):
 
     id: str
     task_id: str | None = None

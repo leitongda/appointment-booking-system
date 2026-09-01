@@ -1,39 +1,26 @@
-from app.schemas.response import to_camel
-
 """积分流水 Schema"""
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas.base import BaseRequestSchema, BaseSchema
+from app.schemas.response import to_camel
 
-class PointLogBase(BaseModel):
+
+class PointLogBase(BaseRequestSchema):
     """积分流水基础"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
+
     change_amount: int = Field(..., description="变更积分（正增负减）")
     type: int = Field(4, ge=1, le=4, description="类型: 1消费 2充值 3赠送 4手动调整")
     remark: str | None = Field(None, max_length=255, description="备注")
 
-class PointAdjustData(BaseModel):
+class PointAdjustData(BaseRequestSchema):
     """积分调整请求"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
+
     amount: int = Field(..., description="调整积分数量（正增负减）")
     remark: str = Field(..., max_length=255, description="调整原因")
 
-class PointLogResponse(BaseModel):
+class PointLogResponse(BaseSchema):
     """积分流水响应"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        from_attributes=True,
-        by_alias=True,
-    )
 
     id: str = Field(..., description="流水ID")
     user_id: str | None = Field(None, description="用户ID")

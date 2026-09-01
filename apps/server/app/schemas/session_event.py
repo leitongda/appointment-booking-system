@@ -10,6 +10,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.schemas.base import BaseRequestSchema, BaseSchema
 from app.schemas.response import to_camel
 
 # 单批次上报 payload 序列化后的字节上限（2MB）。
@@ -19,17 +20,13 @@ _MAX_PAYLOAD_BYTES = 2 * 1024 * 1024
 
 # ========== 请求 Schema ==========
 
-class SessionEventBatchRequest(BaseModel):
+class SessionEventBatchRequest(BaseRequestSchema):
     """会话回放事件批量上报请求
 
     前端 rrweb recorder 每次批量上报一个会话段（segment），events 内为
     rrweb 原始事件对象数组，结构动态（snapshot/incremental/meta 等），
     因此不做严格 Pydantic 校验，仅约束列表长度 + 整体字节数。
     """
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     session_id: str = Field(..., max_length=64, description="会话ID，与 behavior_log 共用")
     viewport_w: int | None = Field(None, ge=0, description="录制视口宽(px)，热力图分桶用")
@@ -60,7 +57,10 @@ class SessionEventBatchRequest(BaseModel):
 # ========== 响应 Schema ==========
 
 class SessionBatchResponse(BaseModel):
-    """批量上报响应"""
+    """批量上报响应
+    NOTE: 原 ConfigDict 为 {alias_generator, populate_by_name, by_alias=True}（3 字段，无 from_attributes），
+    与 BaseSchema（4 字段）不一致，保留手写配置避免行为变化。
+    """
     model_config = ConfigDict(
         alias_generator=to_camel,
         populate_by_name=True,
@@ -72,14 +72,8 @@ class SessionBatchResponse(BaseModel):
     segment_id: str = Field(..., description="本批次段ID")
 
 
-class SessionSegmentResponse(BaseModel):
+class SessionSegmentResponse(BaseSchema):
     """会话单批次段响应（回放拼装用）"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        by_alias=True,
-        from_attributes=True,
-    )
 
     segment_id: str = Field(..., description="批次段ID（SessionEvent.id）")
     sequence: int = Field(0, description="会话内批次序号")
@@ -87,14 +81,8 @@ class SessionSegmentResponse(BaseModel):
     events_url: str | None = Field(None, description="rrweb 事件 JSON 的预签名下载地址")
 
 
-class SessionListResponse(BaseModel):
+class SessionListResponse(BaseSchema):
     """会话列表项（按 session_id 聚合）"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        by_alias=True,
-        from_attributes=True,
-    )
 
     id: str = Field(..., description="代表行ID（最新批次段）")
     session_id: str = Field(..., description="会话ID")
@@ -110,14 +98,8 @@ class SessionListResponse(BaseModel):
     created_at: datetime | None = Field(None, description="最近上报时间")
 
 
-class SessionReplayResponse(BaseModel):
+class SessionReplayResponse(BaseSchema):
     """会话回放数据响应（前端按顺序拼接 segments 的 eventsUrl 后喂给 rrweb-player）"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        by_alias=True,
-        from_attributes=True,
-    )
 
     session_id: str = Field(..., description="会话ID")
     viewport_w: int | None = Field(None, description="录制视口宽(px)")
@@ -134,14 +116,8 @@ class SessionReplayResponse(BaseModel):
 
 # ========== 热力图 Schema ==========
 
-class HeatmapPointItem(BaseModel):
+class HeatmapPointItem(BaseSchema):
     """热力图单点"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        by_alias=True,
-        from_attributes=True,
-    )
 
     x_ratio: float = Field(..., ge=0.0, le=1.0, description="x/视口宽，相对坐标（量化到 0.01）")
     y_ratio: float = Field(..., ge=0.0, le=1.0, description="y/视口高，相对坐标（量化到 0.01）")
@@ -149,7 +125,10 @@ class HeatmapPointItem(BaseModel):
 
 
 class HeatmapQueryResponse(BaseModel):
-    """热力图查询响应"""
+    """热力图查询响应
+    NOTE: 原 ConfigDict 为 {alias_generator, populate_by_name, by_alias=True}（3 字段，无 from_attributes），
+    与 BaseSchema（4 字段）不一致，保留手写配置避免行为变化。
+    """
     model_config = ConfigDict(
         alias_generator=to_camel,
         populate_by_name=True,

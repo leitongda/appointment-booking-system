@@ -3,16 +3,13 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.config import settings
+from app.schemas.base import BaseRequestSchema
 from app.schemas.response import to_camel
 
 
-class DoctorBookingSettingBase(BaseModel):
+class DoctorBookingSettingBase(BaseRequestSchema):
     """医生预约设置基础模型"""
-    model_config = ConfigDict(
-        populate_by_name=True,
-        alias_generator=to_camel,
-    )
-    
+
     store_id: str = Field(..., description="门店ID")
     doctor_id: str = Field(..., description="医生ID")
     booking_start_offset: int = Field(0, ge=0, le=30, description="预约开始偏移天数，0表示当天，n表示n+1天后开始")
@@ -24,13 +21,9 @@ class DoctorBookingSettingCreate(DoctorBookingSettingBase):
     """创建医生预约设置"""
     pass
 
-class DoctorBookingSettingUpdate(BaseModel):
+class DoctorBookingSettingUpdate(BaseRequestSchema):
     """更新医生预约设置"""
-    model_config = ConfigDict(
-        populate_by_name=True,
-        alias_generator=to_camel,
-    )
-    
+
     booking_start_offset: int | None = Field(None, ge=0, le=30, description="预约开始偏移天数")
     booking_range_days: int | None = Field(None, ge=1, le=90, description="预约范围天数")
     release_time: str | None = Field(None, max_length=5, description="放号时间")
@@ -51,13 +44,9 @@ class DoctorBookingSettingResponse(DoctorBookingSettingBase):
     created_at: datetime
     updated_at: datetime
 
-class DoctorBookingSettingQuery(BaseModel):
+class DoctorBookingSettingQuery(BaseRequestSchema):
     """医生预约设置查询参数"""
-    model_config = ConfigDict(
-        populate_by_name=True,
-        alias_generator=to_camel,
-    )
-    
+
     store_id: str | None = Field(None, description="门店ID筛选")
     doctor_id: str | None = Field(None, description="医生ID筛选")
     status: int | None = Field(None, description="状态筛选")

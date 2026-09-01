@@ -2,17 +2,13 @@
 from datetime import datetime
 from json import loads as json_loads
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import Field, field_validator
 
-from app.schemas.response import to_camel
+from app.schemas.base import BaseRequestSchema, BaseSchema
 
 
-class PlatformAnnouncementCreate(BaseModel):
+class PlatformAnnouncementCreate(BaseRequestSchema):
     """创建平台公告"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     title: str = Field(..., max_length=255, description="公告标题")
     content: str = Field(..., description="公告内容")
@@ -23,12 +19,8 @@ class PlatformAnnouncementCreate(BaseModel):
     expire_at: datetime | None = Field(None, description="过期时间")
 
 
-class PlatformAnnouncementUpdate(BaseModel):
+class PlatformAnnouncementUpdate(BaseRequestSchema):
     """更新平台公告"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     title: str | None = Field(None, max_length=255)
     content: str | None = None
@@ -39,14 +31,8 @@ class PlatformAnnouncementUpdate(BaseModel):
     expire_at: datetime | None = None
 
 
-class PlatformAnnouncementResponse(BaseModel):
+class PlatformAnnouncementResponse(BaseSchema):
     """平台公告响应"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        from_attributes=True,
-        by_alias=True,
-    )
 
     @field_validator("target_tenant_ids", mode="before")
     @classmethod
@@ -75,12 +61,8 @@ class PlatformAnnouncementResponse(BaseModel):
     updated_at: datetime | None = None
 
 
-class PlatformAnnouncementListResponse(BaseModel):
+class PlatformAnnouncementListResponse(BaseRequestSchema):
     """平台公告列表响应"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     data: list[PlatformAnnouncementResponse] = []
     total: int = 0

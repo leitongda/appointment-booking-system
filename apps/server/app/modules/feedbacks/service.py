@@ -76,13 +76,14 @@ class FeedbackService:
     async def create(self, data: FeedbackCreate) -> Feedback:
         """创建反馈"""
         images_str = json.dumps(data.images) if data.images else None
+        feedback_type = getattr(data.feedback_type, "value", data.feedback_type)
 
         feedback = Feedback(
             id=str(uuid.uuid4()),
             tenant_id=get_current_tenant_id(),
             user_id=data.user_id,
             user_type=data.user_type,
-            feedback_type=data.feedback_type.value,
+            feedback_type=feedback_type,
             title=data.title,
             content=data.content,
             images=images_str,

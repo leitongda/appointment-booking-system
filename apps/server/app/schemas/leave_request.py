@@ -1,20 +1,16 @@
 from datetime import date, datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
 
 from app.core.config import settings
 from app.enums.schedule import Period, RequestStatus, RequestType  # noqa: F401 — re-export
-from app.schemas.response import to_camel
+from app.schemas.base import BaseRequestSchema, BaseSchema
 
 
 # 停诊申请
-class StopClinicCreate(BaseModel):
+class StopClinicCreate(BaseRequestSchema):
     """创建停诊申请"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
+
     doctor_id: str = Field(..., description="医生ID")
     schedule_id: str | None = Field(None, description="排班ID")
     stop_date: date = Field(..., description="停诊日期")
@@ -22,13 +18,9 @@ class StopClinicCreate(BaseModel):
     reason: str = Field(..., min_length=1, max_length=500, description="申请原因")
 
 # 调班申请
-class ScheduleChangeCreate(BaseModel):
+class ScheduleChangeCreate(BaseRequestSchema):
     """创建调班申请"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
+
     doctor_id: str = Field(..., description="医生ID")
     original_date: date = Field(..., description="原日期")
     original_period: Period = Field(..., description="原时段")
@@ -37,26 +29,16 @@ class ScheduleChangeCreate(BaseModel):
     reason: str = Field(..., min_length=1, max_length=500, description="申请原因")
 
 # 审核
-class ReviewRequest(BaseModel):
+class ReviewRequest(BaseRequestSchema):
     """审核申请"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
+
     status: RequestStatus = Field(..., description="审核结果")
     review_comment: str | None = Field(None, max_length=500, description="审核意见")
 
 # 响应
-class LeaveRequestResponse(BaseModel):
+class LeaveRequestResponse(BaseSchema):
     """申请响应"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        from_attributes=True,
-        by_alias=True,
-    )
-    
+
     id: str
     doctor_id: str | None = None
     doctor_name: str | None = None
@@ -76,13 +58,9 @@ class LeaveRequestResponse(BaseModel):
     affected_appointments: int | None = 0
     created_at: datetime | None = None
 
-class LeaveRequestQuery(BaseModel):
+class LeaveRequestQuery(BaseRequestSchema):
     """查询参数"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
+
     doctor_id: str | None = None
     request_type: RequestType | None = None
     status: RequestStatus | None = None

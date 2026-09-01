@@ -1,6 +1,7 @@
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas.base import BaseRequestSchema, BaseSchema
 from app.schemas.response import to_camel
 
 
@@ -51,15 +52,9 @@ class TokenResponse(BaseModel):
     token_type: str = Field("Bearer", description="令牌类型")
     expires_in: int | None = Field(None, description="访问令牌有效期(秒)")
 
-class UserInfo(BaseModel):
+class UserInfo(BaseSchema):
     """用户信息（用于登录响应）"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        from_attributes=True,
-        by_alias=True,
-    )
-    
+
     id: str = Field(..., description="用户ID")
     phone: str | None = Field(None, description="手机号")
     nickname: str | None = Field(None, description="昵称")
@@ -80,95 +75,59 @@ class LoginResponse(BaseModel):
     expires_in: int = Field(..., description="访问令牌有效期(秒)")
     user: UserInfo = Field(..., description="用户信息")
 
-class RefreshTokenRequest(BaseModel):
+class RefreshTokenRequest(BaseRequestSchema):
     """刷新令牌请求"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
+
     refresh_token: str = Field(..., description="刷新令牌")
 
 # NOTE: ChangePasswordRequest 已收敛到 app.schemas.common（统一密码策略 6-20 位）。
 # 原定义 old_password 无 max_length，统一版补齐 max_length=20（收紧，符合只紧不松）。
 # 请改为: from app.schemas.common import ChangePasswordRequest
 
-class ForgotPasswordRequest(BaseModel):
+class ForgotPasswordRequest(BaseRequestSchema):
     """忘记密码请求"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     phone: str = Field(..., min_length=11, max_length=11, description="手机号")
     verification_code: str = Field(..., min_length=4, max_length=6, description="验证码")
     new_password: str = Field(..., min_length=6, max_length=20, description="新密码")
 
-class SendCodeRequest(BaseModel):
+class SendCodeRequest(BaseRequestSchema):
     """发送验证码请求"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     phone: str = Field(..., min_length=11, max_length=11, description="手机号")
     code_type: str = Field(default="reset", description="验证码类型：login/register/reset")
 
-class WechatLoginRequest(BaseModel):
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
+class WechatLoginRequest(BaseRequestSchema):
 
     code: str = Field(..., description="微信登录code")
 
 # ==================== 邮箱认证相关 Schema ====================
 
-class EmailSendCodeRequest(BaseModel):
+class EmailSendCodeRequest(BaseRequestSchema):
     """发送邮箱验证码请求"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     email: str = Field(..., description="邮箱地址", examples=["user@example.com"])
     code_type: str = Field(default="login", description="验证码类型：login/register/reset/bind")
 
-class EmailLoginRequest(BaseModel):
+class EmailLoginRequest(BaseRequestSchema):
     """邮箱验证码登录请求"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     email: str = Field(..., description="邮箱地址", examples=["user@example.com"])
     code: str = Field(..., min_length=4, max_length=6, description="验证码", examples=["123456"])
 
-class EmailBindRequest(BaseModel):
+class EmailBindRequest(BaseRequestSchema):
     """邮箱绑定请求"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     email: str = Field(..., description="要绑定的邮箱地址")
     code: str = Field(..., min_length=4, max_length=6, description="验证码")
 
-class EmailUnbindRequest(BaseModel):
+class EmailUnbindRequest(BaseRequestSchema):
     """邮箱解绑请求"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     code: str = Field(..., min_length=4, max_length=6, description="验证码（发送到当前绑定的邮箱）")
 
-class EmailChangeRequest(BaseModel):
+class EmailChangeRequest(BaseRequestSchema):
     """邮箱换绑请求"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     new_email: str = Field(..., description="新邮箱地址")
     new_email_code: str = Field(..., min_length=4, max_length=6, description="新邮箱验证码")

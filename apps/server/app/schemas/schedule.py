@@ -4,16 +4,13 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.config import settings
+from app.schemas.base import BaseRequestSchema, BaseSchema
 from app.schemas.response import to_camel
 from app.schemas.schedule_template import AppointmentType
 
 
-class ScheduleBase(BaseModel):
+class ScheduleBase(BaseRequestSchema):
     """排班基础模型"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     doctor_id: str = Field(..., description="医生ID")
     store_id: str | None = Field(None, description="门店ID")
@@ -40,10 +37,6 @@ class ScheduleCreate(ScheduleBase):
 
 class ScheduleBatchCreate(ScheduleBase):
     """批量创建排班请求"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     doctor_id: str = Field(..., description="医生ID")
     start_date: date = Field(..., description="开始日期")
@@ -56,12 +49,8 @@ class ScheduleBatchCreate(ScheduleBase):
 
     status: int | None = Field(1, ge=0, le=1, description="状态")
 
-class ScheduleUpdate(BaseModel):
+class ScheduleUpdate(BaseRequestSchema):
     """更新排班请求"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     total_slots: int | None = Field(None, ge=1, le=200, description="总号源数量（向后兼容，传入时覆盖 quota 自动计算）")
     online_quota: int | None = Field(None, ge=0, le=200, description="线上号源")
@@ -75,14 +64,8 @@ class ScheduleUpdate(BaseModel):
     appointment_type: str | None = Field(None, description="预约类型: normal普通/urgent加急/expert专家")
     status: int | None = Field(None, ge=0, le=1, description="状态: 0停用 1启用")
 
-class ScheduleResponse(ScheduleBase):
+class ScheduleResponse(BaseSchema):
     """排班信息响应"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        from_attributes=True,
-        by_alias=True,
-    )
 
     id: str = Field(..., description="排班ID")
     doctor_id: str = Field(..., description="医生ID")
@@ -110,13 +93,10 @@ class ScheduleResponse(ScheduleBase):
     effective_status: str = Field("active", description="生效状态: active正常生效/suspended停诊/rest_day休息日(隐藏)/custom自定义排班/overridden被覆盖")
 
 class AvailableScheduleResponse(ScheduleResponse):
-    """可预约排班信息响应"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        from_attributes=True,
-        by_alias=True,
-    )
+    """可预约排班信息响应
+    NOTE: 继承自 ScheduleResponse（现 BaseSchema），本类原 4-field model_config 与父类等价，删去依赖父类配置。
+    额外字段覆盖父类部分字段，未覆盖字段（doctor_id/store_id/booked_slots/...）仍继承自 ScheduleResponse。
+    """
 
     id: str = Field(..., description="排班ID")
     schedule_date: date = Field(..., description="排班日期")
@@ -138,12 +118,8 @@ class AvailableScheduleResponse(ScheduleResponse):
     is_rest_day: bool = Field(False, description="是否在休息日")
     booking_setting_applied: bool = Field(False, description="是否应用了医生预约设置")
 
-class BatchOperationResult(BaseModel):
+class BatchOperationResult(BaseRequestSchema):
     """批量操作结果"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     success_count: int = Field(0, description="成功数量")
     failed_count: int = Field(0, description="失败数量")
@@ -170,7 +146,11 @@ class BatchResumeResult(BatchOperationResult):
     failed_items: list[dict] = Field(default_factory=list, description="失败项列表")
 
 class ScheduleBatchOperationResponse(BatchOperationResult):
-    """排班批量操作响应"""
+    """排班批量操作响应
+    NOTE: 继承自 BatchOperationResult（现 BaseRequestSchema，2-field 配置），本类有 4-field model_config 覆盖父类配置。
+    若删 model_config 会继承父类 2-field 配置（丢 from_attributes/by_alias）；若改 BaseSchema 会丢继承字段（success_count 等）。
+    故保留手写 model_config。
+    """
     model_config = ConfigDict(
         alias_generator=to_camel,
         populate_by_name=True,
@@ -197,12 +177,8 @@ class ScheduleBatchOperationResponse(BatchOperationResult):
 
 # ========== 自定义排班相关 Schema（原 custom_schedule.py） ==========
 
-class TimePeriod(BaseModel):
+class TimePeriod(BaseRequestSchema):
     """时间段配置"""
-    model_config = ConfigDict(
-        populate_by_name=True,
-        alias_generator=to_camel,
-    )
 
     start_time: time = Field(..., description="开始时间")
     end_time: time = Field(..., description="结束时间")
@@ -210,12 +186,8 @@ class TimePeriod(BaseModel):
     slot_count: int | None = Field(None, ge=1, le=50, description="排班数量(均分数量),不填则不均分")
     max_patients: int = Field(1, ge=1, le=100, description="预约人数(每个班次)")
 
-class CustomScheduleCreate(BaseModel):
+class CustomScheduleCreate(BaseRequestSchema):
     """创建自定义排班"""
-    model_config = ConfigDict(
-        populate_by_name=True,
-        alias_generator=to_camel,
-    )
 
     store_id: str = Field(..., description="门店ID")
     department_id: str = Field(..., description="科室ID")
@@ -223,14 +195,8 @@ class CustomScheduleCreate(BaseModel):
     schedule_dates: list[date] = Field(..., min_length=1, description="排班日期列表(支持多选)")
     time_periods: list[TimePeriod] = Field(..., min_length=1, description="排班时段配置列表")
 
-class CustomScheduleResponse(BaseModel):
+class CustomScheduleResponse(BaseSchema):
     """自定义排班响应"""
-    model_config = ConfigDict(
-        from_attributes=True,
-        populate_by_name=True,
-        alias_generator=to_camel,
-        by_alias=True,
-    )
 
     id: str = Field(..., description="排班ID")
     store_id: str = Field(..., description="门店ID")
@@ -270,36 +236,24 @@ class EffectiveScheduleParams(BaseModel):
 
 # ========== 排班统计增强 Schema ==========
 
-class UtilizationTrendItem(BaseModel):
+class UtilizationTrendItem(BaseRequestSchema):
     """利用率趋势项"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     period: str = Field(..., description="周期标识，如 '2026-W17' 或 '2026-04'")
     total_slots: int = Field(0, description="总号源数")
     booked_slots: int = Field(0, description="已预约号源数")
     utilization_rate: float = Field(0.0, description="利用率百分比(0-100)")
 
-class UtilizationTrendResponse(BaseModel):
+class UtilizationTrendResponse(BaseRequestSchema):
     """利用率趋势响应"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     store_id: str = Field(..., description="门店ID")
     store_name: str = Field(..., description="门店名称")
     granularity: str = Field(..., description="粒度: week周 / month月")
     items: list[UtilizationTrendItem] = Field(default_factory=list, description="趋势数据列表")
 
-class DoctorWorkloadItem(BaseModel):
+class DoctorWorkloadItem(BaseRequestSchema):
     """医生工作量对比项"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     doctor_id: str = Field(..., description="医生ID")
     doctor_name: str = Field(..., description="医生姓名")
@@ -310,12 +264,8 @@ class DoctorWorkloadItem(BaseModel):
     utilization_rate: float = Field(0.0, description="利用率百分比(0-100)")
     schedule_days: int = Field(0, description="排班天数")
 
-class DoctorWorkloadResponse(BaseModel):
+class DoctorWorkloadResponse(BaseRequestSchema):
     """医生工作量对比响应"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     store_id: str = Field(..., description="门店ID")
     store_name: str = Field(..., description="门店名称")
@@ -323,12 +273,8 @@ class DoctorWorkloadResponse(BaseModel):
     end_date: date = Field(..., description="结束日期")
     items: list[DoctorWorkloadItem] = Field(default_factory=list, description="医生工作量列表")
 
-class PeakHourCell(BaseModel):
+class PeakHourCell(BaseRequestSchema):
     """高峰时段热力图单元格"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     day_of_week: int = Field(..., description="星期: 1周一 ... 7周日")
     hour: int = Field(..., description="小时: 0-23")
@@ -336,12 +282,8 @@ class PeakHourCell(BaseModel):
     booked_slots: int = Field(0, description="已预约号源数")
     booking_rate: float = Field(0.0, description="预约率百分比(0-100)")
 
-class PeakHourHeatmapResponse(BaseModel):
+class PeakHourHeatmapResponse(BaseRequestSchema):
     """高峰时段热力图响应"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     store_id: str = Field(..., description="门店ID")
     store_name: str = Field(..., description="门店名称")
@@ -351,33 +293,21 @@ class PeakHourHeatmapResponse(BaseModel):
 
 # ========== 排班发布状态机相关 Schema ==========
 
-class SchedulePublishRequest(BaseModel):
+class SchedulePublishRequest(BaseRequestSchema):
     """发布/撤回排班请求"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     schedule_ids: list[str] = Field(..., min_length=1, description="排班ID列表")
 
-class ScheduleWithdrawRequest(BaseModel):
+class ScheduleWithdrawRequest(BaseRequestSchema):
     """撤回排班请求"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     schedule_ids: list[str] = Field(..., min_length=1, description="排班ID列表")
     reason: str | None = Field(None, max_length=200, description="撤回原因")
 
 # ========== 排班冲突检测 Schema ==========
 
-class ConflictCheckRequest(BaseModel):
+class ConflictCheckRequest(BaseRequestSchema):
     """排班冲突检测请求"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     doctor_id: str = Field(..., description="医生ID")
     schedule_date: date = Field(..., description="排班日期")
@@ -388,24 +318,16 @@ class ConflictCheckRequest(BaseModel):
     room_id: str | None = Field(None, description="诊室ID")
     exclude_schedule_id: str | None = Field(None, description="排除的排班ID（编辑场景）")
 
-class ConflictItemResponse(BaseModel):
+class ConflictItemResponse(BaseRequestSchema):
     """单条冲突记录"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     type: str = Field(..., description="冲突类型: doctor_time/room_occupied/lunch_break/holiday/doctor_status/rest_day")
     severity: str = Field(..., description="严重级别: error阻止保存 / warning允许但需确认")
     message: str = Field(..., description="人类可读的冲突描述")
     details: dict = Field(default_factory=dict, description="冲突详情")
 
-class ConflictCheckResponse(BaseModel):
+class ConflictCheckResponse(BaseRequestSchema):
     """冲突检测结果"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     has_conflict: bool = Field(..., description="是否存在冲突")
     blocking: bool = Field(False, description="是否存在 error 级别冲突（阻止保存）")
@@ -413,9 +335,8 @@ class ConflictCheckResponse(BaseModel):
 
 # ========== 排班拖拽调整 Schema ==========
 
-class ScheduleDragAdjustRequest(BaseModel):
+class ScheduleDragAdjustRequest(BaseRequestSchema):
     """拖拽调整排班请求"""
-    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
     schedule_id: str = Field(..., description="排班ID")
     target_date: date = Field(..., description="目标日期")
@@ -423,9 +344,8 @@ class ScheduleDragAdjustRequest(BaseModel):
     target_end_time: time | None = Field(None, description="目标结束时间")
     target_time_slot: str | None = Field(None, pattern="^(morning|afternoon|evening)$", description="目标时段")
 
-class ScheduleDragAdjustResponse(BaseModel):
+class ScheduleDragAdjustResponse(BaseRequestSchema):
     """拖拽调整排班响应"""
-    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
     success: bool = Field(..., description="是否成功")
     schedule: ScheduleResponse | None = Field(None, description="调整后的排班")
@@ -434,9 +354,8 @@ class ScheduleDragAdjustResponse(BaseModel):
 
 # ========== 排班批量复制 Schema ==========
 
-class ScheduleBatchCopyRequest(BaseModel):
+class ScheduleBatchCopyRequest(BaseRequestSchema):
     """批量复制排班请求"""
-    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
     source_start_date: date = Field(..., description="源周期开始日期")
     source_end_date: date = Field(..., description="源周期结束日期")
@@ -450,7 +369,10 @@ class ScheduleBatchCopyRequest(BaseModel):
     conflict_strategy: str = Field("skip", description="冲突策略: skip/overwrite/manual", pattern="^(skip|overwrite|manual)$")
 
 class ScheduleBatchCopyResult(BaseModel):
-    """批量复制排班结果"""
+    """批量复制排班结果
+    NOTE: 原 ConfigDict 为 {alias_generator=to_camel, populate_by_name=True, from_attributes=True}（3 字段，无 by_alias），
+    与 BaseSchema（4 字段）不一致，保留手写配置避免行为变化。
+    """
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, from_attributes=True)
 
     total_source: int = Field(0, description="源排班总数")

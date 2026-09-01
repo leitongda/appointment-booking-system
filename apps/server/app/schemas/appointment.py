@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import inspect as sa_inspect
 
 from app.core.config import settings
+from app.schemas.base import BaseRequestSchema, BaseSchema
 from app.schemas.response import to_camel
 
 
@@ -26,14 +27,8 @@ class AppointmentCreate(BaseModel):
     patient_id: str = Field(..., description="就诊人ID", examples=["pat_xyz789abc"])
     symptom_description: str | None = Field(None, max_length=500, description="病情描述/预填信息", examples=["头痛三天，伴有轻微发热"])
 
-class AppointmentResponse(BaseModel):
+class AppointmentResponse(BaseSchema):
     """预约信息响应"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        from_attributes=True,
-        by_alias=True,
-    )
 
     id: str = Field(..., description="预约ID")
     appointment_no: str | None = Field(None, description="预约编号")
@@ -169,15 +164,11 @@ class AppointmentPendingPaymentResponse(BaseModel):
             payment_params=result.get("payment_params"),
         )
 
-class AppointmentListQuery(BaseModel):
+class AppointmentListQuery(BaseRequestSchema):
     """预约列表查询参数
 
     注意：当 page_size > 100 时，需要管理员权限且必须提供 start_date 和 end_date。
     """
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     status: int | None = Field(None, description="状态: 0待支付 1已预约 2已签到 3历史候诊(遗留) 4就诊中 5已完成 6已取消 7已过期 8已爽约")
     patient_id: str | None = Field(None, description="就诊人ID")

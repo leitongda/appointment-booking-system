@@ -5,6 +5,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.schemas.base import BaseRequestSchema, BaseSchema
 from app.schemas.response import to_camel
 
 # ==================== 密码策略 ====================
@@ -142,7 +143,7 @@ class SubscriptionPlanUpdate(BaseModel):
         return _validate_features_json(v)
 
 
-class SubscriptionPlanResponse(SubscriptionPlanBase):
+class SubscriptionPlanResponse(SubscriptionPlanBase, BaseSchema):
     """订阅计划响应"""
     id: str
     status: int = Field(..., description="状态: 0-禁用 1-启用")
@@ -150,15 +151,8 @@ class SubscriptionPlanResponse(SubscriptionPlanBase):
     created_at: datetime
     updated_at: datetime | None = None
 
-    model_config = ConfigDict(
-        from_attributes=True,
-        populate_by_name=True,
-        alias_generator=to_camel,
-        by_alias=True,
-    )
 
-
-class SubscriptionPlanListResponse(BaseModel):
+class SubscriptionPlanListResponse(BaseSchema):
     """订阅计划列表响应（简化版）"""
     id: str
     plan_code: str
@@ -172,13 +166,6 @@ class SubscriptionPlanListResponse(BaseModel):
     status: int
     is_default: bool
     sort_order: int = 0
-
-    model_config = ConfigDict(
-        from_attributes=True,
-        populate_by_name=True,
-        alias_generator=to_camel,
-        by_alias=True,
-    )
 
 
 # ==================== 租户 ====================

@@ -1,19 +1,15 @@
-from app.schemas.response import to_camel
-
 """病历 Schema"""
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
+
+from app.schemas.base import BaseRequestSchema, BaseSchema
 
 
-class MedicalRecordCreate(BaseModel):
+class MedicalRecordCreate(BaseRequestSchema):
     """创建病历请求"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
+
     appointment_id: str = Field(..., description="预约ID")
     chief_complaint: str = Field(..., max_length=500, description="主诉")
     present_illness: str | None = Field(None, description="现病史")
@@ -32,12 +28,8 @@ class MedicalRecordCreate(BaseModel):
     visit_date: datetime | None = Field(None, description="就诊日期，不传则取当前时间")
     follow_up_plan_id: str | None = Field(None, description="随访计划ID，传入则自动生成随访任务")
 
-class MedicalRecordUpdate(BaseModel):
+class MedicalRecordUpdate(BaseRequestSchema):
     """更新病历请求"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     chief_complaint: str | None = Field(None, max_length=500, description="主诉")
     present_illness: str | None = Field(None, description="现病史")
@@ -54,14 +46,8 @@ class MedicalRecordUpdate(BaseModel):
     total_fee: Decimal | None = Field(None, description="总费用")
     status: int | None = Field(None, ge=1, le=2, description="状态 1草稿 2已完成")
 
-class MedicalRecordResponse(BaseModel):
+class MedicalRecordResponse(BaseSchema):
     """病历响应"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        from_attributes=True,
-        by_alias=True,
-    )
 
     id: str = Field(..., description="病历ID")
     record_no: str | None = Field(None, description="病历编号")
@@ -93,14 +79,8 @@ class MedicalRecordResponse(BaseModel):
     updated_at: datetime | None = Field(None, description="更新时间")
     examination_reports: list | None = Field(None, description="检查报告列表")
 
-class MedicalRecordListResponse(BaseModel):
+class MedicalRecordListResponse(BaseSchema):
     """病历列表响应（简化版）"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        from_attributes=True,
-        by_alias=True,
-    )
 
     id: str = Field(..., description="病历ID")
     record_no: str | None = Field(None, description="病历编号")
@@ -111,4 +91,3 @@ class MedicalRecordListResponse(BaseModel):
     visit_date: datetime | None = Field(None, description="就诊时间")
     status: int | None = Field(None, description="状态")
     created_at: datetime | None = Field(None, description="创建时间")
-

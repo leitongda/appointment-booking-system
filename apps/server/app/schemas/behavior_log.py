@@ -6,16 +6,13 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.enums.general import BehaviorEventType as EventType  # noqa: F401 — re-export
 from app.enums.general import Platform
+from app.schemas.base import BaseRequestSchema, BaseSchema
 from app.schemas.response import to_camel
 
 
-class TrackEventRequest(BaseModel):
+class TrackEventRequest(BaseRequestSchema):
     """单条埋点上报请求"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
+
     platform: Platform = Field(..., description="平台")
     session_id: str | None = Field(None, max_length=64, description="会话ID")
     event_type: EventType = Field(..., description="事件类型")
@@ -38,24 +35,14 @@ class TrackEventRequest(BaseModel):
                 raise ValueError("extra_data 序列化后不能超过 4096 字符")
         return v
 
-class BatchTrackRequest(BaseModel):
+class BatchTrackRequest(BaseRequestSchema):
     """批量埋点上报请求"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
+
     events: list[TrackEventRequest] = Field(..., min_length=1, max_length=100, description="事件列表")
 
-class UserBehaviorLogResponse(BaseModel):
+class UserBehaviorLogResponse(BaseSchema):
     """用户行为日志响应"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        from_attributes=True,
-        by_alias=True,
-    )
-    
+
     id: str
     platform: str | None = None
     user_id: str | None = None

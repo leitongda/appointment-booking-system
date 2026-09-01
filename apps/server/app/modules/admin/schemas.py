@@ -2,10 +2,9 @@
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 
 from app.schemas.base import BaseSchema
-from app.schemas.response import to_camel
 
 
 class PermissionResponse(BaseModel):
@@ -45,7 +44,7 @@ class RoleUpdate(BaseModel):
     permissions: list[str] | None = None
     status: int | None = Field(None, ge=0, le=1)
 
-class RoleResponse(BaseModel):
+class RoleResponse(BaseSchema):
     id: str
     name: str
     code: str
@@ -54,13 +53,6 @@ class RoleResponse(BaseModel):
     status: int
     created_at: datetime
     updated_at: datetime | None = None
-
-    model_config = ConfigDict(
-        from_attributes=True,
-        populate_by_name=True,
-        alias_generator=to_camel,
-        by_alias=True,
-    )
 
 class AdminCreate(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
@@ -196,7 +188,7 @@ class AdminLoginResponse(BaseModel):
     class Config:
         populate_by_name = True
 
-class OperationLogResponse(BaseModel):
+class OperationLogResponse(BaseSchema):
     id: str
     # 新字段：角色相关
     actor_id: str | None = None
@@ -215,13 +207,6 @@ class OperationLogResponse(BaseModel):
     user_agent: str | None = None
     duration: int | None = None
     created_at: datetime
-
-    model_config = ConfigDict(
-        from_attributes=True,
-        populate_by_name=True,
-        alias_generator=to_camel,
-        by_alias=True,
-    )
 
 # NOTE: ChangePasswordRequest 已收敛到 app.schemas.common（统一密码策略 6-20 位）。
 # 原定义 old_password 无 max_length，统一版补齐 max_length=20（收紧，符合只紧不松）。

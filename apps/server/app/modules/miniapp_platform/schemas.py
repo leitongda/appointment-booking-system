@@ -1,9 +1,9 @@
-from app.schemas.response import to_camel
+from app.schemas.base import BaseSchema
 
 """小程序平台相关的 Pydantic Schema"""
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 # ==================== Company (公司/结算主体) ====================
 
@@ -28,21 +28,14 @@ class CompanyUpdate(BaseModel):
     contact_phone: str | None = Field(None, max_length=20)
     status: int | None = Field(None, ge=0, le=1)
 
-class CompanyResponse(CompanyBase):
+class CompanyResponse(CompanyBase, BaseSchema):
     """公司响应"""
     id: str
     status: int = Field(..., description="状态: 0-禁用 1-启用")
     created_at: datetime
     updated_at: datetime | None = None
 
-    model_config = ConfigDict(
-        from_attributes=True,
-        populate_by_name=True,
-        alias_generator=to_camel,
-        by_alias=True,
-    )
-
-class CompanyListResponse(BaseModel):
+class CompanyListResponse(BaseSchema):
     """公司列表响应（简化版）"""
     id: str
     name: str
@@ -51,13 +44,6 @@ class CompanyListResponse(BaseModel):
     contact_phone: str | None = None
     status: int
     created_at: datetime
-
-    model_config = ConfigDict(
-        from_attributes=True,
-        populate_by_name=True,
-        alias_generator=to_camel,
-        by_alias=True,
-    )
 
 # ==================== PaymentProfile (支付配置) ====================
 
@@ -104,7 +90,7 @@ class PaymentProfileUpdate(BaseModel):
     is_default: bool | None = None
     status: int | None = Field(None, ge=0, le=1)
 
-class PaymentProfileResponse(PaymentProfileBase):
+class PaymentProfileResponse(PaymentProfileBase, BaseSchema):
     """支付配置响应"""
     id: str
     is_default: bool = Field(..., description="是否租户默认支付配置")
@@ -115,14 +101,7 @@ class PaymentProfileResponse(PaymentProfileBase):
     # 关联公司（简化版）
     company: CompanyListResponse | None = None
 
-    model_config = ConfigDict(
-        from_attributes=True,
-        populate_by_name=True,
-        alias_generator=to_camel,
-        by_alias=True,
-    )
-
-class PaymentProfileListResponse(BaseModel):
+class PaymentProfileListResponse(BaseSchema):
     """支付配置列表响应（简化版）"""
     id: str
     name: str
@@ -133,13 +112,6 @@ class PaymentProfileListResponse(BaseModel):
     status: int
     company_name: str | None = None
     created_at: datetime
-
-    model_config = ConfigDict(
-        from_attributes=True,
-        populate_by_name=True,
-        alias_generator=to_camel,
-        by_alias=True,
-    )
 
 class PaymentProfileQuery(BaseModel):
     """支付配置查询参数"""
@@ -181,7 +153,7 @@ class MiniappInstanceUpdate(BaseModel):
     app_config: str | None = Field(None)
     status: int | None = Field(None, ge=0, le=2)
 
-class MiniappInstanceResponse(MiniappInstanceBase):
+class MiniappInstanceResponse(MiniappInstanceBase, BaseSchema):
     """小程序实例响应"""
     id: str
     status: int = Field(..., description="状态: 0-禁用 1-启用 2-归档")
@@ -194,14 +166,7 @@ class MiniappInstanceResponse(MiniappInstanceBase):
     default_store: dict | None = Field(None, description="默认门店信息")
     default_payment_profile: PaymentProfileListResponse | None = Field(None, description="默认支付配置")
 
-    model_config = ConfigDict(
-        from_attributes=True,
-        populate_by_name=True,
-        alias_generator=to_camel,
-        by_alias=True,
-    )
-
-class MiniappInstanceListResponse(BaseModel):
+class MiniappInstanceListResponse(BaseSchema):
     """小程序实例列表响应（简化版）"""
     id: str
     code: str | None = None
@@ -213,13 +178,6 @@ class MiniappInstanceListResponse(BaseModel):
     store_name: str | None = None
     payment_profile_name: str | None = None
     created_at: datetime
-
-    model_config = ConfigDict(
-        from_attributes=True,
-        populate_by_name=True,
-        alias_generator=to_camel,
-        by_alias=True,
-    )
 
 class MiniappInstanceQuery(BaseModel):
     """小程序实例查询参数"""

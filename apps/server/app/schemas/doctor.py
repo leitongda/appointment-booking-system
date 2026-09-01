@@ -1,17 +1,13 @@
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
 
-from app.schemas.response import to_camel
+from app.schemas.base import BaseRequestSchema, BaseSchema
 
 
-class DoctorBase(BaseModel):
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
+class DoctorBase(BaseRequestSchema):
+
     # 基础信息
     store_id: str | None = Field(None, description="所属门店ID")
     department_id: str = Field(..., description="科室ID")
@@ -55,12 +51,8 @@ class DoctorBase(BaseModel):
 class DoctorCreate(DoctorBase):
     password: str | None = Field(None, min_length=6, description="医生账号密码")
 
-class DoctorUpdate(BaseModel):
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
+class DoctorUpdate(BaseRequestSchema):
+
     # 基础信息
     store_id: str | None = None
     department_id: str | None = None
@@ -104,15 +96,9 @@ class DoctorUpdate(BaseModel):
     # 密码更新
     password: str | None = Field(None, min_length=6)
 
-class DoctorResponse(BaseModel):
+class DoctorResponse(BaseSchema):
     """医生响应模型"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        from_attributes=True,
-        by_alias=True,
-    )
-    
+
     id: str
     user_id: str | None = None
     store_id: str | None = None
@@ -162,15 +148,9 @@ class DoctorResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-class DoctorListResponse(BaseModel):
+class DoctorListResponse(BaseSchema):
     """医生列表响应模型"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        from_attributes=True,
-        by_alias=True,
-    )
-    
+
     id: str
     name: str
     avatar: str | None = None

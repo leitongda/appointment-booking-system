@@ -1,5 +1,3 @@
-from app.schemas.response import to_camel
-
 """
 规则管理系统 Schema 定义
 
@@ -8,23 +6,18 @@ from app.schemas.response import to_camel
 from datetime import date, datetime, time
 from typing import Any, Generic, Optional, TypeVar
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
+
+from app.schemas.base import BaseRequestSchema, BaseSchema
 
 # ==================== 通用模型 ====================
 
 T = TypeVar('T')
 
-class PageResult(BaseModel, Generic[T]):
+class PageResult(BaseSchema, Generic[T]):
     """分页结果"""
     data: list[T] = Field(default_factory=list, description="数据列表")
     total: int = Field(0, description="总数")
-
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        from_attributes=True,
-        by_alias=True
-    )
 
 # ==================== 基础模型 ====================
 
@@ -35,15 +28,8 @@ class ShiftTypeBase(BaseModel):
     description: str | None = Field(None, description="描述")
     enabled: bool = True
 
-class ShiftTypeResponse(ShiftTypeBase):
+class ShiftTypeResponse(ShiftTypeBase, BaseSchema):
     """班次类型响应"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        from_attributes=True,
-        by_alias=True
-    )
-
     id: str
     created_at: datetime | None = None
     updated_at: datetime | None = None
@@ -67,12 +53,8 @@ class RuleSetBase(BaseModel):
     department_id: str | None = Field(None, description="科室ID")
     doctor_id: str | None = Field(None, description="医生ID")
 
-class RuleSetCreate(RuleSetBase):
+class RuleSetCreate(RuleSetBase, BaseRequestSchema):
     """创建规则组"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     shift_type_ids: list[str] = Field(..., min_length=1, description="适用的班次类型ID列表")
     windows: list['RuleWindowCreate'] | None = Field(None, description="时间窗配置")
@@ -80,12 +62,8 @@ class RuleSetCreate(RuleSetBase):
     checkin_policy: Optional['RuleCheckinPolicyCreate'] = Field(None, description="签到策略")
     capacity_policy: Optional['RuleCapacityPolicyCreate'] = Field(None, description="容量策略")
 
-class RuleSetUpdate(BaseModel):
+class RuleSetUpdate(BaseRequestSchema):
     """更新规则组"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     name: str | None = Field(None, max_length=200, description="规则组名称")
     enabled: bool | None = Field(None, description="是否启用")
@@ -108,15 +86,8 @@ class RuleSetUpdate(BaseModel):
     capacity_policy: Optional['RuleCapacityPolicyCreate'] = Field(None, description="容量策略")
     expected_updated_at: datetime | None = Field(None, description="乐观锁：期望的最后更新时间")
 
-class RuleSetResponse(RuleSetBase):
+class RuleSetResponse(RuleSetBase, BaseSchema):
     """规则组响应"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        from_attributes=True,
-        by_alias=True
-    )
-
     id: str
     created_at: datetime | None = None
     updated_at: datetime | None = None
@@ -125,14 +96,8 @@ class RuleSetResponse(RuleSetBase):
     department_name: str | None = Field(None, description="科室名称")
     doctor_name: str | None = Field(None, description="医生姓名")
 
-class ScheduleTemplateBrief(BaseModel):
+class ScheduleTemplateBrief(BaseSchema):
     """排班模板简要信息（用于规则组关联展示）"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        from_attributes=True,
-        by_alias=True,
-    )
 
     id: str
     name: str | None = None
@@ -144,12 +109,6 @@ class ScheduleTemplateBrief(BaseModel):
 
 class RuleSetDetailResponse(RuleSetResponse):
     """规则组详情响应"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        from_attributes=True,
-        by_alias=True
-    )
 
     shift_types: list[ShiftTypeResponse] = []
     windows: list['RuleWindowResponse'] = []
@@ -174,19 +133,11 @@ class RuleWindowBase(BaseModel):
     enabled: bool = Field(True, description="是否启用")
     description: str | None = Field(None, description="描述")
 
-class RuleWindowCreate(RuleWindowBase):
+class RuleWindowCreate(RuleWindowBase, BaseRequestSchema):
     """创建时间窗"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
-class RuleWindowUpdate(BaseModel):
+class RuleWindowUpdate(BaseRequestSchema):
     """更新时间窗"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     open_offset_sec: int | None = Field(None, description="开放偏移(秒)")
     close_offset_sec: int | None = Field(None, description="截止偏移(秒)")
@@ -197,15 +148,8 @@ class RuleWindowUpdate(BaseModel):
     enabled: bool | None = Field(None, description="是否启用")
     description: str | None = Field(None, description="描述")
 
-class RuleWindowResponse(RuleWindowBase):
+class RuleWindowResponse(RuleWindowBase, BaseSchema):
     """时间窗响应"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        from_attributes=True,
-        by_alias=True
-    )
-
     id: str
     rule_set_id: str
     created_at: datetime | None = None
@@ -224,22 +168,11 @@ class RuleBookingPolicyBase(BaseModel):
     conflict_overlap_time: str = Field('REJECT', description="时间重叠冲突策略: REJECT/ALLOW")
     conflict_same_type_same_day: str = Field('ALLOW', description="同类型同日冲突策略: REJECT/ALLOW")
 
-class RuleBookingPolicyCreate(RuleBookingPolicyBase):
+class RuleBookingPolicyCreate(RuleBookingPolicyBase, BaseRequestSchema):
     """创建预约策略"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
-class RuleBookingPolicyResponse(RuleBookingPolicyBase):
+class RuleBookingPolicyResponse(RuleBookingPolicyBase, BaseSchema):
     """预约策略响应"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        from_attributes=True,
-        by_alias=True
-    )
-
     rule_set_id: str
     created_at: datetime | None = None
     updated_at: datetime | None = None
@@ -254,22 +187,11 @@ class RuleCheckinPolicyBase(BaseModel):
     after_grace_status: str | None = Field(None, description="宽限后状态: LATE/ON_TIME")
     no_checkin_after_close: str = Field('KEEP_BOOKED', description="截止后未签到处理: KEEP_BOOKED/AUTO_CANCEL/ABSENT")
 
-class RuleCheckinPolicyCreate(RuleCheckinPolicyBase):
+class RuleCheckinPolicyCreate(RuleCheckinPolicyBase, BaseRequestSchema):
     """创建签到策略"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
-class RuleCheckinPolicyResponse(RuleCheckinPolicyBase):
+class RuleCheckinPolicyResponse(RuleCheckinPolicyBase, BaseSchema):
     """签到策略响应"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        from_attributes=True,
-        by_alias=True
-    )
-
     rule_set_id: str
     created_at: datetime | None = None
     updated_at: datetime | None = None
@@ -284,34 +206,19 @@ class RuleCapacityPolicyBase(BaseModel):
     overbooking_enabled: bool = Field(False, description="是否允许超额预约")
     overbooking_max: int = Field(0, ge=0, description="超额最大数量")
 
-class RuleCapacityPolicyCreate(RuleCapacityPolicyBase):
+class RuleCapacityPolicyCreate(RuleCapacityPolicyBase, BaseRequestSchema):
     """创建容量策略"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
-class RuleCapacityPolicyResponse(RuleCapacityPolicyBase):
+class RuleCapacityPolicyResponse(RuleCapacityPolicyBase, BaseSchema):
     """容量策略响应"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        from_attributes=True,
-        by_alias=True
-    )
-
     rule_set_id: str
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
 # ==================== 预览模型 ====================
 
-class RulePreviewRequest(BaseModel):
+class RulePreviewRequest(BaseRequestSchema):
     """规则预览请求"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     shift_type_id: str = Field(..., description="班次类型ID")
     schedule_date: date = Field(..., description="排班日期")
@@ -319,14 +226,8 @@ class RulePreviewRequest(BaseModel):
     end_time: time = Field(..., description="结束时间")
     current_time: datetime | None = Field(None, description="当前时间(可选,默认使用服务器时间)")
 
-class WindowCheckResult(BaseModel):
+class WindowCheckResult(BaseSchema):
     """窗口检查结果"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        from_attributes=True,
-        by_alias=True
-    )
 
     allowed: bool = Field(..., description="是否允许操作")
     open_at: datetime = Field(..., description="开放时间")
@@ -336,28 +237,16 @@ class WindowCheckResult(BaseModel):
     fail_tag: str | None = Field(None, description="失败标签")
     message: str = Field(..., description="结果消息")
 
-class RuleSetBrief(BaseModel):
+class RuleSetBrief(BaseSchema):
     """规则组简要信息（用于预览匹配结果）"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        from_attributes=True,
-        by_alias=True
-    )
 
     id: str
     name: str
     priority: int
     enabled: bool
 
-class RulePreviewResponse(BaseModel):
+class RulePreviewResponse(BaseSchema):
     """规则预览响应"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        from_attributes=True,
-        by_alias=True
-    )
 
     book_window: WindowCheckResult
     checkin_window: WindowCheckResult
@@ -373,35 +262,21 @@ class RuleSetPresetBase(BaseModel):
     description: str | None = Field(None, description="描述")
     config: dict[str, Any] = Field(..., description="完整规则组配置")
 
-class RuleSetPresetCreate(RuleSetPresetBase):
+class RuleSetPresetCreate(RuleSetPresetBase, BaseRequestSchema):
     """创建预设模板"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     sort_order: int = Field(0, description="排序")
 
-class RuleSetPresetUpdate(BaseModel):
+class RuleSetPresetUpdate(BaseRequestSchema):
     """更新预设模板"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     name: str | None = Field(None, max_length=100, description="预设名称")
     description: str | None = Field(None, description="描述")
     config: dict[str, Any] | None = Field(None, description="完整规则组配置")
     sort_order: int | None = Field(None, description="排序")
 
-class RuleSetPresetResponse(BaseModel):
+class RuleSetPresetResponse(BaseSchema):
     """预设模板响应"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        from_attributes=True,
-        by_alias=True
-    )
 
     id: str
     name: str
@@ -414,14 +289,8 @@ class RuleSetPresetResponse(BaseModel):
 
 # ==================== 审计日志模型 ====================
 
-class RuleSetAuditLogResponse(BaseModel):
+class RuleSetAuditLogResponse(BaseSchema):
     """规则组审计日志响应"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        from_attributes=True,
-        by_alias=True,
-    )
 
     id: str
     rule_set_id: str

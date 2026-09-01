@@ -3,15 +3,12 @@ from datetime import date, datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.config import settings
+from app.schemas.base import BaseRequestSchema, BaseSchema
 from app.schemas.response import to_camel
 
 
-class ScheduleSuspensionCreate(BaseModel):
+class ScheduleSuspensionCreate(BaseRequestSchema):
     """创建停诊"""
-    model_config = ConfigDict(
-        populate_by_name=True,
-        alias_generator=to_camel,
-    )
 
     store_id: str = Field(..., description="门店ID")
     doctor_id: str = Field(..., description="医生ID")
@@ -23,14 +20,8 @@ class ScheduleSuspensionCreate(BaseModel):
     processing_method: str | None = Field(None, description="处置方式: auto_refund/reschedule/change_date/manual")
     reason: str | None = Field(None, max_length=500, description="停诊原因")
 
-class ScheduleSuspensionResponse(BaseModel):
+class ScheduleSuspensionResponse(BaseSchema):
     """停诊响应"""
-    model_config = ConfigDict(
-        from_attributes=True,
-        populate_by_name=True,
-        alias_generator=to_camel,
-        by_alias=True,
-    )
 
     id: str
     store_id: str
@@ -73,12 +64,8 @@ class AvailableScheduleForSuspension(BaseModel):
     booked_count: int
     max_patients: int
 
-class SuspensionProcessRequest(BaseModel):
+class SuspensionProcessRequest(BaseRequestSchema):
     """停诊处置请求"""
-    model_config = ConfigDict(
-        populate_by_name=True,
-        alias_generator=to_camel,
-    )
 
     processing_method: str = Field(
         ...,

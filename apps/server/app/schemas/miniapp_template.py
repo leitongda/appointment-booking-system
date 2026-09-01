@@ -1,10 +1,10 @@
-from app.schemas.response import to_camel
-
 """小程序模板相关的 Pydantic Schema"""
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, Field, field_validator
+
+from app.schemas.base import BaseSchema
 
 # ==================== AppTemplate (小程序模板) ====================
 
@@ -27,21 +27,14 @@ class AppTemplateUpdate(BaseModel):
     default_config: dict[str, Any] | None = None
     status: int | None = Field(None, ge=0, le=1)
 
-class AppTemplateResponse(AppTemplateBase):
+class AppTemplateResponse(AppTemplateBase, BaseSchema):
     """模板响应"""
     id: str
     status: int = Field(..., description="状态: 0-禁用 1-启用")
     created_at: datetime
     updated_at: datetime | None = None
 
-    model_config = ConfigDict(
-        from_attributes=True,
-        populate_by_name=True,
-        alias_generator=to_camel,
-        by_alias=True,
-    )
-
-class AppTemplateListResponse(BaseModel):
+class AppTemplateListResponse(BaseSchema):
     """模板列表响应（简化版）"""
     id: str
     code: str
@@ -50,13 +43,6 @@ class AppTemplateListResponse(BaseModel):
     category: str
     status: int
     created_at: datetime
-
-    model_config = ConfigDict(
-        from_attributes=True,
-        populate_by_name=True,
-        alias_generator=to_camel,
-        by_alias=True,
-    )
 
 # ==================== TemplateVersion (模板版本) ====================
 
@@ -71,20 +57,13 @@ class TemplateVersionCreate(TemplateVersionBase):
     """创建模板版本"""
     template_id: str = Field(..., description="模板ID")
 
-class TemplateVersionResponse(TemplateVersionBase):
+class TemplateVersionResponse(TemplateVersionBase, BaseSchema):
     """模板版本响应"""
     id: str
     template_id: str
     status: int = Field(..., description="状态: 0-禁用 1-启用")
     created_at: datetime
     updated_at: datetime | None = None
-
-    model_config = ConfigDict(
-        from_attributes=True,
-        populate_by_name=True,
-        alias_generator=to_camel,
-        by_alias=True,
-    )
 
 # ==================== BuildJob (构建任务) ====================
 
@@ -95,7 +74,7 @@ class BuildJobCreate(BaseModel):
     trigger_source: str | None = Field(None, max_length=50, description="触发来源")
     build_params: dict[str, Any] | None = Field(None, description="构建参数")
 
-class BuildJobResponse(BaseModel):
+class BuildJobResponse(BaseSchema):
     """构建任务响应"""
     id: str
     tenant_id: str
@@ -113,14 +92,7 @@ class BuildJobResponse(BaseModel):
     miniapp_instance: dict[str, Any] | None = None
     template_version: dict[str, Any] | None = None
 
-    model_config = ConfigDict(
-        from_attributes=True,
-        populate_by_name=True,
-        alias_generator=to_camel,
-        by_alias=True,
-    )
-
-class BuildJobListResponse(BaseModel):
+class BuildJobListResponse(BaseSchema):
     """构建任务列表响应（简化版）"""
     id: str
     miniapp_instance_id: str
@@ -132,16 +104,9 @@ class BuildJobListResponse(BaseModel):
     finished_at: datetime | None = None
     created_at: datetime
 
-    model_config = ConfigDict(
-        from_attributes=True,
-        populate_by_name=True,
-        alias_generator=to_camel,
-        by_alias=True,
-    )
-
 # ==================== ReleaseArtifact (发布构建产物) ====================
 
-class ReleaseArtifactResponse(BaseModel):
+class ReleaseArtifactResponse(BaseSchema):
     """发布构建产物响应"""
     id: str
     build_job_id: str
@@ -149,13 +114,6 @@ class ReleaseArtifactResponse(BaseModel):
     checksum: str | None = None
     metadata: dict[str, Any] | None = None
     created_at: datetime
-
-    model_config = ConfigDict(
-        from_attributes=True,
-        populate_by_name=True,
-        alias_generator=to_camel,
-        by_alias=True,
-    )
 
 # ==================== ReleaseJob (发布任务) ====================
 
@@ -174,7 +132,7 @@ class ReleaseJobCreate(BaseModel):
             raise ValueError(f'动作必须是 {", ".join(valid_actions)} 之一')
         return v
 
-class ReleaseJobResponse(BaseModel):
+class ReleaseJobResponse(BaseSchema):
     """发布任务响应"""
     id: str
     miniapp_instance_id: str
@@ -190,14 +148,7 @@ class ReleaseJobResponse(BaseModel):
     miniapp_instance: dict[str, Any] | None = None
     artifact: ReleaseArtifactResponse | None = None
 
-    model_config = ConfigDict(
-        from_attributes=True,
-        populate_by_name=True,
-        alias_generator=to_camel,
-        by_alias=True,
-    )
-
-class ReleaseJobListResponse(BaseModel):
+class ReleaseJobListResponse(BaseSchema):
     """发布任务列表响应（简化版）"""
     id: str
     miniapp_instance_id: str
@@ -207,10 +158,3 @@ class ReleaseJobListResponse(BaseModel):
     status: str
     result: dict[str, Any] | None = None
     created_at: datetime
-
-    model_config = ConfigDict(
-        from_attributes=True,
-        populate_by_name=True,
-        alias_generator=to_camel,
-        by_alias=True,
-    )

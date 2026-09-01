@@ -5,15 +5,12 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.core.config import settings
 from app.enums.notification import NotificationChannel  # noqa: F401 — re-export
 from app.enums.notification import NotificationLogStatus as NotificationStatus
+from app.schemas.base import BaseRequestSchema, BaseSchema
 from app.schemas.response import to_camel
 
 
-class NotificationLogCreate(BaseModel):
+class NotificationLogCreate(BaseRequestSchema):
     """创建通知日志"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     channel: NotificationChannel = Field(..., description="通知通道")
     message_type: str | None = Field(None, max_length=30, description="消息类型")
@@ -27,14 +24,8 @@ class NotificationLogCreate(BaseModel):
     store_id: str | None = Field(None, description="门店ID")
     extra_data: dict | None = Field(None, description="额外数据")
 
-class NotificationLogResponse(BaseModel):
+class NotificationLogResponse(BaseSchema):
     """通知日志响应"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        from_attributes=True,
-        by_alias=True,
-    )
 
     id: str
     tenant_id: str | None = None
@@ -56,12 +47,8 @@ class NotificationLogResponse(BaseModel):
     created_at: datetime | None = None
     extra_data: dict | None = None
 
-class NotificationLogQuery(BaseModel):
+class NotificationLogQuery(BaseRequestSchema):
     """通知日志查询参数"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     channel: NotificationChannel | None = Field(None, description="通知通道")
     status: NotificationStatus | None = Field(None, description="发送状态")
@@ -120,12 +107,8 @@ class NotificationQuotaInfo(BaseModel):
     period_start: str
     period_end: str
 
-class NotificationQuotaUpdate(BaseModel):
+class NotificationQuotaUpdate(BaseRequestSchema):
     """通知配额更新"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     sms_monthly_limit: int | None = None
     email_monthly_limit: int | None = None

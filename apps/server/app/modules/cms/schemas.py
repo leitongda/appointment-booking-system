@@ -2,17 +2,11 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 
-from app.schemas.response import to_camel
+from app.schemas.base import BaseSchema
 
-# 统一 Response 配置：ORM 模式 + camelCase 别名
-_RESPONSE_CONFIG = ConfigDict(
-    from_attributes=True,
-    populate_by_name=True,
-    alias_generator=to_camel,
-    by_alias=True,
-)
+# 统一 Response 配置：ORM 模式 + camelCase 别名（已由 BaseSchema 统一提供）
 
 
 # ============================================================
@@ -44,7 +38,7 @@ class SiteUpdate(BaseModel):
     is_default: int | None = Field(None, ge=0, le=1)
 
 
-class SiteResponse(BaseModel):
+class SiteResponse(BaseSchema):
     id: str
     tenant_id: str | None = None
     name: str
@@ -61,8 +55,6 @@ class SiteResponse(BaseModel):
     deleted_at: datetime | None = None
     created_at: datetime
     updated_at: datetime | None = None
-
-    model_config = _RESPONSE_CONFIG
 
 
 # ============================================================
@@ -89,7 +81,7 @@ class CategoryUpdate(BaseModel):
     status: int | None = Field(None, ge=0, le=1)
 
 
-class CategoryResponse(BaseModel):
+class CategoryResponse(BaseSchema):
     id: str
     tenant_id: str | None = None
     site_id: str
@@ -104,8 +96,6 @@ class CategoryResponse(BaseModel):
     deleted_at: datetime | None = None
     created_at: datetime
     updated_at: datetime | None = None
-
-    model_config = _RESPONSE_CONFIG
 
 
 class CategoryTreeNode(CategoryResponse):
@@ -158,7 +148,7 @@ class ArticleUpdate(BaseModel):
     seo_description: str | None = Field(None, max_length=500)
 
 
-class ArticleResponse(BaseModel):
+class ArticleResponse(BaseSchema):
     id: str
     tenant_id: str | None = None
     site_id: str
@@ -185,8 +175,6 @@ class ArticleResponse(BaseModel):
     deleted_at: datetime | None = None
     created_at: datetime
     updated_at: datetime | None = None
-
-    model_config = _RESPONSE_CONFIG
 
 
 # ============================================================

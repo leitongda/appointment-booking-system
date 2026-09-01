@@ -1,28 +1,20 @@
 from datetime import date, datetime, time
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
 
 from app.enums.schedule import AppointmentType, ScheduleMode  # noqa: F401 — re-export
-from app.schemas.response import to_camel
+from app.schemas.base import BaseRequestSchema, BaseSchema
 
 
-class BreakTime(BaseModel):
+class BreakTime(BaseRequestSchema):
     """排除时间段（如午休时间）"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
+
     start_time: time = Field(..., description="开始时间")
     end_time: time = Field(..., description="结束时间")
 
-class ScheduleTemplateBase(BaseModel):
+class ScheduleTemplateBase(BaseRequestSchema):
     """排班模板基础模型"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
+
     name: str = Field(..., max_length=100, description="模板名称")
     store_id: str = Field(..., description="门店ID")
     doctor_id: str = Field(..., description="医生ID")
@@ -42,13 +34,9 @@ class ScheduleTemplateCreate(ScheduleTemplateBase):
     """创建排班模板"""
     pass
 
-class ScheduleTemplateUpdate(BaseModel):
+class ScheduleTemplateUpdate(BaseRequestSchema):
     """更新排班模板"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
+
     name: str | None = Field(None, max_length=100, description="模板名称")
     store_id: str | None = None
     doctor_id: str | None = None
@@ -65,15 +53,9 @@ class ScheduleTemplateUpdate(BaseModel):
     break_times: list[BreakTime] | None = Field(None, description="排除时间段列表（如午休时间）")
     status: int | None = Field(None, ge=0, le=1)
 
-class ScheduleTemplateResponse(BaseModel):
+class ScheduleTemplateResponse(BaseSchema):
     """排班模板响应"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        from_attributes=True,
-        by_alias=True,
-    )
-    
+
     id: str
     name: str | None = None
     store_id: str | None = None
@@ -99,24 +81,16 @@ class ScheduleTemplateResponse(BaseModel):
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
-class ScheduleGenerateRequest(BaseModel):
+class ScheduleGenerateRequest(BaseRequestSchema):
     """根据模板生成排班请求"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
+
     template_ids: list[str] = Field(..., description="模板ID列表")
     start_date: date | None = Field(None, description="开始日期，为空则默认今天")
     end_date: date | None = Field(None, description="结束日期，为空则默认1年后")
 
-class ScheduleBatchAddRequest(BaseModel):
+class ScheduleBatchAddRequest(BaseRequestSchema):
     """批量添加排班请求（不依赖模板）"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
+
     store_id: str = Field(..., description="门店ID")
     doctor_id: str = Field(..., description="医生ID")
     department_id: str = Field(..., description="科室ID")
@@ -132,12 +106,8 @@ class ScheduleBatchAddRequest(BaseModel):
     start_date: date = Field(..., description="开始日期")
     end_date: date = Field(..., description="结束日期")
 
-class ScheduleSlotPreview(BaseModel):
+class ScheduleSlotPreview(BaseRequestSchema):
     """班次预览项"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     schedule_date: date = Field(..., description="排班日期")
     start_time: time = Field(..., description="开始时间")
@@ -152,23 +122,15 @@ class ScheduleSlotPreview(BaseModel):
     reason: str | None = Field(None, description="跳过原因描述")
     conflicting_schedule_id: str | None = Field(None, description="冲突排班ID（如有）")
 
-class SchedulePreviewGenerateRequest(BaseModel):
+class SchedulePreviewGenerateRequest(BaseRequestSchema):
     """预览生成排班请求"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
+
     template_ids: list[str] = Field(..., description="模板ID列表")
     start_date: date | None = Field(None, description="开始日期，为空则默认今天")
     end_date: date | None = Field(None, description="结束日期，为空则默认30天后")
 
-class SchedulePreviewGenerateResponse(BaseModel):
+class SchedulePreviewGenerateResponse(BaseRequestSchema):
     """预览生成排班响应"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     slots: list[ScheduleSlotPreview] = Field(..., description="预览班次列表")
     total_count: int = Field(..., description="总班次数")
@@ -182,37 +144,25 @@ class SchedulePreviewGenerateResponse(BaseModel):
     doctor_name: str | None = None
     department_name: str | None = None
 
-class SlotCapacityOverride(BaseModel):
+class SlotCapacityOverride(BaseRequestSchema):
     """班次容量覆盖"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
+
     schedule_date: date = Field(..., description="排班日期")
     start_time: time = Field(..., description="开始时间")
     end_time: time = Field(..., description="结束时间")
     slot_capacity: int = Field(..., ge=1, le=200, description="可预约人数")
 
-class ScheduleGenerateWithCapacityRequest(BaseModel):
+class ScheduleGenerateWithCapacityRequest(BaseRequestSchema):
     """带自定义容量的生成排班请求"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
+
     template_ids: list[str] = Field(..., description="模板ID列表")
     start_date: date | None = Field(None, description="开始日期，为空则默认今天")
     end_date: date | None = Field(None, description="结束日期，为空则默认1年后")
     slot_capacities: list[SlotCapacityOverride] | None = Field(None, description="自定义班次容量列表")
 
-class ScheduleTemplateCopyRequest(BaseModel):
+class ScheduleTemplateCopyRequest(BaseRequestSchema):
     """复制排班规则请求"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
+
     target_doctor_ids: list[str] = Field(..., description="目标医生ID列表")
     # 可调整的配置字段（覆盖原规则配置）
     name: str | None = Field(None, max_length=100, description="规则名称（可选，不填则自动生成）")
@@ -227,33 +177,21 @@ class ScheduleTemplateCopyRequest(BaseModel):
     schedule_mode: str | None = Field(None, description="排班方式")
     break_times: list[BreakTime] | None = Field(None, description="排除时间段列表")
 
-class ScheduleTemplateCopyResponse(BaseModel):
+class ScheduleTemplateCopyResponse(BaseRequestSchema):
     """复制排班规则响应"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     message: str = Field(..., description="提示消息")
     created_count: int = Field(..., description="创建数量")
 
-class CrossStoreDoctorMapping(BaseModel):
+class CrossStoreDoctorMapping(BaseRequestSchema):
     """跨院区复制时的医生映射项"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     source_department_id: str = Field(..., description="源科室ID")
     target_department_id: str = Field(..., description="目标科室ID")
     target_doctor_id: str = Field(..., description="目标医生ID")
 
-class ScheduleTemplateCrossStoreCopyRequest(BaseModel):
+class ScheduleTemplateCrossStoreCopyRequest(BaseRequestSchema):
     """跨院区复制排班规则请求"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     target_store_id: str = Field(..., description="目标门店ID")
     mappings: list[CrossStoreDoctorMapping] = Field(..., description="科室/医生映射列表")
@@ -270,12 +208,8 @@ class ScheduleTemplateCrossStoreCopyRequest(BaseModel):
     schedule_mode: str | None = Field(None, description="排班方式")
     break_times: list[BreakTime] | None = Field(None, description="排除时间段列表")
 
-class ScheduleTemplateCrossStoreCopyResponse(BaseModel):
+class ScheduleTemplateCrossStoreCopyResponse(BaseRequestSchema):
     """跨院区复制排班规则响应"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     message: str = Field(..., description="提示消息")
     created_count: int = Field(..., description="创建数量")

@@ -1,15 +1,13 @@
-from app.schemas.response import to_camel
+from app.schemas.base import BaseRequestSchema, BaseSchema
 
 """检查报告 Schemas"""
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
 
 
-class ExaminationReportCreate(BaseModel):
+class ExaminationReportCreate(BaseRequestSchema):
     """创建检查报告（关联已有文件）"""
-    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
-
     appointment_id: str = Field(..., description="预约ID")
     record_id: str | None = Field(None, description="关联病历ID")
     report_type: str = Field(..., description="报告类型: blood_test/imaging/pathology/other")
@@ -21,15 +19,8 @@ class ExaminationReportCreate(BaseModel):
     file_type: str = Field(..., max_length=50, description="MIME类型")
     file_url: str | None = Field(None, max_length=1000, description="文件访问URL")
 
-class ExaminationReportResponse(BaseModel):
+class ExaminationReportResponse(BaseSchema):
     """检查报告响应"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        from_attributes=True,
-        by_alias=True,
-    )
-
     id: str
     tenant_id: str | None = None
     store_id: str | None = None
@@ -50,15 +41,8 @@ class ExaminationReportResponse(BaseModel):
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
-class ExaminationReportListResponse(BaseModel):
+class ExaminationReportListResponse(BaseSchema):
     """检查报告列表响应（简化版）"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        from_attributes=True,
-        by_alias=True,
-    )
-
     id: str
     report_type: str
     title: str

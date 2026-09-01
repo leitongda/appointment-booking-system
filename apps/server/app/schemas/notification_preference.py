@@ -1,17 +1,11 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
 
-from app.schemas.response import to_camel
+from app.schemas.base import BaseRequestSchema, BaseSchema
 
 
-class NotificationPreferenceResponse(BaseModel):
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        from_attributes=True,
-        by_alias=True,
-    )
+class NotificationPreferenceResponse(BaseSchema):
 
     id: str
     tenant_id: str | None = None
@@ -31,11 +25,7 @@ class NotificationPreferenceResponse(BaseModel):
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
-class NotificationPreferenceUpdate(BaseModel):
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
+class NotificationPreferenceUpdate(BaseRequestSchema):
 
     appointment_enabled: bool | None = None
     reminder_enabled: bool | None = None

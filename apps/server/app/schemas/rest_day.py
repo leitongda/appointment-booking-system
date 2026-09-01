@@ -1,32 +1,22 @@
 from datetime import date, datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 
 from app.core.config import settings
-from app.schemas.response import to_camel
+from app.schemas.base import BaseRequestSchema, BaseSchema
 
 
-class RestDayCreate(BaseModel):
+class RestDayCreate(BaseRequestSchema):
     """创建休息日"""
-    model_config = ConfigDict(
-        populate_by_name=True,
-        alias_generator=to_camel,
-    )
-    
+
     store_id: str = Field(..., description="门店ID")
     doctor_ids: list[str] | None = Field(None, description="医生ID列表,不填则门店所有医生休息")
     reason: str | None = Field(None, max_length=255, description="休息原因")
     start_date: date = Field(..., description="开始日期")
     end_date: date = Field(..., description="结束日期")
 
-class RestDayResponse(BaseModel):
+class RestDayResponse(BaseSchema):
     """休息日响应"""
-    model_config = ConfigDict(
-        from_attributes=True,
-        populate_by_name=True,
-        alias_generator=to_camel,
-        by_alias=True,
-    )
 
     id: str = Field(..., description="休息日ID")
     store_id: str = Field(..., description="门店ID")

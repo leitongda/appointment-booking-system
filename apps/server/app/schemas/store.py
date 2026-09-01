@@ -1,18 +1,15 @@
 from datetime import datetime, time
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
 
 from app.core.config import settings
+from app.schemas.base import BaseRequestSchema, BaseSchema
 from app.schemas.response import to_camel
 
 
-class StoreBase(BaseModel):
+class StoreBase(BaseRequestSchema):
     """门店基础模型"""
-    model_config = ConfigDict(
-        populate_by_name=True,  # 允许通过字段名或别名填充
-        alias_generator=to_camel,  # 自动生成 camelCase 别名
-    )
-    
+
     name: str = Field(..., max_length=100, description="门店名称")
     code: str | None = Field(None, max_length=50, description="门店编码")
     address: str | None = Field(None, max_length=255, description="详细地址")
@@ -40,12 +37,8 @@ class StoreCreate(StoreBase):
     """创建门店"""
     pass
 
-class StoreUpdate(BaseModel):
+class StoreUpdate(BaseRequestSchema):
     """更新门店"""
-    model_config = ConfigDict(
-        populate_by_name=True,
-        alias_generator=to_camel,
-    )
 
     name: str | None = Field(None, max_length=100, description="门店名称")
     code: str | None = Field(None, max_length=50, description="门店编码")
@@ -71,29 +64,26 @@ class StoreUpdate(BaseModel):
     max_cards_per_user: int | None = Field(None, ge=1, le=20, description="每用户可建就诊卡数量上限")
 
 class StoreResponse(StoreBase):
-    """门店响应"""
+    """门店响应
+    NOTE: 继承自 StoreBase（现 BaseRequestSchema，2-field 配置），本类有 4-field model_config 覆盖父类配置。
+    若改 BaseSchema 会丢掉 StoreBase 继承字段，故保留手写 model_config。
+    """
     model_config = ConfigDict(
-        from_attributes=True,
-        populate_by_name=True,
         alias_generator=to_camel,
+        populate_by_name=True,
+        from_attributes=True,
         by_alias=True,  # 序列化时使用别名 (camelCase)
     )
-    
+
     id: str = Field(..., description="门店ID")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
     # 排除密码字段，不返回给前端
     password: str | None = Field(None, exclude=True)
 
-class StoreListResponse(BaseModel):
+class StoreListResponse(BaseSchema):
     """门店列表响应"""
-    model_config = ConfigDict(
-        from_attributes=True,
-        populate_by_name=True,
-        alias_generator=to_camel,
-        by_alias=True,
-    )
-    
+
     id: str = Field(..., description="门店ID")
     name: str = Field(..., description="门店名称")
     code: str | None = Field(None, description="门店编码")
@@ -106,55 +96,35 @@ class StoreListResponse(BaseModel):
     max_cards_per_user: int = Field(5, description="每用户可建就诊卡数量上限")
     created_at: datetime = Field(..., description="创建时间")
 
-class StoreInfo(BaseModel):
+class StoreInfo(BaseSchema):
     """门店简要信息（用于登录响应等场景）"""
-    model_config = ConfigDict(
-        from_attributes=True,
-        populate_by_name=True,
-        alias_generator=to_camel,
-        by_alias=True,
-    )
-    
+
     id: str = Field(..., description="门店ID")
     name: str = Field(..., description="门店名称")
     logo: str | None = Field(None, description="门店logo")
     theme_style: str | None = Field(None, description="风格选择")
 
-class StoreQuery(BaseModel):
+class StoreQuery(BaseRequestSchema):
     """门店查询参数"""
-    model_config = ConfigDict(
-        populate_by_name=True,
-        alias_generator=to_camel,
-    )
-    
+
     keyword: str | None = Field(None, description="搜索关键词")
     status: int | None = Field(None, description="状态筛选")
     city: str | None = Field(None, description="城市筛选")
     page: int = Field(1, ge=1, description="页码")
     page_size: int = Field(10, ge=1, le=settings.MAX_PAGE_SIZE, description="每页数量")
 
-class StoreWechatConfigUpdate(BaseModel):
+class StoreWechatConfigUpdate(BaseRequestSchema):
     """更新门店微信配置"""
-    model_config = ConfigDict(
-        populate_by_name=True,
-        alias_generator=to_camel,
-    )
-    
+
     app_id: str | None = Field(None, max_length=100, description="小程序AppID")
     app_secret: str | None = Field(None, max_length=100, description="小程序Secret")
     mch_id: str | None = Field(None, max_length=100, description="商户号")
     api_key: str | None = Field(None, max_length=100, description="API密钥")
     notify_url: str | None = Field(None, max_length=255, description="支付回调地址")
 
-class StoreWechatConfigResponse(BaseModel):
+class StoreWechatConfigResponse(BaseSchema):
     """门店微信配置响应"""
-    model_config = ConfigDict(
-        from_attributes=True,
-        populate_by_name=True,
-        alias_generator=to_camel,
-        by_alias=True,
-    )
-    
+
     app_id: str | None = Field(None, description="小程序AppID")
     app_secret: str | None = Field(None, description="小程序Secret（掩码）")
     mch_id: str | None = Field(None, description="商户号")

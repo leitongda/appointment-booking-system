@@ -22,7 +22,7 @@ async def get_retention_rate(
     store_id: str | None = None,
     start_date: date | None = None,
     end_date: date | None = None,
-    cohort: str = Query(default="month", regex="^(day|week|month)$"),
+    cohort: str = Query(default="month", pattern="^(day|week|month)$"),
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
 ):

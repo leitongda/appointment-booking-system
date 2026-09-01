@@ -3,16 +3,13 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas.base import BaseRequestSchema, BaseSchema
 from app.schemas.response import to_camel
 
 # ========== 诊费类型 Schema ==========
 
-class ConsultationFeeTypeBase(BaseModel):
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
+class ConsultationFeeTypeBase(BaseRequestSchema):
+
     store_id: str | None = Field(None, description="门店ID，NULL表示全局类型")
     name: str = Field(..., max_length=50, description="诊费类型名称")
     code: str | None = Field(None, max_length=50, description="类型编码")
@@ -23,12 +20,8 @@ class ConsultationFeeTypeBase(BaseModel):
 class ConsultationFeeTypeCreate(ConsultationFeeTypeBase):
     pass
 
-class ConsultationFeeTypeUpdate(BaseModel):
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
+class ConsultationFeeTypeUpdate(BaseRequestSchema):
+
     store_id: str | None = None
     name: str | None = Field(None, max_length=50)
     code: str | None = Field(None, max_length=50)
@@ -36,14 +29,8 @@ class ConsultationFeeTypeUpdate(BaseModel):
     sort_order: int | None = Field(None, ge=0)
     status: int | None = Field(None, ge=0, le=1)
 
-class ConsultationFeeTypeResponse(BaseModel):
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        from_attributes=True,
-        by_alias=True,
-    )
-    
+class ConsultationFeeTypeResponse(BaseSchema):
+
     id: str
     store_id: str | None = None
     store_name: str | None = None
@@ -58,12 +45,8 @@ class ConsultationFeeTypeResponse(BaseModel):
 
 # ========== 诊费模板 Schema ==========
 
-class ConsultationFeeTemplateBase(BaseModel):
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
+class ConsultationFeeTemplateBase(BaseRequestSchema):
+
     fee_type_id: str = Field(..., description="诊费类型ID")
     initial_fee: Decimal = Field(Decimal("0"), ge=0, description="初诊金额")
     follow_up_fee: Decimal = Field(Decimal("0"), ge=0, description="复诊金额")
@@ -72,25 +55,15 @@ class ConsultationFeeTemplateBase(BaseModel):
 class ConsultationFeeTemplateCreate(ConsultationFeeTemplateBase):
     pass
 
-class ConsultationFeeTemplateUpdate(BaseModel):
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
+class ConsultationFeeTemplateUpdate(BaseRequestSchema):
+
     fee_type_id: str | None = None
     initial_fee: Decimal | None = Field(None, ge=0)
     follow_up_fee: Decimal | None = Field(None, ge=0)
     status: int | None = Field(None, ge=0, le=1)
 
-class ConsultationFeeTemplateResponse(BaseModel):
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        from_attributes=True,
-        by_alias=True,
-    )
-    
+class ConsultationFeeTemplateResponse(BaseSchema):
+
     id: str
     fee_type_id: str | None = None
     fee_type_name: str | None = None
@@ -119,13 +92,9 @@ class ConsultationFeeTemplateWithType(BaseModel):
 
 # ========== 门店诊费模板 Schema ==========
 
-class StoreFeeTemplateBase(BaseModel):
+class StoreFeeTemplateBase(BaseRequestSchema):
     """门店诊费模板基础"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
+
     store_id: str = Field(..., description="门店ID")
     fee_type_id: str = Field(..., description="诊费类型ID")
     initial_fee: Decimal = Field(Decimal("0"), ge=0, description="初诊金额")
@@ -135,25 +104,15 @@ class StoreFeeTemplateBase(BaseModel):
 class StoreFeeTemplateCreate(StoreFeeTemplateBase):
     pass
 
-class StoreFeeTemplateUpdate(BaseModel):
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
+class StoreFeeTemplateUpdate(BaseRequestSchema):
+
     initial_fee: Decimal | None = Field(None, ge=0)
     follow_up_fee: Decimal | None = Field(None, ge=0)
     status: int | None = Field(None, ge=0, le=1)
 
-class StoreFeeTemplateResponse(BaseModel):
+class StoreFeeTemplateResponse(BaseSchema):
     """门店诊费模板响应"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        from_attributes=True,
-        by_alias=True,
-    )
-    
+
     id: str
     store_id: str | None = None
     store_name: str | None = None
@@ -180,13 +139,9 @@ class StoreFeeTemplateItem(BaseModel):
     initial_fee: Decimal = Decimal("0")
     follow_up_fee: Decimal = Decimal("0")
 
-class StoreFeeTemplateBatchCreate(BaseModel):
+class StoreFeeTemplateBatchCreate(BaseRequestSchema):
     """批量创建/更新门店诊费模板"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
+
     store_id: str = Field(..., description="门店ID")
     templates: list[StoreFeeTemplateItem] = Field(..., description="诊费模板列表")
 
@@ -210,24 +165,16 @@ class StoreFeeTemplateWithType(BaseModel):
     status: int = 1
     is_global_type: bool = True  # 是否为全局类型
 
-class ApplyTemplateRequest(BaseModel):
+class ApplyTemplateRequest(BaseRequestSchema):
     """一键带入模板请求"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
+
     store_id: str = Field(..., description="门店ID")
     department_id: str = Field(..., description="科室ID")
 
 # ========== 医生诊费配置 Schema ==========
 
-class DoctorConsultationFeeBase(BaseModel):
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
+class DoctorConsultationFeeBase(BaseRequestSchema):
+
     doctor_id: str = Field(..., description="医生ID")
     store_id: str = Field(..., description="门店ID")
     department_id: str = Field(..., description="科室ID")
@@ -239,24 +186,14 @@ class DoctorConsultationFeeBase(BaseModel):
 class DoctorConsultationFeeCreate(DoctorConsultationFeeBase):
     pass
 
-class DoctorConsultationFeeUpdate(BaseModel):
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
+class DoctorConsultationFeeUpdate(BaseRequestSchema):
+
     initial_fee: Decimal | None = Field(None, ge=0)
     follow_up_fee: Decimal | None = Field(None, ge=0)
     status: int | None = Field(None, ge=0, le=1)
 
-class DoctorConsultationFeeResponse(BaseModel):
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        from_attributes=True,
-        by_alias=True,
-    )
-    
+class DoctorConsultationFeeResponse(BaseSchema):
+
     id: str
     doctor_id: str | None = None
     store_id: str | None = None
@@ -286,25 +223,17 @@ class DoctorConsultationFeeItem(BaseModel):
     initial_fee: Decimal = Decimal("0")
     follow_up_fee: Decimal = Decimal("0")
 
-class DoctorConsultationFeeBatchCreate(BaseModel):
+class DoctorConsultationFeeBatchCreate(BaseRequestSchema):
     """批量创建/更新医生诊费配置"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
+
     doctor_id: str = Field(..., description="医生ID")
     store_id: str = Field(..., description="门店ID")
     department_id: str = Field(..., description="科室ID")
     fees: list[DoctorConsultationFeeItem] = Field(..., description="诊费配置列表")
 
-class DoctorConsultationFeeQuery(BaseModel):
+class DoctorConsultationFeeQuery(BaseRequestSchema):
     """查询医生诊费配置的参数"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
+
     doctor_id: str
     store_id: str | None = None
     department_id: str | None = None
@@ -322,13 +251,9 @@ class DoctorFeeSettingResponse(BaseModel):
     use_fee_template: int | None = 0
     fees: list[DoctorConsultationFeeResponse] = []
 
-class DoctorFeeSettingUpdate(BaseModel):
+class DoctorFeeSettingUpdate(BaseRequestSchema):
     """更新医生诊费设置"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
+
     use_fee_template: int = Field(..., ge=0, le=1, description="是否使用诊费模板 0否 1是")
 
 class StoreDepartmentFeeGroup(BaseModel):

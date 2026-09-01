@@ -1,17 +1,13 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
 
-from app.schemas.response import to_camel
+from app.schemas.base import BaseRequestSchema, BaseSchema
 
 
-class DepartmentBase(BaseModel):
+class DepartmentBase(BaseRequestSchema):
     """科室基础模型"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,  # 允许使用原始字段名或别名
-    )
-    
+
     name: str = Field(..., max_length=100, description="科室名称")
     parent_id: str | None = Field(None, description="父级科室ID")
     description: str | None = Field(None, description="科室描述")
@@ -48,13 +44,9 @@ class DepartmentBase(BaseModel):
 class DepartmentCreate(DepartmentBase):
     pass
 
-class DepartmentUpdate(BaseModel):
+class DepartmentUpdate(BaseRequestSchema):
     """更新科室请求"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,  # 允许使用原始字段名或别名
-    )
-    
+
     name: str | None = Field(None, max_length=100, description="科室名称")
     parent_id: str | None = Field(None, description="父级科室ID")
     description: str | None = Field(None, description="科室描述")
@@ -88,15 +80,9 @@ class DepartmentUpdate(BaseModel):
     # 智能导诊
     keywords: list[str] | None = Field(None, description="症状关键词数组，用于智能导诊")
 
-class DepartmentResponse(BaseModel):
+class DepartmentResponse(BaseSchema):
     """科室响应模型 - 所有字段都可为空以兼容历史数据"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        from_attributes=True,
-        by_alias=True,  # 序列化时使用别名 (camelCase)
-    )
-    
+
     id: str = Field(..., description="科室ID")
     name: str = Field(..., description="科室名称")
     parent_id: str | None = Field(None, description="父级科室ID")
@@ -134,15 +120,9 @@ class DepartmentResponse(BaseModel):
     # 智能导诊
     keywords: list[str] | None = Field(None, description="症状关键词数组，用于智能导诊")
 
-class DepartmentTreeNode(BaseModel):
+class DepartmentTreeNode(BaseSchema):
     """科室树节点"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        from_attributes=True,
-        by_alias=True,
-    )
-    
+
     id: str = Field(..., description="科室ID")
     name: str = Field(..., description="科室名称")
     parent_id: str | None = Field(None, description="父级科室ID")

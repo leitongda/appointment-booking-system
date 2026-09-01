@@ -4,16 +4,13 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.config import settings
 from app.enums.message import MessageType  # noqa: F401 — re-export
+from app.schemas.base import BaseRequestSchema, BaseSchema
 from app.schemas.response import to_camel
 
 
-class MessageBase(BaseModel):
+class MessageBase(BaseRequestSchema):
     """消息基础模型"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
+
     title: str = Field(..., max_length=200, description="消息标题")
     content: str | None = Field(None, description="消息内容")
     message_type: str = Field("system", description="消息类型（字典: message_type）")
@@ -25,13 +22,9 @@ class MessageCreate(MessageBase):
     user_type: str = Field(..., description="用户类型: patient/doctor")
     extra_data: dict | None = Field(None, description="额外数据")
 
-class MessageBatchCreate(BaseModel):
+class MessageBatchCreate(BaseRequestSchema):
     """批量创建消息"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
+
     user_ids: list[str] = Field(..., description="接收用户ID列表")
     user_type: str = Field(..., description="用户类型")
     title: str = Field(..., max_length=200)
@@ -39,15 +32,9 @@ class MessageBatchCreate(BaseModel):
     message_type: str = "system"
     related_id: str | None = None
 
-class MessageResponse(BaseModel):
+class MessageResponse(BaseSchema):
     """消息响应"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        from_attributes=True,
-        by_alias=True,
-    )
-    
+
     id: str
     store_id: str | None = None
     user_id: str | None = None
@@ -60,15 +47,9 @@ class MessageResponse(BaseModel):
     read_at: datetime | None = None
     created_at: datetime | None = None
 
-class MessageListResponse(BaseModel):
+class MessageListResponse(BaseSchema):
     """消息列表响应"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        from_attributes=True,
-        by_alias=True,
-    )
-    
+
     id: str
     store_id: str | None = None
     title: str | None = None
@@ -77,13 +58,9 @@ class MessageListResponse(BaseModel):
     is_read: int | None = 0
     created_at: datetime | None = None
 
-class MessageQuery(BaseModel):
+class MessageQuery(BaseRequestSchema):
     """消息查询参数"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
+
     message_type: str | None = Field(None, description="消息类型（字典: message_type）")
     is_read: int | None = Field(None, description="是否已读")
     page: int = Field(1, ge=1)
@@ -96,7 +73,7 @@ class UnreadCountResponse(BaseModel):
         populate_by_name=True,
         by_alias=True,
     )
-    
+
     total: int = 0
     appointment: int = 0
     consultation: int = 0
@@ -106,12 +83,8 @@ class UnreadCountResponse(BaseModel):
     feedback: int = 0
 
 # 消息模板
-class MessageTemplateBase(BaseModel):
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
+class MessageTemplateBase(BaseRequestSchema):
+
     code: str = Field(..., max_length=50)
     name: str = Field(..., max_length=100)
     message_type: str
@@ -123,27 +96,17 @@ class MessageTemplateBase(BaseModel):
 class MessageTemplateCreate(MessageTemplateBase):
     pass
 
-class MessageTemplateUpdate(BaseModel):
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-    
+class MessageTemplateUpdate(BaseRequestSchema):
+
     name: str | None = Field(None, max_length=100)
     title_template: str | None = Field(None, max_length=200)
     content_template: str | None = None
     description: str | None = Field(None, max_length=255)
     status: int | None = Field(None, ge=0, le=1)
 
-class MessageTemplateResponse(BaseModel):
+class MessageTemplateResponse(BaseSchema):
     """消息模板响应"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        from_attributes=True,
-        by_alias=True,
-    )
-    
+
     id: str
     code: str | None = None
     name: str | None = None

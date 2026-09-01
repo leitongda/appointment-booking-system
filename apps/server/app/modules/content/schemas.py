@@ -1,11 +1,11 @@
-from app.schemas.response import to_camel
+from app.schemas.base import BaseSchema
 
 """Content module DTOs."""
 
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 
 
 class NewsCreate(BaseModel):
@@ -18,7 +18,7 @@ class NewsCreate(BaseModel):
     status: int = Field(0, ge=0, le=1)
 
 
-class NewsResponse(BaseModel):
+class NewsResponse(BaseSchema):
     id: str
     store_id: str | None = None
     title: str
@@ -35,13 +35,6 @@ class NewsResponse(BaseModel):
     created_at: datetime
     updated_at: datetime | None = None
 
-    model_config = ConfigDict(
-        from_attributes=True,
-        populate_by_name=True,
-        alias_generator=to_camel,
-        by_alias=True,
-    )
-
 
 class NoticeCreate(BaseModel):
     title: str = Field(..., max_length=200)
@@ -51,7 +44,7 @@ class NoticeCreate(BaseModel):
     status: int = Field(0, ge=0, le=1)
 
 
-class NoticeResponse(BaseModel):
+class NoticeResponse(BaseSchema):
     id: str
     store_id: str | None = None
     title: str
@@ -66,13 +59,6 @@ class NoticeResponse(BaseModel):
     created_at: datetime
     updated_at: datetime | None = None
 
-    model_config = ConfigDict(
-        from_attributes=True,
-        populate_by_name=True,
-        alias_generator=to_camel,
-        by_alias=True,
-    )
-
 
 class BannerCreate(BaseModel):
     title: str | None = Field(None, max_length=100)
@@ -84,7 +70,7 @@ class BannerCreate(BaseModel):
     status: int = Field(1, ge=0, le=1)
 
 
-class BannerResponse(BaseModel):
+class BannerResponse(BaseSchema):
     id: str
     store_id: str | None = None
     title: str | None = None
@@ -99,30 +85,16 @@ class BannerResponse(BaseModel):
     created_at: datetime
     updated_at: datetime | None = None
 
-    model_config = ConfigDict(
-        from_attributes=True,
-        populate_by_name=True,
-        alias_generator=to_camel,
-        by_alias=True,
-    )
-
 
 # ========== 版本历史 ==========
 
-class ContentVersionResponse(BaseModel):
+class ContentVersionResponse(BaseSchema):
     id: str
     content_type: str
     content_id: str
     operator_id: str | None = None
     snapshot: dict[str, Any]
     created_at: datetime
-
-    model_config = ConfigDict(
-        from_attributes=True,
-        populate_by_name=True,
-        alias_generator=to_camel,
-        by_alias=True,
-    )
 
 
 # ========== 批量操作 ==========

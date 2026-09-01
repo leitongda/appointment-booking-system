@@ -1,11 +1,11 @@
-from app.schemas.response import to_camel
+from app.schemas.base import BaseSchema
 
 """常见服务模块 DTOs"""
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 
 # ========== 常见服务 ==========
 
-class CommonServiceResponse(BaseModel):
+class CommonServiceResponse(BaseSchema):
     """常见服务响应"""
     id: str
     name: str
@@ -20,20 +20,13 @@ class CommonServiceResponse(BaseModel):
     sort_order: int = 0
     status: int = 1
 
-    model_config = ConfigDict(
-        from_attributes=True,
-        populate_by_name=True,
-        alias_generator=to_camel,
-        by_alias=True,
-    )
-
 class CommonServiceListResponse(BaseModel):
     """常见服务列表响应"""
     items: list[CommonServiceResponse]
 
 # ========== 健康提醒 ==========
 
-class HealthReminderResponse(BaseModel):
+class HealthReminderResponse(BaseSchema):
     """健康提醒响应"""
     id: str
     reminder_type: str
@@ -44,13 +37,6 @@ class HealthReminderResponse(BaseModel):
     recommended_interval: int = 365
     sort_order: int = 0
     status: int = 1
-
-    model_config = ConfigDict(
-        from_attributes=True,
-        populate_by_name=True,
-        alias_generator=to_camel,
-        by_alias=True,
-    )
 
 class UserHealthReminderResponse(BaseModel):
     """用户健康提醒响应（包含用户的检查历史）"""

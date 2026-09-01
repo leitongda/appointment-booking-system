@@ -8,16 +8,12 @@ from app.enums.support_ticket import (  # noqa: F401 — re-export
     SupportTicketStatus,
     SupportTicketType,
 )
+from app.schemas.base import BaseRequestSchema, BaseSchema
 from app.schemas.response import to_camel
 
 
-class SupportTicketCreate(BaseModel):
+class SupportTicketCreate(BaseRequestSchema):
     """创建工单"""
-
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     title: str = Field(..., max_length=200, description="工单标题")
     description: str = Field(..., min_length=1, description="工单描述")
@@ -26,13 +22,8 @@ class SupportTicketCreate(BaseModel):
     contact_info: str | None = Field(None, max_length=200, description="联系方式")
     attachments: list[str] | None = Field(None, description="附件URL列表")
 
-class SupportTicketUpdate(BaseModel):
+class SupportTicketUpdate(BaseRequestSchema):
     """更新工单"""
-
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     title: str | None = Field(None, max_length=200, description="工单标题")
     description: str | None = Field(None, description="工单描述")
@@ -42,15 +33,8 @@ class SupportTicketUpdate(BaseModel):
     attachments: list[str] | None = Field(None, description="附件URL列表")
     resolution: str | None = Field(None, description="解决方案/备注")
 
-class SupportTicketResponse(BaseModel):
+class SupportTicketResponse(BaseSchema):
     """工单响应"""
-
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        from_attributes=True,
-        by_alias=True,
-    )
 
     id: str
     tenant_id: str | None = None
@@ -70,7 +54,10 @@ class SupportTicketResponse(BaseModel):
     updated_at: datetime | None = None
 
 class SupportTicketListResponse(BaseModel):
-    """工单列表响应"""
+    """工单列表响应
+    NOTE: 原 ConfigDict 为 {alias_generator, populate_by_name, by_alias=True}（3 字段，无 from_attributes），
+    与 BaseSchema（4 字段）不一致，保留手写配置避免行为变化。
+    """
 
     model_config = ConfigDict(
         alias_generator=to_camel,
@@ -83,13 +70,8 @@ class SupportTicketListResponse(BaseModel):
     page: int = 1
     page_size: int = Field(default=10, alias="pageSize")
 
-class SupportTicketQuery(BaseModel):
+class SupportTicketQuery(BaseRequestSchema):
     """工单查询参数"""
-
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     status: SupportTicketStatus | None = Field(None, description="状态")
     type: str | None = Field(None, description="类型（字典: support_ticket_type）")
@@ -98,28 +80,21 @@ class SupportTicketQuery(BaseModel):
     page: int = Field(1, ge=1)
     page_size: int = Field(10, ge=1, le=settings.MAX_PAGE_SIZE)
 
-class SupportTicketAssignRequest(BaseModel):
+class SupportTicketAssignRequest(BaseRequestSchema):
     """分配工单请求"""
-
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     assignee_id: str = Field(..., description="处理人ID")
 
-class SupportTicketResolveRequest(BaseModel):
+class SupportTicketResolveRequest(BaseRequestSchema):
     """解决工单请求"""
-
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
 
     resolution: str | None = Field(None, description="解决方案/备注")
 
 class SupportTicketStatisticsResponse(BaseModel):
-    """工单统计响应"""
+    """工单统计响应
+    NOTE: 原 ConfigDict 为 {alias_generator, populate_by_name, by_alias=True}（3 字段，无 from_attributes），
+    与 BaseSchema（4 字段）不一致，保留手写配置避免行为变化。
+    """
 
     model_config = ConfigDict(
         alias_generator=to_camel,
