@@ -305,8 +305,10 @@ class TestGenerateSchedulesForTemplate:
     @patch("app.tasks.schedule_task.should_generate_schedule")
     @patch("app.tasks.schedule_task.is_rest_day")
     @patch("app.tasks.schedule_task.get_sync_db")
+    @patch("app.tasks.schedule_task.SyncRedisCache")
     def test_generate_schedules_for_template_not_found(
         self,
+        mock_sync_redis,
         mock_get_sync_db,
         mock_is_rest_day,
         mock_should_generate,
@@ -314,6 +316,7 @@ class TestGenerateSchedulesForTemplate:
         mock_set_tenant_ctx,
         mock_clear_tenant_ctx,
     ):
+        mock_sync_redis.acquire_lock.return_value = "lock-value-123"
         mock_db = MagicMock()
         mock_db.get.return_value = None
 
@@ -337,8 +340,10 @@ class TestGenerateSchedulesForTemplate:
     @patch("app.tasks.schedule_task.should_generate_schedule")
     @patch("app.tasks.schedule_task.is_rest_day")
     @patch("app.tasks.schedule_task.get_sync_db")
+    @patch("app.tasks.schedule_task.SyncRedisCache")
     def test_generate_schedules_for_template_disabled(
         self,
+        mock_sync_redis,
         mock_get_sync_db,
         mock_is_rest_day,
         mock_should_generate,
@@ -346,6 +351,7 @@ class TestGenerateSchedulesForTemplate:
         mock_set_tenant_ctx,
         mock_clear_tenant_ctx,
     ):
+        mock_sync_redis.acquire_lock.return_value = "lock-value-123"
         mock_template = MagicMock()
         mock_template.status = 0
 
@@ -370,8 +376,10 @@ class TestGenerateSchedulesForTemplate:
     @patch("app.tasks.schedule_task.should_generate_schedule")
     @patch("app.tasks.schedule_task.is_rest_day")
     @patch("app.tasks.schedule_task.get_sync_db")
+    @patch("app.tasks.schedule_task.SyncRedisCache")
     def test_generate_schedules_for_template_with_tenant_context(
         self,
+        mock_sync_redis,
         mock_get_sync_db,
         mock_is_rest_day,
         mock_should_generate,
@@ -379,6 +387,7 @@ class TestGenerateSchedulesForTemplate:
         mock_set_tenant_ctx,
         mock_clear_tenant_ctx,
     ):
+        mock_sync_redis.acquire_lock.return_value = "lock-value-123"
         mock_is_rest_day.return_value = False
         mock_should_generate.return_value = True
         mock_split.return_value = [(time(9, 0), time(12, 0))]
@@ -422,8 +431,10 @@ class TestGenerateSchedulesForTemplate:
     @patch("app.tasks.schedule_task.should_generate_schedule")
     @patch("app.tasks.schedule_task.is_rest_day")
     @patch("app.tasks.schedule_task.get_sync_db")
+    @patch("app.tasks.schedule_task.SyncRedisCache")
     def test_generate_schedules_for_template_tenant_mismatch(
         self,
+        mock_sync_redis,
         mock_get_sync_db,
         mock_is_rest_day,
         mock_should_generate,
@@ -431,6 +442,7 @@ class TestGenerateSchedulesForTemplate:
         mock_set_tenant_ctx,
         mock_clear_tenant_ctx,
     ):
+        mock_sync_redis.acquire_lock.return_value = "lock-value-123"
         mock_template = MagicMock()
         mock_template.status = 1
         mock_template.tenant_id = "tenant-2"

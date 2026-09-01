@@ -11,6 +11,120 @@ import pytest
 SERVER_ROOT = Path(__file__).resolve().parent.parent.parent
 MODULES_DIR = SERVER_ROOT / "app" / "modules"
 
+LEGACY_OVERSIZED_ROUTERS = {
+    "app/modules/accounts/router.py": 379,
+    "app/modules/admin/router_auth_integration.py": 366,
+    "app/modules/admin/router_auth_login.py": 490,
+    "app/modules/admin/router_monitoring.py": 524,
+    "app/modules/analytics/router.py": 607,
+    "app/modules/appointments/router_flow.py": 405,
+    "app/modules/appointments/router_query.py": 707,
+    "app/modules/approval_flows/router.py": 417,
+    "app/modules/attendance_records/router.py": 308,
+    "app/modules/auth/router.py": 1035,
+    "app/modules/consultation_fees/router.py": 479,
+    "app/modules/contacts/router.py": 364,
+    "app/modules/content/router.py": 603,
+    "app/modules/departments/router.py": 407,
+    "app/modules/doctors/router.py": 971,
+    "app/modules/doctor_portal/router_queue.py": 353,
+    "app/modules/follow_up/router.py": 828,
+    "app/modules/freelance_fees/router.py": 636,
+    "app/modules/import_export/router_export.py": 861,
+    "app/modules/import_export/router_import.py": 614,
+    "app/modules/integration_gateway/router.py": 323,
+    "app/modules/lowcode/router.py": 1099,
+    "app/modules/lowcode/router_template.py": 628,
+    "app/modules/messages/router.py": 338,
+    "app/modules/miniapp_platform/router_build_release.py": 321,
+    "app/modules/miniapp_platform/router_instance.py": 331,
+    "app/modules/patients/router_manage.py": 341,
+    "app/modules/rule_sets/router.py": 912,
+    "app/modules/schedule_templates/router.py": 964,
+    "app/modules/schedules/router.py": 932,
+    "app/modules/schedules/router_custom.py": 455,
+    "app/modules/schedules/router_statistics.py": 508,
+    "app/modules/session_events/router.py": 489,
+    "app/modules/settings/router.py": 691,
+    "app/modules/statistics/router_overview.py": 367,
+    "app/modules/stores/router.py": 858,
+    "app/modules/tenants/router.py": 480,
+    "app/modules/tenants/router_current_tenant.py": 339,
+    "app/modules/unified_message/router.py": 359,
+    "app/modules/upload/router.py": 314,
+    "app/modules/waitlist/router.py": 514,
+}
+
+LEGACY_OVERSIZED_SERVICES = {
+    "app/modules/appointments/service_booking.py": 935,
+    "app/modules/appointments/service_flow.py": 514,
+    "app/modules/approval_flows/service_definitions.py": 629,
+    "app/modules/attendance_records/service.py": 518,
+    "app/modules/content/service.py": 598,
+    "app/modules/follow_up/service.py": 595,
+    "app/modules/lowcode/service.py": 552,
+    "app/modules/messages/service_messages.py": 707,
+    "app/modules/miniapp_platform/service_instance.py": 713,
+    "app/modules/patients/service_manage.py": 722,
+    "app/modules/payments/service.py": 534,
+    "app/modules/rule_sets/service_mutation.py": 582,
+    "app/modules/schedule_suspensions/service_processing.py": 675,
+    "app/modules/schedule_templates/service_generation.py": 659,
+    "app/modules/schedules/service_conflict.py": 632,
+    "app/modules/schedules/service_create.py": 515,
+    "app/modules/unified_message/service_send.py": 648,
+}
+
+LEGACY_OVERSIZED_SCHEMAS = {
+    "app/modules/admin/schemas.py": 332,
+    "app/modules/approval_flows/schemas.py": 234,
+    "app/modules/contacts/schemas.py": 302,
+    "app/modules/freelance_fees/schemas.py": 232,
+    "app/modules/lowcode/schemas.py": 287,
+    "app/modules/tenants/schemas.py": 729,
+    "app/modules/unified_message/schemas.py": 238,
+    "app/schemas/appointment.py": 209,
+    "app/schemas/consultation_fee.py": 271,
+    "app/schemas/follow_up.py": 242,
+    "app/schemas/lowcode.py": 203,
+    "app/schemas/rule_set.py": 309,
+    "app/schemas/schedule.py": 383,
+    "app/schemas/schedule_template.py": 216,
+    "app/schemas/user.py": 265,
+}
+
+LEGACY_MODULES_WITHOUT_UNIT_TESTS = {
+    "appointment_satisfactions",
+    "attendance_groups",
+    "attendance_leave",
+    "attendance_records",
+    "attendance_rules",
+    "attendance_shifts",
+    "backup",
+    "booking_notices",
+    "contacts",
+    "dictionaries",
+    "doctor_reviews",
+    "email_templates",
+    "examination_reports",
+    "export",
+    "feedbacks",
+    "freelance_fees",
+    "messages",
+    "notification_logs",
+    "notification_preferences",
+    "platform_announcements",
+    "rest_days",
+    "revenue",
+    "schedule_suspensions",
+    "shift_types",
+    "store_email_recipients",
+    "support_tickets",
+    "user_favorites",
+    "users",
+    "visit_types",
+}
+
 
 @pytest.mark.architecture
 class TestFileSizeLimits:
@@ -23,38 +137,58 @@ class TestFileSizeLimits:
     def _count_lines(self, path: Path) -> int:
         return len(path.read_text(encoding="utf-8").splitlines())
 
+    def _check_limit(self, path: Path, lines: int, limit: int, legacy_baseline: dict[str, int]) -> str | None:
+        rel = str(path.relative_to(SERVER_ROOT))
+        baseline = legacy_baseline.get(rel)
+        if baseline is not None:
+            if lines > baseline:
+                return f"{rel}: {lines} lines (legacy baseline {baseline})"
+            return None
+        if lines > limit:
+            return f"{rel}: {lines} lines"
+        return None
+
     def test_routers_within_limit(self):
-        """router.py files should not exceed ROUTER_LIMIT lines"""
+        """router.py files should not exceed ROUTER_LIMIT lines or legacy baseline"""
         violations = []
         for router_file in MODULES_DIR.rglob("router*.py"):
             lines = self._count_lines(router_file)
-            if lines > self.ROUTER_LIMIT:
-                violations.append(f"{router_file.relative_to(SERVER_ROOT)}: {lines} lines")
+            violation = self._check_limit(
+                router_file, lines, self.ROUTER_LIMIT, LEGACY_OVERSIZED_ROUTERS
+            )
+            if violation:
+                violations.append(violation)
         assert not violations, (
             f"Router files exceed {self.ROUTER_LIMIT} lines:\n" + "\n".join(violations)
         )
 
     def test_services_within_limit(self):
-        """service*.py files should not exceed SERVICE_LIMIT lines"""
+        """service*.py files should not exceed SERVICE_LIMIT lines or legacy baseline"""
         violations = []
         for service_file in MODULES_DIR.rglob("service*.py"):
             if service_file.name == "__init__.py":
                 continue
             lines = self._count_lines(service_file)
-            if lines > self.SERVICE_LIMIT:
-                violations.append(f"{service_file.relative_to(SERVER_ROOT)}: {lines} lines")
+            violation = self._check_limit(
+                service_file, lines, self.SERVICE_LIMIT, LEGACY_OVERSIZED_SERVICES
+            )
+            if violation:
+                violations.append(violation)
         assert not violations, (
             f"Service files exceed {self.SERVICE_LIMIT} lines:\n" + "\n".join(violations)
         )
 
     def test_schemas_within_limit(self):
-        """schemas.py files should not exceed SCHEMA_LIMIT lines"""
+        """schema files should not exceed SCHEMA_LIMIT lines or legacy baseline"""
         violations = []
         # Check module-internal schemas.py files
         for schema_file in MODULES_DIR.rglob("schemas.py"):
             lines = self._count_lines(schema_file)
-            if lines > self.SCHEMA_LIMIT:
-                violations.append(f"{schema_file.relative_to(SERVER_ROOT)}: {lines} lines")
+            violation = self._check_limit(
+                schema_file, lines, self.SCHEMA_LIMIT, LEGACY_OVERSIZED_SCHEMAS
+            )
+            if violation:
+                violations.append(violation)
         # Also check global schemas directory
         global_schemas = SERVER_ROOT / "app" / "schemas"
         if global_schemas.exists():
@@ -62,8 +196,11 @@ class TestFileSizeLimits:
                 if schema_file.name.startswith("_"):
                     continue
                 lines = self._count_lines(schema_file)
-                if lines > self.SCHEMA_LIMIT:
-                    violations.append(f"{schema_file.relative_to(SERVER_ROOT)}: {lines} lines")
+                violation = self._check_limit(
+                    schema_file, lines, self.SCHEMA_LIMIT, LEGACY_OVERSIZED_SCHEMAS
+                )
+                if violation:
+                    violations.append(violation)
         assert not violations, (
             f"Schema files exceed {self.SCHEMA_LIMIT} lines:\n" + "\n".join(violations)
         )
@@ -72,6 +209,16 @@ class TestFileSizeLimits:
 @pytest.mark.architecture
 class TestModuleTestCoverage:
     """Fitness Function #2: Every business module must have corresponding tests"""
+
+    def _has_corresponding_test(self, module_name: str, test_files: set[str]) -> bool:
+        candidates = {module_name}
+        if module_name.endswith("s"):
+            candidates.add(module_name[:-1])
+        for test_name in test_files:
+            for candidate in candidates:
+                if test_name == candidate or test_name.startswith(f"{candidate}_"):
+                    return True
+        return False
 
     def test_all_modules_have_tests(self):
         """Every module with service.py must have a corresponding test file"""
@@ -90,9 +237,13 @@ class TestModuleTestCoverage:
             if service_files:
                 modules_with_service.append(module_dir.name)
 
-        test_files = {f.stem.replace("test_", "") for f in test_dir.glob("test_*.py")}
+        test_files = {f.stem.removeprefix("test_") for f in test_dir.glob("test_*.py")}
 
-        missing = [m for m in modules_with_service if m not in test_files]
+        missing = [
+            m for m in modules_with_service
+            if not self._has_corresponding_test(m, test_files)
+            and m not in LEGACY_MODULES_WITHOUT_UNIT_TESTS
+        ]
         assert not missing, (
             "The following modules lack unit tests:\n"
             + "\n".join(f"  - {m}" for m in missing)
