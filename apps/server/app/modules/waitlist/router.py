@@ -3,7 +3,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_admin, get_current_user
+from app.common.deps import require_permission
 from app.core.config import settings
 from app.db.session import get_db
 from app.modules.waitlist.service import WaitlistService
@@ -217,6 +218,216 @@ async def get_waitlist_position(
     )
 
     return {"position": position}
+
+
+# ==================== 管理端接口 ====================
+
+
+@router.get("/stats", summary="获取候补统计")
+async def get_waitlist_stats(
+    store_id: str | None = Query(None),
+    start_date: str | None = Query(None),
+    end_date: str | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("waitlist:read")),
+):
+    """管理端：候补队列统计（总数 / 等待中 / 已递补 / 已取消）"""
+    from sqlalchemy import func, select
+
+    from app.middleware.tenant_context import get_current_tenant_id
+    from app.models.waitlist import WaitlistEntry
+
+    stmt = select(
+        WaitlistEntry.status,
+        func.count(WaitlistEntry.id),
+    ).group_by(WaitlistEntry.status)
+
+    tenant_id = get_current_tenant_id()
+    if tenant_id:
+        stmt = stmt.where(WaitlistEntry.tenant_id == tenant_id)
+    if store_id:
+        stmt = stmt.where(WaitlistEntry.store_id == store_id)
+    if start_date:
+        stmt = stmt.where(WaitlistEntry.created_at >= start_date)
+    if end_date:
+        stmt = stmt.where(WaitlistEntry.created_at <= end_date)
+
+    rows = (await db.execute(stmt)).all()
+    counts = {row[0]: row[1] for row in rows}
+    total = sum(counts.values())
+    return {
+        "total": total,
+        "waiting": counts.get("WAITING", 0),
+        "promoted": counts.get("PROMOTED", 0),
+        "cancelled": counts.get("CANCELLED", 0),
+    }
+
+
+@router.get("", summary="管理端：候补列表")
+async def admin_list_waitlist(
+    store_id: str | None = Query(None),
+    department_id: str | None = Query(None),
+    doctor_id: str | None = Query(None),
+    status_filter: str | None = Query(None, alias="status"),
+    start_date: str | None = Query(None),
+    end_date: str | None = Query(None),
+    keyword: str | None = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("waitlist:read")),
+):
+    """管理端：候补列表（支持门店/科室/医生/状态/日期/关键词筛选 + 分页）"""
+    from sqlalchemy import or_, select
+
+    from app.middleware.tenant_context import get_current_tenant_id
+    from app.models.doctor import Doctor
+    from app.models.patient import Patient
+    from app.models.schedule import Schedule
+    from app.models.waitlist import WaitlistEntry
+
+    stmt = (
+        select(WaitlistEntry, Schedule, Doctor, Patient)
+        .join(Schedule, WaitlistEntry.schedule_id == Schedule.id)
+        .outerjoin(Doctor, Schedule.doctor_id == Doctor.id)
+        .outerjoin(Patient, WaitlistEntry.patient_id == Patient.id)
+    )
+
+    tenant_id = get_current_tenant_id()
+    if tenant_id:
+        stmt = stmt.where(WaitlistEntry.tenant_id == tenant_id)
+    if store_id:
+        stmt = stmt.where(Schedule.store_id == store_id)
+    if department_id:
+        stmt = stmt.where(Doctor.department_id == department_id)
+    if doctor_id:
+        stmt = stmt.where(Schedule.doctor_id == doctor_id)
+    if status_filter:
+        stmt = stmt.where(WaitlistEntry.status == status_filter)
+    if start_date:
+        stmt = stmt.where(WaitlistEntry.created_at >= start_date)
+    if end_date:
+        stmt = stmt.where(WaitlistEntry.created_at <= end_date)
+    if keyword:
+        stmt = stmt.where(
+            or_(
+                Patient.name.ilike(f"%{keyword}%"),
+                Patient.phone.ilike(f"%{keyword}%"),
+            )
+        )
+
+    # 总数（在带 join 的语句上用 count(distinct id) 避免重复行计数）
+    from sqlalchemy import func as _func
+    total = (
+        await db.execute(
+            select(_func.count(_func.distinct(WaitlistEntry.id))).select_from(stmt.subquery())
+        )
+    ).scalar_one()
+
+    # 分页
+    stmt = stmt.order_by(WaitlistEntry.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
+    rows = (await db.execute(stmt)).all()
+
+    data = []
+    for entry, schedule, doctor, patient in rows:
+        data.append({
+            "id": entry.id,
+            "user_id": entry.user_id,
+            "patient_id": entry.patient_id,
+            "patient_name": patient.name if patient else None,
+            "patient_phone": patient.phone if patient else None,
+            "schedule_id": entry.schedule_id,
+            "status": entry.status,
+            "position": entry.position,
+            "priority": entry.priority,
+            "symptom_description": entry.symptom_description,
+            "created_at": entry.created_at.isoformat() if entry.created_at else None,
+            "promoted_at": entry.promoted_at.isoformat() if entry.promoted_at else None,
+            "cancelled_at": entry.cancelled_at.isoformat() if entry.cancelled_at else None,
+            "schedule_date": schedule.schedule_date.isoformat() if schedule and schedule.schedule_date else None,
+            "time_slot": schedule.time_slot if schedule else None,
+            "doctor_name": doctor.name if doctor else None,
+            "department_name": None,  # 可按需 join Department 补全
+        })
+
+    return {
+        "data": data,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+    }
+
+
+@router.post("/{entry_id}/promote", summary="管理端：手动递补")
+async def admin_promote_waitlist(
+    entry_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("waitlist:promote")),
+):
+    """管理端：手动将指定候补用户递补为正式预约"""
+    from sqlalchemy import select
+
+    from app.middleware.tenant_context import get_current_tenant_id
+    from app.models.waitlist import WaitlistEntry
+
+    # 取候补记录（校验存在 + 租户）
+    stmt = select(WaitlistEntry).where(WaitlistEntry.id == entry_id)
+    tenant_id = get_current_tenant_id()
+    if tenant_id:
+        stmt = stmt.where(WaitlistEntry.tenant_id == tenant_id)
+    entry = (await db.execute(stmt)).scalar_one_or_none()
+    if not entry:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="候补记录不存在")
+
+    if entry.status != "WAITING":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="仅等待中的候补可递补")
+
+    service = WaitlistService(db)
+    appointment = await service.promote_next(
+        schedule_id=entry.schedule_id,
+        operator_id=current_admin.get("id"),
+    )
+    if not appointment:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="递补失败，可能已无可用号源")
+
+    return {
+        "id": entry.id,
+        "status": "PROMOTED",
+        "appointment_id": appointment.id,
+        "promoted_at": entry.promoted_at.isoformat() if entry.promoted_at else None,
+    }
+
+
+@router.post("/{entry_id}/cancel", summary="管理端：取消候补")
+async def admin_cancel_waitlist(
+    entry_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("waitlist:cancel")),
+):
+    """管理端：取消指定候补记录（不校验 user_id 归属，管理员可操作任意记录）"""
+    service = WaitlistService(db)
+    try:
+        entry = await service.cancel_waitlist(
+            entry_id=entry_id,
+            user_id=None,  # 管理员操作不限定归属
+            is_admin=True,
+            operator_id=current_admin.get("id"),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    if not entry:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="候补记录不存在")
+
+    return {
+        "id": entry.id,
+        "status": entry.status,
+        "cancelled_at": entry.cancelled_at.isoformat() if entry.cancelled_at else None,
+    }
 
 
 @router.get("/{entry_id}", summary="获取候补详情")

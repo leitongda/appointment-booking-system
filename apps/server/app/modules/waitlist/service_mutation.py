@@ -131,7 +131,7 @@ class WaitlistMutationMixin:
     async def cancel_waitlist(
         self,
         entry_id: str,
-        user_id: str,
+        user_id: str | None,
         is_admin: bool = False,
         operator_id: str | None = None
     ) -> WaitlistEntry | None:
