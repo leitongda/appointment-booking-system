@@ -69,6 +69,8 @@ def _make_template(**overrides):
         "tags": [],
         "version": "1.0.0",
         "thumbnail_url": None,
+        "source_page_id": None,
+        "data_sources": [],
         "is_official": False,
         "like_count": 0,
         "created_at": None,
@@ -265,6 +267,70 @@ async def test_list_templates_searches_by_keyword():
 
     # 验证 keyword 参数被传递到查询中
     db.execute.assert_called_once()
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_get_template_sanitizes_public_data_sources():
+    """公开模板详情应脱敏 schema_data 和 data_sources 中的敏感字段。"""
+    svc, db = _make_service()
+    svc._batch_get_author_names = AsyncMock(return_value={})
+
+    template = _make_template(
+        id="tpl-1",
+        schema_data={
+            "componentName": "Page",
+            "props": {},
+            "dataSources": [
+                {
+                    "id": "users",
+                    "method": "GET",
+                    "url": "https://internal.example.com/users",
+                    "headers": {"Authorization": "Bearer secret"},
+                    "dataPath": "data",
+                }
+            ],
+            "children": [
+                {
+                    "id": "card",
+                    "componentName": "BizCard",
+                    "props": {},
+                    "api": {
+                        "id": "cardApi",
+                        "method": "GET",
+                        "url": "https://internal.example.com/card",
+                        "headers": {"X-Token": "secret"},
+                    },
+                }
+            ],
+        },
+        data_sources=[
+            {
+                "id": "users",
+                "method": "GET",
+                "url": "https://internal.example.com/users",
+                "headers": {"Authorization": "Bearer secret"},
+            }
+        ],
+    )
+    db.execute = AsyncMock(return_value=_patch_query(template))
+
+    data = await svc.get_template("tpl-1", sanitize=True)
+
+    schema_ds = data["schema_data"]["dataSources"][0]
+    assert "url" not in schema_ds
+    assert "headers" not in schema_ds
+    assert schema_ds["id"] == "users"
+    assert schema_ds["dataPath"] == "data"
+
+    node_api = data["schema_data"]["children"][0]["api"]
+    assert "url" not in node_api
+    assert "headers" not in node_api
+
+    standalone_ds = data["data_sources"][0]
+    assert "url" not in standalone_ds
+    assert "headers" not in standalone_ds
+    assert standalone_ds["id"] == "users"
 
 
 # ---------------------------------------------------------------------------

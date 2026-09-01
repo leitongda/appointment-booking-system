@@ -835,14 +835,14 @@ export const PropertyPanel: React.FC = () => {
               <Form.Item label="背景色" style={COMPACT_FORM_ITEM_STYLE}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <ColorPicker
-                    value={theme?.backgroundColor || 'var(--color-white)fff'}
+                    value={theme?.backgroundColor || '#ffffff'}
                     onChange={(_, hex) => updateTheme({ ...theme, backgroundColor: hex })}
                     size="small"
                   />
                   <Input
                     size="small"
                     value={theme?.backgroundColor || ''}
-                    placeholder="var(--color-white)fff"
+                    placeholder="#ffffff"
                     onChange={(e) => updateTheme({ ...theme, backgroundColor: e.target.value || undefined })}
                   />
                 </div>
@@ -1060,7 +1060,7 @@ export const PropertyPanel: React.FC = () => {
               <Form.Item label="背景色" style={COMPACT_FORM_ITEM_STYLE}>
                 <Input
                   size="small"
-                  placeholder="var(--color-white)fff"
+                  placeholder="#ffffff"
                   value={selectedNode.style?.backgroundColor || ''}
                   onChange={(e) => {
                     if (selectedNodeId) {

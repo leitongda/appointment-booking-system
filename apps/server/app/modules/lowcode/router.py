@@ -28,12 +28,14 @@ from app.modules.lowcode.schemas import (
     LowCodePageResponse,
     LowCodePageUpdate,
     PreviewDeployResponse,
+    PublishToMarketplaceRequest,
     RollbackRequest,
     VersionItem,
     VersionListResponse,
     WeChatAuditCallbackResponse,
 )
 from app.modules.lowcode.service import LowCodePageService
+from app.modules.lowcode.template_service import LowCodeTemplateService
 from app.modules.lowcode.version_service import LowCodePageVersionService
 from app.schemas.response import PageResponse
 from app.utils.wechat_callback import (
@@ -73,6 +75,27 @@ def _validate_component_nodes(node: dict, path: str = "root") -> None:
         for i, child in enumerate(children):
             if isinstance(child, dict):
                 _validate_component_nodes(child, path=f"{path}.children[{i}]")
+
+
+def _schema_has_data_binding(node: dict | None) -> bool:
+    """递归判断 schema 是否使用数据绑定能力。"""
+    if not isinstance(node, dict):
+        return False
+
+    if node.get("dataBinding") or node.get("dataBindings"):
+        return True
+
+    children = node.get("children") or node.get("props", {}).get("children", [])
+    if isinstance(children, list) and any(_schema_has_data_binding(child) for child in children):
+        return True
+
+    slots = node.get("slots")
+    if isinstance(slots, dict):
+        for slot_nodes in slots.values():
+            if isinstance(slot_nodes, list) and any(_schema_has_data_binding(child) for child in slot_nodes):
+                return True
+
+    return False
 
 
 @router.get("/pages", response_model=PageResponse[LowCodePageResponse], summary="获取页面列表")
@@ -235,7 +258,7 @@ async def batch_delete_pages(
 @router.post("/pages/batch-status", summary="批量变更页面状态")
 async def batch_update_status(
     page_ids: list[str],
-    target_status: int,
+    target_status: int = Query(..., ge=0, le=2),
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
     _: None = Depends(require_permission("lowcode:page", "lowcode:page:update")),
@@ -245,10 +268,14 @@ async def batch_update_status(
     service = LowCodePageService(db)
     updated = 0
     for page_id in page_ids:
-        page = await service.get(tenant_id, page_id)
+        page = await service.get_by_id(tenant_id, page_id)
         if page:
-            page.status = target_status
-            await service.update(tenant_id, page_id, {"status": target_status})
+            await service.update(
+                tenant_id=tenant_id,
+                page_id=page_id,
+                status=target_status,
+                updated_by=str(current_admin["id"]),
+            )
             updated += 1
     return {"message": f"成功更新 {updated} 个页面", "updated": updated}
 
@@ -258,6 +285,7 @@ async def export_page(
     page_id: str,
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
+    _: None = Depends(require_permission("lowcode:page", "lowcode:page:read")),
 ):
     """导出页面 Schema 为 JSON 文件"""
     import json
@@ -266,7 +294,7 @@ async def export_page(
 
     tenant_id = _get_tenant_id(current_admin)
     service = LowCodePageService(db)
-    page = await service.get(tenant_id, page_id)
+    page = await service.get_by_id(tenant_id, page_id)
     if not page:
         raise HTTPException(status_code=404, detail="页面不存在")
 
@@ -371,7 +399,7 @@ async def publish_page(
     tenant_id = _get_tenant_id(current_admin)
     service = LowCodePageService(db)
 
-    # 如果 schema 含 dataBindings，需检查 lowcode_advanced_components
+    # 如果 schema 含 dataBinding/dataBindings，需检查高级低代码能力。
     page = await service.get_by_id(tenant_id, page_id)
     if not page:
         raise HTTPException(
@@ -379,8 +407,7 @@ async def publish_page(
             detail="页面不存在",
         )
     schema_data = getattr(page, "schema_data", None) or {}
-    has_data_bindings = isinstance(schema_data, dict) and schema_data.get("dataBindings")
-    if has_data_bindings:
+    if _schema_has_data_binding(schema_data):
         gate = LowCodeFeatureGate(db)
         await gate.enforce_feature(tenant_id, "lowcode_advanced_components")
 
@@ -762,28 +789,47 @@ async def list_audit_logs(
 @router.post("/pages/{page_id}/publish-to-marketplace", response_model=LowCodePageResponse, summary="发布到组件市场")
 async def publish_to_marketplace(
     page_id: str,
+    data: PublishToMarketplaceRequest,
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
-    _: None = Depends(require_permission("lowcode:page", "lowcode:page:publish")),
+    _: None = Depends(require_permission("lowcode:page:publish", "lowcode:marketplace:publish")),
 ):
-    """将页面发布到组件市场，供其他租户复用。"""
+    """将页面发布到模板市场，供其他租户复用。
+
+    兼容旧的编辑器端点：实际创建 LowCodeTemplate，不再写入非法的页面 status=3。
+    """
     tenant_id = _get_tenant_id(current_admin)
 
     gate = LowCodeFeatureGate(db)
     await gate.enforce_feature(tenant_id, "lowcode_marketplace")
 
-    service = LowCodePageService(db)
-    page = await service.update(
-        tenant_id=tenant_id,
-        page_id=page_id,
-        status=3,  # 3 = 已上架市场
-        updated_by=str(current_admin["id"]),
-    )
+    page_service = LowCodePageService(db)
+    page = await page_service.get_by_id(tenant_id, page_id)
     if not page:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="页面不存在",
         )
+
+    template_service = LowCodeTemplateService(db)
+    try:
+        await template_service.create_template(
+            source_page_id=page_id,
+            tenant_id=tenant_id,
+            name=data.name,
+            category=data.category,
+            description=data.description or data.short_description,
+            thumbnail_url=data.thumbnail_url,
+            tags=data.tags,
+            is_public=data.is_public,
+            created_by=str(current_admin["id"]),
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
     return LowCodePageResponse.model_validate(page)
 
 

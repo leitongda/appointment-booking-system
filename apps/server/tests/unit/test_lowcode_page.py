@@ -195,9 +195,18 @@ class TestLowCodePageSchema:
 class TestSSRFProtection:
     """SSRF 防护测试。"""
 
-    def test_validate_url_allowed(self):
+    def test_validate_url_allowed(self, monkeypatch):
         """允许的 URL 格式。"""
+        from app.modules.lowcode import service as service_module
         from app.modules.lowcode.service import _validate_url_for_ssrf
+
+        monkeypatch.setattr(
+            service_module.socket,
+            "getaddrinfo",
+            lambda *args, **kwargs: [
+                (service_module.socket.AF_INET, service_module.socket.SOCK_STREAM, 0, "", ("93.184.216.34", 0)),
+            ],
+        )
 
         # 正常的外部 URL 不应抛出异常
         _validate_url_for_ssrf("https://api.example.com/data")
@@ -285,3 +294,78 @@ class TestSSRFProtection:
 
         assert result["success"] is False
         assert "安全检查失败" in result["error"] or "禁止访问" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_data_source_success_returns_elapsed_time(self, monkeypatch):
+        """test_data_source 正常路径应返回耗时和字段建议。"""
+        from app.modules.lowcode import service as service_module
+        from app.modules.lowcode.service import LowCodePageService
+
+        class FakeResponse:
+            status_code = 200
+            content = b'{"data":{"items":[{"id":1,"name":"demo"}]}}'
+
+            def json(self):
+                return {"data": {"items": [{"id": 1, "name": "demo"}]}}
+
+        class FakeClient:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                return None
+
+            async def request(self, *args, **kwargs):
+                return FakeResponse()
+
+        monkeypatch.setattr(service_module, "_validate_url_for_ssrf", lambda _url: None)
+        monkeypatch.setattr(service_module.httpx, "AsyncClient", FakeClient)
+
+        result = await LowCodePageService.test_data_source(
+            url="https://api.example.com/list",
+            method="GET",
+            response_path="data.items",
+        )
+
+        assert result["success"] is True
+        assert result["status_code"] == 200
+        assert result["sample_data"] == [{"id": 1, "name": "demo"}]
+        assert result["elapsed_ms"] >= 0
+        assert any(field["path"] == "[0].name" for field in result["fields"])
+
+
+class TestLowCodeRouterHelpers:
+    """低代码路由辅助函数测试。"""
+
+    def test_schema_has_data_binding_detects_nested_nodes_and_slots(self):
+        """数据绑定门禁应识别节点级和插槽内的 dataBinding。"""
+        from app.modules.lowcode.router import _schema_has_data_binding
+
+        assert _schema_has_data_binding({
+            "componentName": "Page",
+            "children": [
+                {
+                    "id": "container",
+                    "componentName": "NutView",
+                    "props": {},
+                    "slots": {
+                        "content": [
+                            {
+                                "id": "title",
+                                "componentName": "NutText",
+                                "props": {},
+                                "dataBinding": {"bindings": {"text": "{{state.title}}"}},
+                            }
+                        ]
+                    },
+                }
+            ],
+        }) is True
+
+        assert _schema_has_data_binding({
+            "componentName": "Page",
+            "children": [{"id": "plain", "componentName": "NutText", "props": {}}],
+        }) is False

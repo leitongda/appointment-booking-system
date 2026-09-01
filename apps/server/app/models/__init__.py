@@ -66,6 +66,7 @@ from app.models.freelance import (
 )
 from app.models.integration import Integration, IntegrationBinding
 from app.models.leave_request import LeaveRequest
+from app.models.lowcode_audit_log import LowCodePageAuditLog
 from app.models.lowcode_page import LowCodePage
 from app.models.lowcode_page_version import LowCodePageVersion
 from app.models.lowcode_template import LowCodeTemplate

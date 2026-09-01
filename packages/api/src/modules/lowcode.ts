@@ -21,6 +21,15 @@ export interface LowCodePageListParams {
   pageSize?: number;
 }
 
+const toPageParams = <T extends { pageSize?: number }>(params?: T) => {
+  if (!params) return undefined;
+  const { pageSize, ...rest } = params;
+  return {
+    ...rest,
+    page_size: pageSize,
+  };
+};
+
 // --- Version History ---
 
 export interface VersionItem {
@@ -39,7 +48,7 @@ export interface VersionListResponse {
 export const lowcodeApi = {
   /** 获取页面列表 */
   getPages: (params?: LowCodePageListParams): Promise<{ data: LowCodePage[]; total: number; page: number; pageSize: number }> => {
-    return request.get('/lowcode/pages', { params });
+    return request.get('/lowcode/pages', { params: toPageParams(params) });
   },
 
   /** 创建页面 */
@@ -115,7 +124,7 @@ export const lowcodeApi = {
 
   /** 获取模板市场列表 */
   getTemplates: (params?: LowCodeTemplateListParams): Promise<{ data: LowCodeTemplate[]; total: number; page: number; pageSize: number }> => {
-    return request.get('/lowcode/templates', { params });
+    return request.get('/lowcode/templates', { params: toPageParams(params) });
   },
 
   /** 获取模板详情 */
@@ -158,7 +167,7 @@ export const lowcodeApi = {
 
   /** 获取我发布的模板 */
   getMyTemplates: (params?: { page?: number; pageSize?: number }): Promise<{ data: LowCodeTemplate[]; total: number; page: number; pageSize: number }> => {
-    return request.get('/lowcode/templates/my', { params });
+    return request.get('/lowcode/templates/my', { params: toPageParams(params) });
   },
 
   // --- Deploy ---

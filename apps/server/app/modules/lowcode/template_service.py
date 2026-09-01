@@ -155,8 +155,12 @@ class LowCodeTemplateService:
             author_name = author_map.get(str(t.created_by), "")
 
         schema_data = t.schema_data
+        data_sources = t.data_sources or []
         if sanitize:
             schema_data = _sanitize_schema_data(schema_data)
+            data_sources = [
+                _sanitize_datasource(ds) for ds in data_sources
+            ] if isinstance(data_sources, list) else data_sources
 
         return {
             "id": str(t.id),
@@ -167,7 +171,7 @@ class LowCodeTemplateService:
             "category": t.category,
             "tags": t.tags or [],
             "schema_data": schema_data,
-            "data_sources": t.data_sources or [],
+            "data_sources": data_sources,
             "version": t.version,
             "is_public": t.is_public,
             "is_official": t.is_official,
@@ -228,9 +232,11 @@ class LowCodeTemplateService:
         )
         set_create_audit(template, created_by)
         self.db.add(template)
+        await self.db.flush()
 
         # 同时创建初始版本记录
         initial_version = LowCodeTemplateVersion(
+            template_id=template.id,
             version="1.0.0",
             schema_data=page.schema_data or {},
             data_sources=(page.schema_data or {}).get("dataSources", []),
@@ -242,11 +248,6 @@ class LowCodeTemplateService:
 
         await self.db.commit()
         await self.db.refresh(template)
-
-        # 关联 template_id 到版本记录
-        initial_version.template_id = template.id
-        await self.db.commit()
-        await self.db.refresh(initial_version)
 
         return template
 
@@ -683,7 +684,20 @@ def _sanitize_node_tree(nodes: Any) -> None:
     for node in nodes:
         if not isinstance(node, dict):
             continue
-        if "api" in node and isinstance(node["api"], dict):
-            node["api"] = _sanitize_datasource(node["api"])
+        _sanitize_api_field(node)
+        props = node.get("props")
+        if isinstance(props, dict):
+            _sanitize_api_field(props)
+            _sanitize_node_tree(props.get("children"))
         if "children" in node:
             _sanitize_node_tree(node["children"])
+
+
+def _sanitize_api_field(container: dict[str, Any]) -> None:
+    """脱敏组件节点或 props 上的 api 配置。"""
+    if "api" not in container:
+        return
+    if isinstance(container["api"], dict):
+        container["api"] = _sanitize_datasource(container["api"])
+    else:
+        container.pop("api", None)

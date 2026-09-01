@@ -106,6 +106,19 @@ class RollbackRequest(BaseSchema):
     version_id: str = Field(..., description="目标版本记录 ID")
 
 
+class PublishToMarketplaceRequest(BaseSchema):
+    """从页面发布模板到市场的兼容请求。"""
+
+    name: str = Field(..., min_length=1, max_length=200, description="模板名称")
+    category: str = Field(..., min_length=1, max_length=50, description="模板分类")
+    short_description: str | None = Field(None, max_length=100, description="简短描述")
+    description: str | None = Field(None, max_length=1000, description="模板描述")
+    thumbnail_url: str | None = Field(None, description="缩略图 URL")
+    thumbnail_key: str | None = Field(None, description="缩略图存储 Key（兼容前端上传响应）")
+    tags: list[str] | None = Field(None, description="标签列表")
+    is_public: bool = Field(True, description="是否公开到市场")
+
+
 # ---------------------------------------------------------------------------
 # Deploy schemas
 # ---------------------------------------------------------------------------
@@ -264,6 +277,7 @@ __all__ = [
     "LowCodePageCreate",
     "LowCodePageResponse",
     "LowCodePageUpdate",
+    "PublishToMarketplaceRequest",
     "PreviewDeployResponse",
     "RollbackRequest",
     "VersionItem",

@@ -43,7 +43,7 @@ export function renderBaseComponent(
           <div
             style={{
               height: 44,
-              background: props.navigationBarBackgroundColor || 'var(--color-white)fff',
+              background: props.navigationBarBackgroundColor || '#ffffff',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',

@@ -1,30 +1,36 @@
 export const ROOT_DROP_ID = '__lowcode_root__';
 
 export const EDITOR_LAYOUT = {
-  toolbarHeight: 52,
-  leftPanelWidth: 260,
+  headerHeight: 60,
+  toolbarHeight: 60,
+  leftSidebarWidth: 280,
+  leftPanelWidth: 280,
   rightPanelWidth: 320,
-  canvasPadding: 24,
-  canvasRadius: 8,
+  canvasPadding: 32,
+  canvasRadius: 16,
+  bottomBarHeight: 44,
+  bottomConsoleHeight: 200,
 } as const;
 
 export const EDITOR_COLORS = {
-  border: '#e5e7eb',
-  borderSubtle: '#eef0f3',
-  panelBg: 'var(--color-white)fff',
-  workspaceBg: '#f3f4f6',
-  itemBg: '#f8fafc',
-  itemHoverBg: '#eef6ff',
-  textSecondary: '#6b7280',
-  textMuted: '#9ca3af',
-  primary: 'var(--color-primary)',
-  primaryBg: 'rgba(22,119,255,0.06)',
+  border: '#ECECEC',
+  borderSubtle: '#F3F4F6',
+  panelBg: '#FFFFFF',
+  workspaceBg: '#F9FAFB',
+  itemBg: '#FFFFFF',
+  itemHoverBg: '#F9FAFB',
+  textSecondary: '#6B7280',
+  textMuted: '#9CA3AF',
+  primary: '#000000',
+  primaryBg: 'rgba(0,0,0,0.04)',
+  statusBarBg: '#000000',
+  statusText: '#ffffff',
 } as const;
 
 export const EDITOR_SPACING = {
-  panelPadding: 12,
-  sectionPadding: '12px 16px',
-  itemGap: 6,
-  formItem: 12,
-  formItemCompact: 8,
+  panelPadding: 16,
+  sectionPadding: '16px 20px',
+  itemGap: 8,
+  formItem: 16,
+  formItemCompact: 12,
 } as const;

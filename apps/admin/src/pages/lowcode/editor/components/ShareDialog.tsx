@@ -157,11 +157,12 @@ const ShareDialog: React.FC<ShareDialogProps> = ({ open, onClose }) => {
         pageId,
         name: values.name,
         shortDescription: values.shortDescription,
-        description: values.description,
+        description: values.description || values.shortDescription,
         category: values.category,
         tags,
         thumbnailUrl: thumbnail?.url || null,
         thumbnailKey: thumbnail?.key || null,
+        isPublic: true,
       };
 
       await request.post(`/lowcode/pages/${pageId}/publish-to-marketplace`, payload);

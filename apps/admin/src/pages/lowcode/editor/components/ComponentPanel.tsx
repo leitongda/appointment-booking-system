@@ -1,8 +1,8 @@
 /** 物料面板 — 左侧组件列表 */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useDraggable } from '@dnd-kit/react';
-import { Collapse, Input, Space, Typography, Button, Popconfirm, message } from 'antd';
+import { Collapse, Input, Space, Typography, Select } from 'antd';
 import {
   FontSizeOutlined,
   PictureOutlined,
@@ -20,13 +20,17 @@ import {
   SwitcherOutlined,
   DownSquareOutlined,
   SearchOutlined,
-  DeleteOutlined,
-  StarOutlined,
+  CalendarOutlined,
+  UserOutlined,
+  TagOutlined,
+  SmileOutlined,
+  NumberOutlined,
+  CheckSquareOutlined,
+  CheckCircleOutlined,
+  FieldTimeOutlined,
+  ArrowLeftOutlined,
 } from '@ant-design/icons';
-import { materialsByCategory, categoryLabels } from '../materials';
-import { snippetTemplates } from '../materials/snippets';
-import type { SnippetTemplate } from '../materials/snippets';
-import { loadCustomSnippets, deleteCustomSnippet, type CustomSnippet } from '../utils/customSnippets';
+import { displayGroups } from '../materials';
 import type { MaterialComponent } from '@hospital/shared';
 import { EDITOR_COLORS, EDITOR_SPACING } from '../constants';
 
@@ -48,6 +52,16 @@ const iconMap: Record<string, React.ReactNode> = {
   FormOutlined: <FormOutlined />,
   SwitcherOutlined: <SwitcherOutlined />,
   DownSquareOutlined: <DownSquareOutlined />,
+  SearchOutlined: <SearchOutlined />,
+  CalendarOutlined: <CalendarOutlined />,
+  UserOutlined: <UserOutlined />,
+  TagOutlined: <TagOutlined />,
+  SmileOutlined: <SmileOutlined />,
+  NumberOutlined: <NumberOutlined />,
+  CheckSquareOutlined: <CheckSquareOutlined />,
+  CheckCircleOutlined: <CheckCircleOutlined />,
+  FieldTimeOutlined: <FieldTimeOutlined />,
+  ArrowLeftOutlined: <ArrowLeftOutlined />,
 };
 
 interface MaterialListItemProps {
@@ -179,90 +193,16 @@ const COMPONENT_KEYWORDS: Record<string, string[]> = {
   BizTimeSlotPicker: ['时间段', 'time slot', '时间', '选择器', 'picker'],
 };
 
-/** 单个可拖拽 Snippet 项 */
-function DraggableSnippet({ snippet }: { snippet: SnippetTemplate }) {
-  const { ref, handleRef } = useDraggable({
-    id: `snippet-${snippet.id}`,
-    data: {
-      type: 'snippet',
-      snippet,
-    },
-  });
-  const setDragRefs = React.useCallback(
-    (element: HTMLDivElement | null) => {
-      ref(element);
-      handleRef(element);
-    },
-    [handleRef, ref],
-  );
-
-  return (
-    <MaterialListItem
-      ref={setDragRefs}
-      accentColor="var(--color-success)"
-      hoverBg="#f0fdf4"
-      icon={iconMap[snippet.icon] || <AppstoreOutlined />}
-      title={snippet.name}
-      description={snippet.description}
-    />
-  );
-}
-
-/** 单个可拖拽自定义 Snippet 项 */
-function DraggableCustomSnippet({ snippet, onDelete }: { snippet: CustomSnippet; onDelete: (id: string) => void }) {
-  const { ref, handleRef } = useDraggable({
-    id: `custom-snippet-${snippet.id}`,
-    data: {
-      type: 'snippet',
-      snippet: {
-        id: snippet.id,
-        name: snippet.name,
-        description: '自定义模板',
-        icon: 'StarOutlined',
-        nodes: snippet.nodes,
-      },
-    },
-  });
-  const setDragRefs = React.useCallback(
-    (element: HTMLDivElement | null) => {
-      ref(element);
-      handleRef(element);
-    },
-    [handleRef, ref],
-  );
-
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-      <div style={{ flex: 1 }}>
-        <MaterialListItem
-          ref={setDragRefs}
-          accentColor="var(--color-warning)"
-          hoverBg="var(--color-white)be6"
-          icon={<StarOutlined />}
-          title={snippet.name}
-          description="自定义模板"
-        />
-      </div>
-      <Popconfirm
-        title="确定删除此模板？"
-        onConfirm={() => onDelete(snippet.id)}
-        okText="删除"
-        cancelText="取消"
-      >
-        <Button
-          type="text"
-          size="small"
-          icon={<DeleteOutlined />}
-          style={{ color: 'var(--color-text-tertiary)', flexShrink: 0 }}
-        />
-      </Popconfirm>
-    </div>
-  );
-}
-
 /** 物料面板 */
-export const ComponentPanel: React.FC = () => {
+interface ComponentPanelProps {
+  /** 外部传入的容器 ref（供 EditorTour 锚点指向物料内容区） */
+  containerRef?: React.RefObject<HTMLDivElement>;
+}
+
+export const ComponentPanel: React.FC<ComponentPanelProps> = ({ containerRef }) => {
   const [search, setSearch] = useState('');
+  /** 分类下拉筛选（'all' = 所有组件） */
+  const [groupFilter, setGroupFilter] = useState<string>('all');
   const [recentUsed, setRecentUsed] = useState<string[]>(() => {
     try {
       return JSON.parse(localStorage.getItem('lowcode-recent-components') || '[]');
@@ -270,44 +210,22 @@ export const ComponentPanel: React.FC = () => {
       return [];
     }
   });
-  const [customSnippets, setCustomSnippets] = useState<CustomSnippet[]>([]);
-
-  // 加载自定义 snippets
-  const refreshCustomSnippets = useCallback(() => {
-    setCustomSnippets(loadCustomSnippets());
-  }, []);
-
-  useEffect(() => {
-    refreshCustomSnippets();
-    // 监听 storage 事件，跨 tab 同步
-    const handleStorage = (e: StorageEvent) => {
-      if (e.key?.includes('lowcode-custom-snippets')) {
-        refreshCustomSnippets();
-      }
-    };
-    window.addEventListener('storage', handleStorage);
-    return () => window.removeEventListener('storage', handleStorage);
-  }, [refreshCustomSnippets]);
-
-  // 删除自定义 snippet
-  const handleDeleteCustomSnippet = useCallback((id: string) => {
-    deleteCustomSnippet(id);
-    refreshCustomSnippets();
-    message.success('已删除 Snippet');
-  }, [refreshCustomSnippets]);
 
   // 记录最近使用的组件
-  const trackRecent = (componentName: string) => {
-    const updated = [componentName, ...recentUsed.filter((c) => c !== componentName)].slice(0, 8);
-    setRecentUsed(updated);
-    localStorage.setItem('lowcode-recent-components', JSON.stringify(updated));
-  };
+  const trackRecent = useCallback((componentName: string) => {
+    setRecentUsed((prev) => {
+      const updated = [componentName, ...prev.filter((c) => c !== componentName)].slice(0, 8);
+      localStorage.setItem('lowcode-recent-components', JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
 
-  const filteredCategories = Object.entries(materialsByCategory).map(
-    ([category, materials]) => ({
-      category,
-      label: categoryLabels[category] || category,
-      materials: materials.filter(
+  /** 按分组 + 搜索过滤后的展示分组 */
+  const visibleGroups = displayGroups
+    .filter((g) => groupFilter === 'all' || g.key === groupFilter)
+    .map((g) => ({
+      ...g,
+      materials: g.materials.filter(
         (m) =>
           !search ||
           m.title.includes(search) ||
@@ -316,22 +234,23 @@ export const ComponentPanel: React.FC = () => {
             (kw) => kw.includes(search) || search.includes(kw),
           ),
       ),
-    }),
-  );
+    }))
+    .filter((g) => g.materials.length > 0);
 
-  // 最近使用的组件列表
+  // 最近使用的组件列表（跨所有分组查找）
   const recentMaterials = recentUsed
-    .map((name) => {
-      for (const materials of Object.values(materialsByCategory)) {
-        const found = materials.find((m) => m.componentName === name);
-        if (found) return found;
-      }
-      return null;
-    })
-    .filter(Boolean);
+    .map((name) => displayGroups.flatMap((g) => g.materials).find((m) => m.componentName === name))
+    .filter(Boolean) as MaterialComponent[];
+
+  /** 分类下拉选项 */
+  const groupOptions = [
+    { label: '所有组件', value: 'all' },
+    ...displayGroups.map((g) => ({ label: g.label, value: g.key })),
+  ];
 
   return (
     <div
+      ref={containerRef}
       style={{
         height: '100%',
         display: 'flex',
@@ -346,10 +265,21 @@ export const ComponentPanel: React.FC = () => {
           paddingBottom: 8,
           borderBottom: `1px solid ${EDITOR_COLORS.borderSubtle}`,
           flexShrink: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 8,
         }}
       >
+        {/* 分类下拉（对齐线框图「所有组件 / 基础组件」筛选器） */}
+        <Select
+          size="small"
+          value={groupFilter}
+          onChange={setGroupFilter}
+          options={groupOptions}
+          style={{ width: '100%' }}
+        />
         <Input
-          placeholder="搜索组件（支持名称/功能/场景）"
+          placeholder="搜索组件（名称/功能/场景）"
           prefix={<SearchOutlined style={{ color: EDITOR_COLORS.textMuted }} />}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -359,99 +289,44 @@ export const ComponentPanel: React.FC = () => {
       </div>
 
       <div style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: EDITOR_SPACING.panelPadding }}>
-
-      {/* 最近使用 */}
-      {!search && recentMaterials.length > 0 && (
-        <div style={{ marginBottom: 12 }}>
-          <Text type="secondary" style={{ fontSize: 12, marginBottom: 6, display: 'block' }}>
-            最近使用
-          </Text>
-          <Space direction="vertical" style={{ width: '100%' }} size={EDITOR_SPACING.itemGap}>
-            {recentMaterials.map((m) => (
-              <DraggableMaterial
-                key={`recent-${m!.componentName}`}
-                material={m!}
-              />
-            ))}
-          </Space>
-        </div>
-      )}
-
-      <Collapse
-        ghost
-        defaultActiveKey={Object.keys(categoryLabels)}
-        size="small"
-        items={filteredCategories.map(({ category, label, materials }) => ({
-          key: category,
-          label: (
-            <Text strong style={{ fontSize: 13 }}>
-              {label} ({materials.length})
+        {/* 最近使用（仅未筛选分类 + 未搜索时展示） */}
+        {!search && groupFilter === 'all' && recentMaterials.length > 0 && (
+          <div style={{ marginBottom: 12 }}>
+            <Text type="secondary" style={{ fontSize: 12, marginBottom: 6, display: 'block' }}>
+              最近使用
             </Text>
-          ),
-          children: (
             <Space direction="vertical" style={{ width: '100%' }} size={EDITOR_SPACING.itemGap}>
-              {materials.map((material) => (
-                <DraggableMaterial
-                  key={material.componentName}
-                  material={material}
-                  onUse={() => trackRecent(material.componentName)}
-                />
+              {recentMaterials.map((m) => (
+                <DraggableMaterial key={`recent-${m.componentName}`} material={m} />
               ))}
             </Space>
-          ),
-        }))}
-      />
+          </div>
+        )}
 
-      {/* 模板/Snippet 面板 */}
-      {!search && (
-        <div style={{ marginTop: 12 }}>
-          <Collapse
-            ghost
-            defaultActiveKey={[]}
-            size="small"
-            items={[
-              {
-                key: 'snippets',
-                label: (
-                  <Text strong style={{ fontSize: 13 }}>
-                    模板 ({snippetTemplates.length})
-                  </Text>
-                ),
-                children: (
-                  <Space direction="vertical" style={{ width: '100%' }} size={EDITOR_SPACING.itemGap}>
-                    {snippetTemplates.map((snippet) => (
-                      <DraggableSnippet
-                        key={snippet.id}
-                        snippet={snippet}
-                      />
-                    ))}
-                  </Space>
-                ),
-              },
-              ...(customSnippets.length > 0 ? [{
-                key: 'custom-snippets',
-                label: (
-                  <Text strong style={{ fontSize: 13 }}>
-                    <StarOutlined style={{ marginRight: 4, color: 'var(--color-warning)' }} />
-                    我的模板 ({customSnippets.length})
-                  </Text>
-                ),
-                children: (
-                  <Space direction="vertical" style={{ width: '100%' }} size={EDITOR_SPACING.itemGap}>
-                    {customSnippets.map((snippet) => (
-                      <DraggableCustomSnippet
-                        key={snippet.id}
-                        snippet={snippet}
-                        onDelete={handleDeleteCustomSnippet}
-                      />
-                    ))}
-                  </Space>
-                ),
-              }] : []),
-            ]}
-          />
-        </div>
-      )}
+        <Collapse
+          ghost
+          defaultActiveKey={displayGroups.map((g) => g.key)}
+          size="small"
+          items={visibleGroups.map(({ key, label, materials }) => ({
+            key,
+            label: (
+              <Text strong style={{ fontSize: 13 }}>
+                {label} ({materials.length})
+              </Text>
+            ),
+            children: (
+              <Space direction="vertical" style={{ width: '100%' }} size={EDITOR_SPACING.itemGap}>
+                {materials.map((material) => (
+                  <DraggableMaterial
+                    key={material.componentName}
+                    material={material}
+                    onUse={() => trackRecent(material.componentName)}
+                  />
+                ))}
+              </Space>
+            ),
+          }))}
+        />
       </div>
     </div>
   );

@@ -16,6 +16,15 @@ import type {
   LowCodeTemplateForkResponse,
 } from '@hospital/shared';
 
+const toPageParams = <T extends { pageSize?: number }>(params?: T) => {
+  if (!params) return undefined;
+  const { pageSize, ...rest } = params;
+  return {
+    ...rest,
+    page_size: pageSize,
+  };
+};
+
 // --- 模板版本创建数据 ---
 
 export interface TemplateVersionCreateData {
@@ -34,7 +43,7 @@ export const lowcodeTemplateApi = {
   getTemplates: (
     params?: LowCodeTemplateListParams,
   ): Promise<{ data: LowCodeTemplate[]; total: number; page: number; pageSize: number }> => {
-    return request.get('/lowcode/templates', { params });
+    return request.get('/lowcode/templates', { params: toPageParams(params) });
   },
 
   /** 获取模板详情 */
@@ -82,7 +91,7 @@ export const lowcodeTemplateApi = {
   getMyTemplates: (
     params?: { page?: number; pageSize?: number },
   ): Promise<{ data: LowCodeTemplate[]; total: number; page: number; pageSize: number }> => {
-    return request.get('/lowcode/templates/my', { params });
+    return request.get('/lowcode/templates/my', { params: toPageParams(params) });
   },
 
   /** 获取模板分类列表 */

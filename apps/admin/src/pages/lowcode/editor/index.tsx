@@ -2,50 +2,23 @@
 
 import React, { useEffect, useCallback, useRef, useState } from 'react';
 import { useParams, history } from '@umijs/max';
-import { Button, Dropdown, Space, message, Spin, Tooltip, Modal, Input, Tabs } from 'antd';
-import {
-  SaveOutlined,
-  UndoOutlined,
-  RedoOutlined,
-  EyeOutlined,
-  SendOutlined,
-  ArrowLeftOutlined,
-  AppstoreOutlined,
-  ApiOutlined,
-  ApartmentOutlined,
-  CodeOutlined,
-  HistoryOutlined,
-  ShareAltOutlined,
-  CloudUploadOutlined,
-  MoreOutlined,
-} from '@ant-design/icons';
+import { Drawer, message, Spin, Modal, Input } from 'antd';
 import CodePreviewModal from './components/CodePreviewModal';
 import DeployPanel from './components/DeployPanel';
 import ShareDialog from './components/ShareDialog';
 import VersionHistory from './components/VersionHistory';
 import { useEditorStore } from './store';
 import type { LowCodeNode } from '@hospital/shared';
-import { ComponentPanel } from './components/ComponentPanel';
-import { DataSourcePanel } from './components/DataSourcePanel';
-import { LayerPanel } from './components/LayerPanel';
 import { Canvas, EditorDndProvider } from './components/Canvas';
-import { PropertyPanel } from './components/PropertyPanel';
 import EditorTour from './components/EditorTour';
+import EditorHeader from './components/layout/EditorHeader';
+import LeftSidebar from './components/layout/LeftSidebar';
+import CanvasArea from './components/layout/CanvasArea';
+import RightSidebar from './components/layout/RightSidebar';
+import BottomConsole from './components/layout/BottomConsole';
 import { lowcodeApi } from '@hospital/api';
 import { EDITOR_COLORS, EDITOR_LAYOUT } from './constants';
 import { findNodeById, findParentNode, regenerateIds } from './utils/tree';
-
-/** 从 localStorage 读取属性面板宽度 */
-function getStoredPanelWidth(): number {
-  try {
-    const stored = localStorage.getItem('lowcode-property-panel-width');
-    if (stored) {
-      const width = Number(stored);
-      if (width >= 260 && width <= 600) return width;
-    }
-  } catch {}
-  return EDITOR_LAYOUT.rightPanelWidth;
-}
 import { pinyin } from 'pinyin-pro';
 
 /** 编辑器主页面 */
@@ -65,55 +38,12 @@ const LowCodeEditor: React.FC = () => {
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // P1-2: 属性面板可拖拽调整宽度
-  const [rightPanelWidth, setRightPanelWidth] = useState(getStoredPanelWidth);
-  const [isResizing, setIsResizing] = useState(false);
-  const resizeStartXRef = useRef(0);
-  const resizeStartWidthRef = useRef(0);
-
-  // P1-3: 编辑器引导 Tour refs
+  // 编辑器引导 Tour refs（由父组件持有，向下透传给布局子组件）
   const componentPanelRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const propertyPanelRef = useRef<HTMLDivElement>(null);
   const saveButtonRef = useRef<HTMLDivElement>(null);
   const undoButtonRef = useRef<HTMLDivElement>(null);
-
-  const handleResizeStart = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsResizing(true);
-    resizeStartXRef.current = e.clientX;
-    resizeStartWidthRef.current = rightPanelWidth;
-  }, [rightPanelWidth]);
-
-  useEffect(() => {
-    if (!isResizing) return;
-
-    const handleMouseMove = (e: MouseEvent) => {
-      const deltaX = resizeStartXRef.current - e.clientX;
-      const newWidth = Math.max(260, Math.min(600, resizeStartWidthRef.current + deltaX));
-      setRightPanelWidth(newWidth);
-    };
-
-    const handleMouseUp = () => {
-      setIsResizing(false);
-      // 保存到 localStorage
-      try {
-        localStorage.setItem('lowcode-property-panel-width', String(rightPanelWidth));
-      } catch {}
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-    document.body.style.userSelect = 'none';
-    document.body.style.cursor = 'col-resize';
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-      document.body.style.userSelect = '';
-      document.body.style.cursor = '';
-    };
-  }, [isResizing, rightPanelWidth]);
 
   const schema = useEditorStore((s) => s.schema);
   const pageId = useEditorStore((s) => s.pageId);
@@ -365,6 +295,7 @@ const LowCodeEditor: React.FC = () => {
             addToRoot(regenerated, schema.children.length);
           }
         };
+
         pasteFromClipboard();
         return;
       }
@@ -523,211 +454,49 @@ const LowCodeEditor: React.FC = () => {
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: EDITOR_COLORS.workspaceBg }}>
       {/* 顶部工具栏 */}
-      <div
-        style={{
-          height: EDITOR_LAYOUT.toolbarHeight,
-          flexShrink: 0,
-          borderBottom: `1px solid ${EDITOR_COLORS.border}`,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 12,
-          padding: '0 16px',
-          background: EDITOR_COLORS.panelBg,
-        }}
-      >
-        <Space size={8} style={{ minWidth: 0, flexShrink: 0 }}>
-          <Button
-            type="text"
-            icon={<ArrowLeftOutlined />}
-            onClick={() => navigateWithDirtyCheck('/platform/lowcode/list')}
-          >
-            返回
-          </Button>
-          <span style={{ fontWeight: 500, fontSize: 15 }}>页面搭建</span>
-        </Space>
-        <Space size={4} style={{ flex: 1, justifyContent: 'center', minWidth: 160 }}>
-          <Tooltip title="撤销 (Ctrl+Z)">
-            <div ref={undoButtonRef} style={{ display: 'inline-flex' }}>
-              <Button
-                type="text"
-                icon={<UndoOutlined />}
-                onClick={undo}
-                disabled={historyIndex <= 0}
-              />
-            </div>
-          </Tooltip>
-          <Tooltip title="重做 (Ctrl+Shift+Z)">
-            <Button
-              type="text"
-              icon={<RedoOutlined />}
-              onClick={redo}
-              disabled={historyIndex >= historyLength - 1}
-            />
-          </Tooltip>
-        </Space>
-        <Space size={8} style={{ flexShrink: 0 }}>
-          {lastSavedAt && (
-            <span style={{ fontSize: 12, color: EDITOR_COLORS.textMuted, whiteSpace: 'nowrap' }}>
-              上次保存: {lastSavedAt.toLocaleTimeString()}
-            </span>
-          )}
-          <Dropdown
-            trigger={['click']}
-            menu={{
-              items: [
-                {
-                  key: 'preview',
-                  icon: <EyeOutlined />,
-                  label: '预览',
-                  disabled: !pageId,
-                },
-                {
-                  key: 'code',
-                  icon: <CodeOutlined />,
-                  label: isDirty ? '生成代码（请先保存）' : '生成代码',
-                  disabled: !pageId || isDirty,
-                },
-                {
-                  key: 'history',
-                  icon: <HistoryOutlined />,
-                  label: '版本历史',
-                  disabled: !pageId,
-                },
-                {
-                  key: 'share',
-                  icon: <ShareAltOutlined />,
-                  label: '分享到市场',
-                  disabled: !pageId,
-                },
-                {
-                  key: 'deploy',
-                  icon: <CloudUploadOutlined />,
-                  label: '部署',
-                  disabled: !pageId,
-                },
-              ],
-              onClick: ({ key }) => {
-                if (key === 'preview') handlePreview();
-                if (key === 'code') handleOpenCodeModal();
-                if (key === 'history') setVersionHistoryVisible(true);
-                if (key === 'share') setShareDialogVisible(true);
-                if (key === 'deploy') setDeployPanelVisible(true);
-              },
-            }}
-          >
-            <Button icon={<MoreOutlined />}>更多</Button>
-          </Dropdown>
-          <div ref={saveButtonRef} style={{ display: 'inline-flex' }}>
-            <Button
-              icon={<SaveOutlined />}
-              onClick={handleSave}
-              loading={saving}
-            >
-              保存
-            </Button>
-          </div>
-          <Button
-            type="primary"
-            icon={<SendOutlined />}
-            onClick={handlePublish}
-            loading={publishing}
-          >
-            发布
-          </Button>
-        </Space>
-      </div>
+      <EditorHeader
+        onBack={() => navigateWithDirtyCheck('/platform/lowcode/list')}
+        onUndo={undo}
+        onRedo={redo}
+        historyIndex={historyIndex}
+        historyLength={historyLength}
+        lastSavedAt={lastSavedAt}
+        pageId={pageId}
+        isDirty={isDirty}
+        saving={saving}
+        publishing={publishing}
+        onPreview={handlePreview}
+        onCode={handleOpenCodeModal}
+        onHistory={() => setVersionHistoryVisible(true)}
+        onShare={() => setShareDialogVisible(true)}
+        onDeploy={() => setDeployPanelVisible(true)}
+        onSave={handleSave}
+        onPublish={handlePublish}
+        saveButtonRef={saveButtonRef}
+        undoButtonRef={undoButtonRef}
+      />
 
-      {/* 主体区域 */}
-      <Spin spinning={loading}>
+      {/* 主体区域：三栏布局 + 底部控制台 */}
+      <Spin spinning={loading} wrapperClassName="editor-spin-wrapper">
         <EditorDndProvider>
           <div
             style={{
-              height: `calc(100vh - ${EDITOR_LAYOUT.toolbarHeight}px)`,
+              height: `calc(100vh - ${EDITOR_LAYOUT.headerHeight}px)`,
               display: 'flex',
+              flexDirection: 'column',
               overflow: 'hidden',
             }}
           >
-            {/* 左侧面板 (物料 + 数据源) */}
-            <div
-              ref={componentPanelRef}
-              style={{
-                width: EDITOR_LAYOUT.leftPanelWidth,
-                flexShrink: 0,
-                borderRight: `1px solid ${EDITOR_COLORS.border}`,
-                display: 'flex',
-                flexDirection: 'column',
-                overflow: 'hidden',
-                background: EDITOR_COLORS.panelBg,
-              }}
-            >
-              <Tabs
-                defaultActiveKey="components"
-                size="small"
-                className="lowcode-editor-tabs"
-                style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
-                tabBarStyle={{ margin: 0, paddingLeft: 12, minHeight: 36, borderColor: EDITOR_COLORS.border }}
-                items={[
-                  {
-                    key: 'components',
-                    label: <span><AppstoreOutlined /> 物料</span>,
-                    children: <ComponentPanel />,
-                  },
-                  {
-                    key: 'datasource',
-                    label: <span><ApiOutlined /> 数据</span>,
-                    children: <DataSourcePanel />,
-                  },
-                  {
-                    key: 'layers',
-                    label: <span><ApartmentOutlined /> 图层</span>,
-                    children: <LayerPanel />,
-                  },
-                ]}
-              />
+            <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+              <LeftSidebar componentPanelRef={componentPanelRef} />
+              <CanvasArea canvasRef={canvasRef} />
+              <RightSidebar propertyPanelRef={propertyPanelRef} />
             </div>
-
-            {/* 中间画布 */}
-            <div ref={canvasRef} style={{ flex: 1, display: 'flex' }}>
-              <Canvas />
-            </div>
-
-            {/* 可拖拽分隔条 */}
-            <div
-              onMouseDown={handleResizeStart}
-              style={{
-                width: 6,
-                flexShrink: 0,
-                cursor: 'col-resize',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: isResizing ? EDITOR_COLORS.primaryBg : 'transparent',
-                transition: isResizing ? 'none' : 'background 0.2s',
-                position: 'relative',
-                zIndex: 10,
-              }}
-              title="拖拽调整属性面板宽度"
-            >
-              <div
-                style={{
-                  width: 2,
-                  height: '100%',
-                  minHeight: 200,
-                  background: isResizing ? EDITOR_COLORS.primary : EDITOR_COLORS.border,
-                  borderRadius: 1,
-                  transition: isResizing ? 'none' : 'background 0.2s',
-                }}
-              />
-            </div>
-
-            {/* 右侧属性面板 */}
-            <div ref={propertyPanelRef} style={{ width: rightPanelWidth, flexShrink: 0, overflow: 'hidden' }}>
-              <PropertyPanel />
-            </div>
+            <BottomConsole />
           </div>
         </EditorDndProvider>
       </Spin>
+
       {/* 保存新页面弹窗 */}
       <Modal
         title="保存页面"
@@ -771,28 +540,20 @@ const LowCodeEditor: React.FC = () => {
           />
         </div>
       </Modal>
+
       {/* 代码生成弹窗 */}
-      <CodePreviewModal
-        open={codeModalVisible}
-        onClose={() => setCodeModalVisible(false)}
-        pageId={pageId}
-      />
+      <CodePreviewModal open={codeModalVisible} onClose={() => setCodeModalVisible(false)} pageId={pageId} />
+
       {/* 版本历史面板 */}
-      <VersionHistory
-        open={versionHistoryVisible}
-        onClose={() => setVersionHistoryVisible(false)}
-      />
+      <VersionHistory open={versionHistoryVisible} onClose={() => setVersionHistoryVisible(false)} />
+
       {/* 分享到模板市场 */}
-      <ShareDialog
-        open={shareDialogVisible}
-        onClose={() => setShareDialogVisible(false)}
-      />
+      <ShareDialog open={shareDialogVisible} onClose={() => setShareDialogVisible(false)} />
+
       {/* 部署管理面板 */}
-      <DeployPanel
-        open={deployPanelVisible}
-        onClose={() => setDeployPanelVisible(false)}
-      />
-      {/* P1-3: 首次使用引导 */}
+      <DeployPanel open={deployPanelVisible} onClose={() => setDeployPanelVisible(false)} />
+
+      {/* 首次使用引导 */}
       <EditorTour
         componentPanelRef={componentPanelRef}
         canvasRef={canvasRef}

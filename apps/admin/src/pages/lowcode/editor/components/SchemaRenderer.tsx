@@ -2,6 +2,7 @@
 
 import React, { useState, Component, type ReactNode, type ErrorInfo } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/react';
+import { ArrowLeftOutlined, PlusOutlined } from '@ant-design/icons';
 import { useEditorStore } from '../store';
 import { ContextMenu } from './ContextMenu';
 import { ROOT_DROP_ID } from '../constants';
@@ -355,16 +356,38 @@ const NodeRendererInner = React.memo(function NodeRendererInner({ node, depth = 
               style={{
                 height: 44,
                 flexShrink: 0,
-                background: node.props.navigationBarBackgroundColor || 'var(--color-white)fff',
+                background: node.props.navigationBarBackgroundColor || '#ffffff',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
                 borderBottom: '1px solid var(--color-border-secondary)',
                 fontSize: 17,
                 fontWeight: 500,
+                position: 'relative',
               }}
             >
-              {node.props.navigationBarTitleText || '页面标题'}
+              {/* 左侧返回箭头（装饰性，对齐线框图手机标题栏） */}
+              <ArrowLeftOutlined
+                style={{
+                  position: 'absolute',
+                  left: 16,
+                  fontSize: 18,
+                  color: 'var(--color-text)',
+                  pointerEvents: 'none',
+                }}
+              />
+              {/* 居中标题（左右留白避开返回箭头，长文本省略） */}
+              <span
+                style={{
+                  flex: 1,
+                  textAlign: 'center',
+                  padding: '0 40px',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {node.props.navigationBarTitleText || '页面标题'}
+              </span>
             </div>
             {/* 页面内容区 — flex:1 撑满导航栏以下剩余高度 */}
             <DroppableZone
@@ -384,12 +407,17 @@ const NodeRendererInner = React.memo(function NodeRendererInner({ node, depth = 
                 <div
                   style={{
                     textAlign: 'center',
-                    color: 'var(--color-border)',
-                    padding: '40px 0',
+                    color: 'var(--color-text-quaternary)',
+                    padding: '48px 0',
                     fontSize: 13,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 8,
                   }}
                 >
-                  拖拽组件到此处
+                  <PlusOutlined style={{ fontSize: 24, color: 'var(--color-text-quaternary)' }} />
+                  请添加自定义组件
                 </div>
               )}
             </DroppableZone>

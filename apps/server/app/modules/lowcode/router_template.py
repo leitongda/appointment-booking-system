@@ -141,6 +141,17 @@ def _get_tenant_id(admin) -> str:
     return str(tenant_id)
 
 
+def _get_admin_id(admin) -> str:
+    """安全提取当前管理员账号 ID，兼容 dict 和对象两种形态。"""
+    admin_id = admin.get("id") if isinstance(admin, dict) else getattr(admin, "id", None)
+    if not admin_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="管理员信息缺失",
+        )
+    return str(admin_id)
+
+
 def _template_to_response(data: dict[str, Any]) -> TemplateResponse:
     """将 service 返回的 dict 转为 TemplateResponse。"""
     return TemplateResponse(**data)
@@ -219,7 +230,7 @@ async def get_template(
 ):
     """公开接口，获取单个模板的完整详情。"""
     service = LowCodeTemplateService(db)
-    data = await service.get_template(template_id)
+    data = await service.get_template(template_id, sanitize=True)
     if not data:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -262,7 +273,7 @@ async def create_template(
             thumbnail_url=data.thumbnail_url,
             tags=data.tags,
             is_public=data.is_public,
-            created_by=str(current_admin.id),
+            created_by=_get_admin_id(current_admin),
         )
     except ValueError as e:
         raise HTTPException(
@@ -331,7 +342,7 @@ async def update_template(
         category=data.category,
         tags=data.tags,
         is_public=data.is_public,
-        updated_by=str(current_admin.id),
+        updated_by=_get_admin_id(current_admin),
     )
     if not template:
         raise HTTPException(
@@ -415,7 +426,7 @@ async def fork_template(
         page = await service.fork_template(
             template_id=template_id,
             tenant_id=tenant_id,
-            account_id=str(current_admin.id),
+            account_id=_get_admin_id(current_admin),
             name=body.name,
             slug=body.slug,
         )
@@ -502,7 +513,7 @@ async def create_template_version(
             schema_data=data.schema_data,
             changelog=data.changelog,
             data_sources=data.data_sources,
-            created_by=str(current_admin.id),
+            created_by=_get_admin_id(current_admin),
         )
     except ValueError as e:
         raise HTTPException(

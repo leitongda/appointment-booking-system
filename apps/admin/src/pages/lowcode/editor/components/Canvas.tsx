@@ -2,10 +2,12 @@
 
 import React, { useState, useRef } from 'react';
 import { DragDropProvider, DragOverlay } from '@dnd-kit/react';
-import { Segmented, InputNumber, Slider, Switch, Tooltip, Space, Select, message } from 'antd';
-import { SwapOutlined, EditOutlined } from '@ant-design/icons';
+import { Segmented, InputNumber, Slider, Switch, Tooltip, Space, Select, Button, message, Dropdown } from 'antd';
+import { SwapOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
+import { history } from '@umijs/max';
 import { useEditorStore } from '../store';
 import { SchemaRenderer } from './SchemaRenderer';
+import DeviceStatusBar from './layout/DeviceStatusBar';
 import { EDITOR_COLORS, EDITOR_LAYOUT, ROOT_DROP_ID } from '../constants';
 import type { LowCodeNode, MaterialComponent } from '@hospital/shared';
 
@@ -381,143 +383,120 @@ export const Canvas: React.FC = () => {
         flex: 1,
         overflow: 'auto',
         background: EDITOR_COLORS.workspaceBg,
+        backgroundImage: 'linear-gradient(to right, #E5E7EB 1px, transparent 1px), linear-gradient(to bottom, #E5E7EB 1px, transparent 1px)',
+        backgroundSize: '20px 20px',
         display: 'flex',
         flexDirection: 'column',
+        position: 'relative',
       }}
     >
-      {/* 工具栏：缩放 + 设备切换 */}
+      {/* 居中悬浮工具栏 */}
       <div
         style={{
-          minHeight: 44,
-          padding: '6px 16px',
-          borderBottom: `1px solid ${EDITOR_COLORS.border}`,
-          background: EDITOR_COLORS.panelBg,
+          position: 'absolute',
+          top: 16,
+          left: '50%',
+          transform: 'translateX(-50%)',
           display: 'flex',
+          gap: 8,
+          background: EDITOR_COLORS.panelBg,
+          padding: 6,
+          borderRadius: 12,
+          border: `1px solid ${EDITOR_COLORS.border}`,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.04)',
+          zIndex: 10,
           alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: 12,
-          fontSize: 12,
         }}
       >
-        <span style={{ color: EDITOR_COLORS.textSecondary, whiteSpace: 'nowrap' }}>缩放</span>
-        <Slider
-          min={25}
-          max={200}
-          step={5}
-          value={zoom}
-          onChange={(value) => setZoom(value)}
-          style={{ width: 120 }}
-          tooltip={{ formatter: (v) => `${v}%` }}
-        />
-        <InputNumber
-          size="small"
-          min={25}
-          max={200}
-          value={zoom}
-          onChange={(v) => v && setZoom(Number(v))}
-          style={{ width: 60 }}
-          formatter={(v) => `${v}%`}
-          parser={(v) => Number(v?.replace('%', '')) as any}
-        />
-        <Space size={2}>
-          {ZOOM_LEVELS.map((z) => (
-            <a
-              key={z}
-              onClick={() => setZoom(z)}
-              style={{
-                fontSize: 11,
-                color: zoom === z ? EDITOR_COLORS.primary : EDITOR_COLORS.textSecondary,
-                padding: '1px 4px',
-                borderRadius: 3,
-                background: zoom === z ? `${EDITOR_COLORS.primary}10` : undefined,
-                cursor: 'pointer',
-              }}
-            >
-              {z}%
-            </a>
-          ))}
-        </Space>
-        <span style={{ color: EDITOR_COLORS.textSecondary, whiteSpace: 'nowrap' }}>设备</span>
+        <Tooltip title="平移 (空格)">
+          <Button type="text" size="small" style={{ borderRadius: 8 }}>🖐</Button>
+        </Tooltip>
+        <Tooltip title="选择 (V)">
+          <Button type="text" size="small" style={{ borderRadius: 8, background: '#F3F4F6' }}>🔍</Button>
+        </Tooltip>
+        <div style={{ width: 1, height: 16, background: EDITOR_COLORS.border, margin: '0 4px' }} />
         <Select
           size="small"
-          style={{ minWidth: 160 }}
+          style={{ width: 120 }}
+          bordered={false}
           value={device.label}
-          showSearch
-          optionFilterProp="label"
           options={DEVICE_OPTIONS}
           onChange={(value) => {
             const next = DEVICE_PRESETS.find((d) => d.label === value);
             if (next) applyPreset(next);
           }}
         />
-
-        {/* 自定义尺寸展开/收起 */}
-        <Tooltip title="自定义尺寸">
-          <a
-            onClick={() => setCustomSizeOpen((v) => !v)}
-            style={{ color: customSizeOpen ? EDITOR_COLORS.primary : EDITOR_COLORS.textSecondary, display: 'inline-flex', alignItems: 'center' }}
-          >
-            <EditOutlined />
-          </a>
-        </Tooltip>
-
-        {/* 横屏切换 */}
+        <div style={{ width: 1, height: 16, background: EDITOR_COLORS.border, margin: '0 4px' }} />
         <Tooltip title={landscape ? '切换为竖屏' : '切换为横屏'}>
-          <Space size={4} style={{ display: 'inline-flex', alignItems: 'center' }}>
-            <SwapOutlined style={{ color: EDITOR_COLORS.textSecondary }} />
-            <Switch
-              size="small"
-              checked={landscape}
-              onChange={(checked) => setLandscape(checked)}
-            />
-          </Space>
+          <Button type="text" size="small" icon={<SwapOutlined />} onClick={() => setLandscape(!landscape)} />
         </Tooltip>
-
-        {/* 像素比 DPR */}
-        <span style={{ color: EDITOR_COLORS.textSecondary, whiteSpace: 'nowrap' }}>DPR</span>
-        <Segmented
-          size="small"
-          value={DPR_OPTIONS.includes(dpr) ? dpr : undefined}
-          options={DPR_OPTIONS.map((v) => ({ label: `${v}`, value: v }))}
-          onChange={(value) => {
-            setDpr(Number(value));
-          }}
-        />
-        <Tooltip title="精确像素比 (1–4)">
-          <InputNumber
-            size="small"
-            min={1}
-            max={4}
-            step={0.125}
-            style={{ width: 72 }}
-            value={dpr}
-            onChange={(value) => {
-              if (value == null) return;
-              setDpr(Number(value));
-            }}
-          />
-        </Tooltip>
-
-        <span
-          style={{
-            color: EDITOR_COLORS.textMuted,
-            marginLeft: 'auto',
-            minWidth: 120,
-            textAlign: 'right',
-            whiteSpace: 'nowrap',
+        <div style={{ width: 1, height: 16, background: EDITOR_COLORS.border, margin: '0 4px' }} />
+        <Dropdown
+          trigger={['click']}
+          menu={{
+            items: ZOOM_LEVELS.map(z => ({ key: String(z), label: `${z}%` })),
+            onClick: ({ key }) => setZoom(Number(key))
           }}
         >
-          {effectiveWidth} × {effectiveHeight} · DPR {dpr}
-          {landscape ? ' · 横屏' : ''}
-        </span>
+          <span style={{ fontSize: 12, padding: '0 8px', cursor: 'pointer', fontWeight: 500 }}>{Math.round(zoom)}%</span>
+        </Dropdown>
       </div>
 
-      {/* 自定义尺寸输入区 */}
+      {/* 画布区域 */}
+      <div
+        style={{
+          flex: 1,
+          padding: EDITOR_LAYOUT.canvasPadding,
+          paddingTop: 80, // 给悬浮工具栏留出空间
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'flex-start',
+        }}
+      >
+        <div
+          style={{
+            width: effectiveWidth * scale,
+            minHeight: effectiveHeight * scale,
+            position: 'relative',
+          }}
+        >
+          <div
+            style={{
+              width: effectiveWidth,
+              height: effectiveHeight,
+              background: EDITOR_COLORS.panelBg,
+              border: `1px solid ${EDITOR_COLORS.borderSubtle}`,
+              borderRadius: EDITOR_LAYOUT.canvasRadius,
+              boxShadow: '0 4px 16px rgba(15, 23, 42, 0.08)',
+              overflow: 'hidden',
+              position: 'relative',
+              transform: `scale(${scale})`,
+              transformOrigin: 'top left',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
+            {/* 手机状态栏：装饰性 DOM，严禁带 data-node-id（避免污染拖拽落点计算） */}
+            <DeviceStatusBar />
+            <SchemaRenderer />
+          </div>
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              borderRadius: EDITOR_LAYOUT.canvasRadius,
+              pointerEvents: 'none',
+              boxShadow: `0 0 0 1px ${EDITOR_COLORS.border}`,
+            }}
+          />
+        </div>
+      </div>
+
       {customSizeOpen && (
         <div
           style={{
             padding: '8px 16px',
-            borderBottom: `1px solid ${EDITOR_COLORS.border}`,
+            borderTop: `1px solid ${EDITOR_COLORS.border}`,
             background: EDITOR_COLORS.itemBg,
             display: 'flex',
             alignItems: 'center',
@@ -547,80 +526,8 @@ export const Canvas: React.FC = () => {
           <a onClick={applyCustomSize} style={{ color: EDITOR_COLORS.primary }}>
             应用
           </a>
-          <Space size={6} style={{ marginLeft: 12 }}>
-            {[
-              { w: 320, h: 568 },
-              { w: 375, h: 667 },
-              { w: 414, h: 896 },
-              { w: 768, h: 1024 },
-              { w: 1024, h: 1366 },
-            ].map((s) => (
-              <a
-                key={`${s.w}x${s.h}`}
-                onClick={() => {
-                  setWidth(s.w);
-                  setHeight(s.h);
-                  setDevice({ ...device, width: s.w, height: s.h });
-                }}
-                style={{
-                  fontSize: 11,
-                  color: EDITOR_COLORS.textSecondary,
-                  padding: '2px 6px',
-                  border: `1px solid ${EDITOR_COLORS.borderSubtle}`,
-                  borderRadius: 4,
-                }}
-              >
-                {s.w}×{s.h}
-              </a>
-            ))}
-          </Space>
         </div>
       )}
-
-      {/* 画布区域 */}
-      <div
-        style={{
-          flex: 1,
-          padding: EDITOR_LAYOUT.canvasPadding,
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'flex-start',
-        }}
-      >
-        <div
-          style={{
-            width: effectiveWidth * scale,
-            minHeight: effectiveHeight * scale,
-            position: 'relative',
-          }}
-        >
-          <div
-            style={{
-              width: effectiveWidth,
-              height: effectiveHeight,
-              background: EDITOR_COLORS.panelBg,
-              border: `1px solid ${EDITOR_COLORS.borderSubtle}`,
-              borderRadius: EDITOR_LAYOUT.canvasRadius,
-              boxShadow: '0 4px 16px rgba(15, 23, 42, 0.08)',
-              overflow: 'hidden',
-              position: 'relative',
-              transform: `scale(${scale})`,
-              transformOrigin: 'top left',
-            }}
-          >
-            <SchemaRenderer />
-          </div>
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              borderRadius: EDITOR_LAYOUT.canvasRadius,
-              pointerEvents: 'none',
-              boxShadow: `0 0 0 1px ${EDITOR_COLORS.border}`,
-            }}
-          />
-        </div>
-      </div>
     </div>
   );
 };
