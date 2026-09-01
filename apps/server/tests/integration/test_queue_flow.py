@@ -5,6 +5,7 @@
 import pytest
 from datetime import date, time, timedelta
 
+from app.middleware.exception import BusinessError
 from app.modules.appointments.common import APPOINTMENT_STATUS
 
 
@@ -180,7 +181,7 @@ async def test_sign_in_wrong_status(db_session, setup_appointment):
     appointment.status = APPOINTMENT_STATUS["SIGNED"]
     await db_session.commit()
 
-    with pytest.raises(ValueError, match="当前状态不可签到"):
+    with pytest.raises(BusinessError, match="当前状态不可签到"):
         await service.sign_in(appointment_id=appointment.id, user_id=appointment.user_id)
 
 
@@ -193,7 +194,7 @@ async def test_call_wrong_status(db_session, setup_appointment):
     service = AppointmentFlowService(db_session)
 
     # 已预约状态不能叫号
-    with pytest.raises(ValueError, match="患者未签到"):
+    with pytest.raises(BusinessError, match="患者未签到"):
         await service.call_patient(appointment.id)
 
 
@@ -209,5 +210,5 @@ async def test_recall_wrong_status(db_session, setup_appointment):
     appointment.status = APPOINTMENT_STATUS["SIGNED"]
     await db_session.commit()
 
-    with pytest.raises(ValueError, match="只有过号状态可以重新叫号"):
+    with pytest.raises(BusinessError, match="只有过号状态可以重新叫号"):
         await service.recall(appointment.id)

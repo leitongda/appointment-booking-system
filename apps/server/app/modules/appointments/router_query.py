@@ -9,12 +9,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import (
     check_store_access,
-    get_current_admin,
     get_current_user,
     get_current_user_or_admin,
     get_store_filter,
 )
-from app.common.deps import require_permission
 from app.core.config import settings
 from app.db.session import get_db
 from app.modules.appointments.service import AppointmentService
@@ -441,6 +439,31 @@ async def get_checkin_queue(
     return result
 
 
+async def _resolve_doctor_store_id(db: AsyncSession, current_user: dict) -> str | None:
+    """解析医生所属门店 ID，用于医生端统计的门店过滤（防止越权看全租户数据）。
+
+    优先读取统一账号 dict 内嵌的 doctor.store_id；缺失时 fallback 查 Doctor
+    表，与 /today 接口的取值方式保持一致。
+    """
+    doctor_info = current_user.get("doctor") or {}
+    store_id = doctor_info.get("store_id")
+    if store_id:
+        return store_id
+
+    doctor_id = current_user.get("doctor_id")
+    if not doctor_id:
+        return None
+
+    from app.models.doctor import Doctor
+
+    result = await db.execute(
+        select(Doctor.store_id).where(
+            Doctor.id == doctor_id, Doctor.deleted_at.is_(None)
+        )
+    )
+    return result.scalar_one_or_none()
+
+
 @router.get(
     "/statistics",
     response_model=AppointmentStatistics,
@@ -448,15 +471,18 @@ async def get_checkin_queue(
     description="""
     获取预约统计数据，支持按医生和日期范围筛选。
 
-    **权限要求**：管理员权限。
+    **访问角色**：
+    - 管理员/运营：拥有 ``appointment:statistics`` 权限，可按门店/医生/日期
+      范围筛选（store 过滤沿用管理员数据权限）。
+    - 医生：拥有 ``doctor:statistics:view`` 权限，自动锁定为本人统计
+     （忽略传入的 doctor_id，门店锁定为医生所属门店），用于医生端看板。
 
     **参数说明**：
-    - doctor_id: 按医生筛选（可选）
+    - doctor_id: 按医生筛选（可选，仅管理员可用；医生访问时强制覆盖为本人）
     - start_date / end_date: 日期范围（可选）
 
     **返回数据**：
     - 各状态的预约数量统计（已预约、已签到、已完成、已取消、已爽约等）
-    - 用于管理后台的数据看板
     """,
 )
 async def get_appointment_statistics(
@@ -464,13 +490,41 @@ async def get_appointment_statistics(
     start_date: date | None = None,
     end_date: date | None = None,
     db: AsyncSession = Depends(get_db),
-    current_admin: dict = Depends(get_current_admin),
-    _: None = Depends(require_permission("appointment:statistics")),
+    current_user: dict = Depends(get_current_user_or_admin),
 ):
-    """获取预约统计（需要管理员权限）
-    """
+    """获取预约统计（管理员按数据权限过滤；医生仅看本人）"""
     service = AppointmentService(db)
-    store_filter = get_store_filter(current_admin)
+
+    role_type = current_user.get("role_type")
+
+    if role_type == "doctor":
+        # 医生端：仅查看本人统计，门店锁定为所属门店，忽略外部传入的 doctor_id
+        if "doctor:statistics:view" not in current_user.get("permissions", []):
+            raise HTTPException(
+                status_code=http_status.HTTP_403_FORBIDDEN,
+                detail="无个人统计查看权限",
+            )
+        my_doctor_id = current_user.get("doctor_id")
+        if not my_doctor_id:
+            raise HTTPException(
+                status_code=http_status.HTTP_403_FORBIDDEN,
+                detail="医生信息缺失，无法获取统计",
+            )
+        doctor_store_id = await _resolve_doctor_store_id(db, current_user)
+        return await service.get_statistics(
+            doctor_id=my_doctor_id,
+            start_date=start_date,
+            end_date=end_date,
+            store_id=doctor_store_id,
+        )
+
+    # 管理员/运营：沿用管理员数据权限过滤
+    if "appointment:statistics" not in current_user.get("permissions", []):
+        raise HTTPException(
+            status_code=http_status.HTTP_403_FORBIDDEN,
+            detail="无预约统计查看权限",
+        )
+    store_filter = get_store_filter(current_user)
     return await service.get_statistics(
         doctor_id=doctor_id,
         start_date=start_date,

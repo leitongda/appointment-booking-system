@@ -3,7 +3,7 @@ import { List, Avatar, Tag, Button, Empty, message, Row, Col, Badge, Popconfirm,
 import { UserOutlined, SoundOutlined, StopOutlined, CheckOutlined, ReloadOutlined, HistoryOutlined, FileTextOutlined, CalendarOutlined, PlusOutlined } from '@ant-design/icons';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { history } from 'umi';
-import { appointmentApi, scheduleApi } from '@hospital/api';
+import { appointmentApi, scheduleApi, doctorQueueApi } from '@hospital/api';
 import type { AvailableSchedule } from '@hospital/api';
 
 // 患者历史就诊记录项类型
@@ -89,7 +89,7 @@ const ConsultationPage: React.FC = () => {
 
   const handleCall = async (appointment: Appointment) => {
     try {
-      await appointmentApi.call(appointment.id);
+      await doctorQueueApi.call(appointment.id);
       message.success(`已呼叫 ${appointment.patientName}，请到诊室就诊`);
       loadData();
     } catch (error: any) {
@@ -108,7 +108,7 @@ const ConsultationPage: React.FC = () => {
 
   const handlePass = async (appointment: Appointment) => {
     try {
-      await appointmentApi.pass(appointment.id);
+      await doctorQueueApi.pass(appointment.id);
       message.success('已过号');
       loadData();
     } catch (error: any) {
@@ -118,7 +118,7 @@ const ConsultationPage: React.FC = () => {
 
   const handleRecall = async (appointment: Appointment) => {
     try {
-      await appointmentApi.recall(appointment.id);
+      await doctorQueueApi.recall(appointment.id);
       message.success(`已重新呼叫 ${appointment.patientName}`);
       loadData();
     } catch (error: any) {
@@ -128,7 +128,7 @@ const ConsultationPage: React.FC = () => {
 
   const handleMarkNoShow = async (appointment: Appointment) => {
     try {
-      await appointmentApi.markNoShow(appointment.id);
+      await doctorQueueApi.markNoShow(appointment.id);
       message.success('已标记爽约');
       loadData();
     } catch (error: any) {
@@ -140,7 +140,7 @@ const ConsultationPage: React.FC = () => {
     if (!currentPatient) return;
     
     try {
-      await appointmentApi.complete(currentPatient.id);
+      await doctorQueueApi.complete(currentPatient.id);
       message.success('就诊完成');
       history.push(`/medical-record/create?appointmentId=${currentPatient.id}`);
     } catch (error: any) {

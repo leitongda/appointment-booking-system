@@ -76,6 +76,7 @@ export { departmentApi } from './modules/department';
 export { doctorApi } from './modules/doctor';
 export { scheduleApi } from './modules/schedule';
 export { appointmentApi } from './modules/appointment';
+export { doctorQueueApi } from './modules/doctor-portal-queue';
 export { attendanceApi } from './modules/attendance';
 export type {
   CheckInData,

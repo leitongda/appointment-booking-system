@@ -4,7 +4,7 @@ import { Tag, Button, Space, message, Row, Col, Statistic, Badge, Popconfirm } f
 import { SoundOutlined, CheckOutlined, UserOutlined, ClockCircleOutlined, StopOutlined } from '@ant-design/icons';
 import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { history } from 'umi';
-import { appointmentApi } from '@hospital/api';
+import { appointmentApi, doctorQueueApi } from '@hospital/api';
 import { APPOINTMENT_STATUS, APPOINTMENT_STATUS_MAP, APPOINTMENT_STATUS_COLOR, TIME_SLOT_MAP } from '@hospital/shared';
 import type { Appointment } from '@hospital/shared';
 import { useWebSocket, ConnectionStatus } from '@/hooks';
@@ -54,7 +54,7 @@ const TodayAppointmentPage: React.FC = () => {
 
   const handleCall = async (appointment: Appointment) => {
     try {
-      await appointmentApi.call(appointment.id);
+      await doctorQueueApi.call(appointment.id);
       message.success(`已呼叫 ${appointment.patientName}`);
       loadData();
       actionRef.current?.reload();
@@ -65,7 +65,7 @@ const TodayAppointmentPage: React.FC = () => {
 
   const handleComplete = async (appointmentId: string) => {
     try {
-      await appointmentApi.complete(appointmentId);
+      await doctorQueueApi.complete(appointmentId);
       message.success('就诊完成');
       history.push(`/medical-record/create?appointmentId=${appointmentId}`);
     } catch (error: any) {
@@ -75,7 +75,7 @@ const TodayAppointmentPage: React.FC = () => {
 
   const handlePass = async (appointment: Appointment) => {
     try {
-      await appointmentApi.pass(appointment.id);
+      await doctorQueueApi.pass(appointment.id);
       message.success('已过号');
       loadData();
       actionRef.current?.reload();
