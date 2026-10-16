@@ -12,6 +12,7 @@ from typing import Any
 
 import httpx
 from celery import group
+from celery.exceptions import Retry
 from sqlalchemy import and_, select, text
 from sqlalchemy.orm import Session, joinedload
 
@@ -673,11 +674,15 @@ def send_appointment_reminder_for_tenant(self, tenant_id: str, tenant_code: str)
 
     except Exception as e:
         logger.error(f"租户 {tenant_name} 提醒任务执行失败: {e}")
-        # 重试
+        # 重试：Retry 必须向外抛给 Celery 调度器——吞掉它会导致重试从不发生
         try:
             raise self.retry(exc=e, countdown=60)
+        except Retry:
+            raise
         except Exception:
-            pass
+            logger.warning(
+                "租户 %s 提醒重试调度失败", tenant_name, exc_info=True
+            )
     finally:
         # 清除租户上下文
         clear_tenant_context()
