@@ -191,8 +191,10 @@ celery_app.conf.update(
         },
 
         # 退款状态主动同步 - 每30分钟
+        # 注意：task 必须与任务注册名一致（refund_sync.py 中显式 name="refund.status_sync"），
+        # 否则 beat 派发时报 Received unregistered task 被丢弃
         "refund-status-sync": {
-            "task": "app.tasks.refund_sync.sync_refund_statuses",
+            "task": "refund.status_sync",
             "schedule": crontab(minute="*/30"),
             "options": {"queue": "scheduled"},
         },
@@ -365,6 +367,9 @@ celery_app.autodiscover_tasks([
     "app.tasks.attendance_alert_task",
     "app.tasks.attendance_cleanup_task",
     "app.tasks.waitlist_promotion_task",
+    # beat 引用了这两个模块的任务，缺了会被报 Received unregistered task 并丢弃
+    "app.tasks.store_metric_task",
+    "app.tasks.integration_sync_task",
 ])
 
 # Flower 监控配置
