@@ -504,7 +504,12 @@ async def create_template_version(
     current_admin=Depends(get_current_admin),
     _: None = Depends(require_permission("lowcode:template", "lowcode:template:update")),
 ):
-    """为模板创建新版本快照，同时更新模板主版本号。"""
+    """为模板创建新版本快照，同时更新模板主版本号。
+
+    只有模板来源租户（source_tenant_id 匹配）才能写入版本，
+    与更新/删除模板的租户边界一致。
+    """
+    tenant_id = _get_tenant_id(current_admin)
     service = LowCodeTemplateService(db)
     try:
         version_record = await service.create_version(
@@ -514,11 +519,17 @@ async def create_template_version(
             changelog=data.changelog,
             data_sources=data.data_sources,
             created_by=_get_admin_id(current_admin),
+            tenant_id=tenant_id,
         )
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
+        )
+    if version_record is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="模板不存在或无权更新",
         )
 
     return TemplateVersionItem(

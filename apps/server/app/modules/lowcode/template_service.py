@@ -449,7 +449,8 @@ class LowCodeTemplateService:
         changelog: str | None = None,
         data_sources: dict[str, Any] | None = None,
         created_by: str | None = None,
-    ) -> LowCodeTemplateVersion:
+        tenant_id: str | None = None,
+    ) -> LowCodeTemplateVersion | None:
         """为模板创建新版本快照。
 
         在创建版本前，通过 codegen 的 analyzeSchema 校验 schema 兼容性。
@@ -463,6 +464,11 @@ class LowCodeTemplateService:
             changelog: 变更说明
             data_sources: 数据源配置快照
             created_by: 创建人 ID
+            tenant_id: 当前租户 ID，用于所有权校验（与 update/delete 一致；
+                None 表示平台管理员，跳过校验）。非来源租户时返回 None。
+
+        Returns:
+            版本记录；无权写入时返回 None。
 
         Raises:
             ValueError: 模板不存在或 schema 校验失败时
@@ -476,6 +482,15 @@ class LowCodeTemplateService:
         template = result.scalar_one_or_none()
         if template is None:
             raise ValueError(f"模板不存在: {template_id}")
+
+        # 所有权校验：版本写入会覆盖模板主记录的 schema_data，
+        # 必须与 update_template/delete_template 保持同一租户边界
+        if tenant_id and template.source_tenant_id != tenant_id:
+            logger.warning(
+                "拒绝跨租户写入模板版本: template_id=%s, source_tenant_id=%s, 请求方 tenant_id=%s",
+                template_id, template.source_tenant_id, tenant_id,
+            )
+            return None
 
         # 通过 codegen analyzeSchema 校验 schema 兼容性
         await self._validate_schema_with_codegen(schema_data)

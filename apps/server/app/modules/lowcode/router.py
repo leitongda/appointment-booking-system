@@ -1005,7 +1005,8 @@ async def wechat_audit_callback(
     注意: 此端点为公开回调，不走管理员认证。
     支持两种模式：
     1. 加密模式（推荐）：请求体为加密数据，使用 AppSecret 解密
-    2. 明文模式（兼容）：直接传 JSON，需配置 WECHAT_CALLBACK_TOKEN 进行签名验证
+    2. 明文模式（兼容）：直接传 JSON，需配置 WECHAT_CALLBACK_TOKEN 进行签名验证；
+       未配置 token 时明文回调会被拒绝（fail-closed）
     """
     from app.modules.lowcode.deploy_service import DeployError, LowCodeDeployService
 
@@ -1045,23 +1046,30 @@ async def wechat_audit_callback(
                     detail=f"回调数据解密失败: {e}",
                 )
         else:
-            # 明文模式：直接使用请求数据，但需要签名验证
-            if callback_token:
-                signature = query_params.get("signature", "")
-                timestamp = query_params.get("timestamp", "")
-                nonce = query_params.get("nonce", "")
+            # 明文模式：必须配置 WECHAT_CALLBACK_TOKEN 做签名验证。
+            # fail-closed：token 未配置时无法验证回调来源，直接拒绝——
+            # 否则任何知道 page_id 的人都能未认证地把页面置为 published。
+            if not callback_token:
+                logger.error("收到明文微信回调但未配置 WECHAT_CALLBACK_TOKEN，拒绝处理")
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="服务端未配置回调验签（WECHAT_CALLBACK_TOKEN），已拒绝明文回调",
+                )
+            signature = query_params.get("signature", "")
+            timestamp = query_params.get("timestamp", "")
+            nonce = query_params.get("nonce", "")
 
-                from app.utils.wechat_callback import verify_callback_signature
+            from app.utils.wechat_callback import verify_callback_signature
 
-                # 对于明文模式，将整个请求体作为 encrypt 参数进行签名验证
-                if not verify_callback_signature(
-                    timestamp, nonce, body.decode("utf-8"), signature, callback_token
-                ):
-                    logger.warning("微信回调签名校验失败")
-                    raise HTTPException(
-                        status_code=status.HTTP_403_FORBIDDEN,
-                        detail="回调签名校验失败",
-                    )
+            # 对于明文模式，将整个请求体作为 encrypt 参数进行签名验证
+            if not verify_callback_signature(
+                timestamp, nonce, body.decode("utf-8"), signature, callback_token
+            ):
+                logger.warning("微信回调签名校验失败")
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="回调签名校验失败",
+                )
             callback_data = request_data
 
         # 验证必要字段
