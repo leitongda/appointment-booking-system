@@ -161,9 +161,7 @@ def reconcile_stuck_promotions() -> dict[str, Any]:
         from app.db.session import get_sync_db
         from app.models.waitlist import WaitlistEntry
 
-        db_gen = get_sync_db()
-        db = next(db_gen)
-        try:
+        with get_sync_db() as db:
             stuck = db.execute(
                 select(
                     WaitlistEntry.id,
@@ -171,8 +169,6 @@ def reconcile_stuck_promotions() -> dict[str, Any]:
                     WaitlistEntry.tenant_id,
                 ).where(WaitlistEntry.status == "PROCESSING")
             ).all()
-        finally:
-            db_gen.close()
 
         if stuck:
             logger.error(

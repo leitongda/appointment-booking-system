@@ -47,9 +47,7 @@ def reconcile_pending_payments(self):
     logger.info("开始支付状态主动对账...")
 
     try:
-        db_gen = get_sync_db()
-        db = next(db_gen)
-        try:
+        with get_sync_db() as db:
             # 查询所有活跃租户
             tenants = db.execute(
                 select(Tenant.id).where(Tenant.status == 1)
@@ -74,9 +72,6 @@ def reconcile_pending_payments(self):
                     clear_tenant_context()
 
             logger.info(f"支付状态主动对账完成，共补齐 {total_reconciled} 条支付记录")
-
-        finally:
-            db_gen.close()
 
     except Exception as exc:
         logger.error(f"支付状态主动对账任务失败: {exc}", exc_info=True)

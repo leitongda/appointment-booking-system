@@ -45,9 +45,7 @@ def sync_refund_statuses(self):
     logger.info("开始退款状态主动同步...")
 
     try:
-        db_gen = get_sync_db()
-        db = next(db_gen)
-        try:
+        with get_sync_db() as db:
             # 查询所有活跃租户
             tenants = db.execute(
                 select(Tenant.id).where(Tenant.status == 1)
@@ -68,9 +66,6 @@ def sync_refund_statuses(self):
                     clear_tenant_context()
 
             logger.info(f"退款状态主动同步完成，共更新 {total_synced} 条退款记录")
-
-        finally:
-            db_gen.close()
 
     except Exception as exc:
         logger.error(f"退款状态主动同步任务失败: {exc}", exc_info=True)

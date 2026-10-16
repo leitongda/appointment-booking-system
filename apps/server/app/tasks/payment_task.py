@@ -43,9 +43,7 @@ def cancel_expired_pending_appointments(self):
     logger.info("开始扫描超时未支付预约...")
 
     try:
-        db_gen = get_sync_db()
-        db = next(db_gen)
-        try:
+        with get_sync_db() as db:
             # 查询所有活跃租户
             tenants = db.execute(
                 select(Tenant.id).where(Tenant.status == 1)
@@ -65,9 +63,6 @@ def cancel_expired_pending_appointments(self):
                     clear_tenant_context()
 
             logger.info(f"超时未支付预约扫描完成，共取消 {total_cancelled} 条预约")
-
-        finally:
-            db_gen.close()
 
     except Exception as exc:
         logger.error(f"取消超时未支付预约任务失败: {exc}")

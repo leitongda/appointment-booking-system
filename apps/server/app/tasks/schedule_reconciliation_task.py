@@ -41,9 +41,7 @@ def reconcile_booked_slots(self):
     logger.info("开始排班号源对账任务...")
 
     try:
-        db_gen = get_sync_db()
-        db = next(db_gen)
-        try:
+        with get_sync_db() as db:
             tenants = db.execute(
                 select(Tenant.id, Tenant.tenant_code).where(Tenant.status == 1)
             ).all()
@@ -68,9 +66,6 @@ def reconcile_booked_slots(self):
                 f"排班号源对账完成: 检查 {total_checked} 条排班, "
                 f"发现 {total_drift} 条偏差, 修复 {total_fixed} 条"
             )
-
-        finally:
-            db_gen.close()
 
     except Exception as exc:
         logger.error(f"排班号源对账任务失败: {exc}")

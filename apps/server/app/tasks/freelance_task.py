@@ -241,9 +241,7 @@ def generate_freelance_settlements(self):
     logger.info("开始扫描待结算兼职任务...")
 
     try:
-        db_gen = get_sync_db()
-        db = next(db_gen)
-        try:
+        with get_sync_db() as db:
             tenants = db.execute(
                 select(Tenant.id).where(Tenant.status == 1)
             ).scalars().all()
@@ -261,9 +259,6 @@ def generate_freelance_settlements(self):
                     clear_tenant_context()
 
             logger.info(f"兼职结算扫描完成，共生成 {total_generated} 个结算单")
-
-        finally:
-            db_gen.close()
 
     except Exception as e:
         logger.error(f"兼职结算扫描任务失败: {e}")
