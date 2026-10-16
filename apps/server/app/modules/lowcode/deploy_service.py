@@ -155,8 +155,10 @@ class LowCodeDeployService:
         build_job = await self._create_build_job(page)
 
         # 派发到 Celery 异步执行
+        # 参数顺序必须与任务签名 (page_id, tenant_id, build_job_id) 一致：
+        # 传 build_job.id 让任务复用上面创建的 BuildJob，而不是自建一条重复记录
         from app.tasks.lowcode_deploy_task import build_lowcode_page_task
-        build_lowcode_page_task.delay(str(page.id), str(build_job.id))
+        build_lowcode_page_task.delay(str(page.id), str(page.tenant_id), str(build_job.id))
 
         return {
             "build_job_id": str(build_job.id),

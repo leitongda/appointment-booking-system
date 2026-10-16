@@ -119,7 +119,7 @@ def _update_page_deploy_status(db, page_id: str, status: str):
     time_limit=1800,
     soft_time_limit=1500,
 )
-def build_lowcode_page_task(self, page_id: str, tenant_id: str):
+def build_lowcode_page_task(self, page_id: str, tenant_id: str, build_job_id: str | None = None):
     """构建低代码页面：codegen 生成 Taro 代码 + Taro 构建 + 产物存储。
 
     流程:
@@ -132,6 +132,8 @@ def build_lowcode_page_task(self, page_id: str, tenant_id: str):
     Args:
         page_id: 低代码页面 ID
         tenant_id: 租户 ID
+        build_job_id: 已存在的 BuildJob ID（由 deploy_service.trigger_deploy
+            创建后传入，任务复用它而非自建新记录）；为 None 时任务自建。
 
     Returns:
         dict: {"success": bool, "build_job_id": str, "artifact_id": str | None, ...}
@@ -169,18 +171,26 @@ def build_lowcode_page_task(self, page_id: str, tenant_id: str):
             db.commit()
             return {"success": False, "reason": "小程序实例不存在"}
 
-        # ---------- 创建 BuildJob (pending -> running) ----------
-        build_job = BuildJob(
-            tenant_id=tenant_id,
-            miniapp_instance_id=instance.id,
-            lowcode_page_id=page_id,
-            trigger_source="celery_deploy",
-            build_params=json.dumps({"page_id": page_id}),
-            status="running",
-            started_at=datetime.now(),
-        )
-        db.add(build_job)
-        db.flush()
+        # ---------- 复用或创建 BuildJob (pending -> running) ----------
+        build_job: BuildJob | None = None
+        if build_job_id:
+            build_job = db.get(BuildJob, build_job_id)
+        if build_job is None:
+            build_job = BuildJob(
+                tenant_id=tenant_id,
+                miniapp_instance_id=instance.id,
+                lowcode_page_id=page_id,
+                trigger_source="celery_deploy",
+                build_params=json.dumps({"page_id": page_id}),
+                status="running",
+                started_at=datetime.now(),
+            )
+            db.add(build_job)
+            db.flush()
+        else:
+            build_job.status = "running"
+            build_job.started_at = datetime.now()
+            db.flush()
         build_job_id = build_job.id
 
         _update_page_deploy_status(db, page_id, "building")

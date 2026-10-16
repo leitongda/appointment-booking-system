@@ -171,8 +171,13 @@ class TestStartDeploy:
         assert added_obj.lowcode_page_id == "page-001"
         assert added_obj.trigger_source == "lowcode_deploy"
 
-        # 验证 Celery 任务被派发
+        # 验证 Celery 任务被派发：参数必须是 (page_id, tenant_id, build_job_id)。
+        # 回归防护——曾把 build_job.id 传进 tenant_id 形参，任务按租户查页面永远落空。
         mock_task.delay.assert_called_once()
+        delay_args = mock_task.delay.call_args.args
+        assert delay_args[0] == "page-001"
+        assert delay_args[1] == "tenant-001"
+        assert delay_args[2] == str(added_obj.id)
 
     @pytest.mark.asyncio
     async def test_trigger_deploy_records_build_job_status(self):
