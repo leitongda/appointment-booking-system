@@ -13,7 +13,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import Taro from '@tarojs/taro';
 import type { ApiDataSource, PageDataSource } from '@hospital/shared';
 import type { LinkageRule, LinkageCondition, LinkageAction } from '@hospital/shared';
-import { evaluateExpression } from '@hospital/shared/src/utils/expression-engine';
+import { evaluateExpression } from '@hospital/shared';
 
 // ---------------------------------------------------------------------------
 // Types

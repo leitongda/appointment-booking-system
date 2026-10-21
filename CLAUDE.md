@@ -104,7 +104,7 @@ apps/
   patient-miniapp/           # 患者端微信小程序 (Taro 4 + NutUI)
   miniapp-generator/         # 多风格小程序模板生成器 (按模板配置批量产出实例)
   temp-registration/         # 临时挂号 H5 (Umi 4)
-  website/                   # 官网/营销站点
+  website/                   # 官网/营销站点 (Vite, port 9101)
   server/                    # 后端 API 服务 (FastAPI, port 9000)
 packages/
   api/                       # 共享 API 请求封装 + TypeScript 类型 (@hospital/api)
