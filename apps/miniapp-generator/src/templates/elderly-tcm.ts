@@ -22,9 +22,10 @@ export const elderlyTcm: MiniappStyleTemplate = {
   },
 
   homeSchema: [
-    { id: 'quick_action', type: 'quick_action', visible: true, order: 1, config: { columns: 2 } },
-    { id: 'simple_notice', type: 'simple_notice', visible: true, order: 2, config: {} },
-    { id: 'recent_doctor', type: 'recent_doctor', visible: true, order: 3, config: { maxItems: 3 } },
+    { id: 'notice', type: 'notice', visible: true, order: 1, config: {} },
+    { id: 'quick_action', type: 'quick_action', visible: true, order: 2, config: { columns: 2 } },
+    { id: 'simple_notice', type: 'simple_notice', visible: true, order: 3, config: {} },
+    { id: 'recent_doctor', type: 'recent_doctor', visible: true, order: 4, config: { maxItems: 3 } },
   ],
 
   pageShells: {
@@ -61,8 +62,8 @@ export const elderlyTcm: MiniappStyleTemplate = {
   },
 
   tone: {
-    bookingLabel: '挂号',
-    patientLabel: '就诊人',
+    bookingLabel: '预约挂号',
+    patientLabel: '我的就诊卡',
     addressMode: '您',
     emptyBookingText: '您还没有挂过号，点这里挂号',
     confirmSuccessText: '挂号成功！请在看病当天带着身份证来医院',
@@ -70,6 +71,10 @@ export const elderlyTcm: MiniappStyleTemplate = {
       confirmBooking: '确认挂号',
       guideText: '点击这里挂号',
       nextStep: '下一步',
+      appointmentRecordsLabel: '预约记录',
+      onlineServiceLabel: '在线客服',
+      healthCardTitle: '添加健康卡',
+      healthCardSubtitle: '记录您的健康',
     },
   },
 

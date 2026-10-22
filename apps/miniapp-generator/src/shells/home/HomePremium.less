@@ -210,6 +210,34 @@
   }
 }
 
+// 公告栏
+.notice-bar {
+  display: flex;
+  align-items: center;
+  gap: @spacing-2;
+  padding: 20rpx @page-padding;
+  margin-bottom: @spacing-3;
+  background: @bg-card;
+  border-radius: @radius-lg;
+  box-shadow: 0 4rpx 16rpx rgba(139, 115, 85, 0.08); // 暖色阴影
+}
+
+.notice-bar-icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.notice-bar-text {
+  flex: 1;
+  min-width: 0;
+  font-size: @font-body-sm;
+  color: @text-secondary;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 // 快捷菜单4宫格
 .quick-menu-section {
   .menu-grid {

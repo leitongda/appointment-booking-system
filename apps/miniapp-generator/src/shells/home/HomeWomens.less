@@ -137,6 +137,34 @@
   color: @text-tertiary;
 }
 
+// 公告栏
+.notice-bar {
+  display: flex;
+  align-items: center;
+  gap: @spacing-2;
+  margin: 0 24rpx @spacing-3;
+  padding: 20rpx 24rpx;
+  background: @bg-card;
+  border-radius: @radius-lg;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
+}
+
+.notice-bar-icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.notice-bar-text {
+  flex: 1;
+  min-width: 0;
+  font-size: @font-body-sm;
+  color: @text-secondary;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .menu-card {
   margin: 0 24rpx @spacing-3;
   padding: @spacing-4;

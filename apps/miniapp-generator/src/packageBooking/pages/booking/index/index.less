@@ -259,6 +259,11 @@
     color: @color-price;
     font-weight: @font-weight-semibold;
     font-size: @font-size-lg;
+
+    .fee-tag {
+      font-size: @font-size-sm;
+      font-weight: @font-weight-normal;
+    }
   }
 
   &.address {
@@ -284,6 +289,18 @@
   color: @color-text-primary;
   margin-bottom: @spacing-3;
   display: block;
+}
+
+.symptom-required {
+  color: @color-danger;
+  margin-right: 4rpx;
+}
+
+.symptom-required-tip {
+  display: block;
+  margin-top: @spacing-2;
+  font-size: @font-size-sm;
+  color: @color-danger;
 }
 
 .symptom-input {
@@ -371,14 +388,7 @@
   font-size: @font-size-sm;
   color: @color-text-secondary;
   line-height: @line-height-relaxed;
-  display: flex;
-
-  &::before {
-    content: '•';
-    color: var(--theme-primary);
-    margin-right: @spacing-2;
-    flex-shrink: 0;
-  }
+  display: block;
 }
 
 // -------------------------------------------

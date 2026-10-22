@@ -1,18 +1,33 @@
-import { View, Text, Image, ScrollView, RichText } from '@tarojs/components';
+import { View, Text, Image, ScrollView, RichText, Button as TaroButton, Textarea } from '@tarojs/components';
 import Taro, { useRouter, usePullDownRefresh } from '@tarojs/taro';
-import { Button } from '@nutui/nutui-react-taro';
+import { Button, Rate } from '@nutui/nutui-react-taro';
 import { useState, useEffect, useMemo } from 'react';
-import { doctorApi, scheduleApi, favoriteApi, settingsApi } from '@hospital/api';
-import type { AvailableSchedule } from '@hospital/api';
+import { doctorApi, scheduleApi, favoriteApi, settingsApi, doctorReviewApi } from '@hospital/api';
+import type { AvailableSchedule, DoctorReviewItem } from '@hospital/api';
 import type { Doctor } from '@hospital/shared';
 import { APPOINTMENT_TYPE_MAP } from '@hospital/shared';
-import { DoctorIcon, HeartIcon, HeartOutlineIcon } from '../../components/Icons';
+import { DoctorIcon, HeartIcon, HeartOutlineIcon, StarIcon } from '../../components/Icons';
 import { getToken } from '../../utils/auth';
 import { useThemePrimaryColor, useApplyThemeNavigationBar } from '../../utils/theme';
 import { getImageUrl, formatTime } from '../../utils/url';
 import './DoctorDetailStandard.less';
 
 const WEEKDAY_NAMES = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+
+// 患者姓名脱敏：保留首字符（两个字以上保留尾字符），中间以 * 代替
+const maskPatientName = (name?: string | null): string => {
+  const trimmed = (name || '').trim();
+  if (!trimmed) return '匿名用户';
+  if (trimmed.length === 1) return trimmed;
+  if (trimmed.length === 2) return `${trimmed[0]}*`;
+  return `${trimmed[0]}*${trimmed.slice(-1)}`;
+};
+
+// 评价日期展示：createdAt 取 YYYY-MM-DD
+const formatReviewDate = (value?: string | null): string => {
+  if (!value) return '';
+  return value.substring(0, 10);
+};
 
 /**
  * 医生详情壳层 -- 标准版
@@ -43,6 +58,15 @@ export function DoctorDetailStandard() {
   const [favoriteId, setFavoriteId] = useState<string | null>(null);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
   const [showLoginPopup, setShowLoginPopup] = useState(false);
+
+  // 患者评价状态
+  const [reviews, setReviews] = useState<DoctorReviewItem[]>([]);
+  const [reviewsTotal, setReviewsTotal] = useState(0);
+  // 写评价弹层状态
+  const [showReviewSheet, setShowReviewSheet] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewContent, setReviewContent] = useState('');
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -103,11 +127,29 @@ export function DoctorDetailStandard() {
       if (getToken()) {
         checkFavoriteStatus();
       }
+
+      // 评价加载失败时静默降级为空态，不阻塞页面
+      loadReviews();
     } catch (error) {
       console.error('[医生详情] 加载失败', error);
       Taro.showToast({ title: '加载失败', icon: 'none' });
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 患者评价（公开接口；接口失败或为空时保持空态）
+  const loadReviews = async () => {
+    if (!id) return;
+    try {
+      const result = await doctorReviewApi.getList({ doctorId: id, page: 1, pageSize: 10 });
+      const items = Array.isArray(result?.items) ? result.items : [];
+      setReviews(items);
+      setReviewsTotal(typeof result?.total === 'number' ? result.total : items.length);
+    } catch (error) {
+      console.error('[医生详情] 加载患者评价失败', error);
+      setReviews([]);
+      setReviewsTotal(0);
     }
   };
 
@@ -146,6 +188,44 @@ export function DoctorDetailStandard() {
       Taro.showToast({ title: error.message || '操作失败', icon: 'none' });
     } finally {
       setFavoriteLoading(false);
+    }
+  };
+
+  // 医生海报：本期占位
+  const handleDoctorPoster = () => {
+    Taro.showToast({ title: '建设中', icon: 'none' });
+  };
+
+  const handleOpenReviewSheet = () => {
+    if (!getToken()) {
+      Taro.showToast({ title: '请先登录', icon: 'none' });
+      return;
+    }
+    setReviewRating(5);
+    setReviewContent('');
+    setShowReviewSheet(true);
+  };
+
+  const handleCloseReviewSheet = () => {
+    setShowReviewSheet(false);
+  };
+
+  const handleSubmitReview = async () => {
+    if (!id || reviewSubmitting) return;
+    if (!reviewContent.trim()) {
+      Taro.showToast({ title: '请输入评价内容', icon: 'none' });
+      return;
+    }
+    setReviewSubmitting(true);
+    try {
+      await doctorReviewApi.create({ doctorId: id, rating: reviewRating, content: reviewContent.trim() });
+      Taro.showToast({ title: '评价成功', icon: 'success' });
+      setShowReviewSheet(false);
+      loadReviews();
+    } catch (error: any) {
+      Taro.showToast({ title: error.message || '提交失败', icon: 'none' });
+    } finally {
+      setReviewSubmitting(false);
     }
   };
 
@@ -335,18 +415,27 @@ export function DoctorDetailStandard() {
             </View>
             <Text className="dept">{doctor.departmentName}</Text>
           </View>
-          {/* 收藏按钮 */}
-          <View
-            className={`favorite-btn ${isFavorited ? 'active' : ''}`}
-            onClick={handleToggleFavorite}
-            aria-label={isFavorited ? '取消收藏' : '收藏医生'}
-            role="button"
-          >
-            {isFavorited ? (
-              <HeartIcon size={24} color="#EF4444" />
-            ) : (
-              <HeartOutlineIcon size={24} color="#94A3B8" />
-            )}
+          {/* 右侧操作：收藏 + 医生海报 */}
+          <View className="header-actions">
+            <View
+              className={`favorite-btn ${isFavorited ? 'active' : ''}`}
+              onClick={handleToggleFavorite}
+              aria-label={isFavorited ? '取消收藏' : '收藏医生'}
+              role="button"
+            >
+              {isFavorited ? (
+                <HeartIcon size={24} color="#EF4444" />
+              ) : (
+                <HeartOutlineIcon size={24} color="#94A3B8" />
+              )}
+            </View>
+            <Text
+              className="poster-btn"
+              onClick={handleDoctorPoster}
+              aria-label="医生海报"
+            >
+              医生海报
+            </Text>
           </View>
         </View>
 
@@ -425,6 +514,48 @@ export function DoctorDetailStandard() {
         )}
       </View>
 
+      {/* 患者评价 */}
+      <View className="reviews-section">
+        <View className="section-header">
+          <Text className="section-title">患者评价({reviewsTotal})</Text>
+        </View>
+
+        {reviews.length === 0 ? (
+          <View className="reviews-empty">
+            <StarIcon size={40} color="#D1D5DB" />
+            <Text className="reviews-empty-text">暂无评价</Text>
+          </View>
+        ) : (
+          <View className="reviews-list">
+            {reviews.map(review => (
+              <View key={review.id} className="review-item">
+                <View className="review-item-header">
+                  <Text className="review-name">{maskPatientName(review.patientName)}</Text>
+                  {formatReviewDate(review.createdAt) && (
+                    <Text className="review-date">{formatReviewDate(review.createdAt)}</Text>
+                  )}
+                </View>
+                <Rate value={review.rating || 0} readOnly count={5} />
+                {review.content && <Text className="review-content">{review.content}</Text>}
+              </View>
+            ))}
+          </View>
+        )}
+
+        <View className="reviews-footer">
+          <TaroButton className="contact-btn" openType="contact" aria-label="在线客服">
+            在线客服
+          </TaroButton>
+          <Button
+            type="primary"
+            className="write-review-btn"
+            onClick={handleOpenReviewSheet}
+          >
+            写评价
+          </Button>
+        </View>
+      </View>
+
       {/* 班次选择 Picker */}
       {showSlotPicker && (
         <View className="slot-picker-mask" onClick={handleCloseSlotPicker}>
@@ -495,6 +626,49 @@ export function DoctorDetailStandard() {
                 下一步
               </Button>
               <Text className="slot-picker-cancel-btn" onClick={handleCloseSlotPicker}>
+                取消
+              </Text>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* 写评价弹层 */}
+      {showReviewSheet && (
+        <View className="review-mask" onClick={handleCloseReviewSheet}>
+          <View className="review-sheet" onClick={e => e.stopPropagation()}>
+            <View className="slot-picker-indicator" />
+            <View className="review-sheet-header">
+              <Text className="review-sheet-title">写评价</Text>
+              <Text className="review-sheet-close" onClick={handleCloseReviewSheet}>x</Text>
+            </View>
+
+            <View className="review-rating-row">
+              <Text className="review-rating-label">总体评分</Text>
+              <Rate value={reviewRating} onChange={val => setReviewRating(val)} count={5} />
+            </View>
+
+            <Textarea
+              className="review-textarea"
+              placeholder="说说您的就诊体验吧..."
+              value={reviewContent}
+              maxlength={300}
+              onInput={e => setReviewContent(e.detail.value)}
+              aria-label="评价内容"
+            />
+            <Text className="review-char-count">{reviewContent.length}/300</Text>
+
+            <View className="review-footer">
+              <Button
+                type="primary"
+                className="review-submit-btn"
+                loading={reviewSubmitting}
+                disabled={!reviewContent.trim()}
+                onClick={handleSubmitReview}
+              >
+                提交评价
+              </Button>
+              <Text className="review-cancel-btn" onClick={handleCloseReviewSheet}>
                 取消
               </Text>
             </View>

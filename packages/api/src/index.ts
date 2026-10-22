@@ -74,6 +74,13 @@ export { accountApi } from './modules/account';
 export { userApi } from './modules/user';
 export { departmentApi } from './modules/department';
 export { doctorApi } from './modules/doctor';
+export { doctorReviewApi } from './modules/doctor-reviews';
+export type {
+  DoctorReviewItem,
+  DoctorReviewPageResult,
+  DoctorReviewListParams,
+  DoctorReviewCreateData,
+} from './modules/doctor-reviews';
 export { scheduleApi } from './modules/schedule';
 export { appointmentApi } from './modules/appointment';
 export { doctorQueueApi } from './modules/doctor-portal-queue';

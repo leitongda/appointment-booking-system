@@ -7,6 +7,7 @@ import { PageContainer } from '../../components/PageContainer';
 import { useTemplate } from '../../contexts/TemplateContext';
 import { getToken, AUTH_EVENTS, subscribeAuthChange } from '../../utils/auth';
 import { triggerCheckinScan } from '../../utils/checkin';
+import { SpeakerIcon } from '../../components/Icons';
 import LoginPopup from '../../components/LoginPopup';
 
 /** 超大快捷按钮配置 */
@@ -18,15 +19,20 @@ const quickActions = [
 ];
 
 /** 首页壳层 -- 长辈友好/中医康养
- * 模块：2x2 超大按钮 -> 单条公告 -> 常看医生(2-3名)
+ * 模块：单条公告(白底圆角横条) -> 2x2 超大按钮 -> 常看医生(2-3名)
  */
 export function HomeElderly() {
-  const { tokens, tone } = useTemplate();
+  const { template, tokens, tone } = useTemplate();
   const [notice, setNotice] = useState<string>('');
   const [recentDoctors, setRecentDoctors] = useState<Doctor[]>([]);
   const [loading, setLoading] = useState(true);
   const [showLoginPopup, setShowLoginPopup] = useState(false);
   const [pendingCheckin, setPendingCheckin] = useState(false);
+
+  // 公告栏模块配置：文本优先取模块配置，缺省回落到首条 Banner 标题；linkUrl 未配置则整条不可点击
+  const noticeModule = template.homeSchema.find(m => m.type === 'notice' && m.visible);
+  const noticeLink = noticeModule?.config?.linkUrl as string | undefined;
+  const noticeText = (noticeModule?.config?.text as string | undefined) || notice;
 
   useDidShow(() => {
     Taro.eventCenter.trigger('tabbar:change', 0);
@@ -91,6 +97,20 @@ export function HomeElderly() {
     Taro.navigateTo({ url: `/packageBooking/pages/doctor/detail?id=${doctorId}` });
   };
 
+  const handleNoticeClick = () => {
+    if (!noticeLink) return;
+    if (/^https?:\/\//.test(noticeLink)) {
+      Taro.navigateTo({ url: `/packageOther/pages/webview/index?url=${encodeURIComponent(noticeLink)}` });
+      return;
+    }
+    const isTab = noticeLink === '/pages/appointment/index' || noticeLink === '/pages/profile/index';
+    if (isTab) {
+      Taro.switchTab({ url: noticeLink });
+    } else {
+      Taro.navigateTo({ url: noticeLink });
+    }
+  };
+
   const handleLoginSuccess = async () => {
     setShowLoginPopup(false);
   };
@@ -98,7 +118,44 @@ export function HomeElderly() {
   return (
     <PageContainer>
       <View style={{ padding: '32rpx' }}>
-        {/* 模块 1: 2x2 超大快捷按钮 */}
+        {/* 模块 1: 单条公告（白底圆角横条，整条可点击跳转 config.linkUrl） */}
+        {noticeText ? (
+          <View
+            onClick={handleNoticeClick}
+            aria-label={`公告：${noticeText}`}
+            role={noticeLink ? 'button' : undefined}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '16rpx',
+              marginBottom: '32rpx',
+              padding: '24rpx 28rpx',
+              backgroundColor: '#FFFFFF',
+              borderRadius: '24rpx',
+              boxShadow: '0 2rpx 12rpx rgba(0,0,0,0.06)',
+            }}
+          >
+            <View style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+              <SpeakerIcon size={36} color={tokens.primary} />
+            </View>
+            <Text
+              numberOfLines={1}
+              style={{
+                flex: 1,
+                minWidth: 0,
+                fontSize: '32rpx',
+                color: '#3D2B1F',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {noticeText}
+            </Text>
+          </View>
+        ) : null}
+
+        {/* 模块 2: 2x2 超大快捷按钮 */}
         <View style={{
           display: 'grid',
           gridTemplateColumns: '1fr 1fr',
@@ -127,24 +184,6 @@ export function HomeElderly() {
             </View>
           ))}
         </View>
-
-        {/* 模块 2: 单条公告 */}
-        {notice && (
-          <View style={{
-            marginBottom: '32rpx',
-            padding: '32rpx',
-            backgroundColor: '#F5EDE0',
-            borderRadius: '24rpx',
-            borderLeft: `8rpx solid ${tokens.primary}`,
-          }}>
-            <Text style={{ fontSize: '28rpx', color: '#6B5235', fontWeight: 600 }}>
-              {'\ud83d\udce2'} 公告
-            </Text>
-            <Text style={{ fontSize: '36rpx', color: '#3D2B1F', marginTop: '12rpx', display: 'block', lineHeight: 1.6 }}>
-              {notice}
-            </Text>
-          </View>
-        )}
 
         {/* 模块 3: 常看医生 */}
         <View style={{ marginBottom: '32rpx' }}>

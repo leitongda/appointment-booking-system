@@ -2,13 +2,16 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import func, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.middleware.exception import BusinessError
 from app.middleware.tenant_context import get_current_tenant_id
+from app.models.appointment import Appointment
 from app.models.doctor import Doctor
 from app.models.doctor_review import DoctorReview
 from app.models.user import Patient, User
-from app.modules.doctor_reviews.schemas import DoctorReviewCreate, DoctorReviewReply
+from app.modules.doctor_reviews.schemas import DoctorReviewCreate, DoctorReviewPatientCreate, DoctorReviewReply
 from app.utils.audit import set_create_audit, set_update_audit
 
 
@@ -17,6 +20,13 @@ class DoctorReviewService:
 
     def __init__(self, db: AsyncSession):
         self.db = db
+
+    @staticmethod
+    def mask_patient_name(name: str | None) -> str | None:
+        """就诊人姓名脱敏：保留姓氏，其余以 * 代替（如 雷先生 → 雷**）"""
+        if not name:
+            return name
+        return name[0] + "*" * max(len(name) - 1, 1)
 
     def _tenant_filter(self, stmt):
         tenant_id = get_current_tenant_id()
@@ -48,6 +58,83 @@ class DoctorReviewService:
         await self.db.commit()
         await self.db.refresh(review)
         return review
+
+    async def create_from_patient(
+        self, user_id: str, data: DoctorReviewPatientCreate
+    ) -> DoctorReview:
+        """患者端创建评价
+
+        评价必须挂到一条预约上（appointment_id 非空，见模型约束）：
+        - 显式传入 appointment_id 时校验归属（本人 + 该医生）；
+        - 未传入时自动取该患者在目标医生下的最近一次预约。
+        重复提交依赖 appointment_id 唯一约束（uq_doctor_reviews_appointment）
+        在提交时拦截，返回 409。
+        """
+        doctor_id = data.doctor_id
+
+        # 医生必须存在，避免写入时触发外键错误
+        if await self.db.get(Doctor, doctor_id) is None:
+            raise BusinessError("医生不存在", code=404)
+
+        appointment = await self._resolve_patient_appointment(user_id, doctor_id, data.appointment_id)
+
+        review = DoctorReview(
+            id=str(uuid.uuid4()),
+            tenant_id=get_current_tenant_id() or appointment.tenant_id,
+            appointment_id=appointment.id,
+            doctor_id=doctor_id,
+            user_id=user_id,
+            patient_id=appointment.patient_id,
+            rating=data.rating,
+            content=data.content,
+            tags=None,
+            is_anonymous=data.is_anonymous,
+            status=1,
+        )
+        set_create_audit(review, user_id)
+        self.db.add(review)
+
+        # 更新医生评价统计
+        await self._update_doctor_rating(doctor_id)
+
+        try:
+            await self.db.commit()
+        except IntegrityError as exc:
+            # appointment_id 唯一约束冲突：同一预约只能评价一次
+            await self.db.rollback()
+            raise BusinessError("该预约已评价过，请勿重复评价", code=409) from exc
+        await self.db.refresh(review)
+        return review
+
+    async def _resolve_patient_appointment(
+        self,
+        user_id: str,
+        doctor_id: str,
+        appointment_id: str | None,
+    ) -> Appointment:
+        """定位评价关联的预约：显式指定时校验归属，否则取最近一次预约"""
+        if appointment_id:
+            appointment = await self.db.get(Appointment, appointment_id)
+            if (
+                appointment is None
+                or appointment.user_id != user_id
+                or appointment.doctor_id != doctor_id
+            ):
+                raise BusinessError("预约不存在或不属于当前医生", code=400)
+            return appointment
+
+        # 复用预约服务的既有查询：按创建时间倒序取该患者在目标医生下的最近一条
+        from app.modules.appointments.service import AppointmentService
+
+        appointments, _ = await AppointmentService(self.db).get_list(
+            user_id=user_id,
+            doctor_id=doctor_id,
+            page=1,
+            page_size=1,
+        )
+        if not appointments:
+            raise BusinessError("未找到可评价的预约记录", code=400)
+        return appointments[0]
 
     async def get_list(
         self,
@@ -167,7 +254,7 @@ class DoctorReviewService:
 
     async def _get_user_name(self, user_id: str) -> str | None:
         result = await self.db.execute(
-            select(User.name).where(User.id == user_id)
+            select(User.nickname).where(User.id == user_id)
         )
         return result.scalar_one_or_none()
 

@@ -1,10 +1,14 @@
-import { View, Text, Image } from '@tarojs/components';
+import { View, Text, Image, Button as TaroButton, Textarea } from '@tarojs/components';
 import Taro from '@tarojs/taro';
+import { Rate } from '@nutui/nutui-react-taro';
 import { useState, useEffect } from 'react';
-import { doctorApi, scheduleApi } from '@hospital/api';
+import { doctorApi, scheduleApi, doctorReviewApi } from '@hospital/api';
+import type { DoctorReviewItem } from '@hospital/api';
 import type { Doctor } from '@hospital/shared';
 import { PageContainer } from '../../components/PageContainer';
+import { StarIcon } from '../../components/Icons';
 import { useTemplate } from '../../contexts/TemplateContext';
+import { getToken } from '../../utils/auth';
 import { getImageUrl } from '../../utils/url';
 
 /** 排班日期 */
@@ -15,6 +19,21 @@ interface ScheduleSlot {
   hasSlots: boolean;
 }
 
+// 患者姓名脱敏：保留首字符（两个字以上保留尾字符），中间以 * 代替
+const maskPatientName = (name?: string | null): string => {
+  const trimmed = (name || '').trim();
+  if (!trimmed) return '匿名用户';
+  if (trimmed.length === 1) return trimmed;
+  if (trimmed.length === 2) return `${trimmed[0]}*`;
+  return `${trimmed[0]}*${trimmed.slice(-1)}`;
+};
+
+// 评价日期展示：createdAt 取 YYYY-MM-DD
+const formatReviewDate = (value?: string | null): string => {
+  if (!value) return '';
+  return value.substring(0, 10);
+};
+
 /** 医生详情壳层 -- 长辈友好版
  * 超大头像 120rpx、大字号信息、简化排班选择器（只显示有号的日期）、超大"立即预约"按钮 120rpx 高
  */
@@ -24,6 +43,14 @@ export function DoctorDetailElderly() {
   const [loading, setLoading] = useState(true);
   const [selectedSlot, setSelectedSlot] = useState<ScheduleSlot | null>(null);
   const [availableSlots, setAvailableSlots] = useState<ScheduleSlot[]>([]);
+  // 患者评价状态
+  const [reviews, setReviews] = useState<DoctorReviewItem[]>([]);
+  const [reviewsTotal, setReviewsTotal] = useState(0);
+  // 写评价弹层状态
+  const [showReviewSheet, setShowReviewSheet] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewContent, setReviewContent] = useState('');
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
 
   useEffect(() => {
     const instance = Taro.getCurrentInstance();
@@ -66,10 +93,27 @@ export function DoctorDetailElderly() {
       if (slots.length > 0) {
         setSelectedSlot(slots[0]);
       }
+
+      // 评价加载失败时静默降级为空态，不阻塞页面
+      void loadReviews(doctorId);
     } catch {
       Taro.showToast({ title: '加载医生信息失败', icon: 'none' });
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 患者评价（公开接口；接口失败或为空时保持空态）
+  const loadReviews = async (doctorId: string) => {
+    try {
+      const result = await doctorReviewApi.getList({ doctorId, page: 1, pageSize: 10 });
+      const items = Array.isArray(result?.items) ? result.items : [];
+      setReviews(items);
+      setReviewsTotal(typeof result?.total === 'number' ? result.total : items.length);
+    } catch (error) {
+      console.error('[医生详情] 加载患者评价失败', error);
+      setReviews([]);
+      setReviewsTotal(0);
     }
   };
 
@@ -100,6 +144,44 @@ export function DoctorDetailElderly() {
     Taro.navigateTo({
       url: `/packageBooking/pages/booking/index?doctorId=${doctor.id}&date=${selectedSlot.date}&period=${selectedSlot.period}`,
     });
+  };
+
+  // 医生海报：本期占位
+  const handleDoctorPoster = () => {
+    Taro.showToast({ title: '建设中', icon: 'none' });
+  };
+
+  const handleOpenReviewSheet = () => {
+    if (!getToken()) {
+      Taro.showToast({ title: '请先登录', icon: 'none' });
+      return;
+    }
+    setReviewRating(5);
+    setReviewContent('');
+    setShowReviewSheet(true);
+  };
+
+  const handleCloseReviewSheet = () => {
+    setShowReviewSheet(false);
+  };
+
+  const handleSubmitReview = async () => {
+    if (!doctor?.id || reviewSubmitting) return;
+    if (!reviewContent.trim()) {
+      Taro.showToast({ title: '请输入评价内容', icon: 'none' });
+      return;
+    }
+    setReviewSubmitting(true);
+    try {
+      await doctorReviewApi.create({ doctorId: doctor.id, rating: reviewRating, content: reviewContent.trim() });
+      Taro.showToast({ title: '评价成功', icon: 'success' });
+      setShowReviewSheet(false);
+      void loadReviews(doctor.id);
+    } catch (error: any) {
+      Taro.showToast({ title: error.message || '提交失败', icon: 'none' });
+    } finally {
+      setReviewSubmitting(false);
+    }
   };
 
   if (loading) {
@@ -169,6 +251,21 @@ export function DoctorDetailElderly() {
             <Text style={{ fontSize: '36rpx', color: '#6B7280' }}>
               {doctor.departmentName}
             </Text>
+            {/* 医生海报：本期占位 */}
+            <View
+              onClick={handleDoctorPoster}
+              aria-label="医生海报"
+              role="button"
+              style={{
+                alignSelf: 'flex-start',
+                marginTop: '16rpx',
+                padding: '8rpx 24rpx',
+                borderRadius: '9999rpx',
+                border: `2rpx solid ${tokens.primary}`,
+              }}
+            >
+              <Text style={{ fontSize: '30rpx', color: tokens.primary }}>医生海报</Text>
+            </View>
           </View>
         </View>
 
@@ -269,7 +366,176 @@ export function DoctorDetailElderly() {
             {selectedSlot ? '立即预约' : '请先选择时间'}
           </Text>
         </View>
+
+        {/* 患者评价 */}
+        <View style={{
+          backgroundColor: '#FFFFFF',
+          borderRadius: '24rpx',
+          padding: '32rpx',
+          marginTop: '32rpx',
+          boxShadow: '0 2rpx 12rpx rgba(0,0,0,0.06)',
+        }}>
+          <Text style={{ fontSize: '36rpx', fontWeight: 600, color: '#3D2B1F', display: 'block', marginBottom: '24rpx' }}>
+            患者评价({reviewsTotal})
+          </Text>
+
+          {reviews.length === 0 ? (
+            <View style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48rpx 0' }}>
+              <StarIcon size={40} color="#D1D5DB" />
+              <Text style={{ fontSize: '36rpx', color: '#9CA3AF', marginTop: '16rpx' }}>暂无评价</Text>
+            </View>
+          ) : (
+            <View>
+              {reviews.map((review, index) => (
+                <View
+                  key={review.id}
+                  style={{
+                    padding: '24rpx 0',
+                    borderBottom: index < reviews.length - 1 ? '2rpx solid #F1F5F9' : 'none',
+                  }}
+                >
+                  <View style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8rpx' }}>
+                    <Text style={{ fontSize: '34rpx', fontWeight: 500, color: '#3D2B1F' }}>
+                      {maskPatientName(review.patientName)}
+                    </Text>
+                    {formatReviewDate(review.createdAt) && (
+                      <Text style={{ fontSize: '30rpx', color: '#9CA3AF' }}>
+                        {formatReviewDate(review.createdAt)}
+                      </Text>
+                    )}
+                  </View>
+                  <Rate value={review.rating || 0} readOnly count={5} />
+                  {review.content && (
+                    <Text style={{ display: 'block', marginTop: '16rpx', fontSize: '34rpx', color: '#4B5563', lineHeight: 1.6 }}>
+                      {review.content}
+                    </Text>
+                  )}
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* 在线客服 + 写评价 */}
+          <View style={{ display: 'flex', flexDirection: 'column', gap: '20rpx', marginTop: '32rpx' }}>
+            <TaroButton
+              openType="contact"
+              aria-label="在线客服"
+              style={{
+                height: '96rpx',
+                lineHeight: '96rpx',
+                borderRadius: '9999rpx',
+                background: '#FFFFFF',
+                border: `2rpx solid ${tokens.primary}`,
+                color: tokens.primary,
+                fontSize: '36rpx',
+                padding: 0,
+              }}
+            >
+              在线客服
+            </TaroButton>
+            <View
+              onClick={handleOpenReviewSheet}
+              aria-label="写评价"
+              role="button"
+              style={{
+                height: '96rpx',
+                borderRadius: '9999rpx',
+                backgroundColor: tokens.primarySoft,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Text style={{ fontSize: '36rpx', fontWeight: 600, color: tokens.primary }}>写评价</Text>
+            </View>
+          </View>
+        </View>
       </View>
+
+      {/* 写评价弹层 */}
+      {showReviewSheet && (
+        <View
+          onClick={handleCloseReviewSheet}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.5)',
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'flex-end',
+          }}
+        >
+          <View
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: '100%',
+              backgroundColor: '#FFFFFF',
+              borderRadius: '32rpx 32rpx 0 0',
+              padding: '32rpx',
+              paddingBottom: 'calc(32rpx + env(safe-area-inset-bottom))',
+            }}
+          >
+            <View style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32rpx' }}>
+              <Text style={{ fontSize: '40rpx', fontWeight: 600, color: '#3D2B1F' }}>写评价</Text>
+              <Text
+                onClick={handleCloseReviewSheet}
+                aria-label="关闭"
+                style={{ fontSize: '40rpx', color: '#9CA3AF', padding: '8rpx 16rpx' }}
+              >
+                x
+              </Text>
+            </View>
+
+            <View style={{ display: 'flex', alignItems: 'center', gap: '24rpx', marginBottom: '24rpx' }}>
+              <Text style={{ fontSize: '34rpx', color: '#6B7280' }}>总体评分</Text>
+              <Rate value={reviewRating} onChange={val => setReviewRating(val)} count={5} />
+            </View>
+
+            <Textarea
+              placeholder="说说您的就诊体验吧..."
+              value={reviewContent}
+              maxlength={300}
+              onInput={e => setReviewContent(e.detail.value)}
+              aria-label="评价内容"
+              style={{
+                width: '100%',
+                minHeight: '200rpx',
+                padding: '24rpx',
+                background: tokens.primarySoft,
+                borderRadius: '24rpx',
+                fontSize: '34rpx',
+                color: '#3D2B1F',
+                boxSizing: 'border-box',
+              }}
+            />
+            <Text style={{ display: 'block', textAlign: 'right', fontSize: '30rpx', color: '#9CA3AF', marginTop: '8rpx' }}>
+              {reviewContent.length}/300
+            </Text>
+
+            <View
+              onClick={handleSubmitReview}
+              aria-label={reviewContent.trim() ? '提交评价' : '请输入评价内容'}
+              role="button"
+              style={{
+                height: '96rpx',
+                borderRadius: '9999rpx',
+                backgroundColor: reviewContent.trim() && !reviewSubmitting ? tokens.primary : '#D1D5DB',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginTop: '32rpx',
+              }}
+            >
+              <Text style={{ fontSize: '36rpx', fontWeight: 700, color: '#FFFFFF' }}>
+                {reviewSubmitting ? '提交中...' : '提交评价'}
+              </Text>
+            </View>
+          </View>
+        </View>
+      )}
     </PageContainer>
   );
 }

@@ -36,6 +36,7 @@ export {
   AddUserIcon,
   PhoneIcon,
   StarIcon,
+  SpeakerIcon,
   HomeIcon,
   HomeOutlineIcon,
   AppointmentIcon,

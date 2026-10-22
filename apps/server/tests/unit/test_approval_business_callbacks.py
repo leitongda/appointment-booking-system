@@ -7,12 +7,15 @@
    - on_rejected / on_cancelled 仅改状态字段
    - 不存在的业务记录或非 pending 状态提前 return
 """
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from app.models.leave_request import RequestStatus
 from app.modules.approval_flows.callback_registry import callback_registry
+
+_SERVER_ROOT = Path(__file__).resolve().parent.parent.parent
 
 # ============================================================
 # 1. 引擎包零业务依赖（拆环硬保证）
@@ -42,7 +45,7 @@ class TestApprovalFlowsPackagePurity:
             [_sys.executable, "-c", code],
             capture_output=True,
             text=True,
-            cwd="/Users/leijiadashao/letond/appointment-booking-system/apps/server",
+            cwd=str(_SERVER_ROOT),
         )
         assert result.returncode == 0, (
             f"引擎包 import 泄漏了业务模块:\nSTDOUT={result.stdout}\nSTDERR={result.stderr}"

@@ -6,7 +6,9 @@ from app.api.deps import get_current_admin, get_current_user, require_permission
 from app.core.config import settings
 from app.db.session import get_db
 from app.modules.doctor_reviews.schemas import (
-    DoctorReviewCreate,
+    DoctorReviewPatientCreate,
+    DoctorReviewPatientItem,
+    DoctorReviewPatientListResponse,
     DoctorReviewReply,
     DoctorReviewResponse,
 )
@@ -16,14 +18,15 @@ from app.schemas.response import PageResponse
 router = APIRouter()
 
 
-@router.post("", response_model=DoctorReviewResponse, summary="创建医生评价")
+@router.post("", response_model=DoctorReviewResponse, summary="创建医生评价（患者端）")
 async def create_review(
-    data: DoctorReviewCreate,
+    data: DoctorReviewPatientCreate,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
+    """患者提交医生评价：rating 1-5，content 非空且不超过 1000 字"""
     service = DoctorReviewService(db)
-    review = await service.create(user_id=current_user["id"], data=data)
+    review = await service.create_from_patient(user_id=current_user["id"], data=data)
     return DoctorReviewResponse(
         id=review.id,
         appointment_id=review.appointment_id,
@@ -41,30 +44,35 @@ async def create_review(
     )
 
 
-@router.get("", response_model=PageResponse[DoctorReviewResponse], summary="获取评价列表")
+@router.get("", response_model=DoctorReviewPatientListResponse, summary="获取医生评价列表（患者端）")
 async def get_reviews(
-    doctor_id: str | None = None,
-    user_id: str | None = None,
-    status: int | None = None,
+    doctor_id: str = Query(..., description="医生ID"),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
-    current_admin: dict = Depends(get_current_admin),
 ):
+    """按医生查询评价：仅展示正常状态，按创建时间倒序，就诊人姓名脱敏"""
     service = DoctorReviewService(db)
-    reviews, total = await service.get_list(
+    reviews, total = await service.get_by_doctor(
         doctor_id=doctor_id,
-        user_id=user_id,
-        status=status,
         page=page,
         page_size=page_size,
     )
-    return PageResponse(
-        data=[DoctorReviewResponse(**r) for r in reviews],
-        total=total,
-        page=page,
-        page_size=page_size,
-    )
+    items = [
+        DoctorReviewPatientItem(
+            id=r["id"],
+            doctor_id=r["doctor_id"],
+            rating=r["rating"],
+            content=r["content"],
+            tags=r["tags"],
+            reply=r["reply"],
+            reply_at=r["reply_at"],
+            created_at=r["created_at"],
+            patient_name=DoctorReviewService.mask_patient_name(r.get("patient_name")),
+        )
+        for r in reviews
+    ]
+    return DoctorReviewPatientListResponse(items=items, total=total)
 
 
 @router.get("/doctors/{doctor_id}", response_model=PageResponse[DoctorReviewResponse], summary="获取医生评价")
@@ -81,7 +89,12 @@ async def get_doctor_reviews(
         page_size=page_size,
     )
     return PageResponse(
-        data=[DoctorReviewResponse(**r) for r in reviews],
+        data=[
+            DoctorReviewResponse(
+                **{**r, "patient_name": DoctorReviewService.mask_patient_name(r.get("patient_name"))}
+            )
+            for r in reviews
+        ],
         total=total,
         page=page,
         page_size=page_size,
