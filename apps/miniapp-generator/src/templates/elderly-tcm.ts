@@ -24,8 +24,9 @@ export const elderlyTcm: MiniappStyleTemplate = {
   homeSchema: [
     { id: 'notice', type: 'notice', visible: true, order: 1, config: {} },
     { id: 'quick_action', type: 'quick_action', visible: true, order: 2, config: { columns: 2 } },
-    { id: 'simple_notice', type: 'simple_notice', visible: true, order: 3, config: {} },
-    { id: 'recent_doctor', type: 'recent_doctor', visible: true, order: 4, config: { maxItems: 3 } },
+    { id: 'health_card', type: 'patient_card', visible: true, order: 3, config: {} },
+    { id: 'simple_notice', type: 'simple_notice', visible: true, order: 4, config: {} },
+    { id: 'recent_doctor', type: 'recent_doctor', visible: true, order: 5, config: { maxItems: 3 } },
   ],
 
   pageShells: {

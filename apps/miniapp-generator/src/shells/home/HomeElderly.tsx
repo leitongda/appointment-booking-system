@@ -1,25 +1,28 @@
-import { View, Text } from '@tarojs/components';
+import { View, Text, Button } from '@tarojs/components';
 import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { doctorApi, contentApi } from '@hospital/api';
 import type { Doctor } from '@hospital/shared';
 import { PageContainer } from '../../components/PageContainer';
 import { useTemplate } from '../../contexts/TemplateContext';
-import { getToken, AUTH_EVENTS, subscribeAuthChange } from '../../utils/auth';
-import { triggerCheckinScan } from '../../utils/checkin';
+import { getToken } from '../../utils/auth';
 import { SpeakerIcon } from '../../components/Icons';
 import LoginPopup from '../../components/LoginPopup';
 
-/** 超大快捷按钮配置 */
-const quickActions = [
-  { key: 'register', label: '挂号', icon: '\ud83c\udfe5', path: '/pages/department/index', color: '#8B6F47' },
-  { key: 'appointments', label: '我的预约', icon: '\ud83d\udcc5', path: '/pages/appointment/index', color: '#6B5235', needLogin: true },
-  { key: 'checkin', label: '扫码签到', icon: '\ud83d\udcf7', action: 'checkin', color: '#A68B5B', needLogin: true },
-  { key: 'service', label: '联系客服', icon: '\ud83d\udcde', path: '/packageProfile/pages/feedback/index', color: '#5D4E37', needLogin: true },
-];
+/** 首页快捷按钮（文案取自模板 tone，对齐竞品四宫格：预约挂号/预约记录/我的就诊卡/在线客服） */
+interface HomeQuickAction {
+  key: string;
+  label: string;
+  icon: string;
+  color: string;
+  path?: string;
+  needLogin?: boolean;
+  /** 微信客服会话（open-type="contact"），由按钮原生处理，不走页面跳转 */
+  contact?: boolean;
+}
 
 /** 首页壳层 -- 长辈友好/中医康养
- * 模块：单条公告(白底圆角横条) -> 2x2 超大按钮 -> 常看医生(2-3名)
+ * 模块：单条公告(白底圆角横条) -> 2x2 四宫格 -> 添加健康卡 -> 常看医生(2-3名)
  */
 export function HomeElderly() {
   const { template, tokens, tone } = useTemplate();
@@ -27,12 +30,25 @@ export function HomeElderly() {
   const [recentDoctors, setRecentDoctors] = useState<Doctor[]>([]);
   const [loading, setLoading] = useState(true);
   const [showLoginPopup, setShowLoginPopup] = useState(false);
-  const [pendingCheckin, setPendingCheckin] = useState(false);
 
   // 公告栏模块配置：文本优先取模块配置，缺省回落到首条 Banner 标题；linkUrl 未配置则整条不可点击
   const noticeModule = template.homeSchema.find(m => m.type === 'notice' && m.visible);
   const noticeLink = noticeModule?.config?.linkUrl as string | undefined;
   const noticeText = (noticeModule?.config?.text as string | undefined) || notice;
+
+  // 健康卡模块文案：模块 config 优先，缺省回落到模板 tone 与竞品口径
+  const healthCardModule = template.homeSchema.find(m => m.type === 'patient_card' && m.visible);
+  const healthCardTitle = (healthCardModule?.config?.title as string | undefined)
+    || tone.custom?.healthCardTitle || '添加健康卡';
+  const healthCardSubtitle = (healthCardModule?.config?.subtitle as string | undefined)
+    || tone.custom?.healthCardSubtitle || '记录您的健康';
+
+  const quickActions: HomeQuickAction[] = [
+    { key: 'register', label: tone.bookingLabel, icon: '\ud83c\udfe5', path: '/pages/department/index', color: '#8B6F47' },
+    { key: 'appointments', label: tone.custom?.appointmentRecordsLabel || '预约记录', icon: '\ud83d\udcc5', path: '/pages/appointment/index', color: '#6B5235', needLogin: true },
+    { key: 'patient_card', label: tone.patientLabel || '我的就诊卡', icon: '\ud83d\udcb3', path: '/packageProfile/pages/patient/index', color: '#A68B5B', needLogin: true },
+    { key: 'service', label: tone.custom?.onlineServiceLabel || '在线客服', icon: '\ud83d\udcde', color: '#5D4E37', contact: true },
+  ];
 
   useDidShow(() => {
     Taro.eventCenter.trigger('tabbar:change', 0);
@@ -60,29 +76,12 @@ export function HomeElderly() {
     }
   };
 
-  useEffect(() => {
-    return subscribeAuthChange((payload) => {
-      if (payload.type === AUTH_EVENTS.LOGIN && pendingCheckin) {
-        setPendingCheckin(false);
-        setShowLoginPopup(false);
-        triggerCheckinScan();
-      }
-      if (payload.type === AUTH_EVENTS.LOGOUT || payload.type === AUTH_EVENTS.EXPIRED) {
-        setPendingCheckin(false);
-      }
-    });
-  }, [pendingCheckin]);
-
-  const handleAction = (action: typeof quickActions[0]) => {
+  const handleAction = (action: HomeQuickAction) => {
     if (action.needLogin && !getToken()) {
-      if (action.action === 'checkin') setPendingCheckin(true);
       setShowLoginPopup(true);
       return;
     }
-    if (action.action === 'checkin') {
-      triggerCheckinScan();
-      return;
-    }
+    if (action.contact) return; // 客服会话由 Button open-type="contact" 原生处理
     if (action.path) {
       const isTab = action.path === '/pages/appointment/index' || action.path === '/pages/profile/index';
       if (isTab) {
@@ -91,6 +90,14 @@ export function HomeElderly() {
         Taro.navigateTo({ url: action.path });
       }
     }
+  };
+
+  const handleHealthCardClick = () => {
+    if (!getToken()) {
+      setShowLoginPopup(true);
+      return;
+    }
+    Taro.navigateTo({ url: '/packageProfile/pages/patient/index' });
   };
 
   const handleDoctorClick = (doctorId: string) => {
@@ -155,14 +162,37 @@ export function HomeElderly() {
           </View>
         ) : null}
 
-        {/* 模块 2: 2x2 超大快捷按钮 */}
+        {/* 模块 2: 2x2 四宫格（在线客服为微信客服会话按钮） */}
         <View style={{
           display: 'grid',
           gridTemplateColumns: '1fr 1fr',
           gap: '24rpx',
           marginBottom: '32rpx',
         }}>
-          {quickActions.map((action) => (
+          {quickActions.map((action) => action.contact ? (
+            <Button
+              key={action.key}
+              className="weapp-contact-tile"
+              openType="contact"
+              aria-label={action.label}
+              style={{
+                height: '160rpx',
+                borderRadius: '32rpx',
+                backgroundColor: action.color,
+                boxShadow: '0 4rpx 16rpx rgba(139, 111, 71, 0.2)',
+              }}
+            >
+              <View style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                <Text style={{ fontSize: '56rpx', marginBottom: '8rpx' }}>{action.icon}</Text>
+                <Text style={{ fontSize: '36rpx', color: '#FFFFFF', fontWeight: 600 }}>{action.label}</Text>
+              </View>
+            </Button>
+          ) : (
             <View
               key={action.key}
               onClick={() => handleAction(action)}
@@ -185,7 +215,45 @@ export function HomeElderly() {
           ))}
         </View>
 
-        {/* 模块 3: 常看医生 */}
+        {/* 模块 3: 添加健康卡（竞品同款色块卡，点击进入就诊人管理） */}
+        <View
+          onClick={handleHealthCardClick}
+          aria-label={healthCardTitle}
+          role="button"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '24rpx',
+            marginBottom: '32rpx',
+            padding: '36rpx 32rpx',
+            backgroundColor: tokens.primarySoft,
+            borderRadius: '32rpx',
+          }}
+        >
+          <View style={{
+            width: '88rpx',
+            height: '88rpx',
+            borderRadius: '44rpx',
+            border: `4rpx solid ${tokens.primary}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}>
+            <Text style={{ fontSize: '52rpx', lineHeight: '52rpx', color: tokens.primary }}>+</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: '38rpx', fontWeight: 700, color: tokens.accent, display: 'block' }}>
+              {healthCardTitle}
+            </Text>
+            <Text style={{ fontSize: '30rpx', color: tokens.accent, opacity: 0.8, marginTop: '6rpx', display: 'block' }}>
+              {healthCardSubtitle}
+            </Text>
+          </View>
+          <Text style={{ fontSize: '40rpx', color: tokens.primary, flexShrink: 0 }}>{'\u203A'}</Text>
+        </View>
+
+        {/* 模块 4: 常看医生 */}
         <View style={{ marginBottom: '32rpx' }}>
           <Text style={{
             fontSize: '40rpx',

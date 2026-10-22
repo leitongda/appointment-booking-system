@@ -6,6 +6,7 @@
 - rating 越界拒绝（422）
 - 未登录拒绝（401）
 - 同一预约重复评价返回 409（依赖 appointment_id 唯一约束）
+- 仅到店后的预约可评价：自动关联跳过未到店预约，全部未到店时返回 400
 - 公开接口 fail-closed：缺少租户上下文返回 400
 """
 from datetime import datetime, timedelta
@@ -30,8 +31,9 @@ async def _create_appointment(
     doctor,
     schedule,
     created_at: datetime,
+    status: int = 5,
 ) -> Appointment:
-    """创建一条最小可用的预约记录（评价必须挂预约）"""
+    """创建一条最小可用的预约记录（评价必须挂预约），status 默认已完成"""
     appointment = Appointment(
         id=str(uuid4()),
         appointment_no=f"YY{uuid4().hex[:14].upper()}",
@@ -41,7 +43,7 @@ async def _create_appointment(
         schedule_id=schedule.id,
         tenant_id=tenant.id,
         queue_number=1,
-        status=5,
+        status=status,
         patient_name=patient.name,
         patient_phone=patient.phone,
         doctor_name=doctor.name,
@@ -159,11 +161,19 @@ class TestDoctorReviewPatientApi:
     async def test_create_review_success(
         self,
         async_client: AsyncClient,
+        db_session: AsyncSession,
         test_tenant: Tenant,
         test_user,
-        test_appointment: Appointment,
+        test_patient,
+        test_doctor,
+        test_schedule,
     ):
         """患者登录后按 {doctor_id, rating, content} 创建评价成功"""
+        base = datetime(2026, 1, 1, 10, 0, 0)
+        appointment = await _create_appointment(
+            db_session, test_tenant, test_user, test_patient,
+            test_doctor, test_schedule, base,
+        )
         token = create_access_token({"sub": test_user.id, "type": "user"})
         headers = {
             "Authorization": f"Bearer {token}",
@@ -173,7 +183,7 @@ class TestDoctorReviewPatientApi:
             "/api/v1/doctor-reviews",
             headers=headers,
             json={
-                "doctor_id": test_appointment.doctor_id,
+                "doctor_id": appointment.doctor_id,
                 "rating": 5,
                 "content": "医生很耐心，讲解清楚",
             },
@@ -182,12 +192,12 @@ class TestDoctorReviewPatientApi:
         data = resp.json()["data"]
         assert data["rating"] == 5
         assert data["content"] == "医生很耐心，讲解清楚"
-        # 自动关联该患者在目标医生下的最近一次预约
-        assert data["appointmentId"] == test_appointment.id
+        # 自动关联该患者在目标医生下最近一次「已到店」的预约
+        assert data["appointmentId"] == appointment.id
 
         # 创建后可从患者端列表查到
         resp_list = await async_client.get(
-            f"/api/v1/doctor-reviews?doctor_id={test_appointment.doctor_id}",
+            f"/api/v1/doctor-reviews?doctor_id={appointment.doctor_id}",
             headers={"X-Tenant-ID": test_tenant.id},
         )
         assert resp_list.status_code == status.HTTP_200_OK
@@ -196,18 +206,26 @@ class TestDoctorReviewPatientApi:
     async def test_create_review_duplicate_appointment_conflict(
         self,
         async_client: AsyncClient,
+        db_session: AsyncSession,
         test_tenant: Tenant,
         test_user,
-        test_appointment: Appointment,
+        test_patient,
+        test_doctor,
+        test_schedule,
     ):
         """同一预约重复评价返回 409（appointment_id 唯一约束）"""
+        base = datetime(2026, 1, 1, 10, 0, 0)
+        appointment = await _create_appointment(
+            db_session, test_tenant, test_user, test_patient,
+            test_doctor, test_schedule, base,
+        )
         token = create_access_token({"sub": test_user.id, "type": "user"})
         headers = {
             "Authorization": f"Bearer {token}",
             "X-Tenant-ID": test_tenant.id,
         }
         payload = {
-            "doctor_id": test_appointment.doctor_id,
+            "doctor_id": appointment.doctor_id,
             "rating": 4,
             "content": "第一次评价",
         }
@@ -220,6 +238,79 @@ class TestDoctorReviewPatientApi:
             json={**payload, "content": "第二次评价"},
         )
         assert duplicate.status_code == status.HTTP_409_CONFLICT
+
+    async def test_create_review_auto_link_skips_unvisited_appointments(
+        self,
+        async_client: AsyncClient,
+        db_session: AsyncSession,
+        test_tenant: Tenant,
+        test_user,
+        test_patient,
+        test_doctor,
+        test_schedule,
+    ):
+        """自动关联跳过未到店的预约：最近一条是已取消时，关联到更早的已完成预约"""
+        base = datetime(2026, 1, 1, 10, 0, 0)
+        completed = await _create_appointment(
+            db_session, test_tenant, test_user, test_patient,
+            test_doctor, test_schedule, base, status=5,
+        )
+        await _create_appointment(
+            db_session, test_tenant, test_user, test_patient,
+            test_doctor, test_schedule, base + timedelta(days=1), status=6,
+        )
+
+        token = create_access_token({"sub": test_user.id, "type": "user"})
+        resp = await async_client.post(
+            "/api/v1/doctor-reviews",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "X-Tenant-ID": test_tenant.id,
+            },
+            json={
+                "doctor_id": test_doctor.id,
+                "rating": 5,
+                "content": "就诊体验很好",
+            },
+        )
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.json()["data"]["appointmentId"] == completed.id
+
+    async def test_create_review_rejects_without_visited_appointment(
+        self,
+        async_client: AsyncClient,
+        db_session: AsyncSession,
+        test_tenant: Tenant,
+        test_user,
+        test_patient,
+        test_doctor,
+        test_schedule,
+    ):
+        """全部预约均未到店（仅已预约/已取消）时返回 400"""
+        base = datetime(2026, 1, 1, 10, 0, 0)
+        await _create_appointment(
+            db_session, test_tenant, test_user, test_patient,
+            test_doctor, test_schedule, base, status=1,
+        )
+        await _create_appointment(
+            db_session, test_tenant, test_user, test_patient,
+            test_doctor, test_schedule, base + timedelta(days=1), status=6,
+        )
+
+        token = create_access_token({"sub": test_user.id, "type": "user"})
+        resp = await async_client.post(
+            "/api/v1/doctor-reviews",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "X-Tenant-ID": test_tenant.id,
+            },
+            json={
+                "doctor_id": test_doctor.id,
+                "rating": 4,
+                "content": "还没就诊就想评价",
+            },
+        )
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
 
     async def test_create_review_rating_out_of_range(
         self,

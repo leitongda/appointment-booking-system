@@ -14,6 +14,10 @@ from app.models.user import Patient, User
 from app.modules.doctor_reviews.schemas import DoctorReviewCreate, DoctorReviewPatientCreate, DoctorReviewReply
 from app.utils.audit import set_create_audit, set_update_audit
 
+# 就诊后可评价的预约状态：已签到 / 历史候诊(遗留) / 就诊中 / 已完成；
+# 待支付、已取消、已过期、已爽约不构成评价资格
+REVIEWABLE_APPOINTMENT_STATUSES = (2, 3, 4, 5)
+
 
 class DoctorReviewService:
     """医生评价服务"""
@@ -112,7 +116,7 @@ class DoctorReviewService:
         doctor_id: str,
         appointment_id: str | None,
     ) -> Appointment:
-        """定位评价关联的预约：显式指定时校验归属，否则取最近一次预约"""
+        """定位评价关联的预约：显式指定时校验归属与到店状态，否则取最近一次到店预约"""
         if appointment_id:
             appointment = await self.db.get(Appointment, appointment_id)
             if (
@@ -121,20 +125,29 @@ class DoctorReviewService:
                 or appointment.doctor_id != doctor_id
             ):
                 raise BusinessError("预约不存在或不属于当前医生", code=400)
+            if appointment.status not in REVIEWABLE_APPOINTMENT_STATUSES:
+                raise BusinessError("该预约尚未到店就诊，暂不能评价", code=400)
             return appointment
 
-        # 复用预约服务的既有查询：按创建时间倒序取该患者在目标医生下的最近一条
+        # 复用预约服务的既有查询：按创建时间倒序取该患者在目标医生下的最近几条，
+        # 再在 Python 侧筛出最近一条「已到店」的预约
+        # （待支付、已取消、已过期、已爽约不构成评价资格）
         from app.modules.appointments.service import AppointmentService
 
         appointments, _ = await AppointmentService(self.db).get_list(
             user_id=user_id,
             doctor_id=doctor_id,
             page=1,
-            page_size=1,
+            page_size=10,
         )
-        if not appointments:
+        appointment = None
+        for candidate in appointments:
+            if candidate.status in REVIEWABLE_APPOINTMENT_STATUSES:
+                appointment = candidate
+                break
+        if appointment is None:
             raise BusinessError("未找到可评价的预约记录", code=400)
-        return appointments[0]
+        return appointment
 
     async def get_list(
         self,
