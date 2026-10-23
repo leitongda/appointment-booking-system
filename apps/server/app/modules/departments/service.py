@@ -12,12 +12,17 @@ from app.utils.audit import set_create_audit, set_update_audit
 
 
 class DepartmentService:
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, tenant_id: str | None = None):
         self.db = db
+        self.tenant_id = tenant_id
+
+    def _scope(self) -> str | None:
+        """显式锚点优先；未传时回退请求上下文（灰度兼容）"""
+        return self.tenant_id if self.tenant_id is not None else get_current_tenant_id()
 
     async def get_by_id(self, dept_id: str) -> Department | None:
         conditions = [Department.id == dept_id]
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._scope()
         if tenant_id is not None:
             conditions.append(Department.tenant_id == tenant_id)
 
@@ -41,7 +46,7 @@ class DepartmentService:
         count_query = select(func.count(Department.id))
 
         # 租户过滤
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._scope()
         if tenant_id is not None:
             query = query.where(Department.tenant_id == tenant_id)
             count_query = count_query.where(Department.tenant_id == tenant_id)
@@ -71,7 +76,7 @@ class DepartmentService:
         query = select(Department).order_by(Department.sort_order)
 
         # 租户过滤
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._scope()
         if tenant_id is not None:
             query = query.where(Department.tenant_id == tenant_id)
 
@@ -100,7 +105,7 @@ class DepartmentService:
         conditions = [Department.is_hot == 1, Department.status == 1]
 
         # 租户过滤
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._scope()
         if tenant_id is not None:
             conditions.append(Department.tenant_id == tenant_id)
 
@@ -131,7 +136,7 @@ class DepartmentService:
         )
 
         # 租户过滤
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._scope()
         if tenant_id is not None:
             query = query.where(Department.tenant_id == tenant_id)
 
@@ -147,7 +152,7 @@ class DepartmentService:
         store_id = data.store_id if data.store_id else None
 
         # 获取当前租户ID
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._scope()
 
         department = Department(
             id=str(uuid.uuid4()),
@@ -222,7 +227,7 @@ class DepartmentService:
 
         # 检查是否有子科室（带租户过滤）
         conditions = [Department.parent_id == dept_id]
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._scope()
         if tenant_id is not None:
             conditions.append(Department.tenant_id == tenant_id)
         result = await self.db.execute(
@@ -238,7 +243,7 @@ class DepartmentService:
     async def get_doctors(self, dept_id: str) -> list[Doctor]:
         """获取科室已绑定的医生列表"""
         conditions = [Doctor.department_id == dept_id, Doctor.deleted_at.is_(None)]
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._scope()
         if tenant_id is not None:
             conditions.append(Doctor.tenant_id == tenant_id)
         result = await self.db.execute(
@@ -251,7 +256,7 @@ class DepartmentService:
     async def get_all_doctors(self, store_id: str | None = None) -> list[Doctor]:
         """获取所有可绑定的医生列表"""
         conditions = [Doctor.status == 1, Doctor.deleted_at.is_(None)]
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._scope()
         if tenant_id is not None:
             conditions.append(Doctor.tenant_id == tenant_id)
         query = select(Doctor).where(and_(*conditions))
@@ -286,7 +291,7 @@ class DepartmentService:
         if to_bind:
             # 查询待绑定的医生，带租户过滤
             conditions = [Doctor.id.in_(to_bind)]
-            tenant_id = get_current_tenant_id()
+            tenant_id = self._scope()
             if tenant_id is not None:
                 conditions.append(Doctor.tenant_id == tenant_id)
             result = await self.db.execute(
@@ -313,7 +318,7 @@ class DepartmentService:
         Returns:
             更新的记录数量
         """
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._scope()
         count = 0
         for item in items:
             dept_id = item.get('id')

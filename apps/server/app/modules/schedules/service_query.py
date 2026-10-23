@@ -42,8 +42,14 @@ def _build_rest_day_index(rest_days: Sequence[RestDay]) -> dict[tuple, list]:
 
 
 class ScheduleQueryMixin:
-    async def get_by_id(self, schedule_id: str) -> Schedule | None:
-        tenant_id = get_current_tenant_id()
+    def _tenant(self, tenant_id: str | None) -> str | None:
+        """显式锚点优先；未传时回退请求上下文（公开端兼容）"""
+        return tenant_id if tenant_id is not None else get_current_tenant_id()
+
+    async def get_by_id(
+        self, schedule_id: str, tenant_id: str | None = None
+    ) -> Schedule | None:
+        tenant_id = self._tenant(tenant_id)
         query = (
             select(Schedule).options(
                 selectinload(Schedule.doctor).selectinload(Doctor.department)
@@ -64,8 +70,9 @@ class ScheduleQueryMixin:
         schedule_status: str | None = None,
         page: int = 1,
         page_size: int = 10,
+        tenant_id: str | None = None,
     ) -> tuple[list[Schedule], int]:
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant(tenant_id)
         query = select(Schedule).options(
             selectinload(Schedule.doctor).selectinload(Doctor.department)
         )
@@ -107,11 +114,13 @@ class ScheduleQueryMixin:
 
         # 计算生效状态
         if schedules:
-            await self._compute_effective_status(schedules)
+            await self._compute_effective_status(schedules, tenant_id)
 
         return schedules, total_count
 
-    async def _compute_effective_status(self, schedules: list[Schedule]) -> None:
+    async def _compute_effective_status(
+        self, schedules: list[Schedule], tenant_id: str | None = None
+    ) -> None:
         """为排班列表计算生效状态（直接修改 Schedule 对象的附加属性）。"""
         if not schedules:
             return
@@ -124,7 +133,7 @@ class ScheduleQueryMixin:
         doctor_ids = {s.doctor_id for s in schedules}
 
         # 批量加载休息日（带进程内 TTL 缓存）
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant(tenant_id)
         all_rest_days = await self._get_rest_days_cached(tenant_id, min_date, max_date)
 
         # 为休息日构建 (store_id, date) 索引，避免 O(N*M) 线性扫描
@@ -254,7 +263,7 @@ class ScheduleQueryMixin:
         return False
 
     async def _get_booking_setting(
-        self, doctor_id: str, store_id: str | None
+        self, doctor_id: str, store_id: str | None, tenant_id: str | None = None
     ) -> DoctorBookingSetting | None:
         stmt = (
             select(DoctorBookingSetting)
@@ -267,7 +276,7 @@ class ScheduleQueryMixin:
         )
         if store_id:
             stmt = stmt.where(DoctorBookingSetting.store_id == store_id)
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant(tenant_id)
         if tenant_id:
             stmt = stmt.where(DoctorBookingSetting.tenant_id == tenant_id)
         result = await self.db.execute(stmt)
@@ -297,12 +306,13 @@ class ScheduleQueryMixin:
         doctor_id: str,
         days: int = 14,
         store_id: str | None = None,
+        tenant_id: str | None = None,
     ) -> tuple[list[Schedule], bool]:
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant(tenant_id)
         today = date.today()
         booking_setting_applied = False
 
-        setting = await self._get_booking_setting(doctor_id, store_id)
+        setting = await self._get_booking_setting(doctor_id, store_id, tenant_id)
         if setting:
             start_date, end_date = self._compute_booking_date_range(setting)
             booking_setting_applied = True

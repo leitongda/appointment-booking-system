@@ -413,9 +413,10 @@ class RefundService:
         store_id: str | list[str] | None = None,
         page: int = 1,
         page_size: int = 20,
+        tenant_id: str | None = None,
     ) -> tuple[list[RefundRecord], int]:
         """查询退款记录列表。"""
-        tenant_id = get_current_tenant_id()
+        tenant_id = tenant_id if tenant_id is not None else get_current_tenant_id()
 
         query = select(RefundRecord).order_by(RefundRecord.created_at.desc())
         count_stmt = select(func.count(RefundRecord.id))

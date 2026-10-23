@@ -11,16 +11,23 @@ from app.utils.audit import set_create_audit
 
 
 class ExaminationReportService:
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, tenant_id: str | None = None):
         self.db = db
+        self.tenant_id = tenant_id
+
+    def _scope(self) -> str | None:
+        """显式锚点优先；未传时回退请求上下文（灰度兼容）"""
+        return self.tenant_id if self.tenant_id is not None else get_current_tenant_id()
 
     async def create(self, doctor_id: str, data) -> ExaminationReport:
         """创建检查报告"""
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._scope()
 
-        # 验证预约存在且属于该医生
+        # 验证预约存在且属于本租户（跨租户按不存在处理）
         appointment = await self.db.get(Appointment, data.appointment_id)
         if not appointment:
+            raise ValueError("预约不存在")
+        if tenant_id and appointment.tenant_id != tenant_id:
             raise ValueError("预约不存在")
 
         # 获取患者信息
@@ -55,7 +62,7 @@ class ExaminationReportService:
     async def get_by_id(self, report_id: str) -> ExaminationReport | None:
         """根据ID获取报告"""
         stmt = select(ExaminationReport).where(ExaminationReport.id == report_id)
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._scope()
         if tenant_id:
             stmt = stmt.where(ExaminationReport.tenant_id == tenant_id)
         result = await self.db.execute(stmt)
@@ -70,7 +77,7 @@ class ExaminationReportService:
             .where(ExaminationReport.appointment_id == appointment_id)
             .order_by(ExaminationReport.created_at.desc())
         )
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._scope()
         if tenant_id:
             stmt = stmt.where(ExaminationReport.tenant_id == tenant_id)
         result = await self.db.execute(stmt)
@@ -84,7 +91,7 @@ class ExaminationReportService:
     ) -> tuple[list[ExaminationReport], int]:
         """按患者获取报告列表（分页）"""
         conditions = [ExaminationReport.patient_id == patient_id]
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._scope()
         if tenant_id:
             conditions.append(ExaminationReport.tenant_id == tenant_id)
 
@@ -113,7 +120,7 @@ class ExaminationReportService:
             .where(ExaminationReport.record_id == record_id)
             .order_by(ExaminationReport.created_at.desc())
         )
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._scope()
         if tenant_id:
             stmt = stmt.where(ExaminationReport.tenant_id == tenant_id)
         result = await self.db.execute(stmt)
@@ -133,7 +140,7 @@ class ExaminationReportService:
     ) -> tuple[list[ExaminationReport], int]:
         """获取报告列表（分页，支持多条件筛选）"""
         conditions = []
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._scope()
         if tenant_id:
             conditions.append(ExaminationReport.tenant_id == tenant_id)
         if report_type:

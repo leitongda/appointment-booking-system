@@ -2,7 +2,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import check_store_access, get_current_admin, require_permission
+from app.api.deps import (
+    check_store_access,
+    get_current_admin,
+    require_admin_tenant_anchor,
+    require_permission,
+)
 from app.core.config import settings
 from app.db.session import get_db
 from app.modules.stores.service import StoreService
@@ -86,7 +91,8 @@ async def check_unique(
     value: str = Query(..., min_length=1, description="字段值"),
     exclude_id: str | None = Query(None, description="排除的门店ID（编辑时使用）"),
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
 ):
     """检查门店名称或编码是否已存在
     
@@ -103,9 +109,9 @@ async def check_unique(
     service = StoreService(db)
     
     if field == "name":
-        exists = await service.check_name_exists(value, exclude_id)
+        exists = await service.check_name_exists(value, exclude_id, tenant_id=tenant_anchor)
     else:  # field == "code"
-        exists = await service.check_code_exists(value, exclude_id)
+        exists = await service.check_code_exists(value, exclude_id, tenant_id=tenant_anchor)
     
     return {"exists": exists}
 
@@ -139,7 +145,8 @@ async def get_stores(
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
 ):
     """获取门店列表"""
     service = StoreService(db)
@@ -157,13 +164,13 @@ async def get_stores(
         # 如果是门店管理员，只返回关联的门店
         stores_result = []
         for store_id in store_ids:
-            store = await service.get_by_id(store_id)
+            store = await service.get_by_id(store_id, tenant_id=tenant_anchor)
             if store:
                 stores_result.append(store)
 
         # 批量获取科室数量（1 次查询替代 N 次）
         dept_counts = await service.get_department_counts_batch(
-            [s.id for s in stores_result]
+            [s.id for s in stores_result], tenant_id=tenant_anchor
         )
         result = [
             StoreListResponse(
@@ -183,11 +190,11 @@ async def get_stores(
         return PageResponse(data=result, total=len(result), page=1, page_size=page_size)
 
     # 超级管理员可以看到所有门店
-    stores, total = await service.get_list(query)
+    stores_anchor, total = await service.get_list(query, tenant_id=tenant_anchor)
 
     # 批量获取科室数量（1 次查询替代 N 次）
     dept_counts = await service.get_department_counts_batch(
-        [s.id for s in stores]
+        [s.id for s in stores_anchor], tenant_id=tenant_anchor
     )
     result = [
         StoreListResponse(
@@ -202,7 +209,7 @@ async def get_stores(
             department_count=dept_counts.get(store.id, 0),
             created_at=store.created_at,
         )
-        for store in stores
+        for store in stores_anchor
     ]
 
     return PageResponse(
@@ -227,21 +234,22 @@ async def get_stores(
 )
 async def get_all_stores(
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
 ):
     """获取所有营业中的门店（下拉选择用）"""
     service = StoreService(db)
     
     # 超级管理员可以看到所有门店
     if current_admin.get("is_super_admin"):
-        stores = await service.get_all_active()
+        stores = await service.get_all_active(tenant_id=tenant_anchor)
         return [StoreResponse.model_validate(s) for s in stores]
     
     # 非超管只能看到自己绑定的门店
     store_ids = current_admin.get("store_ids") or []
     result = []
     for sid in store_ids:
-        store = await service.get_by_id(sid)
+        store = await service.get_by_id(sid, tenant_id=tenant_anchor)
         if store and store.status == 1:
             result.append(StoreResponse.model_validate(store))
     return result

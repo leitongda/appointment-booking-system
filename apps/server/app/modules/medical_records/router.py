@@ -3,7 +3,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user_or_admin
+from app.api.deps import get_current_user_or_admin, resolve_actor_tenant_anchor
 from app.core.config import settings
 from app.db.session import get_db
 from app.modules.examination_reports.service import ExaminationReportService
@@ -17,6 +17,21 @@ from app.schemas.medical_record import (
 from app.schemas.response import PageResponse
 
 router = APIRouter()
+
+
+async def _ensure_patient_own_access(db: AsyncSession, current_user: dict, patient_id: str) -> None:
+    """患者端水平越权校验：只能访问自己名下的就诊人（医生/管理员放行）。
+
+    不区分「不存在」与「他人就诊人」，统一 404，防止枚举。
+    """
+    if current_user.get("is_admin") or current_user.get("is_doctor"):
+        return
+
+    from app.models.user import Patient
+
+    patient = await db.get(Patient, patient_id)
+    if not patient or patient.user_id != current_user.get("id"):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="就诊人不存在")
 
 
 def build_record_response(record) -> MedicalRecordResponse:
@@ -78,7 +93,7 @@ async def get_medical_records(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user_or_admin),
 ):
-    service = MedicalRecordService(db)
+    service = MedicalRecordService(db, resolve_actor_tenant_anchor(current_user))
     records, total = await service.get_list(
         doctor_id=doctor_id,
         patient_id=patient_id,
@@ -103,7 +118,7 @@ async def get_my_records(
     doctor_id = current_user.get("doctor_id")
     if not doctor_id:
         return PageResponse(data=[], total=0, page=page, page_size=page_size)
-    service = MedicalRecordService(db)
+    service = MedicalRecordService(db, resolve_actor_tenant_anchor(current_user))
     records, total = await service.get_list(doctor_id=doctor_id, page=page, page_size=page_size)
     return PageResponse(data=[build_list_response(r) for r in records], total=total, page=page, page_size=page_size)
 
@@ -116,7 +131,8 @@ async def get_patient_records(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user_or_admin),
 ):
-    service = MedicalRecordService(db)
+    service = MedicalRecordService(db, resolve_actor_tenant_anchor(current_user))
+    await _ensure_patient_own_access(db, current_user, patient_id)
     records, total = await service.get_patient_records(patient_id=patient_id, page=page, page_size=page_size)
     return PageResponse(data=[build_list_response(r) for r in records], total=total, page=page, page_size=page_size)
 
@@ -127,10 +143,11 @@ async def get_record_by_appointment(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user_or_admin),
 ):
-    service = MedicalRecordService(db)
+    service = MedicalRecordService(db, resolve_actor_tenant_anchor(current_user))
     record = await service.get_by_appointment(appointment_id)
     if not record:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="病历不存在，请检查后重试")
+    await _ensure_patient_own_access(db, current_user, record.patient_id)
     response = build_record_response(record)
     # 附带检查报告
     report_service = ExaminationReportService(db)
@@ -148,10 +165,11 @@ async def get_medical_record(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user_or_admin),
 ):
-    service = MedicalRecordService(db)
+    service = MedicalRecordService(db, resolve_actor_tenant_anchor(current_user))
     record = await service.get_by_id(record_id)
     if not record:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="病历不存在，请检查后重试")
+    await _ensure_patient_own_access(db, current_user, record.patient_id)
     response = build_record_response(record)
     # 附带检查报告
     report_service = ExaminationReportService(db)
@@ -172,7 +190,7 @@ async def create_medical_record(
     doctor_id = current_user.get("doctor_id")
     if not doctor_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="需要医生权限，请联系管理员开通")
-    service = MedicalRecordService(db)
+    service = MedicalRecordService(db, resolve_actor_tenant_anchor(current_user))
     try:
         record = await service.create(doctor_id, data)
     except ValueError as exc:
@@ -188,7 +206,9 @@ async def update_medical_record(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user_or_admin),
 ):
-    service = MedicalRecordService(db)
+    if not current_user.get("is_admin") and not current_user.get("is_doctor"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="仅医生或管理员可修改病历")
+    service = MedicalRecordService(db, resolve_actor_tenant_anchor(current_user))
     record = await service.update(record_id, data)
     if not record:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="病历不存在，请检查后重试")
@@ -202,7 +222,7 @@ async def delete_medical_record(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user_or_admin),
 ):
-    service = MedicalRecordService(db)
+    service = MedicalRecordService(db, resolve_actor_tenant_anchor(current_user))
     record = await service.get_by_id(record_id)
     if not record:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="病历不存在，请检查后重试")

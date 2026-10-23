@@ -10,7 +10,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 
 logger = logging.getLogger(__name__)
-from app.api.deps import get_current_admin, get_store_filter, require_permission
+from app.api.deps import (
+    get_current_admin,
+    get_store_filter,
+    require_admin_tenant_anchor,
+    require_permission,
+)
 from app.core.config import settings
 from app.models.rest_day import RestDay
 from app.modules.rule_engine import RuleEngineService
@@ -47,9 +52,10 @@ async def _check_single_schedule_rest_day(
     db: AsyncSession,
     schedule_date: date,
     store_id: str | None,
-    doctor_id: str
+    doctor_id: str,
+    tenant_id: str | None = None,
 ) -> bool:
-    """检查单个排班是否在休息日"""
+    """检查单个排班是否在休息日（按租户过滤）"""
     from app.utils.schedule_utils import is_rest_day
     rest_day_result = await db.execute(
         select(RestDay).where(
@@ -61,6 +67,12 @@ async def _check_single_schedule_rest_day(
         )
     )
     rest_days = rest_day_result.scalars().all()
+    if tenant_id is None:
+        from app.middleware.tenant_context import get_current_tenant_id
+
+        tenant_id = get_current_tenant_id()
+    if tenant_id:
+        rest_days = [rd for rd in rest_days if rd.tenant_id == tenant_id]
     return is_rest_day(rest_days, schedule_date, store_id, doctor_id)
 
 
@@ -112,6 +124,7 @@ async def get_schedules(
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("schedule:read"))
 ):
     """获取排班列表"""
@@ -125,6 +138,7 @@ async def get_schedules(
         doctor_id=doctor_id, store_id=store_id, start_date=start_date, end_date=end_date,
         status=status, schedule_status=schedule_status,
         page=page, page_size=page_size,
+        tenant_id=tenant_anchor,
     )
     
     # 查询日期范围内的所有有效休息日（用于计算 is_rest_day）
@@ -142,6 +156,8 @@ async def get_schedules(
             )
         )
         rest_days = rest_day_result.scalars().all()
+        if tenant_anchor:
+            rest_days = [rd for rd in rest_days if rd.tenant_id == tenant_anchor]
     
     def check_rest_day(schedule_date, schedule_store_id, schedule_doctor_id) -> bool:
         """检查指定排班是否在休息日"""
@@ -457,11 +473,12 @@ async def get_schedule(
     schedule_id: str,
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("schedule:read"))
 ):
     """获取排班详情"""
     service = ScheduleService(db)
-    schedule = await service.get_by_id(schedule_id)
+    schedule = await service.get_by_id(schedule_id, tenant_id=tenant_anchor)
     
     if not schedule:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="排班不存在，请检查后重试")

@@ -8,11 +8,13 @@ from app.middleware.tenant_context import get_current_tenant_id
 
 
 class PatientsServiceBase:
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, tenant_id: str | None = None):
         self.db = db
+        # 管理端锚点：显式传入时硬过滤；未传时回退请求上下文（灰度兼容）
+        self.tenant_id = tenant_id
 
     def _current_tenant_id(self) -> str | None:
-        return get_current_tenant_id()
+        return self.tenant_id if self.tenant_id is not None else get_current_tenant_id()
 
     def _calculate_age(self, birthday: datetime):
         if not birthday:

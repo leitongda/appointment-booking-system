@@ -11,6 +11,7 @@ from app.common.deps import (
     get_current_admin,
     get_store_filter,
     require_permission,
+    resolve_actor_tenant_anchor,
 )
 from app.db.session import get_db
 from app.middleware.tenant_context import get_current_tenant_id
@@ -28,15 +29,14 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-async def _get_appointment_or_404(db: AsyncSession, appointment_id: str) -> Appointment:
+async def _get_appointment_or_404(
+    db: AsyncSession, appointment_id: str, tenant_id: str | None = None
+) -> Appointment:
     stmt = (
         select(Appointment)
         .options(selectinload(Appointment.schedule))
         .where(Appointment.id == appointment_id)
     )
-    tenant_id = get_current_tenant_id()
-    if tenant_id:
-        stmt = stmt.where(Appointment.tenant_id == tenant_id)
 
     result = await db.execute(stmt)
     appointment = result.scalar_one_or_none()
@@ -45,15 +45,14 @@ async def _get_appointment_or_404(db: AsyncSession, appointment_id: str) -> Appo
     return appointment
 
 
-async def _get_refund_or_404(db: AsyncSession, refund_id: str) -> RefundRecord:
+async def _get_refund_or_404(
+    db: AsyncSession, refund_id: str, tenant_id: str | None = None
+) -> RefundRecord:
     stmt = (
         select(RefundRecord)
         .options(selectinload(RefundRecord.appointment).selectinload(Appointment.schedule))
         .where(RefundRecord.id == refund_id)
     )
-    tenant_id = get_current_tenant_id()
-    if tenant_id:
-        stmt = stmt.where(RefundRecord.tenant_id == tenant_id)
 
     result = await db.execute(stmt)
     record = result.scalar_one_or_none()
@@ -65,6 +64,9 @@ async def _get_refund_or_404(db: AsyncSession, refund_id: str) -> RefundRecord:
 def _ensure_admin_can_access_appointment(current_admin: dict, appointment: Appointment) -> None:
     if current_admin.get("is_super_admin"):
         return
+
+    if not current_admin.get("tenant_id") or appointment.tenant_id != current_admin.get("tenant_id"):
+        raise HTTPException(status_code=403, detail="您无权操作该租户的退款")
 
     store_id = appointment.schedule.store_id if appointment.schedule else None
     if not check_store_access(current_admin, store_id):
@@ -176,6 +178,7 @@ async def get_refund_records(
         store_id=store_filter,
         page=page,
         page_size=page_size,
+        tenant_id=resolve_actor_tenant_anchor(current_admin),
     )
     return RefundListResponse(
         total=total,

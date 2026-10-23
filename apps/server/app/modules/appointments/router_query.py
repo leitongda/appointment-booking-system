@@ -12,6 +12,7 @@ from app.api.deps import (
     get_current_user,
     get_current_user_or_admin,
     get_store_filter,
+    resolve_actor_tenant_anchor,
 )
 from app.core.config import settings
 from app.db.session import get_db
@@ -146,7 +147,8 @@ async def get_appointments(
         created_start=created_start,
         created_end=created_end,
         page=page,
-        page_size=page_size
+        page_size=page_size,
+        tenant_id=resolve_actor_tenant_anchor(current_user),
     )
 
     result = []
@@ -189,7 +191,9 @@ async def get_today_appointments(
     if not doctor_id:
         return []
 
-    appointments = await service.get_today_by_doctor(doctor_id)
+    appointments = await service.get_today_by_doctor(
+        doctor_id, tenant_id=resolve_actor_tenant_anchor(current_user)
+    )
 
     # 获取医生信息（用于复诊判断）
     doctor_result = await db.execute(select(Doctor).where(Doctor.id == doctor_id, Doctor.deleted_at.is_(None)))
@@ -275,7 +279,8 @@ async def get_today_pending_appointments(
     rule_engine = RuleEngineService(db)
     appointments = await service.get_today_pending_by_user_and_store(
         user_id=current_user["id"],
-        store_id=store_id
+        store_id=store_id,
+        tenant_id=resolve_actor_tenant_anchor(current_user),
     )
 
     # 使用本地时区（中国标准时间）
@@ -397,7 +402,8 @@ async def get_checkin_queue(
     appointments = await service.get_checkin_queue(
         store_id=store_id,
         doctor_id=doctor_id,
-        target_date=target_date
+        target_date=target_date,
+        tenant_id=resolve_actor_tenant_anchor(current_user),
     )
 
     # 批量获取签到方式（从签到日志中获取最近一条成功记录）
@@ -516,6 +522,7 @@ async def get_appointment_statistics(
             start_date=start_date,
             end_date=end_date,
             store_id=doctor_store_id,
+            tenant_id=resolve_actor_tenant_anchor(current_user),
         )
 
     # 管理员/运营：沿用管理员数据权限过滤
@@ -530,6 +537,7 @@ async def get_appointment_statistics(
         start_date=start_date,
         end_date=end_date,
         store_id=store_filter,
+        tenant_id=resolve_actor_tenant_anchor(current_user),
     )
 
 
@@ -592,7 +600,8 @@ async def check_duplicate_appointment(
         user_id=current_user["id"],
         patient_id=patient_id,
         schedule_date=schedule.schedule_date,
-        time_slot=schedule.time_slot
+        time_slot=schedule.time_slot,
+        tenant_id=resolve_actor_tenant_anchor(current_user),
     )
 
     result = []
@@ -635,7 +644,9 @@ async def get_appointment_by_no(
 ):
     """按预约号获取预约详情"""
     service = AppointmentService(db)
-    appointment = await service.get_by_appointment_no(appointment_no)
+    appointment = await service.get_by_appointment_no(
+        appointment_no, tenant_id=resolve_actor_tenant_anchor(current_user)
+    )
 
     if not appointment:
         raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="预约不存在，请检查后重试")
@@ -670,7 +681,9 @@ async def get_appointment(
 ):
     """获取预约详情"""
     service = AppointmentService(db)
-    appointment = await service.get_by_id(appointment_id)
+    appointment = await service.get_by_id(
+        appointment_id, tenant_id=resolve_actor_tenant_anchor(current_user)
+    )
 
     if not appointment:
         raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="预约不存在，请检查后重试")
@@ -704,4 +717,6 @@ async def get_queue_info(
         raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail="需要医生权限，请联系管理员开通")
 
     service = AppointmentService(db)
-    return await service.get_queue_info(doctor_id)
+    return await service.get_queue_info(
+        doctor_id, tenant_id=resolve_actor_tenant_anchor(current_user)
+    )

@@ -9,6 +9,7 @@ from app.api.deps import (
     get_current_super_admin,
     get_current_user,
     require_permission,
+    require_tenant_active_for_write,
 )
 from app.core.websocket import (
     WSMessageType,
@@ -46,7 +47,8 @@ async def sign_in_appointment(
     device_info: str | None = Body(None, embed=True),
     location_info: str | None = Body(None, embed=True),
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user),
+    _tenant_guard: None = Depends(require_tenant_active_for_write),
 ):
     """签到
 

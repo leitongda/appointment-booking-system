@@ -16,7 +16,9 @@ from app.api.deps import (
     get_current_user,
     get_current_user_or_admin,
     require_tenant_active_for_write,
+    resolve_actor_tenant_anchor,
 )
+from app.common.feature_deps import require_feature
 from app.db.session import get_db
 from app.infrastructure.payments.schemas import (
     PaymentOrderCreate,
@@ -40,20 +42,23 @@ class StandardResponse(BaseModel):
     data: dict = Field(default_factory=dict, description="响应数据")
 
 
-async def _get_appointment_or_404(db: AsyncSession, appointment_id: str) -> Appointment:
-    """加载预约及其排班信息，并应用租户隔离。"""
+async def _get_appointment_or_404(
+    db: AsyncSession, appointment_id: str, tenant_id: str | None = None
+) -> Appointment:
+    """加载预约及其排班信息；锚点由调用方显式传入，跨租户按不存在处理。"""
     stmt = (
         select(Appointment)
         .options(selectinload(Appointment.schedule))
         .where(Appointment.id == appointment_id)
     )
-    tenant_id = get_current_tenant_id()
-    if tenant_id:
-        stmt = stmt.where(Appointment.tenant_id == tenant_id)
+    # 租户锚点由调用方显式传入（见各端点 resolve_actor_tenant_anchor）
 
     result = await db.execute(stmt)
     appointment = result.scalar_one_or_none()
     if not appointment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="预约不存在，请检查后重试")
+    # 跨租户按不存在处理（不泄露存在性）
+    if tenant_id is not None and appointment.tenant_id != tenant_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="预约不存在，请检查后重试")
     return appointment
 
@@ -100,9 +105,13 @@ def _ensure_user_owns_appointment(appointment: Appointment, current_user: dict) 
 
 
 def _ensure_admin_can_access_appointment(appointment: Appointment, current_actor: dict) -> None:
-    """管理员必须拥有目标预约所属门店的访问权。"""
+    """管理员必须属于目标预约的租户，且拥有该门店访问权。"""
     if current_actor.get("is_super_admin"):
         return
+
+    actor_tenant_id = current_actor.get("tenant_id")
+    if not actor_tenant_id or appointment.tenant_id != actor_tenant_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权操作该租户的预约")
 
     store_id = appointment.schedule.store_id if appointment.schedule else None
     if not check_store_access(current_actor, store_id):
@@ -115,13 +124,15 @@ async def create_payment_order(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
     _tenant_guard: None = Depends(require_tenant_active_for_write),
+    _feature_guard: None = Depends(require_feature("online_payment")),
 ):
     """创建支付订单
 
     返回小程序调起支付所需的参数。
     """
     service = PaymentService(db)
-    appointment = await _get_appointment_or_404(db, request_data.appointment_id)
+    tenant_anchor = resolve_actor_tenant_anchor(current_user)
+    appointment = await _get_appointment_or_404(db, request_data.appointment_id, tenant_anchor)
     _ensure_user_owns_appointment(appointment, current_user)
 
     try:
@@ -188,7 +199,9 @@ async def get_payment_order_status(
 
     返回预约的支付状态信息。
     """
-    appointment = await _get_appointment_or_404(db, appointment_id)
+    appointment = await _get_appointment_or_404(
+        db, appointment_id, resolve_actor_tenant_anchor(current_actor)
+    )
     if current_actor.get("is_admin"):
         await _require_admin_permission(db, current_actor, "appointment:detail")
         _ensure_admin_can_access_appointment(appointment, current_actor)

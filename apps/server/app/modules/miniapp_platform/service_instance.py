@@ -190,6 +190,11 @@ class MiniappInstanceService:
             if profile.tenant_id != tenant_id:
                 raise ValueError("默认支付配置不属于当前租户")
 
+        # 配额检查（P4-6）：小程序实例数量
+        from app.common.quota import check_quota
+
+        await check_quota(tenant_id, "miniapp_instances", self.db)
+
         instance = MiniappInstance(
             tenant_id=tenant_id,
             code=data.code,

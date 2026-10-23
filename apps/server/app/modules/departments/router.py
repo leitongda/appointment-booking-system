@@ -4,7 +4,13 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import check_store_access, get_current_admin, get_store_filter, require_permission
+from app.api.deps import (
+    check_store_access,
+    get_current_admin,
+    get_store_filter,
+    require_permission,
+    resolve_admin_tenant_anchor,
+)
 from app.core.config import settings
 from app.db.session import get_db
 from app.modules.departments.service import DepartmentService
@@ -42,7 +48,7 @@ async def get_departments(
     current_admin = Depends(get_current_admin)
 ):
     """获取科室列表"""
-    service = DepartmentService(db)
+    service = DepartmentService(db, resolve_admin_tenant_anchor(current_admin))
     
     # 门店过滤：门店管理员只能看自己门店的科室
     store_filter = get_store_filter(current_admin)
@@ -96,7 +102,7 @@ async def get_all_departments(
     用于管理后台选择器场景，返回所有启用状态的科室
     最大返回 1000 条
     """
-    service = DepartmentService(db)
+    service = DepartmentService(db, resolve_admin_tenant_anchor(current_admin))
     
     # 门店权限过滤
     store_filter = get_store_filter(current_admin)
@@ -183,7 +189,7 @@ async def batch_update_sort_order(
     _: None = Depends(require_permission("department:update"))
 ):
     """批量更新科室排序"""
-    service = DepartmentService(db)
+    service = DepartmentService(db, resolve_admin_tenant_anchor(current_admin))
     items = [{"id": item.id, "sort_order": item.sort_order} for item in data.items]
     count = await service.batch_update_sort_order(items)
     return {"message": "排序更新成功", "count": count}
@@ -195,7 +201,7 @@ async def get_department(
     current_admin = Depends(get_current_admin)
 ):
     """获取科室详情"""
-    service = DepartmentService(db)
+    service = DepartmentService(db, resolve_admin_tenant_anchor(current_admin))
     department = await service.get_by_id(dept_id)
     
     if not department:
@@ -226,7 +232,7 @@ async def create_department(
     if not data.store_id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="请选择所属门店")
     
-    service = DepartmentService(db)
+    service = DepartmentService(db, resolve_admin_tenant_anchor(current_admin))
     department = await service.create(data)
     return _to_response(department)
 
@@ -239,7 +245,7 @@ async def update_department(
     _: None = Depends(require_permission("department:update"))
 ):
     """更新科室"""
-    service = DepartmentService(db)
+    service = DepartmentService(db, resolve_admin_tenant_anchor(current_admin))
     department = await service.get_by_id(dept_id)
     
     if not department:
@@ -265,7 +271,7 @@ async def delete_department(
     _: None = Depends(require_permission("department:delete"))
 ):
     """删除科室"""
-    service = DepartmentService(db)
+    service = DepartmentService(db, resolve_admin_tenant_anchor(current_admin))
     department = await service.get_by_id(dept_id)
     
     if not department:
@@ -292,7 +298,7 @@ async def get_department_doctors(
     current_admin = Depends(get_current_admin)
 ):
     """获取科室已绑定的医生列表"""
-    service = DepartmentService(db)
+    service = DepartmentService(db, resolve_admin_tenant_anchor(current_admin))
     
     # 验证科室是否存在
     department = await service.get_by_id(dept_id)
@@ -336,7 +342,7 @@ async def get_available_doctors(
     current_admin = Depends(get_current_admin)
 ):
     """获取可绑定到此科室的医生列表（同门店的所有医生）"""
-    service = DepartmentService(db)
+    service = DepartmentService(db, resolve_admin_tenant_anchor(current_admin))
     
     # 验证科室是否存在
     department = await service.get_by_id(dept_id)
@@ -383,7 +389,7 @@ async def batch_bind_doctors(
     _: None = Depends(require_permission("department:update"))
 ):
     """批量绑定医生到科室"""
-    service = DepartmentService(db)
+    service = DepartmentService(db, resolve_admin_tenant_anchor(current_admin))
     
     # 验证科室是否存在
     department = await service.get_by_id(dept_id)

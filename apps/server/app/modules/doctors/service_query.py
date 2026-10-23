@@ -14,17 +14,22 @@ from app.models.schedule import Schedule
 
 
 class DoctorQueryMixin:
+    def _tenant(self, tenant_id: str | None) -> str | None:
+        """显式锚点优先；未传时回退请求上下文（公开端兼容）"""
+        return tenant_id if tenant_id is not None else get_current_tenant_id()
+
     async def get_by_phone(
         self,
         phone: str,
-        strict_tenant: bool = False,
+        strict_tenant: bool = True,
+        tenant_id: str | None = None,
     ) -> Doctor | None:
         query = (
             select(Doctor)
             .options(selectinload(Doctor.department), selectinload(Doctor.store))
             .where(Doctor.phone == phone, Doctor.deleted_at.is_(None))
         )
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant(tenant_id)
         if tenant_id:
             query = query.where(Doctor.tenant_id == tenant_id)
             result = await self.db.execute(query)
@@ -43,14 +48,15 @@ class DoctorQueryMixin:
     async def get_by_username(
         self,
         username: str,
-        strict_tenant: bool = False,
+        strict_tenant: bool = True,
+        tenant_id: str | None = None,
     ) -> Doctor | None:
         query = (
             select(Doctor)
             .options(selectinload(Doctor.department), selectinload(Doctor.store))
             .where(Doctor.username == username, Doctor.deleted_at.is_(None))
         )
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant(tenant_id)
         if tenant_id:
             query = query.where(Doctor.tenant_id == tenant_id)
             result = await self.db.execute(query)
@@ -76,9 +82,11 @@ class DoctorQueryMixin:
             return None
         return doctor
 
-    async def update_login_info(self, doctor_id: str, ip: str) -> None:
+    async def update_login_info(
+        self, doctor_id: str, ip: str, tenant_id: str | None = None
+    ) -> None:
         query = select(Doctor).where(Doctor.id == doctor_id, Doctor.deleted_at.is_(None))
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant(tenant_id)
         if tenant_id:
             query = query.where(Doctor.tenant_id == tenant_id)
         result = await self.db.execute(query)
@@ -97,13 +105,13 @@ class DoctorQueryMixin:
 
             await self.db.commit()
 
-    async def get_by_id(self, doctor_id: str) -> Doctor | None:
+    async def get_by_id(self, doctor_id: str, tenant_id: str | None = None) -> Doctor | None:
         query = (
             select(Doctor)
             .options(selectinload(Doctor.department), selectinload(Doctor.store))
             .where(Doctor.id == doctor_id, Doctor.deleted_at.is_(None))
         )
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant(tenant_id)
         if tenant_id:
             query = query.where(Doctor.tenant_id == tenant_id)
         result = await self.db.execute(query)
@@ -117,8 +125,9 @@ class DoctorQueryMixin:
         status: int | None = None,
         page: int = 1,
         page_size: int = 10,
+        tenant_id: str | None = None,
     ) -> tuple[list[Doctor], int]:
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant(tenant_id)
         query = select(Doctor).options(selectinload(Doctor.department), selectinload(Doctor.store))
         count_query = select(func.count(Doctor.id))
 
@@ -148,8 +157,10 @@ class DoctorQueryMixin:
         count_result = await self.db.execute(count_query)
         return list(result.scalars().all()), count_result.scalar() or 0
 
-    async def get_recommended(self, limit: int = 6, store_id: str | None = None) -> list[Doctor]:
-        tenant_id = get_current_tenant_id()
+    async def get_recommended(
+        self, limit: int = 6, store_id: str | None = None, tenant_id: str | None = None
+    ) -> list[Doctor]:
+        tenant_id = self._tenant(tenant_id)
         query = (
             select(Doctor)
             .options(selectinload(Doctor.department), selectinload(Doctor.store))
@@ -164,9 +175,9 @@ class DoctorQueryMixin:
         return list(result.scalars().all())
 
     async def get_by_department(
-        self, department_id: str, store_id: str | None = None
+        self, department_id: str, store_id: str | None = None, tenant_id: str | None = None
     ) -> list[Doctor]:
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant(tenant_id)
         query = (
             select(Doctor)
             .options(selectinload(Doctor.department), selectinload(Doctor.store))
@@ -180,8 +191,10 @@ class DoctorQueryMixin:
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
-    async def get_all_active(self, store_id: str | None = None) -> list[Doctor]:
-        tenant_id = get_current_tenant_id()
+    async def get_all_active(
+        self, store_id: str | None = None, tenant_id: str | None = None
+    ) -> list[Doctor]:
+        tenant_id = self._tenant(tenant_id)
         query = select(Doctor).options(
             selectinload(Doctor.department), selectinload(Doctor.store)
         ).where(Doctor.status == 1, Doctor.deleted_at.is_(None))
@@ -193,11 +206,13 @@ class DoctorQueryMixin:
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
-    async def get_doctors_availability(self, doctor_ids: list[str], days: int = 7) -> dict[str, bool]:
+    async def get_doctors_availability(
+        self, doctor_ids: list[str], days: int = 7, tenant_id: str | None = None
+    ) -> dict[str, bool]:
         if not doctor_ids:
             return {}
 
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant(tenant_id)
         today = date.today()
         end_date = today + timedelta(days=days)
         schedules_query = select(
@@ -222,6 +237,8 @@ class DoctorQueryMixin:
             )
         )
         rest_days = rest_days_result.scalars().all()
+        if tenant_id:
+            rest_days = [rd for rd in rest_days if rd.tenant_id == tenant_id]
 
         availability = {doctor_id: False for doctor_id in doctor_ids}
         for schedule in schedules:

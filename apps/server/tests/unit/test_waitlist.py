@@ -11,6 +11,7 @@
 7. 清理过期候补 - cleanup_expired
 """
 import pytest
+import pytest_asyncio
 from datetime import datetime, date, timedelta
 from unittest.mock import AsyncMock, patch, MagicMock
 from uuid import uuid4
@@ -21,6 +22,18 @@ from app.models.schedule import Schedule
 from app.middleware.exception import BusinessError
 from app.modules.waitlist.service import WaitlistService
 from app.modules.appointments.service import AppointmentService
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def waitlist_tenant_context(test_tenant):
+    """候补写入已 fail-closed：单元测试显式提供租户上下文"""
+    from app.middleware.tenant_context import clear_tenant_context, set_tenant_context
+
+    set_tenant_context(test_tenant.id)
+    try:
+        yield
+    finally:
+        clear_tenant_context()
 
 
 class TestAddToWaitlist:

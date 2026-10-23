@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user_or_admin
+from app.api.deps import get_current_user_or_admin, resolve_actor_tenant_anchor
 from app.core.config import settings
 from app.core.logging import logger
 from app.db.session import get_db
@@ -18,6 +18,20 @@ from app.modules.examination_reports.service import ExaminationReportService
 from app.schemas.response import PageResponse
 
 router = APIRouter()
+
+
+async def _ensure_patient_own_access(db: AsyncSession, current_user: dict, patient_id: str | None) -> None:
+    """患者端水平越权校验：只能访问自己名下就诊人的报告（医生/管理员放行）"""
+    if current_user.get("is_admin") or current_user.get("is_doctor"):
+        return
+    if not patient_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="报告不存在")
+
+    from app.models.user import Patient
+
+    patient = await db.get(Patient, patient_id)
+    if not patient or patient.user_id != current_user.get("id"):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="报告不存在")
 
 
 @router.get("", response_model=PageResponse[ExaminationReportListResponse], summary="获取报告列表")
@@ -35,7 +49,7 @@ async def list_reports(
     current_user: dict = Depends(get_current_user_or_admin),
 ):
     """管理端：获取报告列表（支持多条件筛选）"""
-    service = ExaminationReportService(db)
+    service = ExaminationReportService(db, resolve_actor_tenant_anchor(current_user))
     reports, total = await service.get_list(
         keyword=keyword,
         report_type=report_type,
@@ -134,7 +148,7 @@ async def upload_report(
         ) from exc
 
     # 创建报告记录
-    service = ExaminationReportService(db)
+    service = ExaminationReportService(db, resolve_actor_tenant_anchor(current_user))
     try:
         create_data = ExaminationReportCreate(
             appointmentId=appointment_id,
@@ -165,8 +179,16 @@ async def get_reports_by_appointment(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user_or_admin),
 ):
-    service = ExaminationReportService(db)
+    service = ExaminationReportService(db, resolve_actor_tenant_anchor(current_user))
     reports = await service.get_by_appointment(appointment_id)
+    if reports:
+        await _ensure_patient_own_access(db, current_user, reports[0].patient_id)
+    else:
+        from app.models.appointment import Appointment
+
+        appointment = await db.get(Appointment, appointment_id)
+        if appointment:
+            await _ensure_patient_own_access(db, current_user, appointment.patient_id)
     return [_build_list_response(r) for r in reports]
 
 
@@ -178,7 +200,8 @@ async def get_reports_by_patient(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user_or_admin),
 ):
-    service = ExaminationReportService(db)
+    service = ExaminationReportService(db, resolve_actor_tenant_anchor(current_user))
+    await _ensure_patient_own_access(db, current_user, patient_id)
     reports, total = await service.get_by_patient(
         patient_id=patient_id,
         page=page,
@@ -198,8 +221,16 @@ async def get_reports_by_record(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user_or_admin),
 ):
-    service = ExaminationReportService(db)
+    service = ExaminationReportService(db, resolve_actor_tenant_anchor(current_user))
     reports = await service.get_by_record(record_id)
+    if reports:
+        await _ensure_patient_own_access(db, current_user, reports[0].patient_id)
+    else:
+        from app.models.medical_record import MedicalRecord
+
+        record = await db.get(MedicalRecord, record_id)
+        if record:
+            await _ensure_patient_own_access(db, current_user, record.patient_id)
     return [_build_list_response(r) for r in reports]
 
 
@@ -209,13 +240,14 @@ async def get_report(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user_or_admin),
 ):
-    service = ExaminationReportService(db)
+    service = ExaminationReportService(db, resolve_actor_tenant_anchor(current_user))
     report = await service.get_by_id(report_id)
     if not report:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="报告不存在",
         )
+    await _ensure_patient_own_access(db, current_user, report.patient_id)
     return _build_report_response(report)
 
 
@@ -232,7 +264,7 @@ async def delete_report(
             detail="需要医生权限",
         )
 
-    service = ExaminationReportService(db)
+    service = ExaminationReportService(db, resolve_actor_tenant_anchor(current_user))
     try:
         success = await service.delete(report_id, doctor_id)
     except PermissionError as exc:

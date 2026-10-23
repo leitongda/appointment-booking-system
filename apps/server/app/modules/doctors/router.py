@@ -8,6 +8,7 @@ from app.api.deps import (
     get_current_admin,
     get_current_doctor_by_token,
     get_store_filter,
+    require_admin_tenant_anchor,
     require_permission,
 )
 from app.common.account_sync import AccountSyncService
@@ -483,7 +484,8 @@ async def get_doctors(
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
 ):
     """获取医生列表"""
     service = DoctorService(db)
@@ -495,12 +497,15 @@ async def get_doctors(
     
     doctors, total = await service.get_list(
         name=name, store_id=store_id, department_id=department_id, 
-        status=status, page=page, page_size=page_size
+        status=status, page=page, page_size=page_size,
+        tenant_id=tenant_anchor,
     )
     
     # 批量获取医生的号源状态
     doctor_ids = [d.id for d in doctors]
-    availability_map = await service.get_doctors_availability(doctor_ids)
+    availability_map = await service.get_doctors_availability(
+        doctor_ids, tenant_id=tenant_anchor
+    )
     
     result = [doctor_to_list_response(d, availability_map.get(d.id, False)) for d in doctors]
     
@@ -522,7 +527,8 @@ async def get_doctors(
 )
 async def get_all_doctors(
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
 ):
     """获取所有医生（管理端接口）
 
@@ -533,7 +539,9 @@ async def get_all_doctors(
     # 门店过滤：门店管理员只能看自己门店的医生
     store_filter = get_store_filter(current_admin)
 
-    doctors = await service.get_all_active(store_id=store_filter)
+    doctors = await service.get_all_active(
+        store_id=store_filter, tenant_id=tenant_anchor
+    )
 
     return [doctor_to_list_response(d) for d in doctors]
 

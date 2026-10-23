@@ -20,7 +20,8 @@ class WaitlistPromotionMixin:
     async def promote_next(
         self,
         schedule_id: str,
-        operator_id: str | None = None
+        operator_id: str | None = None,
+        tenant_id: str | None = None,
     ) -> Appointment | None:
         """手动递补下一个候补用户
 
@@ -44,6 +45,13 @@ class WaitlistPromotionMixin:
         entry = waitlist_result.scalar_one_or_none()
 
         if not entry:
+            return None
+
+        # 租户隔离：显式锚点存在时，他租户候补按不存在处理
+        from app.middleware.tenant_context import get_current_tenant_id
+
+        scope = tenant_id if tenant_id is not None else get_current_tenant_id()
+        if scope and entry.tenant_id != scope:
             return None
 
         # 创建预约

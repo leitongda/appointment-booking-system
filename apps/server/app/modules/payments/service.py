@@ -215,7 +215,9 @@ class PaymentService:
             raise ValueError("回调数据缺少 out_trade_no")
 
         # 4. 查找预约
-        appointment = await self._get_appointment_by_out_trade_no(out_trade_no)
+        appointment = await self._get_appointment_by_out_trade_no(
+            out_trade_no, tenant_id=payment_profile.tenant_id
+        )
 
         if not appointment:
             raise ValueError(f"未找到预约: out_trade_no={out_trade_no}")
@@ -261,7 +263,9 @@ class PaymentService:
                 )
                 return {"code": "SUCCESS", "message": "成功"}
 
-            appointment = await self._get_appointment_by_out_trade_no(out_trade_no)
+            appointment = await self._get_appointment_by_out_trade_no(
+            out_trade_no, tenant_id=payment_profile.tenant_id
+        )
 
         # 6. 已成功结算的重复回调视为幂等成功，可补齐缺失元数据。
         if appointment and appointment.status in PAYMENT_SUCCESS_REPLAY_STATUSES:
@@ -448,14 +452,15 @@ class PaymentService:
         return None
 
     async def _get_appointment_by_out_trade_no(
-        self, out_trade_no: str
+        self, out_trade_no: str, tenant_id: str | None = None
     ) -> Appointment | None:
         """根据商户订单号查找预约。
 
         当前规则使用 appointment_no（YY+yyyymmddHHMMSS+4位，22字符，满足微信 6-32 上限）。
         历史数据可能仍是 APPT{uuid} 形式，按租户隔离同时兼容这两种格式。
+        回调路径显式传入已验签 PaymentProfile 的 tenant_id 作为锚点。
         """
-        tenant_id = get_current_tenant_id()
+        tenant_id = tenant_id if tenant_id is not None else get_current_tenant_id()
 
         stmt = select(Appointment).where(Appointment.appointment_no == out_trade_no)
         if tenant_id:

@@ -155,13 +155,15 @@ async def get_payment_params(
     """获取支付参数（重新发起支付）"""
     from sqlalchemy import select
 
-    from app.middleware.tenant_context import get_current_tenant_id
+    from app.api.deps import resolve_actor_tenant_anchor
     from app.models.appointment import Appointment
     from app.models.user import User
 
+    # 患者端租户锚点：受 PATIENT_ANCHOR_FAIL_CLOSE 灰度控制
+    tenant_id = resolve_actor_tenant_anchor(current_user)
+
     # 1. 查询预约
     stmt = select(Appointment).where(Appointment.id == appointment_id)
-    tenant_id = get_current_tenant_id()
     if tenant_id:
         stmt = stmt.where(Appointment.tenant_id == tenant_id)
 

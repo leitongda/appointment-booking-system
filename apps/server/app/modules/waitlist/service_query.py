@@ -9,11 +9,11 @@ from app.models.waitlist import WaitlistEntry
 class WaitlistQueryMixin:
     """候补队列 - 查询方法"""
 
-    def _tenant_filter(self, stmt):
-        """为查询添加租户过滤"""
-        tenant_id = get_current_tenant_id()
-        if tenant_id:
-            return stmt.where(WaitlistEntry.tenant_id == tenant_id)
+    def _tenant_filter(self, stmt, tenant_id: str | None = None):
+        """为查询添加租户过滤（显式锚点优先，未传时回退上下文）"""
+        scope = tenant_id if tenant_id is not None else get_current_tenant_id()
+        if scope:
+            stmt = stmt.where(WaitlistEntry.tenant_id == scope)
         return stmt
 
     async def get_waitlist_position(

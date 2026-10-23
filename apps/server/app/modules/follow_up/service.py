@@ -24,11 +24,16 @@ def generate_task_no() -> str:
 # ========== 随访计划服务 ==========
 
 class FollowUpPlanService:
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, tenant_id: str | None = None):
         self.db = db
+        self.tenant_id = tenant_id
+
+    def _scope(self) -> str | None:
+        """显式锚点优先；未传时回退请求上下文（灰度兼容）"""
+        return self.tenant_id if self.tenant_id is not None else get_current_tenant_id()
 
     async def create(self, data, operator_id: str | None = None) -> FollowUpPlan:
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._scope()
         plan = FollowUpPlan(
             id=str(uuid.uuid4()),
             tenant_id=tenant_id,
@@ -61,7 +66,7 @@ class FollowUpPlanService:
             .options(selectinload(FollowUpPlan.steps))
             .where(FollowUpPlan.id == plan_id, FollowUpPlan.deleted_at.is_(None))
         )
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._scope()
         if tenant_id:
             stmt = stmt.where(FollowUpPlan.tenant_id == tenant_id)
         result = await self.db.execute(stmt)
@@ -79,7 +84,7 @@ class FollowUpPlanService:
         query = select(FollowUpPlan).options(selectinload(FollowUpPlan.steps))
         conditions = [FollowUpPlan.deleted_at.is_(None)]
 
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._scope()
         if tenant_id:
             conditions.append(FollowUpPlan.tenant_id == tenant_id)
         if department_id:
@@ -104,7 +109,10 @@ class FollowUpPlanService:
 
     async def update(self, plan_id: str, data, operator_id: str | None = None) -> FollowUpPlan | None:
         plan = await self.db.get(FollowUpPlan, plan_id)
+        scope = self._scope()
         if not plan or plan.deleted_at is not None:
+            return None
+        if scope and plan.tenant_id != scope:
             return None
 
         update_data = data.model_dump(exclude_unset=True)
@@ -143,7 +151,10 @@ class FollowUpPlanService:
 
     async def delete(self, plan_id: str, operator_id: str | None = None) -> bool:
         plan = await self.db.get(FollowUpPlan, plan_id)
+        scope = self._scope()
         if not plan or plan.deleted_at is not None:
+            return False
+        if scope and plan.tenant_id != scope:
             return False
 
         plan.deleted_at = datetime.now()
@@ -155,11 +166,16 @@ class FollowUpPlanService:
 # ========== 随访任务服务 ==========
 
 class FollowUpTaskService:
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, tenant_id: str | None = None):
         self.db = db
+        self.tenant_id = tenant_id
+
+    def _scope(self) -> str | None:
+        """显式锚点优先；未传时回退请求上下文（灰度兼容）"""
+        return self.tenant_id if self.tenant_id is not None else get_current_tenant_id()
 
     async def create(self, data, operator_id: str | None = None) -> FollowUpTask:
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._scope()
         task = FollowUpTask(
             id=str(uuid.uuid4()),
             tenant_id=tenant_id,
@@ -190,7 +206,10 @@ class FollowUpTaskService:
         operator_id: str | None = None,
     ) -> list[FollowUpTask]:
         plan = await self.db.get(FollowUpPlan, plan_id)
+        scope = self._scope()
         if not plan or plan.deleted_at is not None:
+            raise ValueError("随访计划不存在")
+        if scope and plan.tenant_id != scope:
             raise ValueError("随访计划不存在")
 
         # 加载步骤
@@ -207,7 +226,7 @@ class FollowUpTaskService:
         if base_date is None:
             base_date = date.today()
 
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._scope()
         today = date.today()
         tasks = []
 
@@ -249,7 +268,7 @@ class FollowUpTaskService:
             )
             .where(FollowUpTask.id == task_id, FollowUpTask.deleted_at.is_(None))
         )
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._scope()
         if tenant_id:
             stmt = stmt.where(FollowUpTask.tenant_id == tenant_id)
         result = await self.db.execute(stmt)
@@ -275,7 +294,7 @@ class FollowUpTaskService:
         )
         conditions = [FollowUpTask.deleted_at.is_(None)]
 
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._scope()
         if tenant_id:
             conditions.append(FollowUpTask.tenant_id == tenant_id)
         if doctor_id:
@@ -308,7 +327,10 @@ class FollowUpTaskService:
 
     async def complete_task(self, task_id: str, operator_id: str | None = None) -> FollowUpTask | None:
         task = await self.db.get(FollowUpTask, task_id)
+        scope = self._scope()
         if not task or task.deleted_at is not None:
+            return None
+        if scope and task.tenant_id != scope:
             return None
         if task.status not in ("pending", "overdue"):
             raise ValueError("任务非待处理状态，无法完成")
@@ -323,7 +345,10 @@ class FollowUpTaskService:
 
     async def skip_task(self, task_id: str, reason: str, operator_id: str | None = None) -> FollowUpTask | None:
         task = await self.db.get(FollowUpTask, task_id)
+        scope = self._scope()
         if not task or task.deleted_at is not None:
+            return None
+        if scope and task.tenant_id != scope:
             return None
         if task.status not in ("pending", "overdue"):
             raise ValueError("任务非待处理状态，无法跳过")
@@ -356,7 +381,10 @@ class FollowUpTaskService:
 
     async def delete(self, task_id: str, operator_id: str | None = None) -> bool:
         task = await self.db.get(FollowUpTask, task_id)
+        scope = self._scope()
         if not task or task.deleted_at is not None:
+            return False
+        if scope and task.tenant_id != scope:
             return False
 
         task.deleted_at = datetime.now()
@@ -368,11 +396,16 @@ class FollowUpTaskService:
 # ========== 随访记录服务 ==========
 
 class FollowUpRecordService:
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, tenant_id: str | None = None):
         self.db = db
+        self.tenant_id = tenant_id
+
+    def _scope(self) -> str | None:
+        """显式锚点优先；未传时回退请求上下文（灰度兼容）"""
+        return self.tenant_id if self.tenant_id is not None else get_current_tenant_id()
 
     async def create(self, data, operator_id: str | None = None) -> FollowUpRecord:
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._scope()
 
         # 解析附件
         attachments_str = None
@@ -420,7 +453,7 @@ class FollowUpRecordService:
             )
             .where(FollowUpRecord.id == record_id, FollowUpRecord.deleted_at.is_(None))
         )
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._scope()
         if tenant_id:
             stmt = stmt.where(FollowUpRecord.tenant_id == tenant_id)
         result = await self.db.execute(stmt)
@@ -443,7 +476,7 @@ class FollowUpRecordService:
         )
         conditions = [FollowUpRecord.deleted_at.is_(None)]
 
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._scope()
         if tenant_id:
             conditions.append(FollowUpRecord.tenant_id == tenant_id)
         if doctor_id:
@@ -474,7 +507,10 @@ class FollowUpRecordService:
 
     async def update(self, record_id: str, data, operator_id: str | None = None) -> FollowUpRecord | None:
         record = await self.db.get(FollowUpRecord, record_id)
+        scope = self._scope()
         if not record or record.deleted_at is not None:
+            return None
+        if scope and record.tenant_id != scope:
             return None
 
         update_data = data.model_dump(exclude_unset=True)
@@ -494,7 +530,10 @@ class FollowUpRecordService:
 
     async def delete(self, record_id: str, operator_id: str | None = None) -> bool:
         record = await self.db.get(FollowUpRecord, record_id)
+        scope = self._scope()
         if not record or record.deleted_at is not None:
+            return False
+        if scope and record.tenant_id != scope:
             return False
 
         record.deleted_at = datetime.now()
@@ -506,12 +545,17 @@ class FollowUpRecordService:
 # ========== 患者自报告服务 ==========
 
 class SelfReportService:
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, tenant_id: str | None = None):
         self.db = db
+        self.tenant_id = tenant_id
+
+    def _scope(self) -> str | None:
+        """显式锚点优先；未传时回退请求上下文（灰度兼容）"""
+        return self.tenant_id if self.tenant_id is not None else get_current_tenant_id()
 
     async def create(self, data, patient_id: str, operator_id: str | None = None) -> FollowUpSelfReport:
         """创建患者自报告"""
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._scope()
         report = FollowUpSelfReport(
             tenant_id=tenant_id,
             task_id=data.task_id,
@@ -540,7 +584,11 @@ class SelfReportService:
             FollowUpSelfReport.deleted_at.is_(None),
         )
         result = await self.db.execute(stmt)
-        return result.scalar_one_or_none()
+        report = result.scalar_one_or_none()
+        scope = self._scope()
+        if report and scope and report.tenant_id != scope:
+            return None
+        return report
 
     async def get_list(
         self,
@@ -551,7 +599,7 @@ class SelfReportService:
         page_size: int = 10,
     ) -> tuple[list[FollowUpSelfReport], int]:
         """查询自报告列表"""
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._scope()
         conditions = [FollowUpSelfReport.deleted_at.is_(None)]
         if tenant_id:
             conditions.append(FollowUpSelfReport.tenant_id == tenant_id)

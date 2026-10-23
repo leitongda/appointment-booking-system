@@ -2,7 +2,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_admin, get_store_filter, require_permission
+from app.api.deps import (
+    get_current_admin,
+    get_store_filter,
+    require_admin_tenant_anchor,
+    require_permission,
+)
 from app.core.config import settings
 from app.db.session import get_db
 from app.modules.messages.service_messages import MessageService
@@ -274,6 +279,7 @@ async def get_all_messages(
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("message:list"))
 ):
     """获取所有消息列表（管理端）"""
@@ -293,7 +299,8 @@ async def get_all_messages(
         user_type=user_type,
         keyword=keyword,
         query=query,
-        store_id=store_id
+        store_id=store_id,
+        tenant_id=tenant_anchor,
     )
     
     return PageResponse(

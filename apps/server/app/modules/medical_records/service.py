@@ -21,16 +21,21 @@ def generate_record_no() -> str:
 
 
 class MedicalRecordService:
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, tenant_id: str | None = None):
         self.db = db
+        self.tenant_id = tenant_id
+
+    def _scope(self) -> str | None:
+        """显式锚点优先；未传时回退请求上下文（灰度兼容）"""
+        return self.tenant_id if self.tenant_id is not None else get_current_tenant_id()
 
     async def create(self, doctor_id: str, data: MedicalRecordCreate) -> MedicalRecord:
         """创建病历"""
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._scope()
 
-        # 获取预约信息
+        # 获取预约信息（跨租户按不存在处理，不泄露存在性）
         appointment = await self.db.get(Appointment, data.appointment_id)
-        if not appointment:
+        if not appointment or (tenant_id and appointment.tenant_id != tenant_id):
             raise ValueError("预约不存在")
 
         # 校验预约状态：仅已签到(2)、就诊中(4)、已完成(5)可创建病历
@@ -86,7 +91,7 @@ class MedicalRecordService:
         # 自动生成随访任务
         if data.follow_up_plan_id:
             from app.modules.follow_up.service import FollowUpTaskService
-            follow_up_service = FollowUpTaskService(self.db)
+            follow_up_service = FollowUpTaskService(self.db, self._scope())
             try:
                 await follow_up_service.generate_from_plan(
                     patient_id=record.patient_id,
@@ -117,7 +122,11 @@ class MedicalRecordService:
         if tenant_id:
             stmt = stmt.where(MedicalRecord.tenant_id == tenant_id)
         result = await self.db.execute(stmt)
-        return result.unique().scalar_one_or_none()
+        record = result.unique().scalar_one_or_none()
+        scope = self._scope()
+        if record and scope and record.tenant_id != scope:
+            return None
+        return record
 
     async def get_by_appointment(self, appointment_id: str) -> MedicalRecord | None:
         """根据预约ID获取病历"""
@@ -134,7 +143,11 @@ class MedicalRecordService:
         if tenant_id:
             stmt = stmt.where(MedicalRecord.tenant_id == tenant_id)
         result = await self.db.execute(stmt)
-        return result.unique().scalar_one_or_none()
+        record = result.unique().scalar_one_or_none()
+        scope = self._scope()
+        if record and scope and record.tenant_id != scope:
+            return None
+        return record
 
     async def get_list(
         self,
@@ -156,7 +169,7 @@ class MedicalRecordService:
         )
 
         conditions = [MedicalRecord.deleted_at.is_(None)]
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._scope()
         if tenant_id:
             conditions.append(MedicalRecord.tenant_id == tenant_id)
 
@@ -206,9 +219,10 @@ class MedicalRecordService:
         return await self.get_list(patient_id=patient_id, page=page, page_size=page_size)
 
     async def update(self, record_id: str, data: MedicalRecordUpdate, operator_id: str | None = None) -> MedicalRecord | None:
-        """更新病历"""
+        """更新病历（跨租户按不存在处理）"""
         record = await self.db.get(MedicalRecord, record_id)
-        if not record:
+        scope = self._scope()
+        if not record or (scope and record.tenant_id != scope):
             return None
 
         update_data = data.model_dump(exclude_unset=True)
@@ -222,9 +236,12 @@ class MedicalRecordService:
         return record
 
     async def delete(self, record_id: str, operator_id: str | None = None) -> bool:
-        """软删除病历"""
+        """软删除病历（跨租户按不存在处理）"""
         record = await self.db.get(MedicalRecord, record_id)
+        scope = self._scope()
         if not record or record.deleted_at is not None:
+            return False
+        if scope and record.tenant_id != scope:
             return False
 
         record.deleted_at = datetime.now()

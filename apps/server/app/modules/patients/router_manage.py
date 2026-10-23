@@ -5,7 +5,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi import status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import check_store_access, get_current_admin, get_store_filter, require_permission
+from app.api.deps import (
+    check_store_access,
+    get_current_admin,
+    get_store_filter,
+    require_permission,
+    resolve_admin_tenant_anchor,
+)
 from app.core.config import settings
 from app.db.session import get_db
 from app.modules.patients.service_manage import PatientManageService
@@ -39,7 +45,7 @@ async def create_patient(
     if not current_admin.get("is_super_admin"):
         store_id = current_admin.get("current_store_id") or current_admin.get("store_id")
 
-    service = PatientManageService(db)
+    service = PatientManageService(db, resolve_admin_tenant_anchor(current_admin))
     try:
         return await service.create_patient(data, store_id=store_id)
     except ValueError as exc:
@@ -61,7 +67,7 @@ async def get_patients(
     if store_filter:
         store_id = store_filter
 
-    service = PatientManageService(db)
+    service = PatientManageService(db, resolve_admin_tenant_anchor(current_admin))
     items, total = await service.get_list(
         keyword=keyword,
         is_blacklist=is_blacklist,
@@ -85,7 +91,7 @@ async def get_blacklist(
     if store_filter:
         store_id = store_filter
 
-    service = PatientManageService(db)
+    service = PatientManageService(db, resolve_admin_tenant_anchor(current_admin))
     items, total = await service.get_blacklist(store_id=store_id, page=page, page_size=page_size)
     return PageResponse(data=items, total=total, page=page, page_size=page_size)
 
@@ -97,7 +103,7 @@ async def get_patient_detail(
     current_admin=Depends(get_current_admin),
     _: None = Depends(require_permission("patient:detail")),
 ):
-    service = PatientManageService(db)
+    service = PatientManageService(db, resolve_admin_tenant_anchor(current_admin))
     await _ensure_patient_store_access(service, current_admin, patient_id)
 
     detail = await service.get_detail(patient_id)
@@ -114,7 +120,7 @@ async def update_patient(
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("patient:update")),
 ):
-    service = PatientManageService(db)
+    service = PatientManageService(db, resolve_admin_tenant_anchor(current_admin))
     await _ensure_patient_store_access(service, current_admin, patient_id, "您无权修改此患者信息")
 
     result = await service.update_patient(patient_id, data)
@@ -130,7 +136,7 @@ async def delete_patient(
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("patient:delete")),
 ):
-    service = PatientManageService(db)
+    service = PatientManageService(db, resolve_admin_tenant_anchor(current_admin))
     await _ensure_patient_store_access(service, current_admin, patient_id, "您无权删除此患者")
 
     try:
@@ -157,7 +163,7 @@ async def get_patient_appointments(
     current_admin=Depends(get_current_admin),
     _: None = Depends(require_permission("patient:detail")),
 ):
-    service = PatientManageService(db)
+    service = PatientManageService(db, resolve_admin_tenant_anchor(current_admin))
     await _ensure_patient_store_access(service, current_admin, patient_id)
     items, total = await service.get_appointments(
         patient_id=patient_id,
@@ -183,7 +189,7 @@ async def get_consumption_records(
     current_admin=Depends(get_current_admin),
     _: None = Depends(require_permission("patient:detail")),
 ):
-    service = PatientManageService(db)
+    service = PatientManageService(db, resolve_admin_tenant_anchor(current_admin))
     await _ensure_patient_store_access(service, current_admin, patient_id)
     items, total = await service.get_consumption_records(
         patient_id=patient_id,
@@ -204,7 +210,7 @@ async def get_point_logs(
     _: None = Depends(require_permission("patient:detail")),
 ):
     service = PointService(db)
-    manage_service = PatientManageService(db)
+    manage_service = PatientManageService(db, resolve_admin_tenant_anchor(current_admin))
     await _ensure_patient_store_access(manage_service, current_admin, patient_id)
     items, total, current_points = await service.get_point_logs(patient_id=patient_id, page=page, page_size=page_size)
     return {
@@ -225,7 +231,7 @@ async def adjust_points(
     _: None = Depends(require_permission("patient:update")),
 ):
     service = PointService(db)
-    manage_service = PatientManageService(db)
+    manage_service = PatientManageService(db, resolve_admin_tenant_anchor(current_admin))
     await _ensure_patient_store_access(manage_service, current_admin, patient_id, "您无权调整此患者积分")
     result = await service.adjust_points(
         patient_id=patient_id,
@@ -250,7 +256,7 @@ async def get_point_summary(
     _: None = Depends(require_permission("patient:detail")),
 ):
     service = PointService(db)
-    manage_service = PatientManageService(db)
+    manage_service = PatientManageService(db, resolve_admin_tenant_anchor(current_admin))
     await _ensure_patient_store_access(manage_service, current_admin, patient_id)
     return await service.get_point_summary(patient_id)
 
@@ -263,7 +269,7 @@ async def add_to_blacklist(
     current_admin=Depends(get_current_admin),
     _: None = Depends(require_permission("patient:update")),
 ):
-    service = PatientManageService(db)
+    service = PatientManageService(db, resolve_admin_tenant_anchor(current_admin))
     await _ensure_patient_store_access(service, current_admin, patient_id, "您无权操作此患者黑名单状态")
     success = await service.add_to_blacklist(patient_id, reason)
     if not success:
@@ -278,7 +284,7 @@ async def remove_from_blacklist(
     current_admin=Depends(get_current_admin),
     _: None = Depends(require_permission("patient:update")),
 ):
-    service = PatientManageService(db)
+    service = PatientManageService(db, resolve_admin_tenant_anchor(current_admin))
     await _ensure_patient_store_access(service, current_admin, patient_id, "您无权操作此患者黑名单状态")
     success = await service.remove_from_blacklist(patient_id)
     if not success:
@@ -294,7 +300,7 @@ async def add_family_member(
     current_admin=Depends(get_current_admin),
     _: None = Depends(require_permission("patient:update")),
 ):
-    service = PatientManageService(db)
+    service = PatientManageService(db, resolve_admin_tenant_anchor(current_admin))
     await _ensure_patient_store_access(service, current_admin, patient_id, "您无权修改此患者家庭成员")
     try:
         result = await service.add_family_member(patient_id, data)
@@ -314,7 +320,7 @@ async def update_family_member(
     current_admin=Depends(get_current_admin),
     _: None = Depends(require_permission("patient:update")),
 ):
-    service = PatientManageService(db)
+    service = PatientManageService(db, resolve_admin_tenant_anchor(current_admin))
     await _ensure_patient_store_access(service, current_admin, patient_id, "您无权修改此患者家庭成员")
     result = await service.update_family_member(patient_id, member_id, data)
     if not result:
@@ -330,7 +336,7 @@ async def delete_family_member(
     current_admin=Depends(get_current_admin),
     _: None = Depends(require_permission("patient:update")),
 ):
-    service = PatientManageService(db)
+    service = PatientManageService(db, resolve_admin_tenant_anchor(current_admin))
     await _ensure_patient_store_access(service, current_admin, patient_id, "您无权修改此患者家庭成员")
     try:
         success = await service.delete_family_member(patient_id, member_id)

@@ -3,7 +3,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_admin, get_current_user
+from app.api.deps import (
+    get_current_admin,
+    get_current_user,
+    require_tenant_active_for_write,
+    resolve_actor_tenant_anchor,
+)
 from app.common.deps import require_permission
 from app.core.config import settings
 from app.db.session import get_db
@@ -17,6 +22,7 @@ async def join_waitlist(
     data: dict,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
+    _tenant_guard: None = Depends(require_tenant_active_for_write),
 ):
     """用户加入候补队列"""
     user_id = current_user.get("user_id") or current_user.get("id")
@@ -44,6 +50,7 @@ async def join_waitlist(
             schedule_id=schedule_id,
             symptom_description=symptom_description,
             operator_id=user_id,
+            tenant_id=resolve_actor_tenant_anchor(current_user),
         )
     except ValueError as exc:
         raise HTTPException(
@@ -85,6 +92,7 @@ async def cancel_waitlist(
             user_id=user_id,
             is_admin=False,
             operator_id=user_id,
+            tenant_id=resolve_actor_tenant_anchor(current_user),
         )
     except ValueError as exc:
         raise HTTPException(
@@ -132,7 +140,7 @@ async def get_my_waitlist(
 
     # 构建查询
     conditions = [WaitlistEntry.user_id == user_id]
-    tenant_id = get_current_tenant_id()
+    tenant_id = resolve_actor_tenant_anchor(current_user)
     if tenant_id:
         conditions.append(WaitlistEntry.tenant_id == tenant_id)
     if status_filter:
@@ -243,7 +251,7 @@ async def get_waitlist_stats(
         func.count(WaitlistEntry.id),
     ).group_by(WaitlistEntry.status)
 
-    tenant_id = get_current_tenant_id()
+    tenant_id = resolve_actor_tenant_anchor(current_admin)
     if tenant_id:
         stmt = stmt.where(WaitlistEntry.tenant_id == tenant_id)
     if store_id:
@@ -284,7 +292,7 @@ async def admin_list_waitlist(
 
     from app.middleware.tenant_context import get_current_tenant_id
     from app.models.doctor import Doctor
-    from app.models.patient import Patient
+    from app.models.user import Patient
     from app.models.schedule import Schedule
     from app.models.waitlist import WaitlistEntry
 
@@ -295,7 +303,7 @@ async def admin_list_waitlist(
         .outerjoin(Patient, WaitlistEntry.patient_id == Patient.id)
     )
 
-    tenant_id = get_current_tenant_id()
+    tenant_id = resolve_actor_tenant_anchor(current_admin)
     if tenant_id:
         stmt = stmt.where(WaitlistEntry.tenant_id == tenant_id)
     if store_id:
@@ -311,10 +319,15 @@ async def admin_list_waitlist(
     if end_date:
         stmt = stmt.where(WaitlistEntry.created_at <= end_date)
     if keyword:
+        # LIKE 通配符转义，避免用户输入的 % / _ 改变匹配语义
+        escaped_keyword = (
+            keyword.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        )
+        pattern = f"%{escaped_keyword}%"
         stmt = stmt.where(
             or_(
-                Patient.name.ilike(f"%{keyword}%"),
-                Patient.phone.ilike(f"%{keyword}%"),
+                Patient.name.ilike(pattern, escape="\\"),
+                Patient.phone.ilike(pattern, escape="\\"),
             )
         )
 
@@ -375,7 +388,7 @@ async def admin_promote_waitlist(
 
     # 取候补记录（校验存在 + 租户）
     stmt = select(WaitlistEntry).where(WaitlistEntry.id == entry_id)
-    tenant_id = get_current_tenant_id()
+    tenant_id = resolve_actor_tenant_anchor(current_admin)
     if tenant_id:
         stmt = stmt.where(WaitlistEntry.tenant_id == tenant_id)
     entry = (await db.execute(stmt)).scalar_one_or_none()
@@ -389,6 +402,7 @@ async def admin_promote_waitlist(
     appointment = await service.promote_next(
         schedule_id=entry.schedule_id,
         operator_id=current_admin.get("id"),
+        tenant_id=tenant_id,
     )
     if not appointment:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="递补失败，可能已无可用号源")
@@ -416,6 +430,7 @@ async def admin_cancel_waitlist(
             user_id=None,  # 管理员操作不限定归属
             is_admin=True,
             operator_id=current_admin.get("id"),
+            tenant_id=resolve_actor_tenant_anchor(current_admin),
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
@@ -464,7 +479,7 @@ async def get_waitlist_detail(
     )
 
     # 租户过滤
-    tenant_id = get_current_tenant_id()
+    tenant_id = resolve_actor_tenant_anchor(current_user)
     if tenant_id:
         stmt = stmt.where(WaitlistEntry.tenant_id == tenant_id)
 

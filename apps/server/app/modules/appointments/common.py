@@ -26,6 +26,17 @@ class AppointmentServiceBase:
     def __init__(self, db: AsyncSession):
         self.db = db
 
+    def _resolve_tenant(self, tenant_id: str | None) -> str | None:
+        """显式锚点优先；未传时回退请求上下文（兼容既有内部调用）"""
+        return tenant_id if tenant_id is not None else get_current_tenant_id()
+
+    def _apply_tenant_scope(self, query, model, tenant_id: str | None):
+        """为查询追加租户范围（锚点为空时保持全平台视图）"""
+        effective_tenant_id = self._resolve_tenant(tenant_id)
+        if effective_tenant_id:
+            query = query.where(model.tenant_id == effective_tenant_id)
+        return query
+
     def _compat(self, name: str, default):
         from app.modules.appointments import service as compat_module
 
@@ -60,23 +71,19 @@ class AppointmentServiceBase:
         except Exception as exc:
             logger.warning(f"邮件事件钩子分发失败: event={event_type}, error={exc}")
 
-    async def get_by_id(self, appointment_id: str) -> Appointment | None:
+    async def get_by_id(self, appointment_id: str, tenant_id: str | None = None) -> Appointment | None:
         query = select(Appointment).options(*APPOINTMENT_QUERY_OPTIONS).where(Appointment.id == appointment_id)
-        tenant_id = get_current_tenant_id()
-        if tenant_id:
-            query = query.where(Appointment.tenant_id == tenant_id)
+        query = self._apply_tenant_scope(query, Appointment, tenant_id)
         result = await self.db.execute(query)
         return result.scalar_one_or_none()
 
-    async def get_by_appointment_no(self, appointment_no: str) -> Appointment | None:
+    async def get_by_appointment_no(self, appointment_no: str, tenant_id: str | None = None) -> Appointment | None:
         query = (
             select(Appointment)
             .options(*APPOINTMENT_QUERY_OPTIONS)
             .where(Appointment.appointment_no == appointment_no)
         )
-        tenant_id = get_current_tenant_id()
-        if tenant_id:
-            query = query.where(Appointment.tenant_id == tenant_id)
+        query = self._apply_tenant_scope(query, Appointment, tenant_id)
         result = await self.db.execute(query)
         return result.scalar_one_or_none()
 
@@ -95,14 +102,15 @@ class AppointmentServiceBase:
         created_end: datetime | None = None,
         page: int = 1,
         page_size: int = 10,
+        tenant_id: str | None = None,
     ) -> tuple[list[Appointment], int]:
-        tenant_id = get_current_tenant_id()
+        effective_tenant_id = self._resolve_tenant(tenant_id)
         query = select(Appointment).options(*APPOINTMENT_QUERY_OPTIONS)
         count_query = select(func.count(Appointment.id))
         schedule_joined = False
-        if tenant_id:
-            query = query.where(Appointment.tenant_id == tenant_id)
-            count_query = count_query.where(Appointment.tenant_id == tenant_id)
+        if effective_tenant_id:
+            query = query.where(Appointment.tenant_id == effective_tenant_id)
+            count_query = count_query.where(Appointment.tenant_id == effective_tenant_id)
 
         if user_id:
             query = query.where(Appointment.user_id == user_id)
@@ -161,7 +169,7 @@ class AppointmentServiceBase:
         count_result = await self.db.execute(count_query)
         return list(result.scalars().all()), count_result.scalar() or 0
 
-    async def get_today_by_doctor(self, doctor_id: str) -> list[Appointment]:
+    async def get_today_by_doctor(self, doctor_id: str, tenant_id: str | None = None) -> list[Appointment]:
         today = date.today()
         query = (
             select(Appointment)
@@ -180,9 +188,7 @@ class AppointmentServiceBase:
                 )
             )
         )
-        tenant_id = get_current_tenant_id()
-        if tenant_id:
-            query = query.where(Appointment.tenant_id == tenant_id)
+        query = self._apply_tenant_scope(query, Appointment, tenant_id)
         result = await self.db.execute(query.order_by(Appointment.queue_number))
         return list(result.scalars().all())
 
@@ -192,8 +198,9 @@ class AppointmentServiceBase:
         start_date: date | None = None,
         end_date: date | None = None,
         store_id: str | list[str] | None = None,
+        tenant_id: str | None = None,
     ) -> AppointmentStatistics:
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._resolve_tenant(tenant_id)
         base_query = select(Appointment.status, func.count(Appointment.id))
         if tenant_id:
             base_query = base_query.where(Appointment.tenant_id == tenant_id)
@@ -223,9 +230,8 @@ class AppointmentServiceBase:
             no_show=status_counts.get(8, 0),  # NO_SHOW(爽约)
         )
 
-    async def get_queue_info(self, doctor_id: str) -> dict:
+    async def get_queue_info(self, doctor_id: str, tenant_id: str | None = None) -> dict:
         today = date.today()
-        tenant_id = get_current_tenant_id()
         in_progress_query = (
             select(Appointment)
             .join(Schedule)
@@ -238,8 +244,7 @@ class AppointmentServiceBase:
                 )
             )
         )
-        if tenant_id:
-            in_progress_query = in_progress_query.where(Appointment.tenant_id == tenant_id)
+        in_progress_query = self._apply_tenant_scope(in_progress_query, Appointment, tenant_id)
         in_progress_result = await self.db.execute(in_progress_query)
         current = in_progress_result.scalar_one_or_none()
 
@@ -255,8 +260,7 @@ class AppointmentServiceBase:
                 )
             )
         )
-        if tenant_id:
-            waiting_query = waiting_query.where(Appointment.tenant_id == tenant_id)
+        waiting_query = self._apply_tenant_scope(waiting_query, Appointment, tenant_id)
         waiting_result = await self.db.execute(waiting_query.order_by(Appointment.sign_in_time))
         waiting_list = list(waiting_result.scalars().all())
 
@@ -272,8 +276,7 @@ class AppointmentServiceBase:
                 )
             )
         )
-        if tenant_id:
-            passed_query = passed_query.where(Appointment.tenant_id == tenant_id)
+        passed_query = self._apply_tenant_scope(passed_query, Appointment, tenant_id)
         passed_result = await self.db.execute(passed_query.order_by(Appointment.queue_number))
         passed_list = list(passed_result.scalars().all())
 
@@ -307,7 +310,9 @@ class AppointmentServiceBase:
             ],
         }
 
-    async def get_today_pending_by_user_and_store(self, user_id: str, store_id: str) -> list[Appointment]:
+    async def get_today_pending_by_user_and_store(
+        self, user_id: str, store_id: str, tenant_id: str | None = None
+    ) -> list[Appointment]:
         from app.models.doctor import Doctor
 
         today = date.today()
@@ -329,13 +334,19 @@ class AppointmentServiceBase:
             )
             .order_by(Schedule.time_slot)
         )
-        return list(result.scalars().all())
+        effective_tenant_id = self._resolve_tenant(tenant_id)
+        return [
+            a
+            for a in result.scalars().all()
+            if not effective_tenant_id or a.tenant_id == effective_tenant_id
+        ]
 
     async def get_checkin_queue(
         self,
         store_id: str | None = None,
         doctor_id: str | None = None,
         target_date: date | None = None,
+        tenant_id: str | None = None,
     ) -> list[Appointment]:
         from app.models.doctor import Doctor
 
@@ -365,6 +376,7 @@ class AppointmentServiceBase:
             query = query.where(Schedule.store_id == store_id)
         if doctor_id:
             query = query.where(Appointment.doctor_id == doctor_id)
+        query = self._apply_tenant_scope(query, Appointment, tenant_id)
         query = query.order_by(Appointment.sign_in_time)
         result = await self.db.execute(query)
         return list(result.scalars().all())
@@ -375,6 +387,7 @@ class AppointmentServiceBase:
         patient_id: str,
         schedule_date: date,
         time_slot: str,
+        tenant_id: str | None = None,
     ) -> list[Appointment]:
         query = (
             select(Appointment)
@@ -390,9 +403,7 @@ class AppointmentServiceBase:
                 )
             )
         )
-        tenant_id = get_current_tenant_id()
-        if tenant_id:
-            query = query.where(Appointment.tenant_id == tenant_id)
+        query = self._apply_tenant_scope(query, Appointment, tenant_id)
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
@@ -401,6 +412,7 @@ class AppointmentServiceBase:
         user_id: str,
         store_id: str | None,
         schedule_date: date,
+        tenant_id: str | None = None,
     ) -> int:
         query = (
             select(func.count(Appointment.id))
@@ -413,9 +425,7 @@ class AppointmentServiceBase:
                 )
             )
         )
-        tenant_id = get_current_tenant_id()
-        if tenant_id:
-            query = query.where(Appointment.tenant_id == tenant_id)
+        query = self._apply_tenant_scope(query, Appointment, tenant_id)
         if store_id:
             query = query.where(Schedule.store_id == store_id)
         result = await self.db.execute(query)
@@ -425,6 +435,7 @@ class AppointmentServiceBase:
         self,
         user_id: str,
         doctor_id: str,
+        tenant_id: str | None = None,
     ) -> int:
         query = select(func.count(Appointment.id)).where(
             and_(
@@ -433,9 +444,7 @@ class AppointmentServiceBase:
                 Appointment.status.in_(ACTIVE_APPOINTMENT_STATUSES),
             )
         )
-        tenant_id = get_current_tenant_id()
-        if tenant_id:
-            query = query.where(Appointment.tenant_id == tenant_id)
+        query = self._apply_tenant_scope(query, Appointment, tenant_id)
         result = await self.db.execute(query)
         return result.scalar() or 0
 
@@ -444,6 +453,7 @@ class AppointmentServiceBase:
         check_date: date,
         store_id: str | None = None,
         doctor_id: str | None = None,
+        tenant_id: str | None = None,
     ) -> bool:
         try:
             query = select(RestDay).where(
@@ -453,6 +463,9 @@ class AppointmentServiceBase:
                 query = query.where(RestDay.store_id == store_id)
             result = await self.db.execute(query)
             rest_days = result.scalars().all()
+            effective_tenant_id = self._resolve_tenant(tenant_id)
+            if effective_tenant_id:
+                rest_days = [r for r in rest_days if r.tenant_id == effective_tenant_id]
             for rest_day in rest_days:
                 if not doctor_id or rest_day.doctor_ids is None:
                     return True

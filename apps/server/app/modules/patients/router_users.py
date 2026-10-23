@@ -5,7 +5,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi import status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import check_store_access, get_current_admin, get_store_filter, require_permission
+from app.api.deps import (
+    check_store_access,
+    get_current_admin,
+    get_store_filter,
+    require_permission,
+    resolve_admin_tenant_anchor,
+)
 from app.core.config import settings
 from app.db.session import get_db
 from app.modules.patients.service_users import UserManageService
@@ -54,7 +60,7 @@ async def get_users(
     if store_filter:
         store_id = store_filter
 
-    service = UserManageService(db)
+    service = UserManageService(db, resolve_admin_tenant_anchor(current_admin))
     items, total = await service.get_list(
         keyword=keyword,
         status=status,
@@ -72,7 +78,7 @@ async def get_user_detail(
     current_admin=Depends(get_current_admin),
     _: None = Depends(require_permission("patient:detail")),
 ):
-    service = UserManageService(db)
+    service = UserManageService(db, resolve_admin_tenant_anchor(current_admin))
     await _ensure_user_store_access(service, current_admin, user_id)
     detail = await service.get_detail(user_id)
     if not detail:
@@ -88,7 +94,7 @@ async def update_user_status(
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("patient:update")),
 ):
-    service = UserManageService(db)
+    service = UserManageService(db, resolve_admin_tenant_anchor(current_admin))
     await _ensure_user_store_access(service, current_admin, user_id, "您无权修改此用户状态")
     success = await service.update_status(user_id=user_id, status=user_status, operator_id=current_admin.get("id"))
     if not success:
@@ -105,7 +111,7 @@ async def adjust_user_points(
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("patient:update")),
 ):
-    manage_service = UserManageService(db)
+    manage_service = UserManageService(db, resolve_admin_tenant_anchor(current_admin))
     await _ensure_user_store_access(manage_service, current_admin, user_id, "您无权调整此用户积分")
     patient_id = await manage_service.get_default_patient_id(user_id)
     if not patient_id:
@@ -134,7 +140,7 @@ async def delete_user(
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("patient:delete")),
 ):
-    service = UserManageService(db)
+    service = UserManageService(db, resolve_admin_tenant_anchor(current_admin))
     await _ensure_user_store_access(service, current_admin, user_id, "您无权删除此用户")
     try:
         success = await service.delete_user(user_id=user_id, operator_id=current_admin.get("id"))
@@ -153,7 +159,7 @@ async def update_user(
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("patient:update")),
 ):
-    service = UserManageService(db)
+    service = UserManageService(db, resolve_admin_tenant_anchor(current_admin))
     await _ensure_user_store_access(service, current_admin, user_id, "您无权修改此用户信息")
     result = await service.update_user(user_id=user_id, data=data, operator_id=current_admin.get("id"))
     if not result:
@@ -169,7 +175,7 @@ async def create_card(
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("patient:update")),
 ):
-    service = UserManageService(db)
+    service = UserManageService(db, resolve_admin_tenant_anchor(current_admin))
     await _ensure_user_store_access(service, current_admin, user_id, "您无权为此用户添加就诊卡")
     try:
         result = await service.create_card(user_id=user_id, data=data, operator_id=current_admin.get("id"))
@@ -189,7 +195,7 @@ async def update_card(
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("patient:update")),
 ):
-    service = UserManageService(db)
+    service = UserManageService(db, resolve_admin_tenant_anchor(current_admin))
     await _ensure_card_store_access(service, current_admin, user_id, card_id, "您无权修改该就诊卡")
     result = await service.update_card(
         user_id=user_id,
@@ -210,7 +216,7 @@ async def delete_card(
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("patient:delete")),
 ):
-    service = UserManageService(db)
+    service = UserManageService(db, resolve_admin_tenant_anchor(current_admin))
     await _ensure_card_store_access(service, current_admin, user_id, card_id, "您无权删除该就诊卡")
     try:
         success = await service.delete_card(user_id=user_id, card_id=card_id)

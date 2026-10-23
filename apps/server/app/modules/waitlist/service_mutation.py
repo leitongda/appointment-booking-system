@@ -24,7 +24,8 @@ class WaitlistMutationMixin:
         schedule_id: str,
         symptom_description: str | None = None,
         priority: int = 100,
-        operator_id: str | None = None
+        operator_id: str | None = None,
+        tenant_id: str | None = None,
     ) -> WaitlistEntry:
         """添加到候补队列
 
@@ -42,6 +43,10 @@ class WaitlistMutationMixin:
         Raises:
             ValueError: 如果候补队列已满或已存在
         """
+        effective_tenant_id = tenant_id if tenant_id is not None else get_current_tenant_id()
+        if not effective_tenant_id:
+            raise BusinessError('缺少租户上下文，无法加入候补')
+
         # 检查是否已在候补队列中
         existing = await self.db.execute(
             select(WaitlistEntry).where(
@@ -53,7 +58,9 @@ class WaitlistMutationMixin:
                 )
             )
         )
-        if existing.scalar_one_or_none():
+        existing_entry = existing.scalar_one_or_none()
+        # 租户隔离：他租户的同键记录不视为重复
+        if existing_entry and existing_entry.tenant_id == effective_tenant_id:
             raise BusinessError('您已在候补队列中，请勿重复添加', error_code=ErrorCode.WAITLIST_DUPLICATE)
 
         # 获取排班信息
@@ -63,6 +70,8 @@ class WaitlistMutationMixin:
         schedule = schedule_result.scalar_one_or_none()
         if not schedule:
             raise ValueError('排班不存在')
+        if schedule.tenant_id != effective_tenant_id:
+            raise ValueError('排班不属于当前租户')
 
         # 检查是否为休息日（自定义排班不受休息日影响）
         # 自定义排班（template_id=None）优先级高于休息日设置
@@ -108,7 +117,7 @@ class WaitlistMutationMixin:
         # 创建候补记录
         entry = WaitlistEntry(
             id=str(uuid.uuid4()),
-            tenant_id=get_current_tenant_id(),
+            tenant_id=effective_tenant_id,
             user_id=user_id,
             patient_id=patient_id,
             schedule_id=schedule_id,
@@ -133,7 +142,8 @@ class WaitlistMutationMixin:
         entry_id: str,
         user_id: str | None,
         is_admin: bool = False,
-        operator_id: str | None = None
+        operator_id: str | None = None,
+        tenant_id: str | None = None,
     ) -> WaitlistEntry | None:
         """取消候补
 
@@ -152,6 +162,10 @@ class WaitlistMutationMixin:
         entry = result.scalar_one_or_none()
 
         if not entry:
+            return None
+
+        # 租户隔离：显式锚点存在时，他租户记录按不存在处理（堵跨租户取消）
+        if tenant_id is not None and entry.tenant_id != tenant_id:
             return None
 
         # 非管理员只能取消自己的候补

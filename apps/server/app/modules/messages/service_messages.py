@@ -194,9 +194,9 @@ class MessageService:
             logger.warning(f"模板渲染失败 (code={code}): {e}")
             return None, None
 
-    async def get_by_id(self, message_id: str) -> Message | None:
+    async def get_by_id(self, message_id: str, tenant_id: str | None = None) -> Message | None:
         stmt = select(Message).where(Message.id == message_id)
-        tenant_id = get_current_tenant_id()
+        tenant_id = tenant_id if tenant_id is not None else get_current_tenant_id()
         if tenant_id:
             stmt = stmt.where(Message.tenant_id == tenant_id)
         result = await self.db.execute(stmt)
@@ -235,14 +235,15 @@ class MessageService:
         keyword: str | None,
         query: MessageQuery,
         store_id: str | None = None,
+        tenant_id: str | None = None,
     ) -> tuple[list[Message], int]:
         stmt = select(Message)
         count_stmt = select(func.count(Message.id))
 
-        tenant_id = get_current_tenant_id()
-        if tenant_id:
-            stmt = stmt.where(Message.tenant_id == tenant_id)
-            count_stmt = count_stmt.where(Message.tenant_id == tenant_id)
+        scope_tenant = tenant_id if tenant_id is not None else get_current_tenant_id()
+        if scope_tenant:
+            stmt = stmt.where(Message.tenant_id == scope_tenant)
+            count_stmt = count_stmt.where(Message.tenant_id == scope_tenant)
 
         if user_id:
             stmt = stmt.where(Message.user_id == user_id)

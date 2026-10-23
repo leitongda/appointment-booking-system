@@ -70,7 +70,8 @@ async def get_my_schedules(
         end_date=end_date,
         status=status,
         page=1,
-        page_size=100  # 医生端一般不需要分页
+        page_size=100,  # 医生端一般不需要分页
+        tenant_id=doctor.tenant_id,
     )
 
     # 查询日期范围内的所有有效休息日
@@ -121,7 +122,8 @@ async def get_my_today_schedules(
         start_date=today,
         end_date=today,
         page=1,
-        page_size=10
+        page_size=10,
+        tenant_id=doctor.tenant_id,
     )
 
     # 查询今日的休息日

@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import and_, case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user_or_admin
+from app.api.deps import get_current_user_or_admin, resolve_actor_tenant_anchor
 from app.common.auth_deps import get_current_admin
 from app.core.config import settings
 from app.db.session import get_db
@@ -192,7 +192,7 @@ async def list_plans(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user_or_admin),
 ):
-    service = FollowUpPlanService(db)
+    service = FollowUpPlanService(db, resolve_actor_tenant_anchor(current_user))
     plans, total = await service.get_list(
         department_id=department_id,
         diagnosis_code=diagnosis_code,
@@ -210,7 +210,7 @@ async def get_plan(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user_or_admin),
 ):
-    service = FollowUpPlanService(db)
+    service = FollowUpPlanService(db, resolve_actor_tenant_anchor(current_user))
     plan = await service.get_by_id(plan_id)
     if not plan:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="随访计划不存在")
@@ -224,7 +224,7 @@ async def create_plan(
     current_user: dict = Depends(get_current_user_or_admin),
 ):
     operator_id = current_user.get("doctor_id") or current_user.get("admin_id") or current_user.get("sub")
-    service = FollowUpPlanService(db)
+    service = FollowUpPlanService(db, resolve_actor_tenant_anchor(current_user))
     plan = await service.create(data, operator_id=operator_id)
     plan = await service.get_by_id(plan.id)
     return build_plan_response(plan)
@@ -238,7 +238,7 @@ async def update_plan(
     current_user: dict = Depends(get_current_user_or_admin),
 ):
     operator_id = current_user.get("doctor_id") or current_user.get("admin_id") or current_user.get("sub")
-    service = FollowUpPlanService(db)
+    service = FollowUpPlanService(db, resolve_actor_tenant_anchor(current_user))
     plan = await service.update(plan_id, data, operator_id=operator_id)
     if not plan:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="随访计划不存在")
@@ -254,7 +254,7 @@ async def update_plan_steps(
     current_user: dict = Depends(get_current_user_or_admin),
 ):
     operator_id = current_user.get("doctor_id") or current_user.get("admin_id") or current_user.get("sub")
-    service = FollowUpPlanService(db)
+    service = FollowUpPlanService(db, resolve_actor_tenant_anchor(current_user))
     plan = await service.update_steps(plan_id, data.steps, operator_id=operator_id)
     if not plan:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="随访计划不存在")
@@ -268,7 +268,7 @@ async def delete_plan(
     current_user: dict = Depends(get_current_user_or_admin),
 ):
     operator_id = current_user.get("doctor_id") or current_user.get("admin_id") or current_user.get("sub")
-    service = FollowUpPlanService(db)
+    service = FollowUpPlanService(db, resolve_actor_tenant_anchor(current_user))
     success = await service.delete(plan_id, operator_id=operator_id)
     if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="随访计划不存在")
@@ -291,7 +291,7 @@ async def list_tasks(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user_or_admin),
 ):
-    service = FollowUpTaskService(db)
+    service = FollowUpTaskService(db, resolve_actor_tenant_anchor(current_user))
     tasks, total = await service.get_list(
         doctor_id=doctor_id,
         patient_id=patient_id,
@@ -317,7 +317,7 @@ async def get_my_tasks(
     doctor_id = current_user.get("doctor_id")
     if not doctor_id:
         return PageResponse(data=[], total=0, page=page, page_size=page_size)
-    service = FollowUpTaskService(db)
+    service = FollowUpTaskService(db, resolve_actor_tenant_anchor(current_user))
     tasks, total = await service.get_list(doctor_id=doctor_id, status=status, page=page, page_size=page_size)
     return PageResponse(data=[build_task_list_response(t) for t in tasks], total=total, page=page, page_size=page_size)
 
@@ -341,7 +341,7 @@ async def get_my_patient_tasks(
     if not patient:
         return PageResponse(data=[], total=0, page=page, page_size=page_size)
 
-    service = FollowUpTaskService(db)
+    service = FollowUpTaskService(db, resolve_actor_tenant_anchor(current_user))
     tasks, total = await service.get_list(patient_id=patient.id, status=status, page=page, page_size=page_size)
     return PageResponse(data=[build_task_list_response(t) for t in tasks], total=total, page=page, page_size=page_size)
 
@@ -353,7 +353,7 @@ async def get_overdue_tasks(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_admin),
 ):
-    service = FollowUpTaskService(db)
+    service = FollowUpTaskService(db, resolve_actor_tenant_anchor(current_user))
     tasks, total = await service.get_list(status="overdue", page=page, page_size=page_size)
     return PageResponse(data=[build_task_list_response(t) for t in tasks], total=total, page=page, page_size=page_size)
 
@@ -366,7 +366,7 @@ async def get_patient_tasks(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user_or_admin),
 ):
-    service = FollowUpTaskService(db)
+    service = FollowUpTaskService(db, resolve_actor_tenant_anchor(current_user))
     tasks, total = await service.get_list(patient_id=patient_id, page=page, page_size=page_size)
     return PageResponse(data=[build_task_list_response(t) for t in tasks], total=total, page=page, page_size=page_size)
 
@@ -377,7 +377,7 @@ async def get_task(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user_or_admin),
 ):
-    service = FollowUpTaskService(db)
+    service = FollowUpTaskService(db, resolve_actor_tenant_anchor(current_user))
     task = await service.get_by_id(task_id)
     if not task:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="随访任务不存在")
@@ -391,7 +391,7 @@ async def create_task(
     current_user: dict = Depends(get_current_user_or_admin),
 ):
     operator_id = current_user.get("doctor_id") or current_user.get("admin_id") or current_user.get("sub")
-    service = FollowUpTaskService(db)
+    service = FollowUpTaskService(db, resolve_actor_tenant_anchor(current_user))
     task = await service.create(data, operator_id=operator_id)
     task = await service.get_by_id(task.id)
     return build_task_response(task)
@@ -404,7 +404,7 @@ async def generate_tasks(
     current_user: dict = Depends(get_current_user_or_admin),
 ):
     operator_id = current_user.get("doctor_id") or current_user.get("admin_id") or current_user.get("sub")
-    service = FollowUpTaskService(db)
+    service = FollowUpTaskService(db, resolve_actor_tenant_anchor(current_user))
     try:
         tasks = await service.generate_from_plan(
             patient_id=data.patient_id,
@@ -428,7 +428,7 @@ async def complete_task(
     current_user: dict = Depends(get_current_user_or_admin),
 ):
     operator_id = current_user.get("doctor_id") or current_user.get("admin_id") or current_user.get("sub")
-    service = FollowUpTaskService(db)
+    service = FollowUpTaskService(db, resolve_actor_tenant_anchor(current_user))
     try:
         task = await service.complete_task(task_id, operator_id=operator_id)
     except ValueError as exc:
@@ -446,7 +446,7 @@ async def skip_task(
     current_user: dict = Depends(get_current_user_or_admin),
 ):
     operator_id = current_user.get("doctor_id") or current_user.get("admin_id") or current_user.get("sub")
-    service = FollowUpTaskService(db)
+    service = FollowUpTaskService(db, resolve_actor_tenant_anchor(current_user))
     try:
         task = await service.skip_task(task_id, reason=data.reason, operator_id=operator_id)
     except ValueError as exc:
@@ -463,7 +463,7 @@ async def delete_task(
     current_user: dict = Depends(get_current_user_or_admin),
 ):
     operator_id = current_user.get("doctor_id") or current_user.get("admin_id") or current_user.get("sub")
-    service = FollowUpTaskService(db)
+    service = FollowUpTaskService(db, resolve_actor_tenant_anchor(current_user))
     success = await service.delete(task_id, operator_id=operator_id)
     if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="随访任务不存在")
@@ -485,7 +485,7 @@ async def list_records(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user_or_admin),
 ):
-    service = FollowUpRecordService(db)
+    service = FollowUpRecordService(db, resolve_actor_tenant_anchor(current_user))
     records, total = await service.get_list(
         doctor_id=doctor_id,
         patient_id=patient_id,
@@ -507,7 +507,7 @@ async def get_patient_records(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user_or_admin),
 ):
-    service = FollowUpRecordService(db)
+    service = FollowUpRecordService(db, resolve_actor_tenant_anchor(current_user))
     records, total = await service.get_list(patient_id=patient_id, page=page, page_size=page_size)
     return PageResponse(data=[build_record_list_response(r) for r in records], total=total, page=page, page_size=page_size)
 
@@ -530,7 +530,7 @@ async def get_my_patient_records(
     if not patient:
         return PageResponse(data=[], total=0, page=page, page_size=page_size)
 
-    service = FollowUpRecordService(db)
+    service = FollowUpRecordService(db, resolve_actor_tenant_anchor(current_user))
     records, total = await service.get_list(patient_id=patient.id, page=page, page_size=page_size)
     return PageResponse(data=[build_record_list_response(r) for r in records], total=total, page=page, page_size=page_size)
 
@@ -541,7 +541,7 @@ async def get_task_records(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user_or_admin),
 ):
-    service = FollowUpRecordService(db)
+    service = FollowUpRecordService(db, resolve_actor_tenant_anchor(current_user))
     records, _ = await service.get_list(task_id=task_id, page=1, page_size=100)
     return [build_record_response(r) for r in records]
 
@@ -552,7 +552,7 @@ async def get_record(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user_or_admin),
 ):
-    service = FollowUpRecordService(db)
+    service = FollowUpRecordService(db, resolve_actor_tenant_anchor(current_user))
     record = await service.get_by_id(record_id)
     if not record:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="随访记录不存在")
@@ -566,7 +566,7 @@ async def create_record(
     current_user: dict = Depends(get_current_user_or_admin),
 ):
     operator_id = current_user.get("doctor_id") or current_user.get("admin_id") or current_user.get("sub")
-    service = FollowUpRecordService(db)
+    service = FollowUpRecordService(db, resolve_actor_tenant_anchor(current_user))
     record = await service.create(data, operator_id=operator_id)
     record = await service.get_by_id(record.id)
     return build_record_response(record)
@@ -580,7 +580,7 @@ async def update_record(
     current_user: dict = Depends(get_current_user_or_admin),
 ):
     operator_id = current_user.get("doctor_id") or current_user.get("admin_id") or current_user.get("sub")
-    service = FollowUpRecordService(db)
+    service = FollowUpRecordService(db, resolve_actor_tenant_anchor(current_user))
     record = await service.update(record_id, data, operator_id=operator_id)
     if not record:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="随访记录不存在")
@@ -595,7 +595,7 @@ async def delete_record(
     current_user: dict = Depends(get_current_user_or_admin),
 ):
     operator_id = current_user.get("doctor_id") or current_user.get("admin_id") or current_user.get("sub")
-    service = FollowUpRecordService(db)
+    service = FollowUpRecordService(db, resolve_actor_tenant_anchor(current_user))
     success = await service.delete(record_id, operator_id=operator_id)
     if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="随访记录不存在")
@@ -612,7 +612,12 @@ async def get_statistics(
     current_user: dict = Depends(get_current_user_or_admin),
 ):
     conditions = [FollowUpTask.deleted_at.is_(None)]
-    tenant_id = get_current_tenant_id()
+    tenant_id = resolve_actor_tenant_anchor(current_user)
+    if tenant_id is None and settings.PATIENT_ANCHOR_FAIL_CLOSE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="平台管理员访问随访统计时必须指定租户",
+        )
     if tenant_id:
         conditions.append(FollowUpTask.tenant_id == tenant_id)
     if start_date:
@@ -725,7 +730,7 @@ async def create_self_report(
     if not patient:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="未找到就诊人信息")
 
-    service = SelfReportService(db)
+    service = SelfReportService(db, resolve_actor_tenant_anchor(current_user))
     report = await service.create(data, patient_id=patient.id, operator_id=user_id)
     report.patient_name = patient.name
     return _build_self_report_response(report)
@@ -749,7 +754,7 @@ async def get_my_self_reports(
     if not patient:
         return PageResponse(data=[], total=0, page=page, page_size=page_size)
 
-    service = SelfReportService(db)
+    service = SelfReportService(db, resolve_actor_tenant_anchor(current_user))
     reports, total = await service.get_list(
         patient_id=patient.id,
         task_id=task_id,
@@ -770,7 +775,7 @@ async def get_task_self_reports(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user_or_admin),
 ):
-    service = SelfReportService(db)
+    service = SelfReportService(db, resolve_actor_tenant_anchor(current_user))
     reports, _ = await service.get_list(task_id=task_id, page=1, page_size=100)
     return [_build_self_report_response(r) for r in reports]
 
@@ -785,7 +790,7 @@ async def get_self_reports(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user_or_admin),
 ):
-    service = SelfReportService(db)
+    service = SelfReportService(db, resolve_actor_tenant_anchor(current_user))
     reports, total = await service.get_list(
         patient_id=patient_id,
         task_id=task_id,
@@ -807,7 +812,7 @@ async def get_self_report(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user_or_admin),
 ):
-    service = SelfReportService(db)
+    service = SelfReportService(db, resolve_actor_tenant_anchor(current_user))
     report = await service.get_by_id(report_id)
     if not report:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="自报告不存在")
@@ -821,7 +826,7 @@ async def review_self_report(
     current_user: dict = Depends(get_current_user_or_admin),
 ):
     reviewer_id = current_user.get("doctor_id") or current_user.get("admin_id") or current_user.get("sub")
-    service = SelfReportService(db)
+    service = SelfReportService(db, resolve_actor_tenant_anchor(current_user))
     report = await service.review(report_id, reviewer_id)
     if not report:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="自报告不存在")

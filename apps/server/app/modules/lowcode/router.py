@@ -139,6 +139,11 @@ async def create_page(
     await gate.enforce_feature(tenant_id, "lowcode_basic")
     await gate.enforce_page_limit(tenant_id)
 
+    # 计划配额（P4-6）：与功能门禁双轨，取更严者
+    from app.common.quota import check_quota
+
+    await check_quota(tenant_id, "lowcode_pages", db)
+
     service = LowCodePageService(db)
 
     # 检查 slug 唯一性
@@ -331,6 +336,11 @@ async def import_page(
     gate = LowCodeFeatureGate(db)
     await gate.enforce_feature(tenant_id, "lowcode_basic")
     await gate.enforce_page_limit(tenant_id)
+
+    # 计划配额（P4-6）：与功能门禁双轨，取更严者
+    from app.common.quota import check_quota
+
+    await check_quota(tenant_id, "lowcode_pages", db)
 
     content = await file.read()
     try:
