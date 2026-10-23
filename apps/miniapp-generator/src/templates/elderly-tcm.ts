@@ -8,14 +8,14 @@ import type { MiniappStyleTemplate } from './types';
 export const elderlyTcm: MiniappStyleTemplate = {
   code: 'elderly-tcm',
   name: '长辈友好/中医康养',
-  description: '面向55岁以上长辈用户，大按钮、低信息密度、口语化文案，温暖棕主色',
+  description: '面向55岁以上长辈用户，大按钮、低信息密度、口语化文案，清新绿主色',
   category: 'tcm',
   audience: ['中医馆', '康养门诊', '老年用户为主的医疗机构'],
 
   navSchema: {
     tabs: [
       { pagePath: '/pages/index/index', text: '首页', iconKey: 'home', activeIconKey: 'home-active' },
-      { pagePath: '/pages/appointment/index', text: '预约', iconKey: 'appointment', activeIconKey: 'appointment-active' },
+      { pagePath: '/pages/org/index', text: '机构中心', iconKey: 'org', activeIconKey: 'org-active' },
       { pagePath: '/pages/profile/index', text: '我的', iconKey: 'profile', activeIconKey: 'profile-active' },
     ],
     height: 120,
@@ -39,9 +39,9 @@ export const elderlyTcm: MiniappStyleTemplate = {
   },
 
   designTokens: {
-    primary: '#6B5235', // 深化以满足 WCAG AA (4.5:1 对比度)
-    primarySoft: '#F5EDE0',
-    accent: '#4B3828', // 进一步深化以保持层次感
+    primary: '#4E8064', // 深绿以满足 WCAG AA (4.5:1 对比度)
+    primarySoft: '#EAF3EE',
+    accent: '#3A6350', // 进一步深化以保持层次感
     bodyFontSize: 36,
     displayFontSize: 72,
     radiusMd: 24,
@@ -52,7 +52,12 @@ export const elderlyTcm: MiniappStyleTemplate = {
       success: '#52C41A',
       warning: '#E8A838',
       danger: '#D32F2F',
-      gradientPrimary: 'linear-gradient(135deg, #8B6F47, #A68B5B)',
+      gradientPrimary: 'linear-gradient(135deg, #5F8F74, #3E6B52)',
+      // 首页四宫格贴片色（对应竞品绿色主题）
+      tilePrimary: '#5F8F74',
+      tileSecondary: '#4E8064',
+      tileTertiary: '#7CA98B',
+      tileQuaternary: '#3E6B52',
     },
   },
 

@@ -43,11 +43,13 @@ export function HomeElderly() {
   const healthCardSubtitle = (healthCardModule?.config?.subtitle as string | undefined)
     || tone.custom?.healthCardSubtitle || '记录您的健康';
 
+  // 四宫格贴片色：取模板 designTokens.customColors（竞品绿色主题），缺省回落绿色系
+  const tiles = tokens.customColors || {};
   const quickActions: HomeQuickAction[] = [
-    { key: 'register', label: tone.bookingLabel, icon: '\ud83c\udfe5', path: '/pages/department/index', color: '#8B6F47' },
-    { key: 'appointments', label: tone.custom?.appointmentRecordsLabel || '预约记录', icon: '\ud83d\udcc5', path: '/pages/appointment/index', color: '#6B5235', needLogin: true },
-    { key: 'patient_card', label: tone.patientLabel || '我的就诊卡', icon: '\ud83d\udcb3', path: '/packageProfile/pages/patient/index', color: '#A68B5B', needLogin: true },
-    { key: 'service', label: tone.custom?.onlineServiceLabel || '在线客服', icon: '\ud83d\udcde', color: '#5D4E37', contact: true },
+    { key: 'register', label: tone.bookingLabel, icon: '\ud83c\udfe5', path: '/pages/department/index', color: tiles.tilePrimary || '#5F8F74' },
+    { key: 'appointments', label: tone.custom?.appointmentRecordsLabel || '预约记录', icon: '\ud83d\udcc5', path: '/pages/appointment/index', color: tiles.tileSecondary || '#4E8064', needLogin: true },
+    { key: 'patient_card', label: tone.patientLabel || '我的就诊卡', icon: '\ud83d\udcb3', path: '/packageProfile/pages/patient/index', color: tiles.tileTertiary || '#7CA98B', needLogin: true },
+    { key: 'service', label: tone.custom?.onlineServiceLabel || '在线客服', icon: '\ud83d\udcde', color: tiles.tileQuaternary || '#3E6B52', contact: true },
   ];
 
   useDidShow(() => {
@@ -151,7 +153,7 @@ export function HomeElderly() {
                 flex: 1,
                 minWidth: 0,
                 fontSize: '32rpx',
-                color: '#3D2B1F',
+                color: '#22332B',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
@@ -179,7 +181,7 @@ export function HomeElderly() {
                 height: '160rpx',
                 borderRadius: '32rpx',
                 backgroundColor: action.color,
-                boxShadow: '0 4rpx 16rpx rgba(139, 111, 71, 0.2)',
+                boxShadow: '0 4rpx 16rpx rgba(95, 143, 116, 0.25)',
               }}
             >
               <View style={{
@@ -206,7 +208,7 @@ export function HomeElderly() {
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: '0 4rpx 16rpx rgba(139, 111, 71, 0.2)',
+                boxShadow: '0 4rpx 16rpx rgba(95, 143, 116, 0.25)',
               }}
             >
               <Text style={{ fontSize: '56rpx', marginBottom: '8rpx' }}>{action.icon}</Text>
@@ -258,7 +260,7 @@ export function HomeElderly() {
           <Text style={{
             fontSize: '40rpx',
             fontWeight: 700,
-            color: '#3D2B1F',
+            color: '#22332B',
             marginBottom: '24rpx',
             display: 'block',
           }}>
@@ -309,11 +311,11 @@ export function HomeElderly() {
               </View>
               <View style={{ flex: 1, minWidth: 0 }}>
                 <View style={{ display: 'flex', alignItems: 'baseline', marginBottom: '8rpx' }}>
-                  <Text style={{ fontSize: '40rpx', fontWeight: 700, color: '#3D2B1F', marginRight: '16rpx' }}>
+                  <Text style={{ fontSize: '40rpx', fontWeight: 700, color: '#22332B', marginRight: '16rpx' }}>
                     {doctor.name}
                   </Text>
                   {doctor.title && (
-                    <Text style={{ fontSize: '32rpx', color: '#8B6F47' }}>{doctor.title}</Text>
+                    <Text style={{ fontSize: '32rpx', color: tokens.primary }}>{doctor.title}</Text>
                   )}
                 </View>
                 <Text style={{ fontSize: '32rpx', color: '#6B7280' }}>

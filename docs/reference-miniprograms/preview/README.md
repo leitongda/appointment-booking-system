@@ -6,9 +6,17 @@
 
 ## 截图
 
-- `01-home-elderly-tcm.png` 首页：四宫格（预约挂号/预约记录/我的就诊卡/在线客服）+ 添加健康卡 + 常看医生空态
+- `01-home-elderly-tcm.png` 首页（一期棕色版，已被绿色版取代，留档）
 - `02-profile-tab.png` 我的：点击登录 / 我的挂号 / 扫码签到 / 联系客服 / 就诊人管理 / 设置
 - `03-appointment-tab.png` 预约：我的预约空态（无后端）
+- `04-home-green.png` 首页（绿色主题）：绿色四宫格（预约挂号/预约记录/我的就诊卡/在线客服）+ 添加健康卡 + 常看医生空态
+- `05-org-center.png` 机构中心：门店照片占位 / 名称卡 / 机构介绍空态；tabBar 高亮正确落在「机构中心」
+
+## 二轮改动（绿色主题 + 机构中心 + tabBar 高亮修复）验证
+
+1. **绿色主题**：elderly-tcm designTokens 换绿色系（primary #4E8064 等），四宫格贴片色改为模板 customColors 驱动（tilePrimary~tileQuaternary），模拟器确认绿色渲染。
+2. **机构中心**：新增 `pages/org/index` + `shells/org/OrgCenter`（门店照片 / 名称+电话+地址卡 / 机构介绍），tabBar 第二项替换为「机构中心」（elderly-tcm navSchema），与竞品结构一致；无后端时空态正常。
+3. **tabBar 高亮**：根因是 CustomTabBar 从未监听 `tabbar:change` 事件且每个 tab 页持有独立实例。修复：监听事件 + 挂载时按当前路由推导选中项；模拟器确认首页 ↔ 机构中心往返高亮均正确跟随。
 
 ## 结论
 
