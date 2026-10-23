@@ -62,6 +62,11 @@ async def upload_image(
 ):
     validate_image(file)
 
+    # 存储配额检查（P4-6；无计量数据时放行）
+    from app.common.quota import check_quota
+
+    await check_quota(current_admin.get("tenant_id"), "storage_mb", db)
+
     content = await file.read()
     if len(content) > MAX_FILE_SIZE:
         raise HTTPException(
@@ -152,8 +157,14 @@ async def upload_image(
 @router.post("/transfer", response_model=UploadResponse, summary="URL转存")
 async def transfer_from_url(
     data: TransferRequest,
+    db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
 ):
+    # 存储配额检查（P4-6；无计量数据时放行）
+    from app.common.quota import check_quota
+
+    await check_quota(current_admin.get("tenant_id"), "storage_mb", db)
+
     try:
         storage = get_storage()
         tenant_folder = build_tenant_storage_folder(data.folder or "images", current_admin.get("tenant_id"))

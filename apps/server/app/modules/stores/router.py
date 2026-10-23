@@ -7,6 +7,7 @@ from app.api.deps import (
     get_current_admin,
     require_admin_tenant_anchor,
     require_permission,
+    resolve_admin_tenant_anchor,
 )
 from app.core.config import settings
 from app.db.session import get_db
@@ -326,7 +327,9 @@ async def create_store(
     service = StoreService(db)
     
     try:
-        store = await service.create(data)
+        store = await service.create(
+            data, tenant_id=resolve_admin_tenant_anchor(current_admin)
+        )
         return StoreResponse.model_validate(store)
     except ValueError as e:
         raise HTTPException(
@@ -365,7 +368,9 @@ async def update_store(
     service = StoreService(db)
     
     try:
-        store = await service.update(store_id, data)
+        store = await service.update(
+            store_id, data, tenant_id=resolve_admin_tenant_anchor(current_admin)
+        )
         if not store:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, 
@@ -408,7 +413,9 @@ async def delete_store(
     service = StoreService(db)
     
     try:
-        success = await service.delete(store_id)
+        success = await service.delete(
+            store_id, tenant_id=resolve_admin_tenant_anchor(current_admin)
+        )
         if not success:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, 

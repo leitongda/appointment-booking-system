@@ -331,12 +331,11 @@ async def admin_list_waitlist(
             )
         )
 
-    # 总数（在带 join 的语句上用 count(distinct id) 避免重复行计数）
+    # 总数：对已带租户/筛选条件的子查询计数，避免引用原表导致跨租户计数失真
     from sqlalchemy import func as _func
+    count_subq = stmt.order_by(None).subquery()
     total = (
-        await db.execute(
-            select(_func.count(_func.distinct(WaitlistEntry.id))).select_from(stmt.subquery())
-        )
+        await db.execute(select(_func.count()).select_from(count_subq))
     ).scalar_one()
 
     # 分页

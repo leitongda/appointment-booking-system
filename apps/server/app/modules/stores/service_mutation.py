@@ -14,24 +14,27 @@ from app.utils.audit import set_create_audit, set_update_audit
 
 
 class StoreMutationMixin:
-    async def create(self, data: StoreCreate, operator_id: str | None = None) -> Store:
+    async def create(
+        self, data: StoreCreate, operator_id: str | None = None, tenant_id: str | None = None
+    ) -> Store:
+        from app.middleware.tenant_context import get_current_tenant_id
+
+        effective_tenant_id = tenant_id if tenant_id is not None else get_current_tenant_id()
         if data.code:
-            existing = await self.get_by_code(data.code)
+            existing = await self.get_by_code(data.code, tenant_id=effective_tenant_id)
             if existing:
                 raise ValueError(f"门店编码 {data.code} 已存在")
 
-        # 配额检查（获取当前租户ID）
+        # 配额检查（使用显式锚点优先）
         from app.common.quota import check_quota
-        from app.middleware.tenant_context import get_current_tenant_id
-        tenant_id = get_current_tenant_id()
-        await check_quota(tenant_id, "stores", self.db)
+        await check_quota(effective_tenant_id, "stores", self.db)
 
         store_data = data.model_dump()
         plain_password = store_data.get("password") or settings.DEFAULT_USER_PASSWORD
         store_data["password"] = get_password_hash(plain_password)
 
         # 设置租户ID
-        store_data["tenant_id"] = tenant_id
+        store_data["tenant_id"] = effective_tenant_id
 
         store = Store(id=str(uuid.uuid4()), **store_data)
         set_create_audit(store, operator_id)
@@ -41,15 +44,19 @@ class StoreMutationMixin:
         return store
 
     async def update(
-        self, store_id: str, data: StoreUpdate, operator_id: str | None = None
+        self,
+        store_id: str,
+        data: StoreUpdate,
+        operator_id: str | None = None,
+        tenant_id: str | None = None,
     ) -> Store | None:
-        store = await self.get_by_id(store_id)
+        store = await self.get_by_id(store_id, tenant_id=tenant_id)
         if not store:
             return None
 
         update_data = data.model_dump(exclude_unset=True)
         if "code" in update_data and update_data["code"]:
-            existing = await self.get_by_code(update_data["code"])
+            existing = await self.get_by_code(update_data["code"], tenant_id=tenant_id)
             if existing and existing.id != store_id:
                 raise ValueError(f"门店编码 {update_data['code']} 已存在")
 
@@ -65,8 +72,8 @@ class StoreMutationMixin:
         await self.db.refresh(store)
         return store
 
-    async def delete(self, store_id: str) -> bool:
-        store = await self.get_by_id(store_id)
+    async def delete(self, store_id: str, tenant_id: str | None = None) -> bool:
+        store = await self.get_by_id(store_id, tenant_id=tenant_id)
         if not store:
             return False
 
