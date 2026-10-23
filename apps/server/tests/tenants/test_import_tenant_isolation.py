@@ -60,50 +60,43 @@ class TestImportServiceTenantIsolation:
         }
         assert SENSITIVE_FIELDS == expected_fields
 
-    def test_infer_tenant_id_from_context(self):
-        """测试从上下文推断租户 ID"""
+    def test_infer_tenant_id_ignores_request_context(self):
+        """R1-5：请求上下文不再作为导入租户来源
+
+        即使线程上下文里有租户，也必须显式传入 tenant_id。
+        """
+        from app.middleware.tenant_context import (
+            clear_tenant_context,
+            set_tenant_context,
+        )
+
         db_mock = MagicMock(spec=AsyncSession)
         service = ImportService(db_mock)
 
-        # 模拟租户上下文
-        with patch(
-            "app.modules.import_export.service_import.get_tenant_id_for_create",
-            return_value="tenant-123"
-        ):
-            tenant_id = service._infer_tenant_id()
-            assert tenant_id == "tenant-123"
-            # 验证缓存
-            assert service._tenant_id == "tenant-123"
+        set_tenant_context("tenant-from-context")
+        try:
+            with pytest.raises(ValueError):
+                service._infer_tenant_id()
+        finally:
+            clear_tenant_context()
 
     def test_infer_tenant_id_explicit(self):
         """测试显式指定租户 ID"""
         db_mock = MagicMock(spec=AsyncSession)
         service = ImportService(db_mock)
 
-        with patch(
-            "app.modules.import_export.service_import.get_tenant_id_for_create",
-            return_value="explicit-tenant"
-        ):
-            tenant_id = service._infer_tenant_id(tenant_id="explicit-tenant")
-            assert tenant_id == "explicit-tenant"
+        tenant_id = service._infer_tenant_id(tenant_id="explicit-tenant")
+        assert tenant_id == "explicit-tenant"
 
     def test_infer_tenant_id_raises_on_missing(self):
-        """测试缺少租户上下文时抛出异常"""
+        """测试缺少租户锚点时抛出异常"""
         db_mock = MagicMock(spec=AsyncSession)
         service = ImportService(db_mock)
 
-        with patch(
-            "app.modules.import_export.service_import.get_tenant_id_for_create",
-            return_value=None
-        ):
-            with patch(
-                "app.modules.import_export.service_import.get_current_tenant_id",
-                return_value=None
-            ):
-                with pytest.raises(ValueError) as exc_info:
-                    service._infer_tenant_id()
+        with pytest.raises(ValueError) as exc_info:
+            service._infer_tenant_id()
 
-                assert "必须指定租户" in str(exc_info.value)
+        assert "必须指定租户" in str(exc_info.value)
 
     def test_infer_tenant_id_uses_cache(self):
         """测试使用缓存的租户 ID"""
@@ -214,46 +207,35 @@ class TestImportServiceTenantIsolation:
                 []
             )
         ):
-            with patch(
-                "app.modules.import_export.service_import.get_current_tenant_id",
-                return_value="tenant-123"
-            ):
-                with pytest.raises(BusinessError) as exc_info:
-                    await service.validate_and_import(
-                        file_content=b"fake-excel",
-                        filename="test.xlsx",
-                        expected_headers=["姓名"],
-                        required_fields=["姓名"],
-                        process_row_func=AsyncMock(),
-                    )
+            with pytest.raises(BusinessError) as exc_info:
+                await service.validate_and_import(
+                    file_content=b"fake-excel",
+                    filename="test.xlsx",
+                    expected_headers=["姓名"],
+                    required_fields=["姓名"],
+                    process_row_func=AsyncMock(),
+                    tenant_id="tenant-123",
+                )
 
-                assert "不允许的字段" in str(exc_info.value.message)
-                assert "tenant_id" in str(exc_info.value.message)
+            assert "不允许的字段" in str(exc_info.value.message)
+            assert "tenant_id" in str(exc_info.value.message)
 
     @pytest.mark.asyncio
     async def test_validate_and_import_requires_tenant_context(self):
-        """测试导入必须有租户上下文"""
+        """测试导入必须有租户锚点（R1-5：不再回退上下文）"""
         db_mock = MagicMock(spec=AsyncSession)
         service = ImportService(db_mock)
 
-        with patch(
-            "app.modules.import_export.service_import.get_tenant_id_for_create",
-            return_value=None
-        ):
-            with patch(
-                "app.modules.import_export.service_import.get_current_tenant_id",
-                return_value=None
-            ):
-                with pytest.raises(BusinessError) as exc_info:
-                    await service.validate_and_import(
-                        file_content=b"fake-excel",
-                        filename="test.xlsx",
-                        expected_headers=["姓名"],
-                        required_fields=["姓名"],
-                        process_row_func=AsyncMock(),
-                    )
+        with pytest.raises(BusinessError) as exc_info:
+            await service.validate_and_import(
+                file_content=b"fake-excel",
+                filename="test.xlsx",
+                expected_headers=["姓名"],
+                required_fields=["姓名"],
+                process_row_func=AsyncMock(),
+            )
 
-                assert "必须指定租户" in str(exc_info.value.message)
+        assert "必须指定租户" in str(exc_info.value.message)
 
     @pytest.mark.asyncio
     async def test_validate_and_import_skips_tenant_validation(self):

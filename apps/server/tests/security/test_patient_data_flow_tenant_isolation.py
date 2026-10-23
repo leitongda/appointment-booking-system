@@ -327,7 +327,21 @@ class TestFollowUpFlow:
         assert response.status_code == 200, response.text
         body = response.json()
         data = body.get("data") or {}
-        assert "total" in data
+        # 数值断言：租户 A 只有一个任务（task_a），不得聚合到 B
+        assert data.get("total") == 1, response.text
+        assert data.get("pending") == 1, response.text
+
+    async def test_http_cross_tenant_task_detail_404(
+        self, async_client, p2b_env, admin_token_factory
+    ):
+        """HTTP 层跨租户任务详情：B 管理员访问 A 的任务 → 404"""
+        env = p2b_env
+        token = admin_token_factory(env.admin_b)
+        response = await async_client.get(
+            f"/api/v1/follow-up/tasks/{env.task_a.id}",
+            headers=_auth(token, env.tenant_b.id),
+        )
+        assert response.status_code == 404, response.text
 
     async def test_platform_admin_statistics_403_when_switch_on(
         self, async_client, p2b_env, admin_token_factory, monkeypatch

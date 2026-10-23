@@ -37,7 +37,7 @@
 | 零租户逻辑模块 | `settings`、`statistics`、`shift_types` | 本次 grep：`statistics`/`settings` 业务代码零命中；`shift_types` 仅创建/缓存引用 |
 | `auto_renew` 消费方 | 0（只落库/回显） | `app/models/tenant.py:219`、`service_subscription.py:163`、`schemas.py:369/386` |
 | purge 实现 | 0（仅有配置） | `app/core/config.py:144-145`；`app/tasks/` 无对应任务 |
-| 审计 SQL 可直接执行 | 否，p3a1/p3a7 应用前会报错 | 盘点 R4-1 实跑：`scripts/tenant_null_tenant_id_audit.sql:39/63` 报 `column tenant_id does not exist` |
+| 审计 SQL 可直接执行 | 是（B9/R4-1 后拆 pre/post 两段 + 守卫） | `scripts/tenant_null_tenant_id_audit.sql`；缺失表/列输出 `SKIP(missing)`（见第 6 节） |
 
 ### 1.4 关键事实与证据（后续批次直接引用）
 
@@ -46,11 +46,11 @@
 3. 管理端结构化错误处理会提前吞掉 `TENANT_OVERDUE/TENANT_SUSPENDED`：`packages/api/src/utils/error-handling.ts:152-156` 返回 `true`，而调用发生在 403 分支之前（`packages/api/src/web-interceptors.ts:347` vs `:359-366`），导致不跳停服页（R4-9）。
 4. `waitlist /stats` 引用了不存在的列：`app/modules/waitlist/router.py:258` 使用 `WaitlistEntry.store_id`，而模型列清单（`app/models/waitlist.py:23-52`）无此列；带 `store_id` 的统计请求会 `AttributeError`（R2-8）。
 5. `stores` 的详情/状态/批量绑定未传锚点：`app/modules/stores/router.py:288`、`:486`、`:571`、`:654`；写路径的 403 来自 `check_store_access`（`:281`、`:362`），请求到不了 service，矩阵因此“假通过”（R2-9）。
-6. 6 张统一消息表的 `tenant_id` 为 `NOT NULL`：`app/models/unified_template.py:32`、`app/modules/unified_message/models.py:39/61/86/115/130`；M6 文档里的 `UPDATE ... SET tenant_id = NULL` 配方（`migrations/versions/p3a6_tenant_fk.py:9-16`）对它们不可执行（R4-6）。
-7. M6 的 16 张表与模型层不一致：迁移建了外键（`p3a6_tenant_fk.py:28-45`），但 7 个模型列未声明 `ForeignKey("tenants.id")`（R3-8）。
+6. 6 张统一消息表的 `tenant_id` 为 `NOT NULL`：`app/models/unified_template.py:33`、`app/modules/unified_message/models.py:39/61/86/115/130`；M6 文档里的通用 `UPDATE ... SET tenant_id = NULL` 配方对它们不可执行（R4-6，已在 B9 按可空/NOT NULL 分两类修正，见 `p3a6_tenant_fk.py` 文件头与 `scripts/m6_post_deploy_cleanse_and_validate.sql`）。
+7. M6 的 16 张表与模型层不一致：迁移建了外键（`p3a6_tenant_fk.py:48-60`），但 7 个模型列原本未声明 `ForeignKey("tenants.id")`（R3-8，已在 B9 补齐：`app/models/unified_template.py`、`app/modules/unified_message/models.py` 五处、`app/models/content_version.py`）。
 8. 支付回调强制租户上下文：`app/modules/payments/service.py:179-182`、退款 `app/modules/refunds/router.py:231-233`；而文档给的是单域名回调地址（`docs/payment-launch-checklist.md:46`），微信不会带 `X-Tenant-ID`（R4-11）。
 9. 功能开关唯一接线点：`app/modules/payments/router.py:127`；`online_payment` 默认 False（`app/common/feature_definitions.py:37`）；`require_feature` 自身在 `app/common/feature_deps.py:17-43`，总开关默认 False（`app/core/config.py:148`）。
-10. 审计 SQL 的覆盖面缺口：D13 只查跨租户重复（`scripts/tenant_null_tenant_id_audit.sql:11-22`），D1 只数行数（`:65-68`），D9 缺 5 张表（`:24-39`）。
+10. 审计 SQL 的覆盖面缺口（R4-1/R4-2/R4-4/R4-5，已在 B9 修复）：旧版 D13 只查跨租户重复、D1 只数行数、D9 缺 5 张表；现版补同租户/平台重复、日志观测门禁、`null_pct` 与 `miniapp_instances` 计数，并逐表守卫。
 11. 迁移含不可逆数据合并：`p3a5_usage_daily_unique.py` 按 `SUM` 合并重复用量行；`p3a1_content_tenant.py:9-10` 明确内容表回填不可自动恢复（R4-15）。
 12. 生命周期：到期任务直接把租户置欠费（`app/tasks/tenant_usage_task.py:224-229`），未读 `auto_renew`；软删除承诺 90 天后物理删除（`app/modules/tenants/service_tenant.py:291-297`）但无执行方（R3-1/R3-2）。
 
@@ -280,18 +280,43 @@
 - `get_tenant_filter` 的 fail-open 分支（`tenant_deps.py:224-244`）在步骤 3 翻 True 后才会变成 403；此前只告警。步骤 3 之前必须先确认 `tenant_filter missing tenant_id` 为 0。
 - 平台管理员在 `require_feature` 中天然豁免（`feature_deps.py:31-33`），步骤 7 不影响平台账号。
 
+### 5.4 Runbook 操作步骤（R4-7）
+
+开关全部通过环境变量注入，默认值已登记在 `apps/server/.env.example`
+（`LEGACY_USER_ADMIN_FALLBACK` 至 `FEATURE_ENFORCEMENT_ENABLED` 共 9 项），
+与 `app/core/config.py:131-148` 一一对应。单个开关的标准动作：
+
+1. **翻前确认**：第 5.1 节对应门禁已完成并留档（审计 ERROR=0、孤儿=0、日志命中=0 等）。
+2. **改配置**：只改目标开关一行，保留其余默认值；记录变更单与操作人。
+3. **发布**：重启后端进程（配置在启动时读取）；确认启动日志无异常。
+4. **观察**（至少一个业务日）：按 5.2 表“观测指标”取样，
+   记录 403/400/5xx 计数与业务成功率；异常样本逐条定位。
+5. **判定**：指标平稳 → 保留；出现误伤 → 立即把该行改回默认值并重启，回滚面仅此一项。
+6. **留档**：在变更单记录开关名、旧值/新值、观察窗口、指标截图与结论。
+
+补充约束：
+
+- 一次只翻一个开关；禁止合并发布多个开关。
+- `PUBLIC_TENANT_REQUIRED_EXTRA_PATHS` 逐条添加（JSON 数组），每次只加一条低风险路径。
+- `TENANT_PURGE_ENABLED` / `TENANT_PURGE_DRY_RUN` **本期不翻**：
+  `TENANT_PURGE_*` 在 `app/` 下只有配置两行、无任何消费方（R4-13），
+  不能作为“已具备物理删除能力”的发布依据。
+
 ---
 
 ## 6. 数据核对 SQL 使用说明
 
 ### 6.1 文件与当前状态
 
-- 文件：`apps/server/scripts/tenant_null_tenant_id_audit.sql`（当前为未跟踪文件，`git status` 显示 `??`）。
-- 用途：为 D1/D9/D13/D15/D20 与 M6 孤儿清洗提供只读依据（`sql:1-4`）。
-- **当前不可直接在生产执行**：D9 引用 `news/notices/banners/system_settings.tenant_id`（`sql:36-39`），M6 引用 `news/notices/banners/content_versions.tenant_id`（`sql:60-63`）；这些列分别由 `p3a1_content_tenant.py` 与 `p3a7_settings_tenant.py` 新增。盘点 R4-1 在本机 dev 库（`alembic_version=20260630_drop_plaintext`）实跑，得到：
-  - `psql:...:39: ERROR: column "tenant_id" does not exist`
-  - `psql:...:63: ERROR: column e.tenant_id does not exist`
-  - 由于 D9/M6 各是一条 `UNION`，任一列缺失会导致整段结果丢失，而 psql 默认继续执行后续段落，容易被误判为“已核对”。
+- 文件：`apps/server/scripts/tenant_null_tenant_id_audit.sql`。
+- 用途：为 D1/D9/D13/D15/D20 与 M6 孤儿清洗提供只读依据。
+- **R4-1 后已可在 pre/post 两库直接执行**：脚本拆成 `SECTION 1 = PRE-MIGRATION` 与
+  `SECTION 2 = POST-MIGRATION`，逐表用 `to_regclass()` + `information_schema.columns`
+  守卫，缺失对象输出 `SKIP(missing)`，不会再因一条 `UNION` 断掉整段。
+- 早期盘点的报错（`column "tenant_id" does not exist`）来自旧版无守卫脚本，已消除；
+  `SECTION 2` 只补充 `p3a1/p3a7` 新增的列，在 pre 库会整段 SKIP，属预期。
+- 脚本首行 `\set ON_ERROR_STOP on`，能跑到最后一行即 ERROR 计数=0。
+- 只读：不建临时表、不写任何数据，可用只读账号执行。
 
 ### 6.2 运行前准备
 
@@ -307,43 +332,54 @@
    ```bash
    PGPASSWORD=... psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f apps/server/scripts/tenant_null_tenant_id_audit.sql
    ```
-4. 建议加 `\set ON_ERROR_STOP on`，并在脚本末尾输出 ERROR 计数；任何 ERROR 都视为本次核对未完成。
+4. 脚本内已含 `\set ON_ERROR_STOP on`；任何 ERROR 都会立即中止，能跑到最后一行即 ERROR 计数=0。
 
 ### 6.3 两阶段拆分（R4-1）
 
 | 阶段 | 适用库 | 包含段落 |
 |---|---|---|
-| **pre-migration** | `alembic_version` 在 `p3a1` 之前 | D20、D13、D15、D1、D9（仅已存在列：users/patients/doctors/stores/schedules/appointments/medical_records/examination_reports/follow_up_tasks/waitlist_entries/messages）；M6 仅已存在列的 10 张表 |
-| **post-migration** | `p3a1` + `p3a7` 之后 | D9 全量（含 news/notices/banners/system_settings）、M6 全量 16 张表、purge 候选预览 |
+| **SECTION 1（pre-migration）** | `alembic_version` 在 `p3a1` 之前或之后 | D20（含 `to_regclass` 守卫与 miniapp 按租户 `status=2` 计数）、D13（跨租户/同租户/平台三类）、D15、D1（日志观测门禁）、D9（16 张业务表，含新增 5 张）、M6（12 张既有表的孤儿） |
+| **SECTION 2（post-migration）** | `p3a1` + `p3a7` 之后 | D9 内容/平台配置表（news/notices/banners/content_versions/system_settings）、M6 内容 4 表、`fk_*_tenant` 的 `convalidated`、purge 候选预览 |
 
-每张表改为独立语句，并用守卫避免整段丢失：
+> 设计：`SECTION 2` 只补充 `p3a1/p3a7` 新增的列，整文件在 pre/post 两库都能执行；
+> post 库中 `SECTION 1 + SECTION 2` 即 D9 全量与 M6 全量 16 表。
+> （早期计划写的“M6 仅已存在列的 10 张表”与代码不符：16 张中 4 张内容表的
+> `tenant_id` 由 `p3a1` 新增，pre 段实际覆盖其余 12 张。）
+
+每张表改为独立语句，并用守卫避免整段丢失。实际实现用 psql `\gexec`
+按目录生成语句（只读，不建临时表）：
 
 ```sql
-DO $$
-BEGIN
-  IF to_regclass('public.system_settings') IS NOT NULL
-     AND EXISTS (
-       SELECT 1 FROM information_schema.columns
-       WHERE table_name='system_settings' AND column_name='tenant_id'
-     ) THEN
-    -- 执行该表的统计
-  ELSE
-    RAISE NOTICE 'SKIP(missing): system_settings.tenant_id';
-  END IF;
-END $$;
+WITH candidates(t) AS (VALUES ('system_settings'), ('news'))
+SELECT format(
+         'SELECT %L AS table_name, count(*) FILTER (WHERE tenant_id IS NULL) AS null_tenant, '
+         'count(*) AS total FROM public.%I', t, t)
+FROM candidates v
+WHERE to_regclass('public.' || v.t) IS NOT NULL
+  AND EXISTS (
+      SELECT 1 FROM information_schema.columns c
+      WHERE c.table_schema='public' AND c.table_name=v.t AND c.column_name='tenant_id'
+  )
+\gexec
 ```
+
+> `\gexec` 必须直接跟在 SELECT 之后、**不要**先写分号：分号会清空 query buffer，
+> psql 转而“重新执行上一条语句”，把结果列当成 SQL 执行而报错。
+
+缺失的表/列由后续“SKIP 清单”查询输出 `SKIP(missing)`；
+`\set ON_ERROR_STOP on` 保证真实 ERROR 立即中止。
 
 ### 6.4 各段说明
 
 | 段 | 目的 | 判定/留档 |
 |---|---|---|
-| D20（`sql:6-9`） | `data_scopes`/`role_permissions` 行数 | 两表均存在且行数=0，才允许 R3-3 的 drop 迁移；`role_permissions` 需 `to_regclass` 守卫（可能仅由 `scripts/init_db.py:22` 的 `create_all` 建出） |
-| D13（`sql:11-22`） | 管理员用户名/角色编码冲突 | 需补“同租户内重复”和“平台行重复”两类；冲突>0 时 p3a2 会在 `create_unique_constraint` 阶段失败（`p3a2_admin_role_unique.py:32-41`） |
-| D15（`sql:41-45`） | 预约与支付配置租户不一致 | 结果>0 的回调会被拒收（`payments/service.py:179-195`）；先修数据再切回调锚点 |
-| D9（`sql:24-39`） | 各表 NULL 租户行 | 补 5 张表（R4-4）；输出 `null_pct`；内容表的 NULL 是 D10 平台级语义，不参与业务回填 |
-| M6（`sql:47-63`） | 16 表外键孤儿 | 孤儿>0 不得 VALIDATE；清洗配方见 6.5 |
-| D1（`sql:65-68`） | 管理员账号分布 | 只数行数无法识别“仅存 users 表的旧管理员”；改为日志观测门禁（R4-3） |
-| purge 预览（`sql:70-75`） | 90 天前软删除租户 | 本期只做清单，不执行删除；`TENANT_PURGE_*` 无消费方 |
+| D20（SECTION 1） | `data_scopes`/`role_permissions` 行数 + 存在性 + miniapp 归档口径 | 两表均存在且行数=0，才允许 R3-3 的 drop 迁移；缺失输出 `MISSING`；`miniapp_instances` 按租户输出 `status=2` 计数供产品拍板 |
+| D13（SECTION 1） | 管理员用户名/角色编码冲突 | 输出 `scope=cross_tenant/same_tenant/platform` 三类；任一类>0 时 p3a2 会在 `create_unique_constraint` 阶段失败（`p3a2_admin_role_unique.py:32-41`） |
+| D15（SECTION 1） | 预约与支付配置租户不一致 | 结果>0 的回调会被拒收（`payments/service.py:179-195`）；先修数据再切回调锚点 |
+| D9（SECTION 1/2） | 各表 NULL 租户行 + `null_pct` | 业务表 16 张在 SECTION 1；内容/平台配置表单列在 SECTION 2；内容表 NULL 是 D10 平台级语义，不参与业务回填 |
+| M6（SECTION 1/2） | 16 表外键孤儿 | SECTION 1 = 12 张既有表，SECTION 2 = 4 张内容表；孤儿>0 不得 VALIDATE；清洗见 6.5 |
+| D1（SECTION 1） | 遗留管理员日志观测门禁 | SQL 只输出门禁关键字与样本规模；`legacy User admin fallback hit` 连续 2 个发布周期命中=0 才允许关 `LEGACY_USER_ADMIN_FALLBACK` |
+| purge 预览（SECTION 2） | 90 天前软删除租户 | 本期只做清单，不执行删除；`TENANT_PURGE_*` 无消费方 |
 
 ### 6.5 M6 清洗配方（R4-6）
 
@@ -367,11 +403,13 @@ alembic_version：
 执行时间：
 执行人：
 脚本版本（git sha / 文件 hash）：
+备份文件（pg_dump 路径 / 校验和）：
 D20 data_scopes 行数 / role_permissions 行数 / 表是否存在：
 D13 冲突条数（跨租户 / 同租户 / 平台）：
 D15 不一致条数：
 D9 各表 NULL/total/null_pct：
-M6 各表孤儿数：
+M6 各表孤儿数 / convalidated：
+回填 dry-run 可推导条数 / 不可推导(NULL)条数：
 ERROR 计数：
 结论：通过 / 暂停（原因）
 ```
@@ -381,6 +419,47 @@ ERROR 计数：
 - 任一 `ERROR`：本次核对视为未完成，不得据此翻开关或执行迁移。
 - M6 某表 VALIDATE 失败：保留 `NOT VALID` 约束，回退该表清洗改动，查孤儿来源；其余表不受影响。
 - 生产发现 NOT NULL 表大额孤儿：暂停，转人工处置，不做批量 DELETE。
+
+### 6.8 迁移顺序与备份（R4-15 固化）
+
+**迁移链（单头，顺序不可调整）**：
+
+```
+20260630_drop_plaintext
+  → p3a1_content_tenant
+  → p3a2_admin_role_unique
+  → p3a3_business_numbers
+  → p3a4_config_codes
+  → p3a5_usage_daily_unique
+  → p3a6_tenant_fk
+  → p3a7_settings_tenant
+```
+
+每个文件的 `revision/down_revision` 均与前一项首尾相接（`p3a1:15`、`p3a2:17`、
+`p3a3:16`、`p3a4:16`、`p3a5:15`、`p3a6:37`、`p3a7:17`）；本批未运行 `alembic heads`，
+上线前需在目标库以 `alembic heads` 复核为单头后再执行。
+
+**执行顺序（每步通过才进入下一步）**：
+
+| 步骤 | 动作 | 通过条件 |
+|---|---|---|
+| 1 | 备份：`pg_dump "$DATABASE_URL" -Fc -f backup_<ts>.dump`，并单独导出 **内容四表**（news/notices/banners/content_versions）与 **tenant_usage_logs** | dump 可 `pg_restore --list` 读取，记录大小与校验和 |
+| 2 | 在备份副本上跑 `tenant_null_tenant_id_audit.sql`（SECTION 1） | ERROR=0；D13 三类冲突、D15、M6 孤儿均已留档 |
+| 3 | 在 staging 全链 `alembic upgrade head`（p3a1→p3a7 一次） | 单头；无 ERROR |
+| 4 | 跑 `tenant_null_tenant_id_audit.sql` 全文件（SECTION 1+2） | ERROR=0；D9/M6 为全量 16 表结论 |
+| 5 | 跑 `migrate_core_tenant_data.py --dry-run`，记录“可推导 / 不可推导(NULL)”总数 | 不可推导行有逐表明细，可人工核对 |
+| 6 | 跑 `m6_post_deploy_cleanse_and_validate.sql`（先 dry-run，再 `-v apply=1`） | 可空表孤儿=0、NOT NULL 表人工处置完成、`convalidated` 全 true |
+| 7 | 需要时执行 `migrate_core_tenant_data.py --execute` 与 `--verify` | 业务表 NULL=0（follow_up_plans 平台级模板除外） |
+
+**不可逆点（备份必须覆盖）**：
+
+- `p3a1_content_tenant`：内容表 `tenant_id` 回填后 `downgrade` 只删列，**回填数据不可自动恢复**；
+- `p3a5_usage_daily_unique`：按 `SUM` 合并重复用量行，**合并前原行不可恢复**；
+- 因此步骤 1 的备份是硬前置，staging 必须完整跑一次 `upgrade` + `downgrade`
+  并记录上述不可恢复部分，生产不得跳步。
+
+**回滚**：`p3a1`–`p3a7` 的 schema 变更可逐级 `downgrade`；数据回填与合并依赖步骤 1
+的备份恢复。`p3a2`/`p3a5` 的 downgrade 在存在跨租户同名/重复用量时可能失败，需先清理。
 
 ---
 
@@ -436,9 +515,32 @@ ERROR 计数：
 
 ## 10. 本次执行边界（如实说明）
 
-- 本次只新增/覆盖本文档 `docs/tenant-remaining-plan.md`；未修改任何后端/前端代码，未执行 `git commit`。
+- 本节第 1–6 条描述的是**盘点/计划阶段**的边界；B9 批次的实际改动见 10.1。
+- 计划阶段只新增/覆盖本文档 `docs/tenant-remaining-plan.md`；未修改任何后端/前端代码，未执行 `git commit`。
 - **未运行任何 pytest**，本文所有“验收门”均为计划中的命令与断言，不代表已通过。
 - **未连接任何数据库**，未执行 `scripts/tenant_null_tenant_id_audit.sql`；文中引用的 psql 报错来自盘点 R4-1 的实测记录。
 - **未运行 `alembic heads` / `alembic check`**；迁移链单头结论来自各迁移文件的 `revision/down_revision` 静态核对。
 - 未启用任何灰度开关；未执行物理删除、续费、M6 VALIDATE 等生产动作。
-- 本次未发生 Mimosa 拦截（仅写入本文件）。
+- 计划阶段未发生 Mimosa 拦截（仅写入本文件）。
+
+### 10.1 B9 执行记录（数据核对与迁移脚本）
+
+本批改动（均为脚本/文档/模型声明，不连库、不执行迁移）：
+
+| 工作项 | 落点 | 说明 |
+|---|---|---|
+| R4-1 | `apps/server/scripts/tenant_null_tenant_id_audit.sql` | 拆 SECTION 1/2；逐表 `to_regclass` + `information_schema.columns` 守卫；缺失输出 `SKIP(missing)`；`\set ON_ERROR_STOP on` |
+| R4-2 | 同上 D13 | 补 `same_tenant` / `platform` 两类，与 p3a2 的复合唯一 + partial unique 对齐 |
+| R4-3 | 同上 D1 | 改为 `legacy User admin fallback hit` 日志观测门禁（`app/common/auth_unified.py:411`） |
+| R4-4 | 同上 D9 | 补 `follow_up_plans/follow_up_records/follow_up_self_reports/doctor_reviews/feedbacks`；输出 `null_pct`；内容表单列 |
+| R4-5 | 同上 D20 | `role_permissions` 存在性守卫；新增 `miniapp_instances` 按租户 `status=2` 计数 |
+| R4-6 | `migrations/versions/p3a6_tenant_fk.py`（仅文件头） | 清洗配方区分 10 张可空表 / 6 张 NOT NULL 表；迁移语义未改 |
+| R3-6 | `apps/server/scripts/m6_post_deploy_cleanse_and_validate.sql`（新增） | dry-run 默认；`-v apply=1` 执行可空表清洗与 16 表 VALIDATE；NOT NULL 表只出清单 |
+| R3-8 | 7 个模型列 | 补 `ForeignKey("tenants.id")`；已用 Python 导入断言 16 张表的 `tenant_id` 外键非空 |
+| R4-14 | `apps/server/scripts/migrate_core_tenant_data.py` | 删除默认租户兜底；新增 8 张业务从属表回填；dry-run 输出可推导/不可推导(NULL) 数量 |
+| R4-15 | 本文 6.8 | 固化 p3a1→p3a7 顺序、备份步骤、不可逆点与回滚 |
+| R4-7 | 本文 5.4 + `apps/server/.env.example` | 9 个灰度开关及默认值登记；Runbook 翻/观察/回滚步骤 |
+
+**本批未做**：未连库执行审计 SQL 或 M6 脚本（按批次约束与第 10 节边界）；
+`alembic autogenerate` 零 diff、pre/post 两库 ERROR=0、staging dry-run 等验收门
+归 E1 / staging 执行，本批未运行。

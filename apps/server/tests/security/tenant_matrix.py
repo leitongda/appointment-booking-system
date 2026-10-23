@@ -24,6 +24,9 @@ class ModuleSpec:
     write_path: str | None
     cross_status: tuple[int, ...]  # 跨租户访问允许的状态码（其余状态一律失败）
     extract_items: Callable[[dict], list]
+    # 写路径的 HTTP 方法与请求体（None 表示无 body，如 DELETE）
+    write_method: str = "put"
+    write_payload: dict | None = None
 
 
 MATRIX_MODULES: list[ModuleSpec] = [
@@ -34,6 +37,7 @@ MATRIX_MODULES: list[ModuleSpec] = [
         write_path="/api/v1/stores/{id}",
         cross_status=(403, 404),
         extract_items=page_items,
+        write_payload={"name": "门店改名"},
     ),
     ModuleSpec(
         name="doctors",
@@ -42,6 +46,7 @@ MATRIX_MODULES: list[ModuleSpec] = [
         write_path="/api/v1/doctors/{id}",
         cross_status=(403, 404),
         extract_items=page_items,
+        write_payload={"name": "医生改名"},
     ),
     ModuleSpec(
         # 列表走 /departments/all（裸列表），详情/写入走 /departments/{id}
@@ -51,5 +56,6 @@ MATRIX_MODULES: list[ModuleSpec] = [
         write_path="/api/v1/departments/{id}",
         cross_status=(403, 404),
         extract_items=page_items,
+        write_payload={"name": "科室改名"},
     ),
 ]

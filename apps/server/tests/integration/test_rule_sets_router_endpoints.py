@@ -118,7 +118,7 @@ async def test_get_rule_set_list(async_client, db_session, test_shift_type):
         return {
             "id": "admin-1",
             "is_admin": True,
-            "is_super_admin": False,
+            "is_super_admin": True,
             "permissions": [],
             "tenant_id": None,
         }
@@ -148,7 +148,7 @@ async def test_get_rule_set_list_filter_by_enabled(async_client, db_session, tes
         return {
             "id": "admin-1",
             "is_admin": True,
-            "is_super_admin": False,
+            "is_super_admin": True,
             "permissions": [],
             "tenant_id": None,
         }
@@ -187,7 +187,7 @@ async def test_get_rule_set_detail(async_client, db_session, test_shift_type):
         return {
             "id": "admin-1",
             "is_admin": True,
-            "is_super_admin": False,
+            "is_super_admin": True,
             "permissions": [],
             "tenant_id": None,
         }
@@ -213,7 +213,7 @@ async def test_get_rule_set_detail_not_found(async_client):
         return {
             "id": "admin-1",
             "is_admin": True,
-            "is_super_admin": False,
+            "is_super_admin": True,
             "permissions": [],
             "tenant_id": None,
         }
@@ -1080,7 +1080,7 @@ async def test_get_presets(async_client, db_session):
         return {
             "id": "admin-1",
             "is_admin": True,
-            "is_super_admin": False,
+            "is_super_admin": True,
             "permissions": [],
             "tenant_id": None,
         }

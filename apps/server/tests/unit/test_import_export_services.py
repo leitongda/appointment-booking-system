@@ -148,21 +148,15 @@ class TestImportService:
             ["姓名", "门店", "科室"],
         )
 
-        with patch(
-            "app.modules.import_export.service_import.get_tenant_id_for_create",
-            return_value=None,
-        ), patch(
-            "app.modules.import_export.service_import.get_current_tenant_id",
-            return_value=None,
-        ):
-            with pytest.raises(BusinessError, match="租户"):
-                await svc.validate_and_import(
-                    file_content=excel_bytes,
-                    filename="test.xlsx",
-                    expected_headers=["姓名", "门店", "科室"],
-                    required_fields=["姓名"],
-                    process_row_func=AsyncMock(),
-                )
+        # R1-5：service 不再回退上下文，不传 tenant_id 直接失败
+        with pytest.raises(BusinessError, match="租户"):
+            await svc.validate_and_import(
+                file_content=excel_bytes,
+                filename="test.xlsx",
+                expected_headers=["姓名", "门店", "科室"],
+                required_fields=["姓名"],
+                process_row_func=AsyncMock(),
+            )
 
     @pytest.mark.unit
     @pytest.mark.asyncio
@@ -179,18 +173,14 @@ class TestImportService:
 
         process_row = AsyncMock()
 
-        with patch(
-            "app.modules.import_export.service_import.get_tenant_id_for_create",
-            return_value="tenant-123",
-        ):
-            result = await svc.validate_and_import(
-                file_content=excel_bytes,
-                filename="test.xlsx",
-                expected_headers=["姓名", "门店"],
-                required_fields=["姓名"],
-                process_row_func=process_row,
-                tenant_id="tenant-123",
-            )
+        result = await svc.validate_and_import(
+            file_content=excel_bytes,
+            filename="test.xlsx",
+            expected_headers=["姓名", "门店"],
+            required_fields=["姓名"],
+            process_row_func=process_row,
+            tenant_id="tenant-123",
+        )
 
         assert result["success_count"] == 1
         assert result["fail_count"] == 0
@@ -216,19 +206,15 @@ class TestImportService:
         async def capture_row(row_data):
             captured_rows.append(dict(row_data))
 
-        with patch(
-            "app.modules.import_export.service_import.get_tenant_id_for_create",
-            return_value="tenant-123",
-        ):
-            await svc.validate_and_import(
-                file_content=excel_bytes,
-                filename="test.xlsx",
-                expected_headers=["姓名", "门店", "科室"],
-                required_fields=["姓名"],
-                process_row_func=capture_row,
-                tenant_id="tenant-123",
-                sanitize=True,
-            )
+        await svc.validate_and_import(
+            file_content=excel_bytes,
+            filename="test.xlsx",
+            expected_headers=["姓名", "门店", "科室"],
+            required_fields=["姓名"],
+            process_row_func=capture_row,
+            tenant_id="tenant-123",
+            sanitize=True,
+        )
 
         assert len(captured_rows) == 1
         assert captured_rows[0]["姓名"] == "张医生"
@@ -249,9 +235,6 @@ class TestImportService:
         ]
 
         with patch(
-            "app.modules.import_export.service_import.get_tenant_id_for_create",
-            return_value="tenant-123",
-        ), patch(
             "app.modules.import_export.service_import.ExcelImportService.parse_excel",
             return_value=(mock_valid_rows, []),
         ):
@@ -286,18 +269,14 @@ class TestImportService:
             ["姓名", "门店"],
         )
 
-        with patch(
-            "app.modules.import_export.service_import.get_tenant_id_for_create",
-            return_value="tenant-123",
-        ):
-            result = await svc.validate_and_import(
-                file_content=excel_bytes,
-                filename="test.xlsx",
-                expected_headers=["姓名", "门店"],
-                required_fields=["姓名"],
-                process_row_func=failing_process,
-                tenant_id="tenant-123",
-            )
+        result = await svc.validate_and_import(
+            file_content=excel_bytes,
+            filename="test.xlsx",
+            expected_headers=["姓名", "门店"],
+            required_fields=["姓名"],
+            process_row_func=failing_process,
+            tenant_id="tenant-123",
+        )
 
         assert result["success_count"] == 1
         assert result["fail_count"] == 1
@@ -319,18 +298,14 @@ class TestImportService:
             ["姓名"],
         )
 
-        with patch(
-            "app.modules.import_export.service_import.get_tenant_id_for_create",
-            return_value="tenant-123",
-        ):
-            result = await svc.validate_and_import(
-                file_content=excel_bytes,
-                filename="test.xlsx",
-                expected_headers=["姓名"],
-                required_fields=["姓名"],
-                process_row_func=tenant_mismatch,
-                tenant_id="tenant-123",
-            )
+        result = await svc.validate_and_import(
+            file_content=excel_bytes,
+            filename="test.xlsx",
+            expected_headers=["姓名"],
+            required_fields=["姓名"],
+            process_row_func=tenant_mismatch,
+            tenant_id="tenant-123",
+        )
 
         assert result["skipped_count"] == 2
         assert result["fail_count"] == 0

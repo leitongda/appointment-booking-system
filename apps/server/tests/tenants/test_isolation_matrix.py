@@ -92,6 +92,15 @@ def _own_and_foreign(env, module: str) -> tuple[str, str]:
     raise AssertionError(f"未注册的模块: {module}")
 
 
+def _model_for(module: str):
+    """写后回读用的 ORM 模型"""
+    if module == "stores":
+        return Store
+    if module == "departments":
+        return Department
+    return Doctor
+
+
 @pytest.mark.parametrize("module", sorted(SPECS))
 async def test_list_shows_only_own_tenant(
     async_client, matrix_env, admin_token_factory, module
@@ -143,18 +152,43 @@ async def test_cross_tenant_write_denied(
         pytest.skip(f"{module} 无写接口")
     token = admin_token_factory(env.admin_a)
 
-    response = await async_client.put(
-        spec.write_path.format(id=foreign_id),
-        headers=_auth(token, env.tenant_a.id),
-        json={"name": "越权改写"},
+    request_kwargs = {"headers": _auth(token, env.tenant_a.id)}
+    if spec.write_payload is not None:
+        request_kwargs["json"] = spec.write_payload
+    response = await getattr(async_client, spec.write_method)(
+        spec.write_path.format(id=foreign_id), **request_kwargs
     )
     assert not response.is_success, response.text
 
-    if module == "stores":
-        stored = await db_session.get(Store, foreign_id)
-    elif module == "departments":
-        stored = await db_session.get(Department, foreign_id)
-    else:
-        stored = await db_session.get(Doctor, foreign_id)
+    stored = await db_session.get(_model_for(module), foreign_id)
     assert stored is not None
-    assert stored.name != "越权改写"
+    expected_name = (spec.write_payload or {}).get("name")
+    if expected_name:
+        assert stored.name != expected_name
+
+
+@pytest.mark.parametrize("module", sorted(SPECS))
+async def test_own_tenant_write_allowed(
+    async_client, db_session, matrix_env, admin_token_factory, module
+):
+    """正控：本租户写必须成功且落库（防止“全拒”式假绿）"""
+    env = matrix_env
+    spec = SPECS[module]
+    own_id, _ = _own_and_foreign(env, module)
+    if not spec.write_path:
+        pytest.skip(f"{module} 无写接口")
+    token = admin_token_factory(env.admin_a)
+
+    request_kwargs = {"headers": _auth(token, env.tenant_a.id)}
+    if spec.write_payload is not None:
+        request_kwargs["json"] = spec.write_payload
+    response = await getattr(async_client, spec.write_method)(
+        spec.write_path.format(id=own_id), **request_kwargs
+    )
+    assert response.is_success, response.text
+
+    expected_name = (spec.write_payload or {}).get("name")
+    if expected_name:
+        stored = await db_session.get(_model_for(module), own_id)
+        assert stored is not None
+        assert stored.name == expected_name

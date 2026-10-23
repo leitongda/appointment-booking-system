@@ -219,9 +219,12 @@ class TestMessagesAnchor:
             "/api/v1/messages", headers=_auth(token, env.tenant_a.id)
         )
         assert response.status_code == 200, response.text
-        ids = {item["id"] for item in response.json()["data"]}
+        body = response.json()
+        ids = {item["id"] for item in body["data"]}
         assert env.message_a.id in ids
         assert env.message_b.id not in ids
+        # total 必须收敛到本租户（1 条），不得聚合到 B
+        assert body.get("total") == 1, response.text
 
 
 class TestPublicScheduleGuard:

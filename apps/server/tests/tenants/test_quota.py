@@ -30,6 +30,9 @@ from app.models.doctor import Doctor
 from app.models.department import Department
 from app.models.appointment import Appointment
 from app.models.user import User, Patient
+from app.models.miniapp_platform import AppTemplate, MiniappInstance
+from app.models.lowcode_page import LowCodePage
+from app.modules.tenants.service_usage import TenantUsageService
 from app.core.security import get_password_hash
 
 
@@ -735,3 +738,362 @@ async def test_quota_error_format(
     assert "门店数量已达上限" in error.detail
     assert "当前：1" in error.detail
     assert "上限：1" in error.detail
+
+
+# ==================== P4-6 三类配额测试（R2-7） ====================
+# 覆盖：miniapp_instances / lowcode_pages / storage_mb
+# 验收口径：达限 403 且 quota_type/current/limit 正确；未达通过；
+#          limit=0/None 语义（视为不限制）；A 达限不影响 B。
+
+@pytest_asyncio.fixture
+async def subscription_plan_p4(db_session: AsyncSession) -> SubscriptionPlan:
+    """P4-6 三类配额计划：各限制为 1"""
+    plan = SubscriptionPlan(
+        id=str(uuid4()),
+        plan_code="p4_quota",
+        name="P4配额版",
+        max_stores=2,
+        max_admins=3,
+        max_doctors=10,
+        max_appointments_per_month=100,
+        max_storage_mb=100,
+        max_lowcode_pages=1,
+        max_miniapp_instances=1,
+        status=1,
+        is_default=False,
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+    db_session.add(plan)
+    await db_session.commit()
+    await db_session.refresh(plan)
+    return plan
+
+
+async def _create_p4_tenant(
+    db_session: AsyncSession,
+    plan: SubscriptionPlan,
+    code: str,
+    **override,
+) -> Tenant:
+    tenant = Tenant(
+        id=str(uuid4()),
+        tenant_code=code,
+        name=f"P4租户-{code}",
+        status=1,
+        subscription_plan_id=plan.id,
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+        **override,
+    )
+    db_session.add(tenant)
+    await db_session.commit()
+    await db_session.refresh(tenant)
+    return tenant
+
+
+@pytest_asyncio.fixture
+async def tenant_p4_a(db_session: AsyncSession, subscription_plan_p4: SubscriptionPlan) -> Tenant:
+    return await _create_p4_tenant(db_session, subscription_plan_p4, "p4_tenant_a")
+
+
+@pytest_asyncio.fixture
+async def tenant_p4_b(db_session: AsyncSession, subscription_plan_p4: SubscriptionPlan) -> Tenant:
+    return await _create_p4_tenant(db_session, subscription_plan_p4, "p4_tenant_b")
+
+
+@pytest_asyncio.fixture
+async def app_template(db_session: AsyncSession) -> AppTemplate:
+    template = AppTemplate(
+        id=str(uuid4()),
+        code=f"tpl_{uuid4().hex[:8]}",
+        name="测试模板",
+        status=1,
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+    db_session.add(template)
+    await db_session.commit()
+    await db_session.refresh(template)
+    return template
+
+
+async def _create_miniapp_instance(
+    db_session: AsyncSession, tenant_id: str, template_id: str, seq: int = 1
+) -> MiniappInstance:
+    instance = MiniappInstance(
+        id=str(uuid4()),
+        tenant_id=tenant_id,
+        template_id=template_id,
+        code=f"mp_{uuid4().hex[:8]}",
+        name=f"小程序实例{seq}",
+        app_id=f"wx{uuid4().hex[:16]}",
+        status=1,
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+    db_session.add(instance)
+    await db_session.commit()
+    return instance
+
+
+async def _create_lowcode_page(
+    db_session: AsyncSession, tenant_id: str, seq: int = 1
+) -> LowCodePage:
+    page = LowCodePage(
+        id=str(uuid4()),
+        tenant_id=tenant_id,
+        name=f"低代码页面{seq}",
+        slug=f"page_{uuid4().hex[:8]}",
+        schema_data={},
+        status=0,
+        current_version=0,
+        publish_count=0,
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+    db_session.add(page)
+    await db_session.commit()
+    return page
+
+
+def _patch_storage_usage(monkeypatch, usage_by_tenant: dict[str, float]):
+    """把存储用量替换为固定映射，避免依赖本地磁盘"""
+
+    async def fake_summary(self, tenant_id: str):
+        return {"current_storage_mb": usage_by_tenant.get(tenant_id, 0)}
+
+    monkeypatch.setattr(TenantUsageService, "get_usage_summary", fake_summary)
+
+
+# ---------- miniapp_instances ----------
+
+@pytest.mark.asyncio
+async def test_miniapp_quota_check_pass(
+    db_session: AsyncSession,
+    quota_checker: QuotaChecker,
+    tenant_p4_a: Tenant,
+):
+    """未达上限时通过"""
+    await quota_checker.check_miniapp_instances_quota(tenant_p4_a.id)
+
+
+@pytest.mark.asyncio
+async def test_miniapp_quota_check_fail(
+    db_session: AsyncSession,
+    quota_checker: QuotaChecker,
+    tenant_p4_a: Tenant,
+    app_template: AppTemplate,
+):
+    """达限时 403，且 quota_type/current/limit 正确"""
+    await _create_miniapp_instance(db_session, tenant_p4_a.id, app_template.id)
+
+    with pytest.raises(QuotaCheckError) as exc_info:
+        await quota_checker.check_miniapp_instances_quota(tenant_p4_a.id)
+
+    error = exc_info.value
+    assert error.status_code == 403
+    assert error.quota_type == "miniapp_instances"
+    assert error.current == 1
+    assert error.limit == 1
+    assert "小程序实例数量已达上限" in error.detail
+
+
+@pytest.mark.asyncio
+async def test_miniapp_quota_zero_limit_disabled(
+    db_session: AsyncSession,
+    quota_checker: QuotaChecker,
+    subscription_plan_p4: SubscriptionPlan,
+    app_template: AppTemplate,
+):
+    """limit=0 视为不限制：即使已有实例也放行"""
+    tenant = await _create_p4_tenant(
+        db_session, subscription_plan_p4, "p4_miniapp_zero", max_miniapp_instances=0
+    )
+    await _create_miniapp_instance(db_session, tenant.id, app_template.id)
+
+    await quota_checker.check_miniapp_instances_quota(tenant.id)
+
+
+@pytest.mark.asyncio
+async def test_miniapp_quota_tenant_isolation(
+    db_session: AsyncSession,
+    quota_checker: QuotaChecker,
+    tenant_p4_a: Tenant,
+    tenant_p4_b: Tenant,
+    app_template: AppTemplate,
+):
+    """A 达限不影响 B"""
+    await _create_miniapp_instance(db_session, tenant_p4_a.id, app_template.id)
+
+    with pytest.raises(QuotaCheckError):
+        await quota_checker.check_miniapp_instances_quota(tenant_p4_a.id)
+
+    # B 无实例，应通过
+    await quota_checker.check_miniapp_instances_quota(tenant_p4_b.id)
+
+
+# ---------- lowcode_pages ----------
+
+@pytest.mark.asyncio
+async def test_lowcode_quota_check_pass(
+    db_session: AsyncSession,
+    quota_checker: QuotaChecker,
+    tenant_p4_a: Tenant,
+):
+    """未达上限时通过"""
+    await quota_checker.check_lowcode_pages_quota(tenant_p4_a.id)
+
+
+@pytest.mark.asyncio
+async def test_lowcode_quota_check_fail(
+    db_session: AsyncSession,
+    quota_checker: QuotaChecker,
+    tenant_p4_a: Tenant,
+):
+    """达限时 403，且 quota_type/current/limit 正确"""
+    await _create_lowcode_page(db_session, tenant_p4_a.id)
+
+    with pytest.raises(QuotaCheckError) as exc_info:
+        await quota_checker.check_lowcode_pages_quota(tenant_p4_a.id)
+
+    error = exc_info.value
+    assert error.status_code == 403
+    assert error.quota_type == "lowcode_pages"
+    assert error.current == 1
+    assert error.limit == 1
+    assert "低代码页面数量已达上限" in error.detail
+
+
+@pytest.mark.asyncio
+async def test_lowcode_quota_none_limit_disabled(
+    db_session: AsyncSession,
+    quota_checker: QuotaChecker,
+):
+    """limit=None 视为不限制：计划与租户均未设置上限时放行"""
+    plan = SubscriptionPlan(
+        id=str(uuid4()),
+        plan_code=f"p4_none_{uuid4().hex[:6]}",
+        name="无低代码上限计划",
+        max_lowcode_pages=None,
+        status=1,
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+    db_session.add(plan)
+    await db_session.commit()
+    # Column(default=5) 会在 INSERT 时把显式 None 回填为 5，需在插入后置空
+    plan.max_lowcode_pages = None
+    await db_session.commit()
+    await db_session.refresh(plan)
+
+    tenant = await _create_p4_tenant(db_session, plan, "p4_lowcode_none")
+    assert tenant.get_effective_max_lowcode_pages() is None
+    await _create_lowcode_page(db_session, tenant.id)
+
+    await quota_checker.check_lowcode_pages_quota(tenant.id)
+
+
+@pytest.mark.asyncio
+async def test_lowcode_quota_tenant_isolation(
+    db_session: AsyncSession,
+    quota_checker: QuotaChecker,
+    tenant_p4_a: Tenant,
+    tenant_p4_b: Tenant,
+):
+    """A 达限不影响 B"""
+    await _create_lowcode_page(db_session, tenant_p4_a.id)
+
+    with pytest.raises(QuotaCheckError):
+        await quota_checker.check_lowcode_pages_quota(tenant_p4_a.id)
+
+    await quota_checker.check_lowcode_pages_quota(tenant_p4_b.id)
+
+
+# ---------- storage_mb ----------
+
+@pytest.mark.asyncio
+async def test_storage_quota_check_pass(
+    db_session: AsyncSession,
+    quota_checker: QuotaChecker,
+    tenant_p4_a: Tenant,
+    monkeypatch,
+):
+    """用量低于上限时通过"""
+    _patch_storage_usage(monkeypatch, {tenant_p4_a.id: 50.0})
+    await quota_checker.check_storage_quota(tenant_p4_a.id)
+
+
+@pytest.mark.asyncio
+async def test_storage_quota_check_fail(
+    db_session: AsyncSession,
+    quota_checker: QuotaChecker,
+    tenant_p4_a: Tenant,
+    monkeypatch,
+):
+    """达限时 403，且 quota_type/current/limit 正确"""
+    _patch_storage_usage(monkeypatch, {tenant_p4_a.id: 150.0})
+
+    with pytest.raises(QuotaCheckError) as exc_info:
+        await quota_checker.check_storage_quota(tenant_p4_a.id)
+
+    error = exc_info.value
+    assert error.status_code == 403
+    assert error.quota_type == "storage_mb"
+    assert error.current == 150.0
+    assert error.limit == 100.0
+    assert "存储空间已达上限" in error.detail
+
+
+@pytest.mark.asyncio
+async def test_storage_quota_no_usage_data_passes(
+    db_session: AsyncSession,
+    quota_checker: QuotaChecker,
+    tenant_p4_a: Tenant,
+    monkeypatch,
+):
+    """无用量数据（0）时放行，避免误杀"""
+    _patch_storage_usage(monkeypatch, {tenant_p4_a.id: 0.0})
+    await quota_checker.check_storage_quota(tenant_p4_a.id)
+
+
+@pytest.mark.asyncio
+async def test_storage_quota_zero_limit_disabled(
+    db_session: AsyncSession,
+    quota_checker: QuotaChecker,
+    monkeypatch,
+):
+    """max_storage_mb=0 视为不限制"""
+    plan = SubscriptionPlan(
+        id=str(uuid4()),
+        plan_code=f"p4_storage_zero_{uuid4().hex[:6]}",
+        name="存储不限制计划",
+        max_storage_mb=0,
+        status=1,
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+    db_session.add(plan)
+    await db_session.commit()
+    await db_session.refresh(plan)
+    tenant = await _create_p4_tenant(db_session, plan, f"p4_storage_zero_{uuid4().hex[:6]}")
+
+    _patch_storage_usage(monkeypatch, {tenant.id: 9999.0})
+    await quota_checker.check_storage_quota(tenant.id)
+
+
+@pytest.mark.asyncio
+async def test_storage_quota_tenant_isolation(
+    db_session: AsyncSession,
+    quota_checker: QuotaChecker,
+    tenant_p4_a: Tenant,
+    tenant_p4_b: Tenant,
+    monkeypatch,
+):
+    """A 达限不影响 B"""
+    _patch_storage_usage(monkeypatch, {tenant_p4_a.id: 150.0, tenant_p4_b.id: 10.0})
+
+    with pytest.raises(QuotaCheckError):
+        await quota_checker.check_storage_quota(tenant_p4_a.id)
+
+    await quota_checker.check_storage_quota(tenant_p4_b.id)

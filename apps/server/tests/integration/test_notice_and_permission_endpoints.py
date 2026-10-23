@@ -9,9 +9,14 @@ from app.models.booking_notice import BookingNotice
 
 
 @pytest.mark.asyncio
-async def test_booking_notice_public_endpoint(async_client, db_session):
+async def test_booking_notice_public_endpoint(async_client, db_session, multi_tenant_env):
+    # R1-18：公开端必须识别租户，无租户头一律 400
+    missing_tenant = await async_client.get("/api/v1/booking-notices/public")
+    assert missing_tenant.status_code == 400
+
     notice = BookingNotice(
         id=str(uuid4()),
+        tenant_id=multi_tenant_env.tenant_a.id,
         type="BOOKING",
         title="预约须知",
         content="请提前十分钟到场",
@@ -23,7 +28,10 @@ async def test_booking_notice_public_endpoint(async_client, db_session):
     db_session.add(notice)
     await db_session.commit()
 
-    response = await async_client.get("/api/v1/booking-notices/public")
+    response = await async_client.get(
+        "/api/v1/booking-notices/public",
+        headers={"X-Tenant-ID": multi_tenant_env.tenant_a.id},
+    )
 
     assert response.status_code == 200
     payload = response.json()["data"]

@@ -907,24 +907,17 @@ class TestImportTenantIsolation:
         """测试导入必须有租户上下文"""
         service = ImportService(db_session)
 
-        with patch(
-            "app.modules.import_export.service_import.get_tenant_id_for_create",
-            return_value=None
-        ):
-            with patch(
-                "app.modules.import_export.service_import.get_current_tenant_id",
-                return_value=None
-            ):
-                with pytest.raises(BusinessError) as exc_info:
-                    await service.validate_and_import(
-                        file_content=b"fake-excel",
-                        filename="test.xlsx",
-                        expected_headers=["姓名"],
-                        required_fields=["姓名"],
-                        process_row_func=AsyncMock(),
-                    )
+        # R1-5：不再回退请求上下文，未显式传 tenant_id 直接失败
+        with pytest.raises(BusinessError) as exc_info:
+            await service.validate_and_import(
+                file_content=b"fake-excel",
+                filename="test.xlsx",
+                expected_headers=["姓名"],
+                required_fields=["姓名"],
+                process_row_func=AsyncMock(),
+            )
 
-                assert "租户" in str(exc_info.value.message)
+        assert "租户" in str(exc_info.value.message)
 
     async def test_import_auto_binds_tenant(
         self,
@@ -946,24 +939,21 @@ class TestImportTenantIsolation:
                 []
             )
         ):
-            with patch(
-                "app.modules.import_export.service_import.get_tenant_id_for_create",
-                return_value=tenant_a.id
-            ):
-                db_session.commit = AsyncMock()
+            db_session.commit = AsyncMock()
 
-                result = await service.validate_and_import(
-                    file_content=b"fake-excel",
-                    filename="test.xlsx",
-                    expected_headers=["姓名"],
-                    required_fields=["姓名"],
-                    process_row_func=process_row,
-                )
+            result = await service.validate_and_import(
+                file_content=b"fake-excel",
+                filename="test.xlsx",
+                expected_headers=["姓名"],
+                required_fields=["姓名"],
+                process_row_func=process_row,
+                tenant_id=tenant_a.id,
+            )
 
-                # 验证租户 ID 被正确设置
-                assert service.tenant_id == tenant_a.id
-                assert captured_tenant_id == tenant_a.id
-                assert result["success_count"] == 1
+            # 验证租户 ID 被正确设置
+            assert service.tenant_id == tenant_a.id
+            assert captured_tenant_id == tenant_a.id
+            assert result["success_count"] == 1
 
     async def test_import_rejects_malicious_tenant_id(
         self,
@@ -981,22 +971,19 @@ class TestImportTenantIsolation:
                 []
             )
         ):
-            with patch(
-                "app.modules.import_export.service_import.get_tenant_id_for_create",
-                return_value=tenant_a.id
-            ):
-                with pytest.raises(BusinessError) as exc_info:
-                    await service.validate_and_import(
-                        file_content=b"fake-excel",
-                        filename="test.xlsx",
-                        expected_headers=["姓名"],
-                        required_fields=["姓名"],
-                        process_row_func=AsyncMock(),
-                    )
+            with pytest.raises(BusinessError) as exc_info:
+                await service.validate_and_import(
+                    file_content=b"fake-excel",
+                    filename="test.xlsx",
+                    expected_headers=["姓名"],
+                    required_fields=["姓名"],
+                    process_row_func=AsyncMock(),
+                    tenant_id=tenant_a.id,
+                )
 
-                # 验证错误信息包含敏感字段提示
-                assert "tenant_id" in str(exc_info.value.message)
-                assert "不允许" in str(exc_info.value.message)
+            # 验证错误信息包含敏感字段提示
+            assert "tenant_id" in str(exc_info.value.message)
+            assert "不允许" in str(exc_info.value.message)
 
     async def test_import_validates_row_tenant(
         self,

@@ -37,7 +37,10 @@ async def test_export_patients_endpoint(async_client):
     try:
         with patch("app.modules.export.router.ExportService.export_patients", new_callable=AsyncMock) as mock_export:
             mock_export.return_value = (b"excel-data", "patients.xlsx")
-            response = await async_client.get("/api/v1/export/patients")
+            # R1-19：平台管理员必须显式指定租户
+            response = await async_client.get(
+                "/api/v1/export/patients", params={"tenant_id": "tenant-1"}
+            )
     finally:
         app.dependency_overrides.pop(deps.get_current_admin, None)
 

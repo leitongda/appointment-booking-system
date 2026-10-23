@@ -8,7 +8,7 @@
 5. 跨租户写不生效（候补取消、退款访问）。
 """
 import uuid
-from datetime import datetime
+from datetime import date, datetime, time, timedelta
 
 import bcrypt
 import pytest
@@ -267,6 +267,35 @@ class TestWaitlistAnchor:
         refreshed = await db_session.get(WaitlistEntry, env.entry_b.id)
         await db_session.refresh(refreshed)
         assert refreshed.status == "WAITING"
+
+    async def test_patient_can_join_waitlist_own_tenant(
+        self, async_client, db_session, factory, p2a_env
+    ):
+        """正控：患者在本租户排班入队成功，且写入的 tenant_id 正确"""
+        env = p2a_env
+        token = create_access_token(
+            {"sub": env.user_a.id, "type": "user", "tenant_id": env.tenant_a.id}
+        )
+        schedule = await factory.create_schedule(
+            env.tenant_a.id,
+            env.doctor_a.id,
+            env.store_a.id,
+            schedule_date=date.today() + timedelta(days=3),
+            time_slot="afternoon",
+            start_time=time(14, 0),
+            end_time=time(18, 0),
+        )
+        response = await async_client.post(
+            "/api/v1/waitlist",
+            headers=_auth(token, env.tenant_a.id),
+            json={"schedule_id": schedule.id, "patient_id": env.patient_a.id},
+        )
+        assert response.status_code < 400, response.text
+
+        entry_id = (response.json().get("data") or {}).get("id")
+        stored = await db_session.get(WaitlistEntry, entry_id)
+        assert stored is not None
+        assert stored.tenant_id == env.tenant_a.id
 
 
 class TestPaymentsAnchor:
