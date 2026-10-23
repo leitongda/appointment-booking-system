@@ -42,6 +42,8 @@ async def get_admins(
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
     tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
+    # 读端点权限收口：system:user:list 为细码；OR 父码 system:user 兼容存量授权
+    _: None = Depends(require_permission("system:user:list", "system:user")),
 ):
     service = AdminService(db)
     tenant_id = _require_admin_tenant(tenant_anchor)
@@ -66,6 +68,7 @@ async def get_admin(
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
     tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
+    _: None = Depends(require_permission("system:user:list", "system:user")),
 ):
     service = AdminService(db)
     tenant_id = _require_admin_tenant(tenant_anchor)

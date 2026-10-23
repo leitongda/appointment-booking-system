@@ -24,6 +24,8 @@ async def get_roles(
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
     tenant_filter: str | None = Depends(require_admin_tenant_anchor),
+    # 读端点权限收口：system:role:list 为细码；OR 父码 system:role 兼容存量授权
+    _: None = Depends(require_permission("system:role:list", "system:role")),
 ):
     # 租户隔离：传递 tenant_id 过滤条件
     service = RoleService(db)
@@ -38,6 +40,7 @@ async def get_all_roles(
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
     tenant_filter: str | None = Depends(require_admin_tenant_anchor),
+    _: None = Depends(require_permission("system:role:list", "system:role")),
 ):
     # 租户隔离：传递 tenant_id 过滤条件
     service = RoleService(db)
@@ -51,6 +54,7 @@ async def get_role(
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
     tenant_filter: str | None = Depends(require_admin_tenant_anchor),
+    _: None = Depends(require_permission("system:role:list", "system:role")),
 ):
     # 租户隔离：查询时附加租户过滤，防止跨租户访问
     service = RoleService(db)

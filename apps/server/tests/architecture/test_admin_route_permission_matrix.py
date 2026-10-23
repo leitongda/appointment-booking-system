@@ -71,14 +71,10 @@ SELF_SERVICE_OR_PRE_AUTH = {
     "POST /api/v1/admin/me/email/unbind": "解绑本人邮箱（本人操作）",
 }
 
-# 已知最小权限缺口：读端点无权限码，待权限目录补 system:*:list 后收口
-KNOWN_GAPS = {
-    "GET /api/v1/admin/admins": "列表无 system:user:list 码；受 get_current_admin + 租户锚点约束",
-    "GET /api/v1/admin/admins/{admin_id}": "详情无 system:user:list 码；同上",
-    "GET /api/v1/admin/roles": "列表无 system:role:list 码；同上",
-    "GET /api/v1/admin/roles/all": "全量下拉无 system:role:list 码；同上",
-    "GET /api/v1/admin/roles/{role_id}": "详情无 system:role:list 码；同上",
-}
+# 已知最小权限缺口：无（2026-10-24 收口：GET /admins*、/roles* 五条读端点已挂
+# require_permission("system:*:list", "system:*")，OR 父码兼容存量授权；
+# 权限目录 scripts/init_permissions.py 已补 system:user:list / system:role:list）
+KNOWN_GAPS = {}
 
 EXEMPT = {**SELF_SERVICE_OR_PRE_AUTH, **KNOWN_GAPS}
 

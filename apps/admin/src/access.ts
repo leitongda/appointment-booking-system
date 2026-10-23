@@ -100,6 +100,7 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
     isSuperAdmin &&
     hasAnyPermission([
       'system:role',
+      'system:role:list',
       'system:role:create',
       'system:role:update',
       'system:role:delete',
@@ -107,6 +108,7 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
     ]);
   const canUserManagement = hasAnyPermission([
     'system:user',
+    'system:user:list',
     'system:user:create',
     'system:user:update',
     'system:user:delete',

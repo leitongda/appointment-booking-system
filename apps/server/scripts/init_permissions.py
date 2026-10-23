@@ -146,12 +146,14 @@ PERMISSIONS = [
     # ========== 系统设置 ==========
     {"code": "system", "name": "系统设置", "type": "menu", "parent_code": None, "icon": "setting", "sort": 14},
     {"code": "system:role", "name": "角色管理", "type": "button", "parent_code": "system", "sort": 1},
+    {"code": "system:role:list", "name": "查看角色列表", "type": "button", "parent_code": "system:role", "sort": 0},
     {"code": "system:role:create", "name": "新增角色", "type": "button", "parent_code": "system:role", "sort": 1},
     {"code": "system:role:update", "name": "编辑角色", "type": "button", "parent_code": "system:role", "sort": 2},
     {"code": "system:role:delete", "name": "删除角色", "type": "button", "parent_code": "system:role", "sort": 3},
     {"code": "system:role:permission", "name": "分配权限", "type": "button", "parent_code": "system:role", "sort": 4},
     # 用户管理（原管理员管理）
     {"code": "system:user", "name": "用户管理", "type": "button", "parent_code": "system", "sort": 2},
+    {"code": "system:user:list", "name": "查看用户列表", "type": "button", "parent_code": "system:user", "sort": 0},
     {"code": "system:user:create", "name": "新增用户", "type": "button", "parent_code": "system:user", "sort": 1},
     {"code": "system:user:update", "name": "编辑用户", "type": "button", "parent_code": "system:user", "sort": 2},
     {"code": "system:user:delete", "name": "删除用户", "type": "button", "parent_code": "system:user", "sort": 3},
