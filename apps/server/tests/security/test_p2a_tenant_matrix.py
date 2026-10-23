@@ -226,6 +226,32 @@ class TestWaitlistAnchor:
         ids = {item["id"] for item in items}
         assert env.entry_a.id in ids, response.text
         assert env.entry_b.id not in ids, response.text
+        # total 必须是收敛后的数量（此前 cartesian 计数会跨租户）
+        assert data.get("total") == 1, response.text
+
+    async def test_stats_store_filter_is_tenant_scoped(
+        self, async_client, p2a_env, admin_token_factory
+    ):
+        env = p2a_env
+        token = admin_token_factory(env.admin_a)
+
+        own = await async_client.get(
+            "/api/v1/waitlist/stats",
+            params={"store_id": env.store_a.id},
+            headers=_auth(token, env.tenant_a.id),
+        )
+        assert own.status_code == 200, own.text
+        own_data = own.json().get("data") or {}
+        assert own_data.get("waiting") == 1, own.text
+
+        foreign = await async_client.get(
+            "/api/v1/waitlist/stats",
+            params={"store_id": env.store_b.id},
+            headers=_auth(token, env.tenant_a.id),
+        )
+        assert foreign.status_code == 200, foreign.text
+        foreign_data = foreign.json().get("data") or {}
+        assert foreign_data.get("waiting") == 0, foreign.text
 
     async def test_cross_tenant_cancel_ineffective(
         self, async_client, db_session, p2a_env, admin_token_factory

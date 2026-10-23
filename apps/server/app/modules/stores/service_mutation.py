@@ -87,8 +87,10 @@ class StoreMutationMixin:
         await self.db.commit()
         return True
 
-    async def update_status(self, store_id: str, status: int) -> Store | None:
-        store = await self.get_by_id(store_id)
+    async def update_status(
+        self, store_id: str, status: int, tenant_id: str | None = None
+    ) -> Store | None:
+        store = await self.get_by_id(store_id, tenant_id=tenant_id)
         if not store:
             return None
         store.status = status
@@ -96,9 +98,11 @@ class StoreMutationMixin:
         await self.db.refresh(store)
         return store
 
-    async def batch_bind_departments(self, store_id: str, department_ids: list[str]) -> int:
+    async def batch_bind_departments(
+        self, store_id: str, department_ids: list[str], tenant_id: str | None = None
+    ) -> int:
         from app.middleware.tenant_context import get_current_tenant_id
-        store = await self.get_by_id(store_id)
+        store = await self.get_by_id(store_id, tenant_id=tenant_id)
         if not store:
             raise ValueError("门店不存在")
 
@@ -127,9 +131,11 @@ class StoreMutationMixin:
         await self.db.commit()
         return len(department_ids)
 
-    async def batch_bind_admins(self, store_id: str, admin_ids: list[str]) -> int:
+    async def batch_bind_admins(
+        self, store_id: str, admin_ids: list[str], tenant_id: str | None = None
+    ) -> int:
         from app.middleware.tenant_context import get_current_tenant_id
-        store = await self.get_by_id(store_id)
+        store = await self.get_by_id(store_id, tenant_id=tenant_id)
         if not store:
             raise ValueError("门店不存在")
 

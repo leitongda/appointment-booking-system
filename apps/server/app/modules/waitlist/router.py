@@ -243,19 +243,23 @@ async def get_waitlist_stats(
     """管理端：候补队列统计（总数 / 等待中 / 已递补 / 已取消）"""
     from sqlalchemy import func, select
 
-    from app.middleware.tenant_context import get_current_tenant_id
+    from app.models.schedule import Schedule
     from app.models.waitlist import WaitlistEntry
 
     stmt = select(
         WaitlistEntry.status,
         func.count(WaitlistEntry.id),
-    ).group_by(WaitlistEntry.status)
+    )
+    if store_id:
+        # WaitlistEntry 无 store_id 列，按排班关联过滤
+        stmt = stmt.join(Schedule, WaitlistEntry.schedule_id == Schedule.id)
+    stmt = stmt.group_by(WaitlistEntry.status)
 
     tenant_id = resolve_actor_tenant_anchor(current_admin)
     if tenant_id:
         stmt = stmt.where(WaitlistEntry.tenant_id == tenant_id)
     if store_id:
-        stmt = stmt.where(WaitlistEntry.store_id == store_id)
+        stmt = stmt.where(Schedule.store_id == store_id)
     if start_date:
         stmt = stmt.where(WaitlistEntry.created_at >= start_date)
     if end_date:

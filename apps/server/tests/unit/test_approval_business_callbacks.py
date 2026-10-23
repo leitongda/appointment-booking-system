@@ -7,6 +7,7 @@
    - on_rejected / on_cancelled 仅改状态字段
    - 不存在的业务记录或非 pending 状态提前 return
 """
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -42,7 +43,7 @@ class TestApprovalFlowsPackagePurity:
             [_sys.executable, "-c", code],
             capture_output=True,
             text=True,
-            cwd="/Users/leijiadashao/letond/appointment-booking-system/apps/server",
+            cwd=str(Path(__file__).resolve().parents[2]),
         )
         assert result.returncode == 0, (
             f"引擎包 import 泄漏了业务模块:\nSTDOUT={result.stdout}\nSTDERR={result.stderr}"

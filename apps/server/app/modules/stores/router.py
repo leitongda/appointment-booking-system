@@ -274,7 +274,8 @@ async def get_all_stores(
 async def get_store(
     store_id: str, 
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
 ):
     """获取门店详情"""
     # 权限检查：超级管理员可访问任意门店，其他用户只能访问绑定的门店
@@ -285,7 +286,7 @@ async def get_store(
         )
     
     service = StoreService(db)
-    store = await service.get_by_id(store_id)
+    store = await service.get_by_id(store_id, tenant_id=tenant_anchor)
     
     if not store:
         raise HTTPException(
@@ -450,7 +451,8 @@ async def update_store_status(
     store_id: str,
     new_status: int = Query(..., ge=0, le=2, alias="status", description="状态: 0-停业 1-营业 2-禁用"),
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
 ):
     """更新门店状态
     
@@ -469,7 +471,7 @@ async def update_store_status(
     
     # 检查当前门店状态，如果是从禁用状态恢复，也需要超级管理员权限
     service = StoreService(db)
-    current_store = await service.get_by_id(store_id)
+    current_store = await service.get_by_id(store_id, tenant_id=tenant_anchor)
     if current_store and current_store.status == 2 and not is_super_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -483,7 +485,9 @@ async def update_store_status(
             detail="您无权修改此门店状态"
         )
     
-    store = await service.update_status(store_id, new_status)
+    store = await service.update_status(
+        store_id, new_status, tenant_id=tenant_anchor
+    )
     
     if not store:
         raise HTTPException(
@@ -510,7 +514,8 @@ async def update_store_status(
 async def get_store_departments(
     store_id: str,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
 ):
     """获取门店已绑定的科室列表"""
     # 权限检查：超级管理员可访问任意门店，其他用户只能访问绑定的门店
@@ -523,14 +528,14 @@ async def get_store_departments(
     service = StoreService(db)
     
     # 验证门店是否存在
-    store = await service.get_by_id(store_id)
+    store = await service.get_by_id(store_id, tenant_id=tenant_anchor)
     if not store:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="门店不存在，请检查后重试"
         )
     
-    departments = await service.get_departments(store_id)
+    departments = await service.get_departments(store_id, tenant_id=tenant_anchor)
     return [DepartmentResponse.model_validate(d) for d in departments]
 
 
@@ -555,7 +560,8 @@ async def batch_bind_departments(
     store_id: str,
     department_ids: list[str],
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
 ):
     """批量绑定科室到门店"""
     # 权限检查：超级管理员可操作任意门店，其他用户只能操作绑定的门店
@@ -568,7 +574,9 @@ async def batch_bind_departments(
     service = StoreService(db)
     
     try:
-        count = await service.batch_bind_departments(store_id, department_ids)
+        count = await service.batch_bind_departments(
+            store_id, department_ids, tenant_id=tenant_anchor
+        )
         return {"message": "绑定成功", "count": count}
     except ValueError as e:
         raise HTTPException(
@@ -606,14 +614,14 @@ async def get_store_admins(
     service = StoreService(db)
     
     # 验证门店是否存在
-    store = await service.get_by_id(store_id)
+    store = await service.get_by_id(store_id, tenant_id=tenant_anchor)
     if not store:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="门店不存在，请检查后重试"
         )
     
-    admins = await service.get_admins(store_id)
+    admins = await service.get_admins(store_id, tenant_id=tenant_anchor)
     return [AdminListResponse.model_validate(a) for a in admins]
 
 
@@ -638,7 +646,8 @@ async def batch_bind_admins(
     store_id: str,
     admin_ids: list[str],
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
 ):
     """批量绑定管理员到门店"""
     # 仅超级管理员可操作
@@ -651,7 +660,9 @@ async def batch_bind_admins(
     service = StoreService(db)
     
     try:
-        count = await service.batch_bind_admins(store_id, admin_ids)
+        count = await service.batch_bind_admins(
+            store_id, admin_ids, tenant_id=tenant_anchor
+        )
         return {"message": "分配成功", "count": count}
     except ValueError as e:
         raise HTTPException(

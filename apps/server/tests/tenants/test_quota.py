@@ -461,7 +461,7 @@ async def test_appointment_quota_check_fail(
         appointment = Appointment(
             id=str(uuid4()),
             tenant_id=tenant_with_quota.id,
-            appointment_no=f"YY{datetime.now().strftime('%Y%m%d%H%M%S')}{str(uuid4())[:4].upper()}",
+            appointment_no=f"YY{uuid4().hex[:12].upper()}",
             user_id=tenant_user.id,
             patient_id=tenant_patient.id,
             doctor_id=tenant_doctor.id,
