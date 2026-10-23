@@ -36,11 +36,14 @@ def _serialize_model_list(models: list[Any]) -> list[dict[str, Any]]:
     ]
 
 
-async def snapshot_rule_set(db, rule_set_id: str) -> str | None:
+async def snapshot_rule_set(
+    db, rule_set_id: str, tenant_id: str | None = None
+) -> str | None:
     """Capture a stable aggregate snapshot for a rule-set and its child resources."""
     conditions = [RuleSet.id == rule_set_id]
 
-    tenant_id = get_current_tenant_id()
+    if tenant_id is None:
+        tenant_id = get_current_tenant_id()
     if tenant_id is not None:
         conditions.append(RuleSet.tenant_id == tenant_id)
 
@@ -178,11 +181,14 @@ def make_rule_set_audit(
     snapshot_before: str | None = None,
     snapshot_after: str | None = None,
     changes: str | None = None,
+    tenant_id: str | None = None,
 ) -> RuleSetAuditLog:
+    if tenant_id is None:
+        tenant_id = get_current_tenant_id()
     return RuleSetAuditLog(
         id=str(uuid.uuid4()),
         rule_set_id=rule_set_id,
-        tenant_id=get_current_tenant_id() or "",
+        tenant_id=tenant_id or "",
         action=action,
         resource_type=resource_type,
         resource_id=resource_id,

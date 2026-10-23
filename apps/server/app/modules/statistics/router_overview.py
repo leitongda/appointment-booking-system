@@ -5,14 +5,17 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_admin, get_store_filter
+from app.api.deps import get_current_admin, get_store_filter, get_tenant_filter
 from app.common.data_scope import apply_data_scope
+from app.common.feature_deps import require_feature
 from app.db.session import get_db
 from app.models.appointment import Appointment
 from app.models.doctor import Doctor
 from app.models.schedule import Schedule
+from app.models.store import Store
 from app.models.user import Patient
 from app.modules.revenue.service import RevenueService
+from app.modules.statistics.helpers import _build_tenant_condition
 from app.schemas.response import ResponseModel
 
 router = APIRouter()
@@ -21,13 +24,18 @@ router = APIRouter()
 @router.get("/overview", response_model=ResponseModel, summary="获取概览数据")
 async def get_overview(
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin = Depends(get_current_admin),
+    tenant_id: str | None = Depends(get_tenant_filter),
+    _feature_guard: None = Depends(require_feature("basic_statistics", get_current_admin)),
 ):
-    """获取概览数据"""
+    """获取概览数据（受 basic_statistics 功能开关控制）"""
     today = date.today()
 
     # 使用 DataScope 统一过滤（无 DataScope 时 fallback 到旧逻辑）
     admin_dict = current_admin if isinstance(current_admin, dict) else current_admin
+
+    # 租户锚点：平台管理员为 None（全平台），租户管理员为本租户（R1-3）
+    doctor_tenant_cond = _build_tenant_condition(Doctor, tenant_id)
 
     # 今日预约数（通过 Doctor 关联门店过滤）
     today_query = (
@@ -42,6 +50,8 @@ async def get_overview(
             )
         )
     )
+    if doctor_tenant_cond is not None:
+        today_query = today_query.where(doctor_tenant_cond)
     today_query = apply_data_scope(today_query, Doctor, admin_dict)
     today_appointments = await db.scalar(today_query)
 
@@ -58,16 +68,23 @@ async def get_overview(
             )
         )
     )
+    if doctor_tenant_cond is not None:
+        today_visits_query = today_visits_query.where(doctor_tenant_cond)
     today_visits_query = apply_data_scope(today_visits_query, Doctor, admin_dict)
     today_visits = await db.scalar(today_visits_query)
 
     # 总患者数（按门店过滤）
     patients_query = select(func.count(Patient.id))
+    patient_tenant_cond = _build_tenant_condition(Patient, tenant_id)
+    if patient_tenant_cond is not None:
+        patients_query = patients_query.where(patient_tenant_cond)
     patients_query = apply_data_scope(patients_query, Patient, admin_dict)
     total_patients = await db.scalar(patients_query)
 
     # 总医生数（按门店过滤）
     doctors_query = select(func.count(Doctor.id)).where(Doctor.status == 1, Doctor.deleted_at.is_(None))
+    if doctor_tenant_cond is not None:
+        doctors_query = doctors_query.where(doctor_tenant_cond)
     doctors_query = apply_data_scope(doctors_query, Doctor, admin_dict)
     total_doctors = await db.scalar(doctors_query)
 
@@ -80,6 +97,8 @@ async def get_overview(
         .join(Doctor, Schedule.doctor_id == Doctor.id)
         .where(Appointment.created_at >= datetime.combine(first_day_of_month, datetime.min.time()))
     )
+    if doctor_tenant_cond is not None:
+        month_query = month_query.where(doctor_tenant_cond)
     month_query = apply_data_scope(month_query, Doctor, admin_dict)
     month_appointments = await db.scalar(month_query)
 
@@ -89,7 +108,8 @@ async def get_overview(
     month_revenue = await revenue_service.calculate_total_revenue(
         start_date=first_day_of_month,
         end_date=today,
-        store_id=store_filter if isinstance(store_filter, str) else None
+        store_id=store_filter if isinstance(store_filter, str) else None,
+        tenant_id=tenant_id,
     )
 
     return ResponseModel(data={
@@ -106,9 +126,11 @@ async def get_overview(
 async def get_store_dashboard(
     store_id: str = Query(..., description="门店ID"),
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin = Depends(get_current_admin),
+    tenant_id: str | None = Depends(get_tenant_filter),
+    _feature_guard: None = Depends(require_feature("basic_statistics", get_current_admin)),
 ):
-    """获取门店专属Dashboard统计数据
+    """获取门店专属Dashboard统计数据（受 basic_statistics 功能开关控制）
 
     包含：
     - 用户统计：总用户数、今日新增、昨日新增、本周新增、上周新增、周环比
@@ -126,6 +148,17 @@ async def get_store_dashboard(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="您无权查看此门店的统计数据"
             )
+
+    # 租户校验（R1-3）：门店必须属于当前管理员租户，平台管理员不限制
+    if tenant_id is not None:
+        store = await db.get(Store, store_id)
+        if not store or store.tenant_id != tenant_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="您无权查看此门店的统计数据"
+            )
+
+    behavior_tenant_cond = _build_tenant_condition(UserBehaviorLog, tenant_id)
 
     today = date.today()
     yesterday = today - timedelta(days=1)
@@ -192,96 +225,44 @@ async def get_store_dashboard(
         user_week_growth_rate = 100.0
 
     # ========== 访客统计 ==========
-    # 注意：UserBehaviorLog 没有 store_id 字段，暂时使用全局数据
-    # 后续可以通过 extra_data 中的 store_id 或 page_path 来过滤
+    # 注意：UserBehaviorLog 没有 store_id 字段，只能按租户维度过滤（R1-3）
 
-    # 今日 PV
-    today_pv = await db.scalar(
-        select(func.count(UserBehaviorLog.id)).where(
-            and_(
-                UserBehaviorLog.event_type == "page_view",
-                UserBehaviorLog.created_at >= datetime.combine(today, datetime.min.time()),
-                UserBehaviorLog.created_at < datetime.combine(today + timedelta(days=1), datetime.min.time()),
-            )
+    async def _pv_count(metric, start_at: datetime, end_at: datetime) -> int:
+        query = select(metric).where(
+            UserBehaviorLog.event_type == "page_view",
+            UserBehaviorLog.created_at >= start_at,
+            UserBehaviorLog.created_at < end_at,
         )
-    ) or 0
+        if behavior_tenant_cond is not None:
+            query = query.where(behavior_tenant_cond)
+        return await db.scalar(query) or 0
 
-    # 今日 UV
-    today_uv = await db.scalar(
-        select(func.count(func.distinct(UserBehaviorLog.session_id))).where(
-            and_(
-                UserBehaviorLog.event_type == "page_view",
-                UserBehaviorLog.created_at >= datetime.combine(today, datetime.min.time()),
-                UserBehaviorLog.created_at < datetime.combine(today + timedelta(days=1), datetime.min.time()),
-            )
-        )
-    ) or 0
+    today_start = datetime.combine(today, datetime.min.time())
+    today_end = datetime.combine(today + timedelta(days=1), datetime.min.time())
+    yesterday_start = datetime.combine(yesterday, datetime.min.time())
+    week_start_dt = datetime.combine(week_start, datetime.min.time())
+    week_end_dt = datetime.combine(week_end + timedelta(days=1), datetime.min.time())
+    last_week_start_dt = datetime.combine(last_week_start, datetime.min.time())
+    last_week_end_dt = datetime.combine(last_week_end + timedelta(days=1), datetime.min.time())
 
-    # 昨日 PV
-    yesterday_pv = await db.scalar(
-        select(func.count(UserBehaviorLog.id)).where(
-            and_(
-                UserBehaviorLog.event_type == "page_view",
-                UserBehaviorLog.created_at >= datetime.combine(yesterday, datetime.min.time()),
-                UserBehaviorLog.created_at < datetime.combine(today, datetime.min.time()),
-            )
-        )
-    ) or 0
-
-    # 昨日 UV
-    yesterday_uv = await db.scalar(
-        select(func.count(func.distinct(UserBehaviorLog.session_id))).where(
-            and_(
-                UserBehaviorLog.event_type == "page_view",
-                UserBehaviorLog.created_at >= datetime.combine(yesterday, datetime.min.time()),
-                UserBehaviorLog.created_at < datetime.combine(today, datetime.min.time()),
-            )
-        )
-    ) or 0
-
-    # 本周 PV
-    week_pv = await db.scalar(
-        select(func.count(UserBehaviorLog.id)).where(
-            and_(
-                UserBehaviorLog.event_type == "page_view",
-                UserBehaviorLog.created_at >= datetime.combine(week_start, datetime.min.time()),
-                UserBehaviorLog.created_at < datetime.combine(week_end + timedelta(days=1), datetime.min.time()),
-            )
-        )
-    ) or 0
-
-    # 上周 PV
-    last_week_pv = await db.scalar(
-        select(func.count(UserBehaviorLog.id)).where(
-            and_(
-                UserBehaviorLog.event_type == "page_view",
-                UserBehaviorLog.created_at >= datetime.combine(last_week_start, datetime.min.time()),
-                UserBehaviorLog.created_at < datetime.combine(last_week_end + timedelta(days=1), datetime.min.time()),
-            )
-        )
-    ) or 0
-
-    # 本周 UV
-    week_uv = await db.scalar(
-        select(func.count(func.distinct(UserBehaviorLog.session_id))).where(
-            and_(
-                UserBehaviorLog.event_type == "page_view",
-                UserBehaviorLog.created_at >= datetime.combine(week_start, datetime.min.time()),
-                UserBehaviorLog.created_at < datetime.combine(week_end + timedelta(days=1), datetime.min.time()),
-            )
-        )
-    ) or 0
-
-    # 上周 UV
-    last_week_uv = await db.scalar(
-        select(func.count(func.distinct(UserBehaviorLog.session_id))).where(
-            and_(
-                UserBehaviorLog.event_type == "page_view",
-                UserBehaviorLog.created_at >= datetime.combine(last_week_start, datetime.min.time()),
-                UserBehaviorLog.created_at < datetime.combine(last_week_end + timedelta(days=1), datetime.min.time()),
-            )
-        )
-    ) or 0
+    today_pv = await _pv_count(func.count(UserBehaviorLog.id), today_start, today_end)
+    today_uv = await _pv_count(
+        func.count(func.distinct(UserBehaviorLog.session_id)), today_start, today_end
+    )
+    yesterday_pv = await _pv_count(func.count(UserBehaviorLog.id), yesterday_start, today_start)
+    yesterday_uv = await _pv_count(
+        func.count(func.distinct(UserBehaviorLog.session_id)), yesterday_start, today_start
+    )
+    week_pv = await _pv_count(func.count(UserBehaviorLog.id), week_start_dt, week_end_dt)
+    week_uv = await _pv_count(
+        func.count(func.distinct(UserBehaviorLog.session_id)), week_start_dt, week_end_dt
+    )
+    last_week_pv = await _pv_count(
+        func.count(UserBehaviorLog.id), last_week_start_dt, last_week_end_dt
+    )
+    last_week_uv = await _pv_count(
+        func.count(func.distinct(UserBehaviorLog.session_id)), last_week_start_dt, last_week_end_dt
+    )
 
     # PV 周环比
     pv_week_growth_rate = 0.0

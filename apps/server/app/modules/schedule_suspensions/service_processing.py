@@ -30,10 +30,23 @@ VALID_PROCESSING_METHODS = {"auto_refund", "reschedule", "change_date", "manual"
 
 
 class SuspensionProcessingService:
-    """停诊患者处置服务"""
+    """停诊患者处置服务
 
-    def __init__(self, db: AsyncSession):
+    Args:
+        db: 数据库会话
+        tenant_id: 管理员账号租户锚点（R1-9）。停诊记录查询以锚点强过滤；
+            未传入时才回退请求上下文（兼容排班内部调用）。
+    """
+
+    def __init__(self, db: AsyncSession, tenant_id: str | None = None):
         self.db = db
+        self.tenant_id = tenant_id
+
+    def _tenant(self) -> str | None:
+        """账号锚点优先，未提供时回退请求上下文。"""
+        if self.tenant_id is not None:
+            return self.tenant_id
+        return get_current_tenant_id()
 
     async def process_suspension(
         self,
@@ -170,7 +183,7 @@ class SuspensionProcessingService:
             )
             .where(ScheduleSuspension.id == suspension_id)
         )
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
         if tenant_id:
             query = query.where(ScheduleSuspension.tenant_id == tenant_id)
         result = await self.db.execute(query)
@@ -363,7 +376,8 @@ class SuspensionProcessingService:
             result["error"] = "预约缺少排班信息"
             return result
 
-        tenant_id = get_current_tenant_id()
+        # 锁租户跟随预约归属，避免请求上下文缺失时跨租户争用
+        tenant_id = appointment.tenant_id or self._tenant()
 
         try:
             async with RedisCache.tenant_distributed_lock(
@@ -435,7 +449,8 @@ class SuspensionProcessingService:
             result["error"] = "预约缺少排班信息"
             return result
 
-        tenant_id = get_current_tenant_id()
+        # 锁租户跟随预约归属，避免请求上下文缺失时跨租户争用
+        tenant_id = appointment.tenant_id or self._tenant()
 
         try:
             async with RedisCache.tenant_distributed_lock(

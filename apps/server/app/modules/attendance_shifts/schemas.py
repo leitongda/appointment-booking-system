@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import Field
 
 from app.schemas.base import BaseSchema
@@ -43,5 +45,5 @@ class AttendanceShiftResponse(BaseSchema):
     early_threshold_minutes: int
     is_flexible: bool
     enabled: bool
-    created_at: str | None = None
-    updated_at: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None

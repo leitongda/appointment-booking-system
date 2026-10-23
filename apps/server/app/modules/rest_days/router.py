@@ -4,7 +4,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_admin, require_permission
+from app.api.deps import get_current_admin, require_admin_tenant_anchor, require_permission
 from app.core.config import settings
 from app.db.session import get_db
 from app.modules.rest_days.service import RestDayService
@@ -17,6 +17,16 @@ from app.schemas.rest_day import (
 router = APIRouter()
 
 
+def _require_anchor(tenant_anchor: str | None) -> str:
+    """R1-10：休息日写路径必须拿到账号锚点，禁止写出 tenant_id=NULL 的记录。"""
+    if not tenant_anchor:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="无法确定租户ID，请指定 tenant_id 后重试",
+        )
+    return tenant_anchor
+
+
 @router.get("", response_model=PageResponse[RestDayResponse], summary="获取列表")
 async def get_rest_days(
     store_id: str | None = None,
@@ -26,10 +36,11 @@ async def get_rest_days(
     status: int | None = Query(None, ge=0, le=1),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
 ):
     """获取休息日列表"""
-    service = RestDayService(db)
+    service = RestDayService(db, tenant_id=tenant_anchor)
     rest_days, total = await service.get_list(
         store_id=store_id,
         doctor_id=doctor_id,
@@ -87,11 +98,12 @@ async def get_rest_days(
 async def create_rest_day(
     data: RestDayCreate,
     db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("schedule:create"))
 ):
     """添加休息日"""
-    service = RestDayService(db)
+    service = RestDayService(db, tenant_id=_require_anchor(tenant_anchor))
     
     # 验证日期范围
     if data.start_date > data.end_date:
@@ -129,11 +141,12 @@ async def create_rest_day(
 async def delete_rest_day(
     rest_day_id: str,
     db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("schedule:delete"))
 ):
     """删除休息日"""
-    service = RestDayService(db)
+    service = RestDayService(db, tenant_id=_require_anchor(tenant_anchor))
     success = await service.delete(rest_day_id)
     
     if not success:
@@ -146,11 +159,12 @@ async def delete_rest_day(
 async def cancel_rest_day(
     rest_day_id: str,
     db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("schedule:update"))
 ):
     """取消休息日"""
-    service = RestDayService(db)
+    service = RestDayService(db, tenant_id=_require_anchor(tenant_anchor))
     rest_day = await service.cancel(rest_day_id)
     
     if not rest_day:

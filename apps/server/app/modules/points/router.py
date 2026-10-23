@@ -1,15 +1,29 @@
 """积分管理 API（独立路由）"""
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_admin, require_permission
+from app.api.deps import (
+    get_current_admin,
+    require_admin_tenant_anchor,
+    require_permission,
+)
 from app.core.config import settings
 from app.db.session import get_db
 from app.modules.points.service import PointService
 from app.schemas.point_log import PointAdjustData
 
 router = APIRouter()
+
+
+def _require_anchor(tenant_anchor: str | None) -> str:
+    """R1-14：积分调整必须拿到账号锚点，禁止写出 tenant_id=NULL 的流水。"""
+    if not tenant_anchor:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="无法确定租户ID，请指定 tenant_id 后重试",
+        )
+    return tenant_anchor
 
 
 @router.get("/logs", summary="获取全局积分流水")
@@ -22,10 +36,11 @@ async def get_all_point_logs(
     page_size: int = Query(20, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("points:list")),
 ):
     """获取全局积分流水列表（跨用户）"""
-    service = PointService(db)
+    service = PointService(db, tenant_id=tenant_anchor)
     items, total = await service.get_all_logs(
         keyword=keyword,
         log_type=log_type,
@@ -51,10 +66,11 @@ async def get_point_users(
     page_size: int = Query(20, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("points:list")),
 ):
     """获取用户积分排行列表"""
-    service = PointService(db)
+    service = PointService(db, tenant_id=tenant_anchor)
     items, total = await service.get_user_ranking(
         keyword=keyword,
         sort_by=sort_by,
@@ -76,10 +92,11 @@ async def adjust_user_points(
     data: PointAdjustData,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("points:update")),
 ):
     """调整指定用户的积分"""
-    service = PointService(db)
+    service = PointService(db, tenant_id=_require_anchor(tenant_anchor))
     result = await service.adjust_points_by_user_id(
         user_id=user_id,
         amount=data.amount,
@@ -87,7 +104,6 @@ async def adjust_user_points(
         operator_id=current_admin.get("id"),
     )
     if result is None:
-        from fastapi import HTTPException, status
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="积分调整失败，用户不存在或余额不足",

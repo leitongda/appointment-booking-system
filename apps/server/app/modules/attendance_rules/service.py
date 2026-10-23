@@ -11,10 +11,23 @@ from app.utils.audit import set_create_audit, set_update_audit
 
 
 class AttendanceRuleService:
-    """考勤规则服务"""
+    """考勤规则服务
 
-    def __init__(self, db: AsyncSession):
+    Args:
+        db: 数据库会话
+        tenant_id: 管理员账号租户锚点（R1-11）。查询/写入以锚点强过滤；
+            未传入时才回退请求上下文（兼容内部调用）。
+    """
+
+    def __init__(self, db: AsyncSession, tenant_id: str | None = None):
         self.db = db
+        self.tenant_id = tenant_id
+
+    def _tenant(self) -> str | None:
+        """账号锚点优先，未提供时回退请求上下文。"""
+        if self.tenant_id is not None:
+            return self.tenant_id
+        return get_current_tenant_id()
 
     async def get_list(
         self,
@@ -23,20 +36,25 @@ class AttendanceRuleService:
         page_size: int = 10,
     ) -> tuple[list[AttendanceRule], int]:
         """获取考勤规则列表"""
-        tenant_id = get_current_tenant_id()
-        conditions = [AttendanceRule.tenant_id == tenant_id]
+        tenant_id = self._tenant()
+        conditions = []
+        if tenant_id:
+            conditions.append(AttendanceRule.tenant_id == tenant_id)
 
         if keyword:
             conditions.append(AttendanceRule.name.ilike(f"%{keyword}%"))
 
-        count_query = select(func.count(AttendanceRule.id)).where(and_(*conditions))
+        count_query = select(func.count(AttendanceRule.id))
+        query = select(AttendanceRule)
+        if conditions:
+            count_query = count_query.where(and_(*conditions))
+            query = query.where(and_(*conditions))
+
         count_result = await self.db.execute(count_query)
         total = count_result.scalar_one() or 0
 
         query = (
-            select(AttendanceRule)
-            .where(and_(*conditions))
-            .order_by(AttendanceRule.created_at.desc())
+            query.order_by(AttendanceRule.created_at.desc())
             .offset((page - 1) * page_size)
             .limit(page_size)
         )
@@ -47,18 +65,16 @@ class AttendanceRuleService:
 
     async def get_by_id(self, rule_id: str) -> AttendanceRule | None:
         """获取考勤规则详情"""
-        tenant_id = get_current_tenant_id()
-        result = await self.db.execute(
-            select(AttendanceRule).where(
-                AttendanceRule.id == rule_id,
-                AttendanceRule.tenant_id == tenant_id,
-            )
-        )
+        stmt = select(AttendanceRule).where(AttendanceRule.id == rule_id)
+        tenant_id = self._tenant()
+        if tenant_id:
+            stmt = stmt.where(AttendanceRule.tenant_id == tenant_id)
+        result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
     async def create(self, data: dict, operator_id: str | None = None) -> AttendanceRule:
         """创建考勤规则"""
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
 
         rule = AttendanceRule(
             id=str(uuid.uuid4()),

@@ -100,11 +100,27 @@ class NotificationQuotaService:
                 if setting and setting.value:
                     return int(setting.value)
 
-            # 兜底：查全局配置（store_id 为 NULL）
+            # 兜底 1：租户级全局配置（store_id 为 NULL，tenant_id 为当前租户）
             result = await self.db.execute(
                 select(SystemSetting).where(
                     and_(
                         SystemSetting.store_id.is_(None),
+                        SystemSetting.tenant_id == tenant_id,
+                        SystemSetting.category == "notification_quota",
+                        SystemSetting.key == quota_key,
+                    )
+                )
+            )
+            setting = result.scalar_one_or_none()
+            if setting and setting.value:
+                return int(setting.value)
+
+            # 兜底 2：平台级默认配置（tenant_id 与 store_id 均为 NULL）
+            result = await self.db.execute(
+                select(SystemSetting).where(
+                    and_(
+                        SystemSetting.store_id.is_(None),
+                        SystemSetting.tenant_id.is_(None),
                         SystemSetting.category == "notification_quota",
                         SystemSetting.key == quota_key,
                     )

@@ -36,11 +36,9 @@ class RuleSetImportService:
         Returns:
             导入结果统计
         """
+        # R1-5：导入只认显式锚点，不回退请求上下文
         if not tenant_id:
-            from app.middleware.tenant_context import get_current_tenant_id
-            tenant_id = get_current_tenant_id()
-        if not tenant_id:
-            raise ValueError("导入规则组需要租户上下文")
+            raise ValueError("导入规则组需要租户上下文（显式锚点）")
         # 解析多工作表 Excel
         wb = load_workbook(filename=BytesIO(file_content), read_only=True)
 

@@ -6,7 +6,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_admin
+from app.api.deps import get_current_admin, require_admin_tenant_anchor
 from app.core.config import settings
 from app.db.session import get_db
 from app.modules.attendance_rules.schemas import (
@@ -20,16 +20,26 @@ from app.schemas.rule_set import PageResult
 router = APIRouter()
 
 
+def _require_anchor(tenant_anchor: str | None) -> str:
+    """R1-11：考勤写路径必须拿到账号锚点，禁止写出 tenant_id=NULL 的记录。"""
+    if not tenant_anchor:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="无法确定租户ID，请指定 tenant_id 后重试",
+        )
+    return tenant_anchor
+
+
 @router.get("", response_model=PageResult[AttendanceRuleResponse], summary="获取考勤规则列表")
 async def get_attendance_rules(
     keyword: str | None = Query(None, description="搜索关键词"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE, description="每页数量"),
     db: AsyncSession = Depends(get_db),
-    current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
 ):
     """获取考勤规则列表"""
-    service = AttendanceRuleService(db)
+    service = AttendanceRuleService(db, tenant_id=tenant_anchor)
     items, total = await service.get_list(
         keyword=keyword,
         page=page,
@@ -42,10 +52,10 @@ async def get_attendance_rules(
 async def get_attendance_rule(
     rule_id: str,
     db: AsyncSession = Depends(get_db),
-    current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
 ):
     """获取考勤规则详情"""
-    service = AttendanceRuleService(db)
+    service = AttendanceRuleService(db, tenant_id=tenant_anchor)
     rule = await service.get_by_id(rule_id)
     if not rule:
         raise HTTPException(
@@ -59,10 +69,11 @@ async def get_attendance_rule(
 async def create_attendance_rule(
     data: AttendanceRuleCreate,
     db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     current_admin: dict = Depends(get_current_admin),
 ):
     """创建考勤规则"""
-    service = AttendanceRuleService(db)
+    service = AttendanceRuleService(db, tenant_id=_require_anchor(tenant_anchor))
     rule = await service.create(
         data=data.model_dump(),
         operator_id=current_admin["id"],
@@ -75,10 +86,11 @@ async def update_attendance_rule(
     rule_id: str,
     data: AttendanceRuleUpdate,
     db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     current_admin: dict = Depends(get_current_admin),
 ):
     """更新考勤规则"""
-    service = AttendanceRuleService(db)
+    service = AttendanceRuleService(db, tenant_id=_require_anchor(tenant_anchor))
     rule = await service.update(
         rule_id=rule_id,
         data=data.model_dump(exclude_unset=True),
@@ -96,10 +108,11 @@ async def update_attendance_rule(
 async def delete_attendance_rule(
     rule_id: str,
     db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     current_admin: dict = Depends(get_current_admin),
 ):
     """删除考勤规则"""
-    service = AttendanceRuleService(db)
+    service = AttendanceRuleService(db, tenant_id=_require_anchor(tenant_anchor))
     success = await service.delete(rule_id)
     if not success:
         raise HTTPException(

@@ -15,8 +15,23 @@ from app.utils.audit import set_create_audit, set_update_audit
 
 
 class RestDayService:
-    def __init__(self, db: AsyncSession):
+    """休息日服务
+
+    Args:
+        db: 数据库会话
+        tenant_id: 管理员账号租户锚点（R1-10）。查询/写入以锚点强过滤；
+            未传入时才回退请求上下文（兼容排班内部调用）。
+    """
+
+    def __init__(self, db: AsyncSession, tenant_id: str | None = None):
         self.db = db
+        self.tenant_id = tenant_id
+
+    def _tenant(self) -> str | None:
+        """账号锚点优先，未提供时回退请求上下文。"""
+        if self.tenant_id is not None:
+            return self.tenant_id
+        return get_current_tenant_id()
 
     async def get_by_id(self, rest_day_id: str) -> RestDay | None:
         stmt = (
@@ -24,7 +39,7 @@ class RestDayService:
             .options(selectinload(RestDay.store))
             .where(RestDay.id == rest_day_id)
         )
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
         if tenant_id:
             stmt = stmt.where(RestDay.tenant_id == tenant_id)
         result = await self.db.execute(stmt)
@@ -44,7 +59,7 @@ class RestDayService:
         count_query = select(func.count(RestDay.id))
 
         conditions = []
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
         if tenant_id:
             conditions.append(RestDay.tenant_id == tenant_id)
 
@@ -89,7 +104,7 @@ class RestDayService:
 
     async def create(self, data: RestDayCreate, operator_id: str | None = None) -> RestDay:
         """创建休息日"""
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
         rest_day = RestDay(
             id=str(uuid.uuid4()),
             tenant_id=tenant_id,
@@ -115,7 +130,7 @@ class RestDayService:
 
         await self.db.delete(rest_day)
         await self.db.commit()
-        _invalidate_rest_days_cache(get_current_tenant_id())
+        _invalidate_rest_days_cache(self._tenant())
         return True
 
     async def cancel(self, rest_day_id: str, operator_id: str | None = None) -> RestDay | None:
@@ -127,7 +142,7 @@ class RestDayService:
         rest_day.status = 0
         set_update_audit(rest_day, operator_id)
         await self.db.commit()
-        _invalidate_rest_days_cache(get_current_tenant_id())
+        _invalidate_rest_days_cache(self._tenant())
         await self.db.refresh(rest_day)
         return rest_day
 
@@ -146,7 +161,7 @@ class RestDayService:
                 RestDay.end_date >= check_date
             )
         )
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
         if tenant_id:
             stmt = stmt.where(RestDay.tenant_id == tenant_id)
         result = await self.db.execute(stmt)

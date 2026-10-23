@@ -16,12 +16,22 @@ from app.utils.audit import set_create_audit, set_update_audit
 
 
 class DoctorBookingSettingService:
-    """医生预约设置服务"""
+    """医生预约设置服务
 
-    def __init__(self, db: AsyncSession):
+    Args:
+        db: 数据库会话
+        tenant_id: 管理员账号租户锚点（R1-13）。查询/写入以锚点强过滤；
+            未传入时才回退请求上下文（兼容内部调用）。
+    """
+
+    def __init__(self, db: AsyncSession, tenant_id: str | None = None):
         self.db = db
+        self.tenant_id = tenant_id
 
     def _tenant_id(self) -> str | None:
+        """账号锚点优先，未提供时回退请求上下文。"""
+        if self.tenant_id is not None:
+            return self.tenant_id
         return get_current_tenant_id()
 
     async def get_by_id(self, setting_id: str) -> DoctorBookingSetting | None:

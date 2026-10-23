@@ -3,7 +3,12 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_admin, get_store_filter, require_permission
+from app.api.deps import (
+    get_current_admin,
+    get_store_filter,
+    require_admin_tenant_anchor,
+    require_permission,
+)
 from app.core.config import settings
 from app.db.session import get_db
 from app.modules.leave_requests.service import LeaveRequestService
@@ -21,6 +26,16 @@ from app.schemas.response import PageResponse
 router = APIRouter()
 
 
+def _require_anchor(tenant_anchor: str | None) -> str:
+    """R1-10：管理端审批路径必须拿到账号锚点，禁止跨租户/空锚点审批。"""
+    if not tenant_anchor:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="无法确定租户ID，请指定 tenant_id 后重试",
+        )
+    return tenant_anchor
+
+
 @router.get("", response_model=PageResponse[LeaveRequestResponse], summary="获取申请列表")
 async def get_leave_requests(
     doctor_id: str | None = None,
@@ -31,13 +46,14 @@ async def get_leave_requests(
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     current_admin = Depends(get_current_admin)
 ):
     """获取申请列表（管理端）"""
     # 获取门店过滤
     store_filter = get_store_filter(current_admin)
     
-    service = LeaveRequestService(db)
+    service = LeaveRequestService(db, tenant_id=tenant_anchor)
     query = LeaveRequestQuery(
         doctor_id=doctor_id,
         request_type=request_type,
@@ -61,6 +77,7 @@ async def get_leave_requests(
 @router.get("/pending-count", summary="获取待审核数")
 async def get_pending_count(
     db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     current_admin = Depends(get_current_admin)
 ):
     """获取待审核数量"""
@@ -68,7 +85,7 @@ async def get_pending_count(
     store_filter = get_store_filter(current_admin)
     store_id = store_filter if isinstance(store_filter, str) else None
     
-    service = LeaveRequestService(db)
+    service = LeaveRequestService(db, tenant_id=tenant_anchor)
     count = await service.get_pending_count(store_id=store_id)
     return {"count": count}
 
@@ -130,11 +147,12 @@ async def review_request(
     request_id: str,
     data: ReviewRequest,
     db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("leave-request:approve"))
 ):
     """审核申请"""
-    service = LeaveRequestService(db)
+    service = LeaveRequestService(db, tenant_id=_require_anchor(tenant_anchor))
     reviewer_id = current_admin.get("id")
     
     try:

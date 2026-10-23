@@ -11,8 +11,10 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_admin, get_current_super_admin
+from app.common.tenant_deps import resolve_admin_tenant_anchor
 from app.core.config import settings
 from app.db.session import get_db
+from app.middleware.tenant_context import get_current_tenant_id
 from app.models.schedule import Schedule
 from app.modules.rule_engine import RuleEngineService
 from app.modules.rule_sets.service import RuleSetService
@@ -41,6 +43,19 @@ from app.schemas.rule_set import (
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+
+def _resolve_anchor(current_admin: dict, tenant_id: str | None) -> str | None:
+    """R1-8：规则组端点租户锚点。
+
+    优先级：显式 query `tenant_id` > 请求上下文 > 账号 tenant_id；租户管理员
+    恒被收敛到账号自身租户（伪造 tenant_id 由 resolve 抛 403）；平台管理员
+    必须显式指定租户（`PATIENT_ANCHOR_FAIL_CLOSE=True` 时未指定返回 400）。
+    """
+    return resolve_admin_tenant_anchor(
+        current_admin,
+        tenant_id_override=tenant_id or get_current_tenant_id(),
+    )
+
 # 超时配置（从配置文件读取）
 API_TIMEOUT = settings.API_TIMEOUT
 DB_QUERY_TIMEOUT = settings.DB_QUERY_TIMEOUT
@@ -68,13 +83,15 @@ async def get_rule_sets(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE, description="每页数量"),
     db: AsyncSession = Depends(get_db),
+    tenant_id: str | None = Query(None, description="租户ID（平台管理员需显式指定）"),
     current_admin: dict = Depends(get_current_admin)
 ):
     """获取规则组列表（带超时监控）"""
     start_time = time.time()
+    anchor = _resolve_anchor(current_admin, tenant_id)
 
     try:
-        service = RuleSetService(db)
+        service = RuleSetService(db, tenant_id=anchor)
         rule_sets, total = await service.get_list(
             enabled=enabled,
             shift_type_id=shift_type_id,
@@ -235,10 +252,12 @@ async def clear_performance_metrics(
 )
 async def get_presets(
     db: AsyncSession = Depends(get_db),
+    tenant_id: str | None = Query(None, description="租户ID（平台管理员需显式指定）"),
     current_admin: dict = Depends(get_current_admin),
 ):
     """获取预设模板列表"""
-    service = RuleSetService(db)
+    anchor = _resolve_anchor(current_admin, tenant_id)
+    service = RuleSetService(db, tenant_id=anchor)
     presets = await service.get_presets()
     return presets
 
@@ -253,10 +272,12 @@ async def get_presets(
 async def create_preset(
     data: RuleSetPresetCreate,
     db: AsyncSession = Depends(get_db),
+    tenant_id: str | None = Query(None, description="租户ID（平台管理员需显式指定）"),
     current_admin: dict = Depends(get_current_super_admin),
 ):
     """创建自定义预设模板"""
-    service = RuleSetService(db)
+    anchor = _resolve_anchor(current_admin, tenant_id)
+    service = RuleSetService(db, tenant_id=anchor)
     preset = await service.create_preset(
         name=data.name,
         description=data.description,
@@ -277,10 +298,12 @@ async def update_preset(
     preset_id: str,
     data: RuleSetPresetUpdate,
     db: AsyncSession = Depends(get_db),
+    tenant_id: str | None = Query(None, description="租户ID（平台管理员需显式指定）"),
     current_admin: dict = Depends(get_current_super_admin),
 ):
     """更新预设模板"""
-    service = RuleSetService(db)
+    anchor = _resolve_anchor(current_admin, tenant_id)
+    service = RuleSetService(db, tenant_id=anchor)
     preset = await service.update_preset(
         preset_id=preset_id,
         operator_id=current_admin["id"],
@@ -306,10 +329,12 @@ async def update_preset(
 async def delete_preset(
     preset_id: str,
     db: AsyncSession = Depends(get_db),
+    tenant_id: str | None = Query(None, description="租户ID（平台管理员需显式指定）"),
     current_admin: dict = Depends(get_current_super_admin),
 ):
     """删除预设模板"""
-    service = RuleSetService(db)
+    anchor = _resolve_anchor(current_admin, tenant_id)
+    service = RuleSetService(db, tenant_id=anchor)
     success = await service.delete_preset(preset_id)
     if not success:
         raise HTTPException(
@@ -341,13 +366,15 @@ async def delete_preset(
 async def get_rule_set(
     rule_set_id: str,
     db: AsyncSession = Depends(get_db),
+    tenant_id: str | None = Query(None, description="租户ID（平台管理员需显式指定）"),
     current_admin: dict = Depends(get_current_admin)
 ):
     """获取规则组详情（带超时监控）"""
     start_time = time.time()
+    anchor = _resolve_anchor(current_admin, tenant_id)
 
     try:
-        service = RuleSetService(db)
+        service = RuleSetService(db, tenant_id=anchor)
         rule_set = await service.get_by_id(rule_set_id)
 
         if not rule_set:
@@ -393,10 +420,12 @@ async def get_rule_set(
 async def create_rule_set(
     data: RuleSetCreate,
     db: AsyncSession = Depends(get_db),
+    tenant_id: str | None = Query(None, description="租户ID（平台管理员需显式指定）"),
     current_admin: dict = Depends(get_current_super_admin)
 ):
     """创建规则组（仅超级管理员）"""
-    service = RuleSetService(db)
+    anchor = _resolve_anchor(current_admin, tenant_id)
+    service = RuleSetService(db, tenant_id=anchor)
     try:
         rule_set = await service.create(data, current_admin["id"])
     except ValueError as e:
@@ -426,10 +455,12 @@ async def update_rule_set(
     rule_set_id: str,
     data: RuleSetUpdate,
     db: AsyncSession = Depends(get_db),
+    tenant_id: str | None = Query(None, description="租户ID（平台管理员需显式指定）"),
     current_admin: dict = Depends(get_current_super_admin)
 ):
     """更新规则组（仅超级管理员）"""
-    service = RuleSetService(db)
+    anchor = _resolve_anchor(current_admin, tenant_id)
+    service = RuleSetService(db, tenant_id=anchor)
     try:
         rule_set = await service.update(rule_set_id, data, current_admin["id"])
     except ValueError as e:
@@ -469,10 +500,12 @@ async def update_rule_set(
 async def delete_rule_set(
     rule_set_id: str,
     db: AsyncSession = Depends(get_db),
+    tenant_id: str | None = Query(None, description="租户ID（平台管理员需显式指定）"),
     current_admin: dict = Depends(get_current_super_admin)
 ):
     """删除规则组（仅超级管理员）"""
-    service = RuleSetService(db)
+    anchor = _resolve_anchor(current_admin, tenant_id)
+    service = RuleSetService(db, tenant_id=anchor)
     try:
         success = await service.delete(rule_set_id, current_admin["id"])
     except ValueError as e:
@@ -503,10 +536,12 @@ async def delete_rule_set(
 async def enable_rule_set(
     rule_set_id: str,
     db: AsyncSession = Depends(get_db),
+    tenant_id: str | None = Query(None, description="租户ID（平台管理员需显式指定）"),
     current_admin: dict = Depends(get_current_super_admin)
 ):
     """启用规则组（仅超级管理员）"""
-    service = RuleSetService(db)
+    anchor = _resolve_anchor(current_admin, tenant_id)
+    service = RuleSetService(db, tenant_id=anchor)
     success = await service.enable(rule_set_id, current_admin["id"])
     if not success:
         raise HTTPException(
@@ -532,10 +567,12 @@ async def enable_rule_set(
 async def disable_rule_set(
     rule_set_id: str,
     db: AsyncSession = Depends(get_db),
+    tenant_id: str | None = Query(None, description="租户ID（平台管理员需显式指定）"),
     current_admin: dict = Depends(get_current_super_admin)
 ):
     """禁用规则组（仅超级管理员）"""
-    service = RuleSetService(db)
+    anchor = _resolve_anchor(current_admin, tenant_id)
+    service = RuleSetService(db, tenant_id=anchor)
     success = await service.disable(rule_set_id, current_admin["id"])
     if not success:
         raise HTTPException(
@@ -682,10 +719,12 @@ async def create_window(
     rule_set_id: str,
     data: RuleWindowCreate,
     db: AsyncSession = Depends(get_db),
+    tenant_id: str | None = Query(None, description="租户ID（平台管理员需显式指定）"),
     current_admin: dict = Depends(get_current_super_admin)
 ):
     """创建时间窗（仅超级管理员）"""
-    service = RuleSetService(db)
+    anchor = _resolve_anchor(current_admin, tenant_id)
+    service = RuleSetService(db, tenant_id=anchor)
     window = await service.create_window(rule_set_id, data, current_admin["id"])
     if not window:
         raise HTTPException(
@@ -714,10 +753,12 @@ async def update_window(
     window_id: str,
     data: RuleWindowUpdate,
     db: AsyncSession = Depends(get_db),
+    tenant_id: str | None = Query(None, description="租户ID（平台管理员需显式指定）"),
     current_admin: dict = Depends(get_current_super_admin)
 ):
     """更新时间窗（仅超级管理员）"""
-    service = RuleSetService(db)
+    anchor = _resolve_anchor(current_admin, tenant_id)
+    service = RuleSetService(db, tenant_id=anchor)
     window = await service.update_window(window_id, data, current_admin["id"])
     if not window:
         raise HTTPException(
@@ -745,10 +786,12 @@ async def update_window(
 async def delete_window(
     window_id: str,
     db: AsyncSession = Depends(get_db),
+    tenant_id: str | None = Query(None, description="租户ID（平台管理员需显式指定）"),
     current_admin: dict = Depends(get_current_super_admin)
 ):
     """删除时间窗（仅超级管理员）"""
-    service = RuleSetService(db)
+    anchor = _resolve_anchor(current_admin, tenant_id)
+    service = RuleSetService(db, tenant_id=anchor)
     success = await service.delete_window(window_id, current_admin["id"])
     if not success:
         raise HTTPException(
@@ -780,13 +823,15 @@ async def update_booking_policy(
     rule_set_id: str,
     data: RuleBookingPolicyCreate,
     db: AsyncSession = Depends(get_db),
+    tenant_id: str | None = Query(None, description="租户ID（平台管理员需显式指定）"),
     current_admin: dict = Depends(get_current_super_admin)
 ):
     """更新预约策略（仅超级管理员）
 
     如果策略不存在则创建，存在则更新
     """
-    service = RuleSetService(db)
+    anchor = _resolve_anchor(current_admin, tenant_id)
+    service = RuleSetService(db, tenant_id=anchor)
 
     # 先检查规则组是否存在
     rule_set = await service.get_by_id(rule_set_id)
@@ -820,13 +865,15 @@ async def update_checkin_policy(
     rule_set_id: str,
     data: RuleCheckinPolicyCreate,
     db: AsyncSession = Depends(get_db),
+    tenant_id: str | None = Query(None, description="租户ID（平台管理员需显式指定）"),
     current_admin: dict = Depends(get_current_super_admin)
 ):
     """更新签到策略（仅超级管理员）
 
     如果策略不存在则创建，存在则更新
     """
-    service = RuleSetService(db)
+    anchor = _resolve_anchor(current_admin, tenant_id)
+    service = RuleSetService(db, tenant_id=anchor)
 
     # 先检查规则组是否存在
     rule_set = await service.get_by_id(rule_set_id)
@@ -860,13 +907,15 @@ async def update_capacity_policy(
     rule_set_id: str,
     data: RuleCapacityPolicyCreate,
     db: AsyncSession = Depends(get_db),
+    tenant_id: str | None = Query(None, description="租户ID（平台管理员需显式指定）"),
     current_admin: dict = Depends(get_current_super_admin)
 ):
     """更新容量策略（仅超级管理员）
 
     如果策略不存在则创建，存在则更新
     """
-    service = RuleSetService(db)
+    anchor = _resolve_anchor(current_admin, tenant_id)
+    service = RuleSetService(db, tenant_id=anchor)
 
     # 先检查规则组是否存在
     rule_set = await service.get_by_id(rule_set_id)
@@ -904,9 +953,11 @@ async def get_audit_logs(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
+    tenant_id: str | None = Query(None, description="租户ID（平台管理员需显式指定）"),
     current_admin: dict = Depends(get_current_admin),
 ):
     """获取规则组审计日志"""
-    service = RuleSetService(db)
+    anchor = _resolve_anchor(current_admin, tenant_id)
+    service = RuleSetService(db, tenant_id=anchor)
     logs, total = await service.get_audit_logs(rule_set_id, page=page, page_size=page_size)
     return {"data": logs, "total": total}

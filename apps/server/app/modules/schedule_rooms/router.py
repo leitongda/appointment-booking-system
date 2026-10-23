@@ -3,13 +3,29 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import check_store_access, get_current_admin, get_store_filter, require_permission
+from app.api.deps import (
+    check_store_access,
+    get_current_admin,
+    get_store_filter,
+    require_admin_tenant_anchor,
+    require_permission,
+)
 from app.core.config import settings
 from app.db.session import get_db
 from app.modules.schedule_rooms.service import ScheduleRoomService
 from app.schemas.response import PageResponse, to_camel
 
 router = APIRouter()
+
+
+def _require_anchor(tenant_anchor: str | None) -> str:
+    """R1-13：诊室写路径必须拿到账号锚点，禁止写出 tenant_id=NULL 的记录。"""
+    if not tenant_anchor:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="无法确定租户ID，请指定 tenant_id 后重试",
+        )
+    return tenant_anchor
 
 # ==================== Pydantic Schemas ====================
 
@@ -88,8 +104,9 @@ async def get_schedule_rooms(
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
 ):
-    service = ScheduleRoomService(db)
+    service = ScheduleRoomService(db, tenant_id=tenant_anchor)
 
     store_filter = get_store_filter(current_admin)
     if store_filter:
@@ -112,8 +129,9 @@ async def get_schedule_room(
     room_id: str,
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
 ):
-    service = ScheduleRoomService(db)
+    service = ScheduleRoomService(db, tenant_id=tenant_anchor)
     room = await service.get_by_id(room_id)
     if not room:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="诊室不存在，请检查后重试")
@@ -128,6 +146,7 @@ async def create_schedule_room(
     data: ScheduleRoomCreate,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("schedule:room")),
 ):
     store_filter = get_store_filter(current_admin)
@@ -136,7 +155,7 @@ async def create_schedule_room(
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="只能在本门店创建诊室")
         data.store_id = store_filter
 
-    service = ScheduleRoomService(db)
+    service = ScheduleRoomService(db, tenant_id=_require_anchor(tenant_anchor))
     try:
         room = await service.create(data)
     except Exception as e:
@@ -152,9 +171,10 @@ async def update_schedule_room(
     data: ScheduleRoomUpdate,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("schedule:room")),
 ):
-    service = ScheduleRoomService(db)
+    service = ScheduleRoomService(db, tenant_id=_require_anchor(tenant_anchor))
     room = await service.get_by_id(room_id)
     if not room:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="诊室不存在，请检查后重试")
@@ -179,9 +199,10 @@ async def delete_schedule_room(
     room_id: str,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("schedule:room")),
 ):
-    service = ScheduleRoomService(db)
+    service = ScheduleRoomService(db, tenant_id=_require_anchor(tenant_anchor))
     room = await service.get_by_id(room_id)
     if not room:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="诊室不存在，请检查后重试")

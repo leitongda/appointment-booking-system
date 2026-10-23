@@ -21,8 +21,23 @@ logger = logging.getLogger(__name__)
 
 
 class ScheduleSuspensionService:
-    def __init__(self, db: AsyncSession):
+    """停诊管理服务
+
+    Args:
+        db: 数据库会话
+        tenant_id: 管理员账号租户锚点（R1-9）。查询/写入以锚点强过滤；
+            未传入时才回退请求上下文（兼容排班内部调用）。
+    """
+
+    def __init__(self, db: AsyncSession, tenant_id: str | None = None):
         self.db = db
+        self.tenant_id = tenant_id
+
+    def _tenant(self) -> str | None:
+        """账号锚点优先，未提供时回退请求上下文。"""
+        if self.tenant_id is not None:
+            return self.tenant_id
+        return get_current_tenant_id()
 
     async def get_by_id(self, suspension_id: str) -> ScheduleSuspension | None:
         query = (
@@ -34,7 +49,7 @@ class ScheduleSuspensionService:
             .where(ScheduleSuspension.id == suspension_id)
         )
         # 租户隔离
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
         if tenant_id:
             query = query.where(ScheduleSuspension.tenant_id == tenant_id)
         result = await self.db.execute(query)
@@ -50,7 +65,7 @@ class ScheduleSuspensionService:
         page: int = 1,
         page_size: int = 10
     ) -> tuple[list[ScheduleSuspension], int]:
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
         query = select(ScheduleSuspension).options(
             selectinload(ScheduleSuspension.store),
             selectinload(ScheduleSuspension.doctor)
@@ -85,7 +100,7 @@ class ScheduleSuspensionService:
 
     async def create(self, data: ScheduleSuspensionCreate, operator_id: str | None = None) -> ScheduleSuspension:
         """创建停诊并自动更新相关排班状态"""
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
         suspension = ScheduleSuspension(
             id=str(uuid.uuid4()),
             tenant_id=tenant_id,
@@ -183,7 +198,7 @@ class ScheduleSuspensionService:
     ):
         """发送停诊通知给受影响的患者"""
         try:
-            tenant_id = get_current_tenant_id()
+            tenant_id = self._tenant()
             # 获取受影响的排班 ID 列表
             affected_schedule_ids = []
             if data.schedule_ids:
@@ -352,7 +367,7 @@ class ScheduleSuspensionService:
     ) -> list[AvailableScheduleForSuspension]:
         """获取指定日期的可选排班（用于停诊选择）"""
         schedules = []
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
 
         # 1. 获取普通排班
         normal_conditions = [
@@ -422,7 +437,7 @@ class ScheduleSuspensionService:
         time_slot: str | None = None
     ) -> ScheduleSuspension | None:
         """检查指定时间是否已停诊"""
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
         conditions = [
             ScheduleSuspension.doctor_id == doctor_id,
             ScheduleSuspension.suspension_date == suspension_date,

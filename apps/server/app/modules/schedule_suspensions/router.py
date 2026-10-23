@@ -5,7 +5,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_admin, require_permission
+from app.api.deps import get_current_admin, require_admin_tenant_anchor, require_permission
 from app.core.config import settings
 from app.db.session import get_db
 from app.modules.schedule_suspensions.service import ScheduleSuspensionService
@@ -20,6 +20,16 @@ from app.schemas.schedule_suspension import (
 router = APIRouter()
 
 
+def _require_anchor(tenant_anchor: str | None) -> str:
+    """R1-9：停诊写路径必须拿到账号锚点，禁止写出 tenant_id=NULL 的记录。"""
+    if not tenant_anchor:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="无法确定租户ID，请指定 tenant_id 后重试",
+        )
+    return tenant_anchor
+
+
 @router.get("", response_model=PageResponse[ScheduleSuspensionResponse], summary="获取停诊列表")
 async def get_schedule_suspensions(
     store_id: str | None = None,
@@ -30,11 +40,12 @@ async def get_schedule_suspensions(
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("schedule:read"))
 ):
     """获取停诊列表"""
-    service = ScheduleSuspensionService(db)
+    service = ScheduleSuspensionService(db, tenant_id=tenant_anchor)
     suspensions, total = await service.get_list(
         store_id=store_id,
         doctor_id=doctor_id,
@@ -87,10 +98,11 @@ async def get_available_schedules_for_suspension(
     store_id: str = Query(...),
     doctor_id: str = Query(...),
     suspension_date: date = Query(...),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
 ):
     """获取指定日期的可选排班（用于停诊选择）"""
-    service = ScheduleSuspensionService(db)
+    service = ScheduleSuspensionService(db, tenant_id=tenant_anchor)
     return await service.get_available_schedules(store_id, doctor_id, suspension_date)
 
 
@@ -98,11 +110,12 @@ async def get_available_schedules_for_suspension(
 async def create_schedule_suspension(
     data: ScheduleSuspensionCreate,
     db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("schedule:suspend"))
 ):
     """创建停诊"""
-    service = ScheduleSuspensionService(db)
+    service = ScheduleSuspensionService(db, tenant_id=_require_anchor(tenant_anchor))
     suspension = await service.create(data)
 
     schedule_ids = None
@@ -143,6 +156,7 @@ async def process_suspension(
     suspension_id: str,
     data: SuspensionProcessRequest,
     db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("schedule:suspend")),
 ):
@@ -155,7 +169,11 @@ async def process_suspension(
     - manual: 仅记录，等待人工处理
     """
     from app.modules.schedule_suspensions.service_processing import SuspensionProcessingService
-    service = SuspensionProcessingService(db)
+    anchor = _require_anchor(tenant_anchor)
+    # 跨租户处置统一按“不存在”处理，避免泄露他租户停诊记录
+    if not await ScheduleSuspensionService(db, tenant_id=anchor).get_by_id(suspension_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="停诊记录不存在，请检查后重试")
+    service = SuspensionProcessingService(db, tenant_id=anchor)
     operator_id = current_admin.get("id") if current_admin else None
     try:
         result = await service.process_suspension(
@@ -172,12 +190,13 @@ async def process_suspension(
 async def get_affected_appointment_count(
     suspension_id: str,
     db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("schedule:read")),
 ):
     """统计停诊影响的活跃预约数量"""
     from app.modules.schedule_suspensions.service_processing import SuspensionProcessingService
-    service = SuspensionProcessingService(db)
+    service = SuspensionProcessingService(db, tenant_id=tenant_anchor)
     try:
         count = await service.count_affected_appointments(suspension_id)
         return {"affected_count": count}
@@ -189,11 +208,12 @@ async def get_affected_appointment_count(
 async def delete_schedule_suspension(
     suspension_id: str,
     db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("schedule:delete"))
 ):
     """删除停诊记录"""
-    service = ScheduleSuspensionService(db)
+    service = ScheduleSuspensionService(db, tenant_id=_require_anchor(tenant_anchor))
     success = await service.delete(suspension_id)
 
     if not success:
@@ -206,11 +226,12 @@ async def delete_schedule_suspension(
 async def cancel_schedule_suspension(
     suspension_id: str,
     db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("schedule:suspend"))
 ):
     """取消停诊"""
-    service = ScheduleSuspensionService(db)
+    service = ScheduleSuspensionService(db, tenant_id=_require_anchor(tenant_anchor))
     suspension = await service.cancel(suspension_id)
 
     if not suspension:

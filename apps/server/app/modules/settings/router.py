@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_admin, require_permission
+from app.api.deps import get_current_admin, require_admin_tenant_anchor, require_permission
 from app.db.session import get_db
 from app.modules.settings.service import SettingsService
 
@@ -106,10 +106,11 @@ class EmailConfigUpdate(BaseModel):
 async def get_booking_settings(
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
 ):
     """获取预约设置"""
     service = SettingsService(db)
-    return await service.get_booking_settings()
+    return await service.get_booking_settings(tenant_id=tenant_anchor)
 
 
 @router.put("/booking", summary="更新预约设置")
@@ -118,6 +119,7 @@ async def update_booking_settings(
     storeId: str | None = None,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("settings:edit")),
 ):
     """更新预约设置
@@ -159,7 +161,7 @@ async def update_booking_settings(
     if data.appointmentReminderHours is not None:
         update_data['appointment_reminder_hours'] = data.appointmentReminderHours
 
-    await service.update_category('booking', update_data, store_id=storeId)
+    await service.update_category('booking', update_data, store_id=storeId, tenant_id=tenant_anchor)
     return {"message": "保存成功"}
 
 
@@ -178,6 +180,7 @@ async def update_hospital_info(
     data: HospitalInfoUpdate,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("settings:edit")),
 ):
     """更新医院信息"""
@@ -199,7 +202,7 @@ async def update_hospital_info(
     if data.logo is not None:
         update_data['logo'] = data.logo
     
-    await service.update_category('hospital', update_data)
+    await service.update_category('hospital', update_data, tenant_id=tenant_anchor)
     return {"message": "保存成功"}
 
 
@@ -208,11 +211,12 @@ async def update_hospital_info(
 async def get_wechat_config(
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("settings:wechat", "settings:edit")),
 ):
     """获取微信配置"""
     service = SettingsService(db)
-    config = await service.get_wechat_config()
+    config = await service.get_wechat_config(tenant_id=tenant_anchor)
     # 隐藏敏感信息
     if config.get('appSecret'):
         config['appSecret'] = '******'
@@ -226,6 +230,7 @@ async def update_wechat_config(
     data: WechatConfigUpdate,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("settings:wechat")),
 ):
     """更新微信配置"""
@@ -243,7 +248,7 @@ async def update_wechat_config(
     if data.notifyUrl is not None:
         update_data['notify_url'] = data.notifyUrl
     
-    await service.update_category('wechat', update_data)
+    await service.update_category('wechat', update_data, tenant_id=tenant_anchor)
     return {"message": "保存成功"}
 
 
@@ -252,11 +257,12 @@ async def update_wechat_config(
 async def get_sms_config(
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("settings:sms", "settings:edit")),
 ):
     """获取短信配置"""
     service = SettingsService(db)
-    config = await service.get_sms_config()
+    config = await service.get_sms_config(tenant_id=tenant_anchor)
     # 隐藏敏感信息
     if config.get('accessKeySecret'):
         config['accessKeySecret'] = '******'
@@ -268,6 +274,7 @@ async def update_sms_config(
     data: SmsConfigUpdate,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("settings:sms")),
 ):
     """更新短信配置"""
@@ -290,7 +297,7 @@ async def update_sms_config(
     if data.sendIntervalSeconds is not None:
         update_data['send_interval_seconds'] = data.sendIntervalSeconds
 
-    await service.update_category('sms', update_data)
+    await service.update_category('sms', update_data, tenant_id=tenant_anchor)
     return {"message": "保存成功"}
 
 
@@ -299,11 +306,12 @@ async def update_sms_config(
 async def get_email_config(
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("settings:email", "settings:edit")),
 ):
     """获取邮件配置"""
     service = SettingsService(db)
-    config = await service.get_email_config()
+    config = await service.get_email_config(tenant_id=tenant_anchor)
     # 隐藏敏感信息（有密码则显示掩码）
     has_password = bool(config.get('password'))
     return {
@@ -322,6 +330,7 @@ async def update_email_config(
     data: EmailConfigUpdate,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("settings:email")),
 ):
     """更新邮件配置"""
@@ -341,7 +350,7 @@ async def update_email_config(
         update_data['fromName'] = data.senderName
     if data.senderEmail is not None:
         update_data['fromEmail'] = data.senderEmail
-    await service.update_email_config(update_data)
+    await service.update_email_config(update_data, tenant_id=tenant_anchor)
     return {"message": "保存成功"}
 
 
@@ -392,11 +401,12 @@ class SecurityConfigUpdate(BaseModel):
 async def get_security_config(
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("settings:edit")),
 ):
     """获取安全策略配置"""
     service = SettingsService(db)
-    config = await service.get_security_config()
+    config = await service.get_security_config(tenant_id=tenant_anchor)
     # 隐藏默认密码
     if config.get('defaultPassword'):
         config['defaultPassword'] = '********'
@@ -408,6 +418,7 @@ async def update_security_config(
     data: SecurityConfigUpdate,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("settings:edit")),
 ):
     """更新安全策略配置"""
@@ -429,7 +440,7 @@ async def update_security_config(
     if data.sessionTimeoutMinutes is not None:
         update_data['session_timeout_minutes'] = data.sessionTimeoutMinutes
 
-    await service.update_category('security', update_data)
+    await service.update_category('security', update_data, tenant_id=tenant_anchor)
     return {"message": "保存成功"}
 
 
@@ -449,11 +460,12 @@ class SourceReleaseConfigUpdate(BaseModel):
 async def get_source_release_config(
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("settings:edit")),
 ):
     """获取号源释放策略配置"""
     service = SettingsService(db)
-    return await service.get_source_release_config()
+    return await service.get_source_release_config(tenant_id=tenant_anchor)
 
 
 @router.put("/source-release", summary="更新号源释放策略配置")
@@ -461,6 +473,7 @@ async def update_source_release_config(
     data: SourceReleaseConfigUpdate,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("settings:edit")),
 ):
     """更新号源释放策略配置"""
@@ -484,7 +497,7 @@ async def update_source_release_config(
     if data.overbookingLimit is not None:
         update_data['overbooking_limit'] = data.overbookingLimit
 
-    await service.update_category('source_release', update_data)
+    await service.update_category('source_release', update_data, tenant_id=tenant_anchor)
     return {"message": "保存成功"}
 
 
@@ -513,12 +526,13 @@ async def update_booking_fields(
     data: BookingFieldsUpdate,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("settings:edit")),
 ):
     """更新预约选项配置"""
     service = SettingsService(db)
     fields_data = [f.model_dump() for f in data.fields]
-    result = await service.update_booking_fields(fields_data)
+    result = await service.update_booking_fields(fields_data, tenant_id=tenant_anchor)
     return {"message": "保存成功", "data": result}
 
 
@@ -544,6 +558,7 @@ async def update_patient_card_config(
     data: PatientCardConfigUpdate,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("settings:edit")),
 ):
     """更新就诊卡配置"""
@@ -553,6 +568,7 @@ async def update_patient_card_config(
         card_description=data.cardDescription,
         max_cards_per_user=data.maxCardsPerUser,
         show_on_homepage=data.showOnHomepage,
+        tenant_id=tenant_anchor,
     )
     return {"message": "保存成功", "data": result}
 
@@ -573,11 +589,12 @@ class ImageConfigUpdate(BaseModel):
 async def get_image_config(
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("settings:edit")),
 ):
     """获取图片处理配置"""
     service = SettingsService(db)
-    return await service.get_image_config()
+    return await service.get_image_config(tenant_id=tenant_anchor)
 
 
 @router.put("/image", summary="更新图片处理配置")
@@ -585,6 +602,7 @@ async def update_image_config(
     data: ImageConfigUpdate,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("settings:edit")),
 ):
     """更新图片处理配置"""
@@ -597,6 +615,7 @@ async def update_image_config(
     result = await service.update_image_config(
         thumbnail_sizes=thumbnail_sizes,
         compress_quality=data.compressQuality,
+        tenant_id=tenant_anchor,
     )
     return {"message": "保存成功", "data": result}
 
@@ -647,6 +666,7 @@ async def update_time_periods(
     data: TimePeriodsUpdate,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("settings:edit")),
 ):
     """更新时段配置
@@ -660,7 +680,8 @@ async def update_time_periods(
     result = await service.set_time_periods(
         periods=periods_data,
         store_id=data.storeId,
-        operator_id=operator_id
+        operator_id=operator_id,
+        tenant_id=tenant_anchor,
     )
     
     return {"message": "保存成功", "data": {"periods": result}}
@@ -671,6 +692,7 @@ async def delete_store_time_periods(
     store_id: str,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("settings:edit")),
 ):
     """删除门店自定义时段配置（恢复使用全局配置）"""
@@ -681,7 +703,8 @@ async def delete_store_time_periods(
         category='time_periods',
         key='periods',
         store_id=store_id,
-        operator_id=operator_id
+        operator_id=operator_id,
+        tenant_id=tenant_anchor,
     )
     
     if success:

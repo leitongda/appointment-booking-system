@@ -7,7 +7,8 @@ from datetime import UTC, datetime
 from sqlalchemy import and_, delete, func, select
 
 from app.core.redis import RedisCache
-from app.middleware.tenant_context import get_current_tenant_id
+# 保留导入：单元测试通过 patch 该符号注入租户上下文（兼容既有测试契约）
+from app.middleware.tenant_context import get_current_tenant_id  # noqa: F401
 from app.models.rule_set import (
     RuleBookingPolicy,
     RuleCapacityPolicy,
@@ -67,7 +68,7 @@ class RuleSetMutationMixin:
                 )
             )
             shift_type_ids = [row[0] for row in result.all()]
-            tenant_id = get_current_tenant_id()
+            tenant_id = self._tenant()
 
             # 使用 v2 方法失效所有相关缓存
             await self.rule_cache.invalidate_v2(
@@ -83,7 +84,7 @@ class RuleSetMutationMixin:
     async def _get_rule_set_with_tenant(self, rule_set_id: str):
         """根据 ID 查询规则组，同时过滤租户和软删除（与 service_query.get_by_id 保持一致）。"""
         conditions = [RuleSet.id == rule_set_id, RuleSet.deleted_at.is_(None)]
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
         if tenant_id is not None:
             conditions.append(RuleSet.tenant_id == tenant_id)
 
@@ -108,7 +109,7 @@ class RuleSetMutationMixin:
             rounding_mode=data.rounding_mode,
             clock_skew_tolerance_sec=data.clock_skew_tolerance_sec,
             description=data.description,
-            tenant_id=get_current_tenant_id(),
+            tenant_id=self._tenant(),
             store_id=data.store_id,
             department_id=data.department_id,
             doctor_id=data.doctor_id,
@@ -184,7 +185,7 @@ class RuleSetMutationMixin:
             self.db.add(capacity_policy)
 
         await self.db.flush()
-        snapshot_after = await snapshot_rule_set(self.db, rule_set.id)
+        snapshot_after = await snapshot_rule_set(self.db, rule_set.id, self._tenant())
         self.db.add(
             make_rule_set_audit(
                 rule_set_id=rule_set.id,
@@ -194,6 +195,7 @@ class RuleSetMutationMixin:
                 operator_id=operator_id,
                 snapshot_after=snapshot_after,
                 changes=json.dumps({"created": True}, ensure_ascii=False),
+                tenant_id=self._tenant(),
             )
         )
 
@@ -211,7 +213,7 @@ class RuleSetMutationMixin:
         if not rule_set:
             return None
 
-        snapshot_before = await snapshot_rule_set(self.db, rule_set.id)
+        snapshot_before = await snapshot_rule_set(self.db, rule_set.id, self._tenant())
 
         # 乐观锁检查
         if data.expected_updated_at is not None:
@@ -294,7 +296,7 @@ class RuleSetMutationMixin:
             await self._upsert_capacity_policy(rule_set.id, data.capacity_policy, operator_id)
 
         await self.db.flush()
-        snapshot_after = await snapshot_rule_set(self.db, rule_set.id)
+        snapshot_after = await snapshot_rule_set(self.db, rule_set.id, self._tenant())
         diff = compute_rule_set_diff(snapshot_before, snapshot_after)
         changes_json = json.dumps(diff, ensure_ascii=False) if diff else None
         self.db.add(
@@ -307,6 +309,7 @@ class RuleSetMutationMixin:
                 snapshot_before=snapshot_before,
                 snapshot_after=snapshot_after,
                 changes=changes_json,
+                tenant_id=self._tenant(),
             )
         )
 
@@ -448,7 +451,7 @@ class RuleSetMutationMixin:
                 parts.append(f"{appointment_count} 个预约")
             raise ValueError(f"该规则组已被{'、'.join(parts)}引用，无法删除。请先禁用规则组。")
 
-        snapshot_before = await snapshot_rule_set(self.db, rule_set.id)
+        snapshot_before = await snapshot_rule_set(self.db, rule_set.id, self._tenant())
         self.db.add(
             make_rule_set_audit(
                 rule_set_id=rule_set.id,
@@ -458,6 +461,7 @@ class RuleSetMutationMixin:
                 operator_id=operator_id,
                 snapshot_before=snapshot_before,
                 changes=json.dumps({"deleted": True}, ensure_ascii=False),
+                tenant_id=self._tenant(),
             )
         )
 
@@ -473,12 +477,12 @@ class RuleSetMutationMixin:
         if not rule_set:
             return False
 
-        snapshot_before = await snapshot_rule_set(self.db, rule_set.id)
+        snapshot_before = await snapshot_rule_set(self.db, rule_set.id, self._tenant())
         rule_set.enabled = True
         set_update_audit(rule_set, operator_id)
 
         await self.db.flush()
-        snapshot_after = await snapshot_rule_set(self.db, rule_set.id)
+        snapshot_after = await snapshot_rule_set(self.db, rule_set.id, self._tenant())
         diff = compute_rule_set_diff(snapshot_before, snapshot_after)
         changes_json = json.dumps(diff, ensure_ascii=False) if diff else None
         self.db.add(
@@ -491,6 +495,7 @@ class RuleSetMutationMixin:
                 snapshot_before=snapshot_before,
                 snapshot_after=snapshot_after,
                 changes=changes_json,
+                tenant_id=self._tenant(),
             )
         )
 
@@ -503,12 +508,12 @@ class RuleSetMutationMixin:
         if not rule_set:
             return False
 
-        snapshot_before = await snapshot_rule_set(self.db, rule_set.id)
+        snapshot_before = await snapshot_rule_set(self.db, rule_set.id, self._tenant())
         rule_set.enabled = False
         set_update_audit(rule_set, operator_id)
 
         await self.db.flush()
-        snapshot_after = await snapshot_rule_set(self.db, rule_set.id)
+        snapshot_after = await snapshot_rule_set(self.db, rule_set.id, self._tenant())
         diff = compute_rule_set_diff(snapshot_before, snapshot_after)
         changes_json = json.dumps(diff, ensure_ascii=False) if diff else None
         self.db.add(
@@ -521,6 +526,7 @@ class RuleSetMutationMixin:
                 snapshot_before=snapshot_before,
                 snapshot_after=snapshot_after,
                 changes=changes_json,
+                tenant_id=self._tenant(),
             )
         )
 
@@ -535,7 +541,7 @@ class RuleSetMutationMixin:
         sort_order: int = 0, operator_id: str | None = None,
     ) -> RuleSetPreset:
         """创建自定义预设模板。"""
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
         preset = RuleSetPreset(
             id=str(uuid.uuid4()),
             tenant_id=tenant_id,

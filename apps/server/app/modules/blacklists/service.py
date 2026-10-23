@@ -15,10 +15,23 @@ from app.utils.audit import set_create_audit, set_update_audit
 
 
 class BlacklistService:
-    """黑名单服务"""
+    """黑名单服务
 
-    def __init__(self, db: AsyncSession):
+    Args:
+        db: 数据库会话
+        tenant_id: 管理员账号租户锚点（R1-14）。查询/写入以锚点强过滤；
+            未传入时才回退请求上下文（兼容预约检查等内部调用）。
+    """
+
+    def __init__(self, db: AsyncSession, tenant_id: str | None = None):
         self.db = db
+        self.tenant_id = tenant_id
+
+    def _tenant(self) -> str | None:
+        """账号锚点优先，未提供时回退请求上下文。"""
+        if self.tenant_id is not None:
+            return self.tenant_id
+        return get_current_tenant_id()
 
     async def get_list(
         self,
@@ -29,7 +42,7 @@ class BlacklistService:
         page_size: int = 20,
     ) -> tuple[list[dict], int]:
         """获取黑名单列表"""
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
         query = select(Blacklist).options(
             selectinload(Blacklist.user),
             selectinload(Blacklist.store)
@@ -103,7 +116,7 @@ class BlacklistService:
 
     async def create(self, data: BlacklistCreate, operator_id: str | None = None) -> dict:
         """添加黑名单"""
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
 
         if tenant_id and data.user_id:
             user = await self.db.scalar(select(User).where(User.id == data.user_id))
@@ -153,7 +166,7 @@ class BlacklistService:
 
     async def remove(self, blacklist_id: str, operator_id: str | None = None) -> bool:
         """移除黑名单（解禁）"""
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
         query = select(Blacklist).where(Blacklist.id == blacklist_id)
         if tenant_id:
             query = query.where(Blacklist.tenant_id == tenant_id)
@@ -171,7 +184,7 @@ class BlacklistService:
 
     async def delete(self, blacklist_id: str) -> bool:
         """删除黑名单记录"""
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
         query = select(Blacklist).where(Blacklist.id == blacklist_id)
         if tenant_id:
             query = query.where(Blacklist.tenant_id == tenant_id)
@@ -193,7 +206,7 @@ class BlacklistService:
         store_id: str | None = None,
     ) -> BlacklistCheckResult:
         """检查是否在黑名单中"""
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
         conditions = [Blacklist.status == 1]
 
         if tenant_id:
@@ -255,7 +268,7 @@ class BlacklistService:
         blacklist_days: int,
     ) -> dict | None:
         """自动添加到黑名单（爽约触发）"""
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
         # 检查是否已在黑名单中
         existing_query = select(Blacklist).where(
             Blacklist.user_id == user_id,
@@ -297,7 +310,7 @@ class BlacklistService:
     async def auto_release_expired(self) -> list[dict]:
         """自动解禁到期的黑名单"""
         now = datetime.now()
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
 
         # 查询到期的黑名单
         query = (

@@ -10,16 +10,38 @@ from app.utils.audit import set_create_audit, set_update_audit
 
 
 class EmailTemplateService:
+    """邮件模板服务
 
-    def __init__(self, db: AsyncSession):
+    Args:
+        db: 数据库会话
+        tenant_id: 管理员账号租户锚点（R1-18）。租户管理员只能读写本租户模板
+            （可读取平台模板但不可改写）；锚点为 None 表示平台管理员，
+            此时可维护 tenant_id=NULL 的平台公共模板。
+    """
+
+    def __init__(self, db: AsyncSession, tenant_id: str | None = None):
         self.db = db
+        self.tenant_id = tenant_id
+
+    def _tenant(self) -> str | None:
+        """账号锚点优先，未提供时回退请求上下文。"""
+        if self.tenant_id is not None:
+            return self.tenant_id
+        return get_current_tenant_id()
 
     def _tenant_filter(self, stmt, model_alias=None):
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
         target = model_alias or EmailTemplate
         if tenant_id:
             stmt = stmt.where(or_(target.tenant_id == tenant_id, target.tenant_id.is_(None)))
         return stmt
+
+    def _can_write(self, template: EmailTemplate) -> bool:
+        """平台公共模板（tenant_id=NULL）仅平台管理员可改写。"""
+        tenant_id = self._tenant()
+        if template.tenant_id is None:
+            return tenant_id is None
+        return template.tenant_id == tenant_id
 
     async def get_by_id(self, template_id: str) -> EmailTemplate | None:
         stmt = select(EmailTemplate).where(EmailTemplate.id == template_id)
@@ -28,7 +50,7 @@ class EmailTemplateService:
         return result.scalar_one_or_none()
 
     async def get_by_code(self, code: str) -> EmailTemplate | None:
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
         if tenant_id:
             stmt = select(EmailTemplate).where(
                 EmailTemplate.code == code,
@@ -95,7 +117,7 @@ class EmailTemplateService:
         return list(result.scalars().all())
 
     async def create(self, data: EmailTemplateCreate, operator_id: str | None = None) -> EmailTemplate:
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
 
         if tenant_id:
             existing = await self.db.execute(
@@ -135,6 +157,8 @@ class EmailTemplateService:
         template = await self.get_by_id(template_id)
         if not template:
             return None
+        if not self._can_write(template):
+            return None
 
         update_data = data.model_dump(exclude_unset=True)
 
@@ -149,6 +173,8 @@ class EmailTemplateService:
     async def delete(self, template_id: str) -> bool:
         template = await self.get_by_id(template_id)
         if not template:
+            return False
+        if not self._can_write(template):
             return False
 
         await self.db.delete(template)

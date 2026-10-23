@@ -4,8 +4,8 @@ from typing import Any
 
 
 class SettingsViewMixin:
-    async def get_booking_settings(self, store_id=None) -> dict:
-        data = await self.get_by_category("booking", store_id=store_id)
+    async def get_booking_settings(self, store_id=None, tenant_id=None) -> dict:
+        data = await self.get_by_category("booking", store_id=store_id, tenant_id=tenant_id)
         return {
             "advanceDays": data.get("advance_days", 10),
             "sameDayBooking": data.get("same_day_booking", True),
@@ -23,8 +23,8 @@ class SettingsViewMixin:
             "appointmentReminderHours": data.get("appointment_reminder_hours", 24),
         }
 
-    async def get_hospital_info(self) -> dict:
-        data = await self.get_by_category("hospital")
+    async def get_hospital_info(self, tenant_id=None) -> dict:
+        data = await self.get_by_category("hospital", tenant_id=tenant_id)
         return {
             "hospitalName": data.get("name", ""),
             "hospitalLevel": data.get("level", ""),
@@ -35,8 +35,8 @@ class SettingsViewMixin:
             "logo": data.get("logo", ""),
         }
 
-    async def get_wechat_config(self) -> dict:
-        data = await self.get_by_category("wechat")
+    async def get_wechat_config(self, tenant_id=None) -> dict:
+        data = await self.get_by_category("wechat", tenant_id=tenant_id)
         return {
             "appId": data.get("app_id", ""),
             "appSecret": data.get("app_secret", ""),
@@ -44,8 +44,8 @@ class SettingsViewMixin:
             "aesKey": data.get("aes_key", ""),
         }
 
-    async def get_sms_config(self) -> dict:
-        data = await self.get_by_category("sms")
+    async def get_sms_config(self, tenant_id=None) -> dict:
+        data = await self.get_by_category("sms", tenant_id=tenant_id)
         return {
             "provider": data.get("provider", "aliyun"),
             "accessKeyId": data.get("access_key_id", ""),
@@ -57,9 +57,9 @@ class SettingsViewMixin:
             "sendIntervalSeconds": data.get("send_interval_seconds", 60),
         }
 
-    async def get_email_config(self) -> dict:
+    async def get_email_config(self, tenant_id=None) -> dict:
         from app.utils.email_sync import decrypt_password
-        data = await self.get_by_category("email")
+        data = await self.get_by_category("email", tenant_id=tenant_id)
         password = data.get("password", "")
         if password:
             try:
@@ -80,7 +80,7 @@ class SettingsViewMixin:
             "useTls": data.get("use_tls", True),
         }
 
-    async def update_email_config(self, data: dict, operator_id=None) -> dict:
+    async def update_email_config(self, data: dict, operator_id=None, tenant_id=None) -> dict:
         from app.utils.email_sync import encrypt_password
         category = "email"
         mapping = {
@@ -99,12 +99,14 @@ class SettingsViewMixin:
                 # 密码字段加密存储
                 if db_key == "password" and value:
                     value = encrypt_password(str(value))
-                await self.set_value(category, db_key, value, operator_id=operator_id)
-        return await self.get_email_config()
+                await self.set_value(
+                    category, db_key, value, operator_id=operator_id, tenant_id=tenant_id
+                )
+        return await self.get_email_config(tenant_id=tenant_id)
 
-    async def get_booking_fields(self) -> list:
+    async def get_booking_fields(self, tenant_id=None) -> list:
         fields = []
-        fields_config = await self.get_by_category("booking_fields")
+        fields_config = await self.get_by_category("booking_fields", tenant_id=tenant_id)
         default_fields = {
             "name": {"label": "姓名", "enabled": True, "required": True},
             "gender": {"label": "性别", "enabled": True, "required": False},
@@ -127,38 +129,43 @@ class SettingsViewMixin:
             )
         return fields
 
-    async def update_booking_field(self, field: str, enabled: bool, required: bool) -> dict[str, Any]:
+    async def update_booking_field(
+        self, field: str, enabled: bool, required: bool, tenant_id=None
+    ) -> dict[str, Any]:
         value = {"enabled": enabled, "required": required}
-        await self.set_value("booking_fields", field, value)
+        await self.set_value("booking_fields", field, value, tenant_id=tenant_id)
         return value
 
-    async def update_booking_fields(self, fields: list) -> list:
+    async def update_booking_fields(self, fields: list, tenant_id=None) -> list:
         for field_config in fields:
             await self.update_booking_field(
                 field_config["field"],
                 field_config["enabled"],
                 field_config["required"],
+                tenant_id=tenant_id,
             )
-        return await self.get_booking_fields()
+        return await self.get_booking_fields(tenant_id=tenant_id)
 
-    async def get_patient_card_config(self) -> dict:
-        data = await self.get_by_category("patient_card")
+    async def get_patient_card_config(self, tenant_id=None) -> dict:
+        data = await self.get_by_category("patient_card", tenant_id=tenant_id)
         return {
             "enabled": data.get("enabled", False),
             "cardTitle": data.get("card_title", "我的健康卡"),
             "showQrCode": data.get("show_qr_code", True),
         }
 
-    async def update_patient_card_config(self, data: dict, operator_id=None) -> dict:
+    async def update_patient_card_config(self, data: dict, operator_id=None, tenant_id=None) -> dict:
         category = "patient_card"
         mapping = {"enabled": "enabled", "cardTitle": "card_title", "showQrCode": "show_qr_code"}
         for api_key, db_key in mapping.items():
             if api_key in data:
-                await self.set_value(category, db_key, data[api_key], operator_id=operator_id)
-        return await self.get_patient_card_config()
+                await self.set_value(
+                    category, db_key, data[api_key], operator_id=operator_id, tenant_id=tenant_id
+                )
+        return await self.get_patient_card_config(tenant_id=tenant_id)
 
-    async def get_security_config(self) -> dict:
-        data = await self.get_by_category("security")
+    async def get_security_config(self, tenant_id=None) -> dict:
+        data = await self.get_by_category("security", tenant_id=tenant_id)
         return {
             "accessTokenExpireMinutes": data.get("access_token_expire_minutes", 30),
             "refreshTokenExpireDays": data.get("refresh_token_expire_days", 7),
@@ -169,8 +176,8 @@ class SettingsViewMixin:
             "sessionTimeoutMinutes": data.get("session_timeout_minutes", 120),
         }
 
-    async def get_source_release_config(self) -> dict:
-        data = await self.get_by_category("source_release")
+    async def get_source_release_config(self, tenant_id=None) -> dict:
+        data = await self.get_by_category("source_release", tenant_id=tenant_id)
         return {
             "lockTimeoutMinutes": data.get("lock_timeout_minutes", 15),
             "batchReleaseEnabled": data.get("batch_release_enabled", "false") == "true",
@@ -182,8 +189,8 @@ class SettingsViewMixin:
             "overbookingLimit": data.get("overbooking_limit", 0),
         }
 
-    async def get_image_config(self) -> dict:
-        data = await self.get_by_category("image")
+    async def get_image_config(self, tenant_id=None) -> dict:
+        data = await self.get_by_category("image", tenant_id=tenant_id)
         return {
             "maxSize": data.get("max_size", 5),
             "allowedTypes": data.get("allowed_types", ["jpg", "jpeg", "png"]),
@@ -191,7 +198,7 @@ class SettingsViewMixin:
             "compressQuality": data.get("compress_quality", 80),
         }
 
-    async def update_image_config(self, data: dict, operator_id=None) -> dict:
+    async def update_image_config(self, data: dict, operator_id=None, tenant_id=None) -> dict:
         category = "image"
         mapping = {
             "maxSize": "max_size",
@@ -201,5 +208,7 @@ class SettingsViewMixin:
         }
         for api_key, db_key in mapping.items():
             if api_key in data:
-                await self.set_value(category, db_key, data[api_key], operator_id=operator_id)
-        return await self.get_image_config()
+                await self.set_value(
+                    category, db_key, data[api_key], operator_id=operator_id, tenant_id=tenant_id
+                )
+        return await self.get_image_config(tenant_id=tenant_id)

@@ -3,13 +3,27 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_admin, require_permission
+from app.api.deps import (
+    get_current_admin,
+    require_admin_tenant_anchor,
+    require_permission,
+)
 from app.core.config import settings
 from app.db.session import get_db
 from app.modules.blacklists.service import BlacklistService
 from app.schemas.blacklist import BlacklistCreate
 
 router = APIRouter()
+
+
+def _require_anchor(tenant_anchor: str | None) -> str:
+    """R1-14：黑名单写路径必须拿到账号锚点，禁止写出 tenant_id=NULL 的记录。"""
+    if not tenant_anchor:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="无法确定租户ID，请指定 tenant_id 后重试",
+        )
+    return tenant_anchor
 
 
 @router.get("", summary="获取列表")
@@ -21,10 +35,11 @@ async def get_blacklist_list(
     page_size: int = Query(20, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("blacklist:list")),
 ):
     """获取黑名单列表"""
-    service = BlacklistService(db)
+    service = BlacklistService(db, tenant_id=tenant_anchor)
     items, total = await service.get_list(
         keyword=keyword,
         store_id=store_id,
@@ -45,6 +60,7 @@ async def add_blacklist(
     data: BlacklistCreate,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("blacklist:create")),
 ):
     """添加黑名单"""
@@ -54,10 +70,10 @@ async def add_blacklist(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="请选择用户或填写手机号/身份证关键词"
         )
-    
-    service = BlacklistService(db)
+
+    service = BlacklistService(db, tenant_id=_require_anchor(tenant_anchor))
     try:
-        result = await service.create(data)
+        result = await service.create(data, operator_id=current_admin.get("id"))
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
     return {"message": "添加成功", "data": result}
@@ -68,11 +84,12 @@ async def remove_blacklist(
     blacklist_id: str,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("blacklist:delete")),
 ):
     """移除黑名单（解禁）"""
-    service = BlacklistService(db)
-    success = await service.remove(blacklist_id)
+    service = BlacklistService(db, tenant_id=_require_anchor(tenant_anchor))
+    success = await service.remove(blacklist_id, operator_id=current_admin.get("id"))
     
     if not success:
         raise HTTPException(

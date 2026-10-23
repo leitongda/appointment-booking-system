@@ -5,13 +5,16 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_admin, get_store_filter
+from app.api.deps import get_current_admin, get_store_filter, get_tenant_filter
 from app.db.session import get_db
 from app.models.appointment import Appointment
 from app.models.department import Department
 from app.models.doctor import Doctor
 from app.models.schedule import Schedule
-from app.modules.statistics.helpers import _build_store_filter_condition
+from app.modules.statistics.helpers import (
+    _build_store_filter_condition,
+    _build_tenant_condition,
+)
 from app.schemas.response import ResponseModel
 
 router = APIRouter()
@@ -25,6 +28,7 @@ async def get_retention_rate(
     cohort: str = Query(default="month", pattern="^(day|week|month)$"),
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
+    tenant_id: str | None = Depends(get_tenant_filter),
 ):
     """获取用户留存率（按 cohort 分组，统计后续重复预约比例）"""
     if not start_date:
@@ -39,6 +43,7 @@ async def get_retention_rate(
         store_cond = _build_store_filter_condition(store_filter)
     elif store_id:
         store_cond = Doctor.store_id == store_id
+    tenant_cond = _build_tenant_condition(Doctor, tenant_id)
 
     # cohort 间隔
     if cohort == "day":
@@ -69,6 +74,8 @@ async def get_retention_rate(
     )
     if store_cond is not None:
         first_appt_subq = first_appt_subq.where(store_cond)
+    if tenant_cond is not None:
+        first_appt_subq = first_appt_subq.where(tenant_cond)
     first_appt_subq = first_appt_subq.group_by(Appointment.user_id).subquery()
 
     # Step 2: 统计每个 cohort 的用户数
@@ -101,6 +108,8 @@ async def get_retention_rate(
     )
     if store_cond is not None:
         all_appt_subq = all_appt_subq.where(store_cond)
+    if tenant_cond is not None:
+        all_appt_subq = all_appt_subq.where(tenant_cond)
     all_appt_subq = all_appt_subq.group_by(Appointment.user_id, bucket_fn).subquery()
 
     retention_data = []
@@ -143,6 +152,7 @@ async def get_revisit_rate(
     end_date: date | None = None,
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
+    tenant_id: str | None = Depends(get_tenant_filter),
 ):
     """获取复诊率（同一用户在同一医生/科室的重复就诊比例）"""
     if not start_date:
@@ -164,6 +174,10 @@ async def get_revisit_rate(
             conditions.append(store_cond)
     elif store_id:
         conditions.append(Doctor.store_id == store_id)
+
+    tenant_cond = _build_tenant_condition(Doctor, tenant_id)
+    if tenant_cond is not None:
+        conditions.append(tenant_cond)
 
     if doctor_id:
         conditions.append(Doctor.id == doctor_id)

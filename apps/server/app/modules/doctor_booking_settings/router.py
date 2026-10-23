@@ -2,7 +2,13 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import check_store_access, get_current_admin, get_store_filter, require_permission
+from app.api.deps import (
+    check_store_access,
+    get_current_admin,
+    get_store_filter,
+    require_admin_tenant_anchor,
+    require_permission,
+)
 from app.core.config import settings
 from app.db.session import get_db
 from app.modules.doctor_booking_settings.service import DoctorBookingSettingService
@@ -17,6 +23,16 @@ from app.schemas.response import PageResponse
 router = APIRouter()
 
 
+def _require_anchor(tenant_anchor: str | None) -> str:
+    """R1-13：预约设置写路径必须拿到账号锚点，禁止写出 tenant_id=NULL 的记录。"""
+    if not tenant_anchor:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="无法确定租户ID，请指定 tenant_id 后重试",
+        )
+    return tenant_anchor
+
+
 @router.get("", response_model=PageResponse[DoctorBookingSettingResponse], summary="获取医生预约设置列表")
 async def get_doctor_booking_settings(
     store_id: str | None = None,
@@ -26,13 +42,14 @@ async def get_doctor_booking_settings(
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("doctor:booking-setting"))
 ):
     """获取医生预约设置列表"""
     store_filter = get_store_filter(current_admin)
     if store_filter:
         store_id = store_filter
-    service = DoctorBookingSettingService(db)
+    service = DoctorBookingSettingService(db, tenant_id=tenant_anchor)
     query = DoctorBookingSettingQuery(
         store_id=store_id,
         doctor_id=doctor_id,
@@ -55,12 +72,13 @@ async def get_existing_doctor_ids(
     store_id: str = Query(..., description="门店ID"),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("doctor:booking-setting"))
 ):
     """获取指定门店已配置的医生ID列表（用于前端禁用已配置的医生）"""
     if not check_store_access(current_admin, store_id):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权访问此门店")
-    service = DoctorBookingSettingService(db)
+    service = DoctorBookingSettingService(db, tenant_id=tenant_anchor)
     return await service.get_existing_doctor_ids(store_id)
 
 
@@ -69,10 +87,11 @@ async def get_doctor_booking_setting(
     setting_id: str,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("doctor:booking-setting"))
 ):
     """获取医生预约设置详情"""
-    service = DoctorBookingSettingService(db)
+    service = DoctorBookingSettingService(db, tenant_id=tenant_anchor)
     setting = await service.get_by_id(setting_id)
     
     if not setting:
@@ -91,12 +110,13 @@ async def create_doctor_booking_setting(
     data: DoctorBookingSettingCreate,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("doctor:update"))
 ):
     """创建医生预约设置"""
     if not check_store_access(current_admin, data.store_id):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权操作此门店")
-    service = DoctorBookingSettingService(db)
+    service = DoctorBookingSettingService(db, tenant_id=_require_anchor(tenant_anchor))
     
     try:
         setting = await service.create(data)
@@ -122,10 +142,11 @@ async def update_doctor_booking_setting(
     data: DoctorBookingSettingUpdate,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("doctor:update"))
 ):
     """更新医生预约设置"""
-    service = DoctorBookingSettingService(db)
+    service = DoctorBookingSettingService(db, tenant_id=_require_anchor(tenant_anchor))
     existing = await service.get_by_id(setting_id)
     if existing and not check_store_access(current_admin, existing.store_id):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权修改此门店设置")
@@ -150,10 +171,11 @@ async def delete_doctor_booking_setting(
     setting_id: str,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("doctor:delete"))
 ):
     """删除医生预约设置"""
-    service = DoctorBookingSettingService(db)
+    service = DoctorBookingSettingService(db, tenant_id=_require_anchor(tenant_anchor))
     existing = await service.get_by_id(setting_id)
     if existing and not check_store_access(current_admin, existing.store_id):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权删除此门店设置")
@@ -174,10 +196,11 @@ async def update_doctor_booking_setting_status(
     new_status: int = Query(..., ge=0, le=1, description="状态: 0禁用 1启用"),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("doctor:update"))
 ):
     """更新医生预约设置状态"""
-    service = DoctorBookingSettingService(db)
+    service = DoctorBookingSettingService(db, tenant_id=_require_anchor(tenant_anchor))
     existing = await service.get_by_id(setting_id)
     if existing and not check_store_access(current_admin, existing.store_id):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权修改此门店设置")

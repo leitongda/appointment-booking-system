@@ -9,20 +9,26 @@ from datetime import date, datetime, time, timedelta
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.middleware.tenant_context import get_current_tenant_id
 from app.models.attendance import (
     AttendanceGroup,
-    AttendanceGroupMember,
     AttendanceRecord,
     AttendanceShift,
 )
-from app.models.tenant import Tenant
 
 
 class AttendanceRecordService:
-    """考勤打卡记录服务"""
+    """考勤打卡记录服务
 
-    def __init__(self, db: AsyncSession):
+    Args:
+        db: 数据库会话
+        tenant_id: 管理员账号租户锚点（R1-11）。管理端查询以锚点强过滤；
+            未传入（平台管理员）表示全平台视图。打卡自助端按账号自身归属读写。
+    """
+
+    def __init__(self, db: AsyncSession, tenant_id: str | None = None):
         self.db = db
+        self.tenant_id = tenant_id
 
     # ------------------------------------------------------------------ #
     #  签到
@@ -50,6 +56,7 @@ class AttendanceRecordService:
         4. 创建记录，设置 check_in_time
         5. 判定迟到（对比班次 start_time + grace_minutes）
         """
+        tenant_id = tenant_id or self.tenant_id or get_current_tenant_id()
         today = date.today()
         now = datetime.now()
 
@@ -260,20 +267,12 @@ class AttendanceRecordService:
         self, tenant_id: str | None, target_date: date
     ) -> dict:
         """获取某日考勤统计"""
+        tenant_id = tenant_id or self.tenant_id
         conditions = [AttendanceRecord.check_date == target_date]
         if tenant_id:
             conditions.append(AttendanceRecord.tenant_id == tenant_id)
 
         where = and_(*conditions)
-
-        result = await self.db.execute(
-            select(
-                func.count(AttendanceRecord.id).label("total"),
-                func.count(
-                    func.nullif(AttendanceRecord.status != "normal", True)
-                ).label("normal_raw"),
-            ).where(where)
-        )
 
         # 按状态分别统计
         stats = {"total": 0, "normal": 0, "late": 0, "early": 0, "absent": 0, "leave": 0, "expected": 0}
@@ -312,6 +311,7 @@ class AttendanceRecordService:
         page_size: int = 10,
     ) -> tuple[list[AttendanceRecord], int]:
         """获取全部考勤记录（管理员视图）"""
+        tenant_id = tenant_id or self.tenant_id
         conditions = []
         if tenant_id:
             conditions.append(AttendanceRecord.tenant_id == tenant_id)

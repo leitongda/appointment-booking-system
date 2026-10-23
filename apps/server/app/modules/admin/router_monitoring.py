@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.deps import get_current_admin
+from app.api.deps import get_current_admin, require_admin_tenant_anchor
 from app.common.deps import require_permission
 from app.core.config import settings
 from app.core.redis import RedisCache
@@ -30,6 +30,16 @@ from app.schemas.response import PageResponse
 router = APIRouter()
 
 
+def _require_monitor_tenant(tenant_anchor: str | None) -> str:
+    """R1-6：监控端点必须拿到账号锚点，平台管理员未指定租户时 400。"""
+    if not tenant_anchor:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="无法确定租户ID，请指定 tenant_id 后重试",
+        )
+    return tenant_anchor
+
+
 @router.get("/logs", response_model=PageResponse[OperationLogResponse], summary="获取操作日志")
 async def get_operation_logs(
     admin_id: str | None = None,
@@ -40,10 +50,11 @@ async def get_operation_logs(
     page_size: int = Query(20, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("system:log", "log:list")),
 ):
     service = OperationLogService(db)
-    tenant_id = None if current_admin.get("is_super_admin") else current_admin.get("tenant_id")
+    tenant_id = _require_monitor_tenant(tenant_anchor)
     items, total = await service.get_list(
         admin_id=admin_id,
         module=module,
@@ -64,10 +75,10 @@ async def get_operation_logs(
 @router.get("/online-users", summary="获取在线用户")
 async def get_online_users(
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("system:log", "log:list")),
 ):
-    # 非超管仅查看当前租户的在线用户，超管可查看全部
-    tenant_id = None if current_admin.get("is_super_admin") else current_admin.get("tenant_id")
+    tenant_id = _require_monitor_tenant(tenant_anchor)
     sessions = await RedisCache.get_all_admin_sessions(tenant_id=tenant_id)
     return [
         OnlineUserResponse(
@@ -89,6 +100,7 @@ async def get_online_users(
 async def kick_online_user(
     admin_id: str,
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     db: AsyncSession = Depends(get_db),
     _: None = Depends(require_permission("system:log", "log:list")),
 ):
@@ -97,10 +109,13 @@ async def kick_online_user(
     if admin_id == current_admin.get("id"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="不能强制自己下线")
 
-    # 获取被踢管理员的租户ID，用于构建租户隔离的 Redis 键
+    # R1-6：只能踢锚点租户内的用户
+    tenant_id = _require_monitor_tenant(tenant_anchor)
     result = await db.execute(select(Admin).where(Admin.id == admin_id))
     target_admin = result.scalar_one_or_none()
-    target_tenant_id = target_admin.tenant_id if target_admin else None
+    if target_admin and target_admin.tenant_id != tenant_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="禁止操作其他租户的用户")
+    target_tenant_id = target_admin.tenant_id if target_admin else tenant_id
 
     session = await RedisCache.get_admin_session(admin_id, tenant_id=target_tenant_id)
     if not session:
@@ -135,11 +150,11 @@ async def kick_online_user(
 @router.get("/user-status", summary="获取用户状态")
 async def get_user_status(
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     db: AsyncSession = Depends(get_db),
     _: None = Depends(require_permission("system:log", "log:list")),
 ):
-    # 非超管仅查看当前租户的在线用户，超管可查看全部
-    tenant_id = None if current_admin.get("is_super_admin") else current_admin.get("tenant_id")
+    tenant_id = _require_monitor_tenant(tenant_anchor)
     sessions = await RedisCache.get_all_admin_sessions(tenant_id=tenant_id)
     online_admin_ids = {s.get("admin_id") for s in sessions}
     session_map = {s.get("admin_id"): s for s in sessions}
@@ -197,6 +212,7 @@ async def get_login_history(
     start_time: datetime | None = Query(None, description="开始时间"),
     end_time: datetime | None = Query(None, description="结束时间"),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     db: AsyncSession = Depends(get_db),
     _: None = Depends(require_permission("system:log", "log:list")),
 ):
@@ -205,10 +221,8 @@ async def get_login_history(
     if not target_admin:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在，请检查后重试")
 
-    if (
-        not current_admin.get("is_super_admin")
-        and target_admin.tenant_id != current_admin.get("tenant_id")
-    ):
+    tenant_id = _require_monitor_tenant(tenant_anchor)
+    if target_admin.tenant_id != tenant_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权查看该用户的登录历史")
 
     conditions = [AdminLoginHistory.admin_id == admin_id]
@@ -275,11 +289,12 @@ async def get_account_stats_summary(
     end_date: str | None = Query(None, description="结束日期 YYYY-MM-DD"),
     admin_id: str | None = Query(None, description="指定账号ID"),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     db: AsyncSession = Depends(get_db),
     _: None = Depends(require_permission("system:log", "log:list")),
 ):
     """返回账号使用统计概览 + 设备/浏览器/时段分布 + 每日趋势。"""
-    tenant_id = None if current_admin.get("is_super_admin") else current_admin.get("tenant_id")
+    tenant_id = _require_monitor_tenant(tenant_anchor)
     conditions = _build_account_stats_conditions(tenant_id, start_date, end_date, admin_id)
 
     # 基础 JOIN：AdminLoginHistory -> Admin
@@ -404,11 +419,12 @@ async def get_account_stats_details(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     db: AsyncSession = Depends(get_db),
     _: None = Depends(require_permission("system:log", "log:list")),
 ):
     """返回每个账号的使用统计明细，支持分页。"""
-    tenant_id = None if current_admin.get("is_super_admin") else current_admin.get("tenant_id")
+    tenant_id = _require_monitor_tenant(tenant_anchor)
 
     # 构建时间条件（不含 admin_id，明细按账号分组）
     time_conditions = []

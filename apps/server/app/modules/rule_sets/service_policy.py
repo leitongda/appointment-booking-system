@@ -8,7 +8,6 @@ from app.models.rule_set import (
     RuleBookingPolicy,
     RuleCapacityPolicy,
     RuleCheckinPolicy,
-    RuleSet,
     RuleWindow,
 )
 from app.modules.rule_sets.audit_helpers import make_rule_set_audit, snapshot_rule_set
@@ -26,11 +25,11 @@ class RuleSetPolicyMixin:
     async def create_window(
         self, rule_set_id: str, data: RuleWindowCreate, operator_id: str | None = None
     ) -> RuleWindow | None:
-        result = await self.db.execute(select(RuleSet).where(RuleSet.id == rule_set_id))
-        if not result.scalar_one_or_none():
+        # 以租户锚点校验规则组归属（R1-8），跨租户视为不存在
+        if not await self.get_by_id(rule_set_id):
             return None
 
-        snapshot_before = await snapshot_rule_set(self.db, rule_set_id)
+        snapshot_before = await snapshot_rule_set(self.db, rule_set_id, self._tenant())
 
         window = RuleWindow(
             id=str(uuid.uuid4()),
@@ -58,7 +57,7 @@ class RuleSetPolicyMixin:
                 resource_id=window.id,
                 operator_id=operator_id,
                 snapshot_before=snapshot_before,
-                snapshot_after=await snapshot_rule_set(self.db, rule_set_id),
+                snapshot_after=await snapshot_rule_set(self.db, rule_set_id, self._tenant()),
             )
         )
         await self.db.commit()
@@ -74,7 +73,7 @@ class RuleSetPolicyMixin:
             return None
 
         rule_set_id = window.rule_set_id
-        snapshot_before = await snapshot_rule_set(self.db, rule_set_id)
+        snapshot_before = await snapshot_rule_set(self.db, rule_set_id, self._tenant())
 
         if data.open_offset_sec is not None:
             window.open_offset_sec = data.open_offset_sec
@@ -103,7 +102,7 @@ class RuleSetPolicyMixin:
                 resource_id=window.id,
                 operator_id=operator_id,
                 snapshot_before=snapshot_before,
-                snapshot_after=await snapshot_rule_set(self.db, rule_set_id),
+                snapshot_after=await snapshot_rule_set(self.db, rule_set_id, self._tenant()),
             )
         )
         await self.db.commit()
@@ -117,7 +116,7 @@ class RuleSetPolicyMixin:
             return False
 
         rule_set_id = window.rule_set_id
-        snapshot_before = await snapshot_rule_set(self.db, rule_set_id)
+        snapshot_before = await snapshot_rule_set(self.db, rule_set_id, self._tenant())
         await self.db.delete(window)
         await self.db.flush()
         self.db.add(
@@ -128,7 +127,7 @@ class RuleSetPolicyMixin:
                 resource_id=window.id,
                 operator_id=operator_id,
                 snapshot_before=snapshot_before,
-                snapshot_after=await snapshot_rule_set(self.db, rule_set_id),
+                snapshot_after=await snapshot_rule_set(self.db, rule_set_id, self._tenant()),
             )
         )
         await self.db.commit()
@@ -138,7 +137,7 @@ class RuleSetPolicyMixin:
     async def update_booking_policy(
         self, rule_set_id: str, data: RuleBookingPolicyCreate, operator_id: str | None = None
     ) -> RuleBookingPolicy | None:
-        snapshot_before = await snapshot_rule_set(self.db, rule_set_id)
+        snapshot_before = await snapshot_rule_set(self.db, rule_set_id, self._tenant())
         result = await self.db.execute(
             select(RuleBookingPolicy).where(RuleBookingPolicy.rule_set_id == rule_set_id)
         )
@@ -179,7 +178,7 @@ class RuleSetPolicyMixin:
                 resource_id=policy.rule_set_id,
                 operator_id=operator_id,
                 snapshot_before=snapshot_before,
-                snapshot_after=await snapshot_rule_set(self.db, rule_set_id),
+                snapshot_after=await snapshot_rule_set(self.db, rule_set_id, self._tenant()),
             )
         )
         await self.db.commit()
@@ -190,7 +189,7 @@ class RuleSetPolicyMixin:
     async def update_checkin_policy(
         self, rule_set_id: str, data: RuleCheckinPolicyCreate, operator_id: str | None = None
     ) -> RuleCheckinPolicy | None:
-        snapshot_before = await snapshot_rule_set(self.db, rule_set_id)
+        snapshot_before = await snapshot_rule_set(self.db, rule_set_id, self._tenant())
         result = await self.db.execute(
             select(RuleCheckinPolicy).where(RuleCheckinPolicy.rule_set_id == rule_set_id)
         )
@@ -229,7 +228,7 @@ class RuleSetPolicyMixin:
                 resource_id=policy.rule_set_id,
                 operator_id=operator_id,
                 snapshot_before=snapshot_before,
-                snapshot_after=await snapshot_rule_set(self.db, rule_set_id),
+                snapshot_after=await snapshot_rule_set(self.db, rule_set_id, self._tenant()),
             )
         )
         await self.db.commit()
@@ -240,7 +239,7 @@ class RuleSetPolicyMixin:
     async def update_capacity_policy(
         self, rule_set_id: str, data: RuleCapacityPolicyCreate, operator_id: str | None = None
     ) -> RuleCapacityPolicy | None:
-        snapshot_before = await snapshot_rule_set(self.db, rule_set_id)
+        snapshot_before = await snapshot_rule_set(self.db, rule_set_id, self._tenant())
         result = await self.db.execute(
             select(RuleCapacityPolicy).where(RuleCapacityPolicy.rule_set_id == rule_set_id)
         )
@@ -279,7 +278,7 @@ class RuleSetPolicyMixin:
                 resource_id=policy.rule_set_id,
                 operator_id=operator_id,
                 snapshot_before=snapshot_before,
-                snapshot_after=await snapshot_rule_set(self.db, rule_set_id),
+                snapshot_after=await snapshot_rule_set(self.db, rule_set_id, self._tenant()),
             )
         )
         await self.db.commit()

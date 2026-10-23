@@ -2,13 +2,16 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_admin, require_permission
+from app.api.deps import (
+    get_current_admin,
+    require_admin_tenant_anchor,
+    require_permission,
+)
 from app.core.config import settings
 from app.db.session import get_db
 from app.infrastructure.email.service import EmailService
+from app.modules.email_templates.service import EmailTemplateService
 from app.modules.settings.service import SettingsService
-from app.modules.email_templates.service import EmailTemplateService
-from app.modules.email_templates.service import EmailTemplateService
 from app.schemas.email_template import (
     EmailTemplateCreate,
     EmailTemplateListResponse,
@@ -30,8 +33,9 @@ async def get_email_templates(
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
 ):
-    service = EmailTemplateService(db)
+    service = EmailTemplateService(db, tenant_id=tenant_anchor)
     query = EmailTemplateQuery(
         template_type=template_type,
         status=status,
@@ -53,8 +57,9 @@ async def get_all_email_templates(
     status: int | None = Query(None, description="状态"),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
 ):
-    service = EmailTemplateService(db)
+    service = EmailTemplateService(db, tenant_id=tenant_anchor)
     templates = await service.get_all(status)
     return [EmailTemplateListResponse.model_validate(t) for t in templates]
 
@@ -64,8 +69,9 @@ async def get_email_template(
     template_id: str,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
 ):
-    service = EmailTemplateService(db)
+    service = EmailTemplateService(db, tenant_id=tenant_anchor)
     template = await service.get_by_id(template_id)
     if not template:
         raise HTTPException(status_code=404, detail="邮件模板不存在，请检查后重试")
@@ -77,9 +83,10 @@ async def create_email_template(
     data: EmailTemplateCreate,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("system:settings")),
 ):
-    service = EmailTemplateService(db)
+    service = EmailTemplateService(db, tenant_id=tenant_anchor)
     try:
         template = await service.create(data)
         return EmailTemplateResponse.model_validate(template)
@@ -93,9 +100,10 @@ async def update_email_template(
     data: EmailTemplateUpdate,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("system:settings")),
 ):
-    service = EmailTemplateService(db)
+    service = EmailTemplateService(db, tenant_id=tenant_anchor)
     template = await service.update(template_id, data)
     if not template:
         raise HTTPException(status_code=404, detail="邮件模板不存在，请检查后重试")
@@ -107,9 +115,10 @@ async def delete_email_template(
     template_id: str,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("system:settings")),
 ):
-    service = EmailTemplateService(db)
+    service = EmailTemplateService(db, tenant_id=tenant_anchor)
     success = await service.delete(template_id)
     if not success:
         raise HTTPException(status_code=404, detail="邮件模板不存在，请检查后重试")
@@ -122,8 +131,13 @@ async def send_test_email(
     data: EmailTestRequest,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
 ):
-    email_service = EmailService(db, config_provider=SettingsService(db), template_provider=EmailTemplateService(db))
+    email_service = EmailService(
+        db,
+        config_provider=SettingsService(db),
+        template_provider=EmailTemplateService(db, tenant_id=tenant_anchor),
+    )
     try:
         await email_service.send_test_email(
             template_id=template_id,

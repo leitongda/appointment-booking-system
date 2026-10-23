@@ -5,13 +5,16 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import and_, case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_admin, get_store_filter
+from app.api.deps import get_current_admin, get_store_filter, get_tenant_filter
 from app.constants.appointment import APPOINTMENT_STATUS
 from app.db.session import get_db
 from app.models.appointment import Appointment
 from app.models.doctor import Doctor
 from app.models.schedule import Schedule
-from app.modules.statistics.helpers import _build_store_filter_condition
+from app.modules.statistics.helpers import (
+    _build_store_filter_condition,
+    _build_tenant_condition,
+)
 from app.schemas.response import ResponseModel
 
 router = APIRouter()
@@ -21,7 +24,8 @@ router = APIRouter()
 async def get_appointment_trend(
     days: int = Query(default=7, ge=1, le=30),
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin = Depends(get_current_admin),
+    tenant_id: str | None = Depends(get_tenant_filter),
 ):
     """获取预约趋势数据"""
     today = date.today()
@@ -30,6 +34,7 @@ async def get_appointment_trend(
     # 获取门店过滤条件
     store_filter = get_store_filter(current_admin)
     store_condition = _build_store_filter_condition(store_filter)
+    tenant_condition = _build_tenant_condition(Doctor, tenant_id)
 
     # 查询每天的预约数（按门店过滤）
     query = (
@@ -44,6 +49,8 @@ async def get_appointment_trend(
     )
     if store_condition is not None:
         query = query.where(store_condition)
+    if tenant_condition is not None:
+        query = query.where(tenant_condition)
 
     query = query.group_by(func.date(Appointment.created_at)).order_by(func.date(Appointment.created_at))
     result = await db.execute(query)
@@ -67,12 +74,14 @@ async def get_appointment_status_stats(
     start_date: date | None = None,
     end_date: date | None = None,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin = Depends(get_current_admin),
+    tenant_id: str | None = Depends(get_tenant_filter),
 ):
     """获取预约状态统计"""
     # 获取门店过滤条件
     store_filter = get_store_filter(current_admin)
     store_condition = _build_store_filter_condition(store_filter)
+    tenant_condition = _build_tenant_condition(Doctor, tenant_id)
 
     query = (
         select(
@@ -91,6 +100,8 @@ async def get_appointment_status_stats(
         conditions.append(func.date(Appointment.created_at) <= end_date)
     if store_condition is not None:
         conditions.append(store_condition)
+    if tenant_condition is not None:
+        conditions.append(tenant_condition)
 
     if conditions:
         query = query.where(and_(*conditions))
@@ -125,11 +136,13 @@ async def get_appointment_summary(
     end_date: date | None = None,
     store_id: str | None = None,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin = Depends(get_current_admin),
+    tenant_id: str | None = Depends(get_tenant_filter),
 ):
     """获取预约汇总统计（完成率/爽约率/取消率）"""
     # 获取门店过滤条件
     store_filter = get_store_filter(current_admin)
+    tenant_condition = _build_tenant_condition(Doctor, tenant_id)
 
     query = (
         select(
@@ -157,6 +170,9 @@ async def get_appointment_summary(
             conditions.append(store_condition)
     elif store_id:
         conditions.append(Doctor.store_id == store_id)
+
+    if tenant_condition is not None:
+        conditions.append(tenant_condition)
 
     if conditions:
         query = query.where(and_(*conditions))

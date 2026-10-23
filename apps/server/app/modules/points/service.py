@@ -14,10 +14,23 @@ from app.utils.audit import set_create_audit
 
 
 class PointService:
-    """积分服务"""
+    """积分服务
 
-    def __init__(self, db: AsyncSession):
+    Args:
+        db: 数据库会话
+        tenant_id: 管理员账号租户锚点（R1-14）。查询/写入以锚点强过滤；
+            未传入时才回退请求上下文（兼容患者详情页等内部调用）。
+    """
+
+    def __init__(self, db: AsyncSession, tenant_id: str | None = None):
         self.db = db
+        self.tenant_id = tenant_id
+
+    def _tenant(self) -> str | None:
+        """账号锚点优先，未提供时回退请求上下文。"""
+        if self.tenant_id is not None:
+            return self.tenant_id
+        return get_current_tenant_id()
 
     async def get_user_by_patient_id(self, patient_id: str) -> User | None:
         """通过患者ID获取用户"""
@@ -27,11 +40,17 @@ class PointService:
             .where(Patient.id == patient_id)
         )
         patient = result.unique().scalar_one_or_none()
-        return patient.user if patient else None
+        if not patient or not patient.user:
+            return None
+
+        tenant_id = self._tenant()
+        if tenant_id and patient.user.tenant_id != tenant_id:
+            return None
+        return patient.user
 
     def _tenant_filter(self, stmt):
         """为查询添加租户过滤"""
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
         if tenant_id:
             return stmt.where(PointLog.tenant_id == tenant_id)
         return stmt
@@ -126,7 +145,7 @@ class PointService:
         # 创建积分流水记录
         point_log = PointLog(
             id=str(uuid.uuid4()),
-            tenant_id=get_current_tenant_id(),
+            tenant_id=self._tenant(),
             user_id=user.id,
             change_amount=amount,
             balance=new_balance,
@@ -295,7 +314,7 @@ class PointService:
         query = select(User)
         count_query = select(func.count(User.id))
 
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
         if tenant_id:
             query = query.where(User.tenant_id == tenant_id)
             count_query = count_query.where(User.tenant_id == tenant_id)
@@ -339,8 +358,11 @@ class PointService:
         operator_id: str | None = None,
     ) -> dict | None:
         """直接通过 user_id 调整积分"""
+        tenant_id = self._tenant()
         user = await self.db.get(User, user_id)
         if not user:
+            return None
+        if tenant_id and user.tenant_id != tenant_id:
             return None
 
         current_points = user.points or 0
@@ -353,7 +375,7 @@ class PointService:
 
         point_log = PointLog(
             id=str(uuid.uuid4()),
-            tenant_id=get_current_tenant_id(),
+            tenant_id=tenant_id,
             user_id=user.id,
             change_amount=amount,
             balance=new_balance,

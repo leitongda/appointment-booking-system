@@ -4,7 +4,7 @@
 """
 import uuid
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.middleware.tenant_context import get_current_tenant_id
@@ -14,10 +14,23 @@ from app.utils.audit import set_create_audit, set_update_audit
 
 
 class DictService:
-    """字典服务"""
+    """字典服务
 
-    def __init__(self, db: AsyncSession):
+    Args:
+        db: 数据库会话
+        tenant_id: 管理员账号租户锚点（R1-15）。查询/写入以锚点强过滤；
+            未传入时才回退请求上下文（兼容公开端与内部调用）。
+    """
+
+    def __init__(self, db: AsyncSession, tenant_id: str | None = None):
         self.db = db
+        self.tenant_id = tenant_id
+
+    def _tenant(self) -> str | None:
+        """账号锚点优先，未提供时回退请求上下文。"""
+        if self.tenant_id is not None:
+            return self.tenant_id
+        return get_current_tenant_id()
 
     # ==================== 字典类型 ====================
 
@@ -29,7 +42,7 @@ class DictService:
         page_size: int = 10,
     ) -> tuple[list[DictType], int]:
         """获取字典类型列表"""
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
         conditions = []
 
         if tenant_id:
@@ -64,18 +77,22 @@ class DictService:
         return list(items), total
 
     async def get_type_by_id(self, type_id: str) -> DictType | None:
-        """获取字典类型详情"""
-        result = await self.db.execute(
-            select(DictType).where(DictType.id == type_id)
-        )
+        """获取字典类型详情（管理端按锚点过滤，跨租户返回 None）"""
+        stmt = select(DictType).where(DictType.id == type_id)
+        tenant_id = self._tenant()
+        if tenant_id:
+            stmt = stmt.where(DictType.tenant_id == tenant_id)
+        result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
     async def get_type_by_code(self, code: str) -> DictType | None:
-        """根据编码获取字典类型"""
-        tenant_id = get_current_tenant_id()
+        """根据编码获取字典类型（平台管理员只看平台级，避免跨租户同码歧义）"""
+        tenant_id = self._tenant()
         conditions = [DictType.code == code]
         if tenant_id:
             conditions.append(DictType.tenant_id == tenant_id)
+        else:
+            conditions.append(DictType.tenant_id.is_(None))
         result = await self.db.execute(
             select(DictType).where(and_(*conditions))
         )
@@ -93,7 +110,7 @@ class DictService:
         if existing:
             raise ValueError(f"字典类型编码 '{code}' 已存在")
 
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
         dict_type = DictType(
             id=str(uuid.uuid4()),
             code=code,
@@ -159,6 +176,11 @@ class DictService:
         page_size: int = 50,
     ) -> tuple[list[DictItem], int]:
         """获取字典项列表"""
+        # 先确认字典类型在锚点内可见，避免跨租户枚举他租户字典项
+        dict_type = await self.get_type_by_id(type_id)
+        if not dict_type:
+            return [], 0
+
         conditions = [DictItem.dict_type_id == type_id]
 
         if status is not None:
@@ -188,27 +210,43 @@ class DictService:
         return list(items), total
 
     async def get_item_by_id(self, item_id: str) -> DictItem | None:
-        """获取字典项详情"""
-        result = await self.db.execute(
-            select(DictItem).where(DictItem.id == item_id)
-        )
+        """获取字典项详情（管理端按锚点过滤，跨租户返回 None）"""
+        stmt = select(DictItem).where(DictItem.id == item_id)
+        tenant_id = self._tenant()
+        if tenant_id:
+            stmt = stmt.where(DictItem.tenant_id == tenant_id)
+        result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
     async def get_items_by_type_code(
-        self, type_code: str, enabled_only: bool = True
+        self, type_code: str, enabled_only: bool = True, tenant_id: str | None = None
     ) -> list[DictItem]:
-        """根据字典类型编码获取字典项"""
-        tenant_id = get_current_tenant_id()
+        """根据字典类型编码获取字典项
 
-        # 先找到字典类型（租户级别优先，fallback 到平台级别）
-        type_conditions = [DictType.code == type_code, DictType.status == 1]
-        if tenant_id:
-            type_conditions.append(or_(DictType.tenant_id == tenant_id, DictType.tenant_id.is_(None)))
+        租户级别优先，缺失时回退平台级别；公开端可显式传入已解析的租户锚点。
+        """
+        effective_tenant = tenant_id if tenant_id is not None else self._tenant()
 
-        type_result = await self.db.execute(
-            select(DictType).where(and_(*type_conditions))
-        )
-        dict_type = type_result.scalar_one_or_none()
+        base_conditions = [DictType.code == type_code, DictType.status == 1]
+
+        # 先找租户级字典类型，再回退平台级（tenant_id IS NULL），
+        # 避免两者同码时 scalar_one_or_none 抛 MultipleResultsFound。
+        dict_type = None
+        if effective_tenant:
+            type_result = await self.db.execute(
+                select(DictType).where(
+                    *base_conditions, DictType.tenant_id == effective_tenant
+                )
+            )
+            dict_type = type_result.scalar_one_or_none()
+
+        if not dict_type:
+            type_result = await self.db.execute(
+                select(DictType).where(
+                    *base_conditions, DictType.tenant_id.is_(None)
+                )
+            )
+            dict_type = type_result.scalar_one_or_none()
 
         if not dict_type:
             return []
@@ -235,7 +273,7 @@ class DictService:
         operator_id: str | None = None,
     ) -> DictItem:
         """创建字典项"""
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
         item = DictItem(
             id=str(uuid.uuid4()),
             dict_type_id=type_id,

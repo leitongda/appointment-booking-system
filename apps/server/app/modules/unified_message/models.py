@@ -36,7 +36,7 @@ class NotificationGroup(Base, TimestampMixin):
     __tablename__ = "notification_groups"
 
     id = Column(String(36), primary_key=True, default=_uuid)
-    tenant_id = Column(String(36), nullable=False, index=True, comment="租户ID")
+    tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=False, index=True, comment="租户ID")
     store_id = Column(String(36), nullable=True, index=True, comment="门店ID")
     event_type = Column(String(50), nullable=False, comment="事件类型: appointment.success / appointment.reminder.24h")
     template_code = Column(String(50), nullable=True, comment="关联 UnifiedTemplate.code")
@@ -58,7 +58,7 @@ class NotificationRecipient(Base, TimestampMixin):
 
     id = Column(String(36), primary_key=True, default=_uuid)
     group_id = Column(String(36), ForeignKey("notification_groups.id"), nullable=False, index=True)
-    tenant_id = Column(String(36), nullable=False, index=True, comment="租户ID")
+    tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=False, index=True, comment="租户ID")
     user_id = Column(String(36), nullable=False, index=True, comment="接收用户ID")
     user_type = Column(String(20), nullable=False, comment="用户类型: patient/doctor/admin")
     # 站内信数据（复用 Message 语义）
@@ -83,7 +83,7 @@ class NotificationDelivery(Base, TimestampMixin):
     id = Column(String(36), primary_key=True, default=_uuid)
     group_id = Column(String(36), ForeignKey("notification_groups.id"), nullable=False, index=True)
     recipient_id = Column(String(36), ForeignKey("notification_recipients.id"), nullable=False, index=True)
-    tenant_id = Column(String(36), nullable=False, index=True, comment="租户ID")
+    tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=False, index=True, comment="租户ID")
     channel = Column(String(20), nullable=False, index=True, comment="渠道: in_app / sms / email / wechat / websocket")
     status = Column(String(20), nullable=False, default="pending", index=True, comment="状态: pending / sent / failed / permanently_failed")
     recipient_address = Column(String(200), nullable=True, comment="接收地址（手机号/邮箱/openid）")
@@ -112,7 +112,7 @@ class ChannelStrategy(Base, TimestampMixin):
     )
 
     id = Column(String(36), primary_key=True, default=_uuid)
-    tenant_id = Column(String(36), nullable=False, index=True, comment="租户ID")
+    tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=False, index=True, comment="租户ID")
     event_type = Column(String(50), nullable=False, comment="事件类型")
     channels = Column(JSON, nullable=False, comment='渠道列表: ["email", "sms", "in_app"]')
     strategy = Column(String(20), default="fallback", comment="策略: fallback / parallel / all")
@@ -127,7 +127,7 @@ class RecipientRule(Base, TimestampMixin):
     __tablename__ = "recipient_rules"
 
     id = Column(String(36), primary_key=True, default=_uuid)
-    tenant_id = Column(String(36), nullable=False, index=True, comment="租户ID")
+    tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=False, index=True, comment="租户ID")
     name = Column(String(100), nullable=False, comment="规则名称")
     rule_type = Column(String(30), nullable=False, comment="规则类型: role / department / user_list / dynamic / event_driven")
     rule_config = Column(JSON, nullable=False, comment="规则配置")

@@ -87,12 +87,25 @@ class FlowNotFoundError(Exception):
 
 
 class ApprovalEngine:
-    """审批流引擎核心"""
+    """审批流引擎核心
 
-    def __init__(self, db: AsyncSession):
+    Args:
+        db: 数据库会话
+        tenant_id: 管理员账号租户锚点（R1-7）。发起审批时优先使用锚点；
+            未传入时才回退请求上下文（兼容医生端/内部调用）。
+    """
+
+    def __init__(self, db: AsyncSession, tenant_id: str | None = None):
         self.db = db
+        self.tenant_id = tenant_id
         self.assignee_resolver = AssigneeResolver(db)
         self.condition_evaluator = ConditionEvaluator()
+
+    def _anchor(self) -> str | None:
+        """账号锚点优先，未提供时回退请求上下文。"""
+        if self.tenant_id is not None:
+            return self.tenant_id
+        return get_current_tenant_id()
 
     # ============================================================
     # 发起审批
@@ -118,7 +131,7 @@ class ApprovalEngine:
         3. 已接入的业务类型: leave_request (见 leave_requests/callbacks.py)、
            extra_quota (见 schedules/callbacks_extra_quota.py)
         """
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._anchor()
 
         # 查找流程定义
         if flow_def_id:
@@ -447,8 +460,8 @@ class ApprovalEngine:
             task.completed_at = datetime.utcnow()
             task.completed_by = approver_id
 
-        # 创建新任务
-        tenant_id = get_current_tenant_id()
+        # 创建新任务（租户归属跟随实例，避免请求上下文缺失时写入 NULL）
+        tenant_id = instance.tenant_id
         new_task = ApprovalTask(
             id=str(uuid.uuid4()),
             tenant_id=tenant_id,
@@ -1584,8 +1597,11 @@ class ApprovalEngine:
         return result.scalar_one_or_none()
 
     async def _get_flow_def(self, flow_def_id: str) -> ApprovalFlowDefinition | None:
-        """获取流程定义"""
+        """获取流程定义（按租户锚点强过滤）"""
         stmt = select(ApprovalFlowDefinition).where(ApprovalFlowDefinition.id == flow_def_id)
+        tenant_id = self._anchor()
+        if tenant_id:
+            stmt = stmt.where(ApprovalFlowDefinition.tenant_id == tenant_id)
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 

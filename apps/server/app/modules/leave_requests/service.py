@@ -14,15 +14,28 @@ from app.utils.audit import set_create_audit, set_update_audit
 
 
 class LeaveRequestService:
-    """停诊/调班申请服务"""
+    """停诊/调班申请服务
 
-    def __init__(self, db: AsyncSession):
+    Args:
+        db: 数据库会话
+        tenant_id: 管理员账号租户锚点（R1-10）。管理端列表/审批以锚点强过滤；
+            医生端自助端点在未传锚点时回退请求上下文。
+    """
+
+    def __init__(self, db: AsyncSession, tenant_id: str | None = None):
         self.db = db
+        self.tenant_id = tenant_id
+
+    def _tenant(self) -> str | None:
+        """账号锚点优先，未提供时回退请求上下文。"""
+        if self.tenant_id is not None:
+            return self.tenant_id
+        return get_current_tenant_id()
 
     async def get_by_id(self, request_id: str) -> LeaveRequest | None:
         """根据ID获取申请"""
         stmt = select(LeaveRequest).where(LeaveRequest.id == request_id)
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
         if tenant_id:
             stmt = stmt.where(LeaveRequest.tenant_id == tenant_id)
         result = await self.db.execute(stmt)
@@ -34,7 +47,7 @@ class LeaveRequestService:
         count_stmt = select(func.count(LeaveRequest.id))
 
         # 租户过滤
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
         if tenant_id:
             stmt = stmt.where(LeaveRequest.tenant_id == tenant_id)
             count_stmt = count_stmt.where(LeaveRequest.tenant_id == tenant_id)
@@ -76,7 +89,7 @@ class LeaveRequestService:
 
     async def create_stop_clinic(self, data: StopClinicCreate) -> LeaveRequest:
         """创建停诊申请"""
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
 
         # 计算受影响的预约数
         affected = await self._count_affected_appointments(
@@ -107,7 +120,7 @@ class LeaveRequestService:
 
     async def create_schedule_change(self, data: ScheduleChangeCreate) -> LeaveRequest:
         """创建调班申请"""
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
 
         # 计算受影响的预约数
         affected = await self._count_affected_appointments(
@@ -241,6 +254,10 @@ class LeaveRequestService:
         if period != 'all':
             stmt = stmt.where(Schedule.time_slot == period)
 
+        tenant_id = self._tenant()
+        if tenant_id:
+            stmt = stmt.where(Appointment.tenant_id == tenant_id)
+
         result = await self.db.execute(stmt)
         return result.scalar() or 0
 
@@ -255,9 +272,10 @@ class LeaveRequestService:
         """处理停诊申请通过"""
         # 停诊：更新排班状态
         if request.schedule_id:
-            schedule_result = await self.db.execute(
-                select(Schedule).where(Schedule.id == request.schedule_id)
-            )
+            schedule_stmt = select(Schedule).where(Schedule.id == request.schedule_id)
+            if request.tenant_id:
+                schedule_stmt = schedule_stmt.where(Schedule.tenant_id == request.tenant_id)
+            schedule_result = await self.db.execute(schedule_stmt)
             schedule = schedule_result.scalar_one_or_none()
             if schedule:
                 schedule.status = 0
@@ -270,6 +288,7 @@ class LeaveRequestService:
                         Appointment.doctor_id == request.doctor_id,
                         Appointment.schedule_id.isnot(None),
                         Appointment.status.in_([0, 1]),
+                        *([Appointment.tenant_id == request.tenant_id] if request.tenant_id else []),
                     )
                 )
             )
@@ -277,9 +296,10 @@ class LeaveRequestService:
             for apt in appointments:
                 # 通过 schedule 关联判断日期和时段
                 if apt.schedule_id:
-                    sched = (await self.db.execute(
-                        select(Schedule).where(Schedule.id == apt.schedule_id)
-                    )).scalar_one_or_none()
+                    sched_stmt = select(Schedule).where(Schedule.id == apt.schedule_id)
+                    if request.tenant_id:
+                        sched_stmt = sched_stmt.where(Schedule.tenant_id == request.tenant_id)
+                    sched = (await self.db.execute(sched_stmt)).scalar_one_or_none()
                     if sched and sched.schedule_date == request.stop_date:
                         if request.stop_period == 'all' or sched.time_slot == request.stop_period:
                             apt.status = 6  # 已取消
@@ -290,6 +310,10 @@ class LeaveRequestService:
         if not request.original_date or not request.target_date:
             return
 
+        tenant_conditions = (
+            [Schedule.tenant_id == request.tenant_id] if request.tenant_id else []
+        )
+
         # 查找原时段的排班
         orig_schedules = (await self.db.execute(
             select(Schedule).where(
@@ -298,6 +322,7 @@ class LeaveRequestService:
                     Schedule.schedule_date == request.original_date,
                     Schedule.time_slot == request.original_period,
                     Schedule.status == 1,
+                    *tenant_conditions,
                 )
             )
         )).scalars().all()
@@ -310,6 +335,7 @@ class LeaveRequestService:
                     Schedule.schedule_date == request.target_date,
                     Schedule.time_slot == request.target_period,
                     Schedule.status == 1,
+                    *tenant_conditions,
                 )
             )
         )).scalars().all()
@@ -340,7 +366,7 @@ class LeaveRequestService:
         )
 
         # 租户过滤
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
         if tenant_id:
             stmt = stmt.where(LeaveRequest.tenant_id == tenant_id)
 
@@ -360,7 +386,7 @@ class LeaveRequestService:
         """获取医生的申请列表"""
         stmt = select(LeaveRequest).where(LeaveRequest.doctor_id == doctor_id)
 
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
         if tenant_id:
             stmt = stmt.where(LeaveRequest.tenant_id == tenant_id)
 

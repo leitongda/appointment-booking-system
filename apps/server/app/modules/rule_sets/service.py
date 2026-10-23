@@ -12,5 +12,6 @@ class RuleSetService(
     RuleSetMutationMixin,
     RuleSetPolicyMixin,
 ):
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, tenant_id: str | None = None):
         self.db = db
+        self.tenant_id = tenant_id

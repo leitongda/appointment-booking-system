@@ -4,7 +4,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_admin, get_tenant_filter, require_permission
+from app.api.deps import get_current_admin, require_admin_tenant_anchor, require_permission
 from app.core.config import settings
 from app.db.session import get_db
 from app.modules.admin.helpers import build_role_response
@@ -23,7 +23,7 @@ async def get_roles(
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
-    tenant_filter: str | None = Depends(get_tenant_filter),
+    tenant_filter: str | None = Depends(require_admin_tenant_anchor),
 ):
     # 租户隔离：传递 tenant_id 过滤条件
     service = RoleService(db)
@@ -37,7 +37,7 @@ async def get_roles(
 async def get_all_roles(
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
-    tenant_filter: str | None = Depends(get_tenant_filter),
+    tenant_filter: str | None = Depends(require_admin_tenant_anchor),
 ):
     # 租户隔离：传递 tenant_id 过滤条件
     service = RoleService(db)
@@ -50,7 +50,7 @@ async def get_role(
     role_id: str,
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
-    tenant_filter: str | None = Depends(get_tenant_filter),
+    tenant_filter: str | None = Depends(require_admin_tenant_anchor),
 ):
     # 租户隔离：查询时附加租户过滤，防止跨租户访问
     service = RoleService(db)
@@ -66,7 +66,7 @@ async def create_role(
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("system:role:create")),
-    tenant_filter: str | None = Depends(get_tenant_filter),
+    tenant_filter: str | None = Depends(require_admin_tenant_anchor),
 ):
     # 租户隔离：创建角色时设置 tenant_id
     service = RoleService(db)
@@ -84,7 +84,7 @@ async def update_role(
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("system:role:update")),
-    tenant_filter: str | None = Depends(get_tenant_filter),
+    tenant_filter: str | None = Depends(require_admin_tenant_anchor),
 ):
     # 租户隔离：更新时附加租户过滤，防止跨租户修改
     service = RoleService(db)
@@ -104,7 +104,7 @@ async def update_role_permissions(
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("system:role:permission")),
-    tenant_filter: str | None = Depends(get_tenant_filter),
+    tenant_filter: str | None = Depends(require_admin_tenant_anchor),
 ):
     # 租户隔离：校验角色属于当前租户后再更新权限
     service = RoleService(db)
@@ -120,7 +120,7 @@ async def delete_role(
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("system:role:delete")),
-    tenant_filter: str | None = Depends(get_tenant_filter),
+    tenant_filter: str | None = Depends(require_admin_tenant_anchor),
 ):
     # 租户隔离：删除时附加租户过滤，防止跨租户删除
     service = RoleService(db)

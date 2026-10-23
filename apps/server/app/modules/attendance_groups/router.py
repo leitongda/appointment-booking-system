@@ -7,7 +7,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_admin
+from app.api.deps import get_current_admin, require_admin_tenant_anchor
 from app.core.config import settings
 from app.db.session import get_db
 from app.modules.attendance_groups.schemas import (
@@ -23,16 +23,26 @@ from app.schemas.rule_set import PageResult
 router = APIRouter()
 
 
+def _require_anchor(tenant_anchor: str | None) -> str:
+    """R1-11：考勤写路径必须拿到账号锚点，禁止写出 tenant_id=NULL 的记录。"""
+    if not tenant_anchor:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="无法确定租户ID，请指定 tenant_id 后重试",
+        )
+    return tenant_anchor
+
+
 @router.get("", response_model=PageResult[AttendanceGroupResponse], summary="获取签到组列表")
 async def get_groups(
     keyword: str | None = Query(None, description="搜索关键词"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE, description="每页数量"),
     db: AsyncSession = Depends(get_db),
-    current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
 ):
     """获取签到组列表"""
-    service = AttendanceGroupService(db)
+    service = AttendanceGroupService(db, tenant_id=tenant_anchor)
     items, total = await service.get_list(
         keyword=keyword,
         page=page,
@@ -45,10 +55,10 @@ async def get_groups(
 async def get_group(
     group_id: str,
     db: AsyncSession = Depends(get_db),
-    current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
 ):
     """获取签到组详情"""
-    service = AttendanceGroupService(db)
+    service = AttendanceGroupService(db, tenant_id=tenant_anchor)
     group = await service.get_by_id(group_id)
     if not group:
         raise HTTPException(
@@ -76,10 +86,11 @@ async def get_group(
 async def create_group(
     data: AttendanceGroupCreate,
     db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     current_admin: dict = Depends(get_current_admin),
 ):
     """创建签到组"""
-    service = AttendanceGroupService(db)
+    service = AttendanceGroupService(db, tenant_id=_require_anchor(tenant_anchor))
     group = await service.create(
         data=data.model_dump(),
         operator_id=current_admin.get("id"),
@@ -106,10 +117,11 @@ async def update_group(
     group_id: str,
     data: AttendanceGroupUpdate,
     db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     current_admin: dict = Depends(get_current_admin),
 ):
     """更新签到组"""
-    service = AttendanceGroupService(db)
+    service = AttendanceGroupService(db, tenant_id=_require_anchor(tenant_anchor))
     group = await service.update(
         group_id=group_id,
         data=data.model_dump(exclude_unset=True),
@@ -141,10 +153,11 @@ async def update_group(
 async def delete_group(
     group_id: str,
     db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     current_admin: dict = Depends(get_current_admin),
 ):
     """删除签到组"""
-    service = AttendanceGroupService(db)
+    service = AttendanceGroupService(db, tenant_id=_require_anchor(tenant_anchor))
     success = await service.delete(group_id)
     if not success:
         raise HTTPException(
@@ -159,10 +172,11 @@ async def add_members(
     group_id: str,
     data: GroupMemberAdd,
     db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     current_admin: dict = Depends(get_current_admin),
 ):
     """批量添加签到组成员"""
-    service = AttendanceGroupService(db)
+    service = AttendanceGroupService(db, tenant_id=_require_anchor(tenant_anchor))
     group = await service.get_by_id(group_id)
     if not group:
         raise HTTPException(
@@ -182,10 +196,11 @@ async def remove_member(
     group_id: str,
     account_id: str,
     db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     current_admin: dict = Depends(get_current_admin),
 ):
     """移除签到组成员"""
-    service = AttendanceGroupService(db)
+    service = AttendanceGroupService(db, tenant_id=_require_anchor(tenant_anchor))
     success = await service.remove_member(group_id, account_id)
     if not success:
         raise HTTPException(
@@ -205,10 +220,10 @@ async def get_members(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE, description="每页数量"),
     db: AsyncSession = Depends(get_db),
-    current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
 ):
     """获取签到组成员列表（分页）"""
-    service = AttendanceGroupService(db)
+    service = AttendanceGroupService(db, tenant_id=tenant_anchor)
     group = await service.get_by_id(group_id)
     if not group:
         raise HTTPException(

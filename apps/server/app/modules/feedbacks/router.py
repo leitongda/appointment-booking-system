@@ -3,7 +3,12 @@ import json
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_admin, require_permission
+from app.api.deps import (
+    get_current_admin,
+    require_admin_tenant_anchor,
+    require_permission,
+    require_tenant_active_for_write,
+)
 from app.core.config import settings
 from app.db.session import get_db
 from app.modules.feedbacks.service import FeedbackService
@@ -54,9 +59,10 @@ async def get_feedbacks(
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("feedback:list")),
 ):
-    service = FeedbackService(db)
+    service = FeedbackService(db, tenant_id=tenant_anchor)
     query = FeedbackQuery(
         user_id=user_id,
         feedback_type=feedback_type,
@@ -78,9 +84,10 @@ async def get_feedbacks(
 async def get_pending_count(
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("feedback:list")),
 ):
-    service = FeedbackService(db)
+    service = FeedbackService(db, tenant_id=tenant_anchor)
     return {"count": await service.get_pending_count()}
 
 
@@ -88,9 +95,10 @@ async def get_pending_count(
 async def get_statistics(
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("feedback:list")),
 ):
-    service = FeedbackService(db)
+    service = FeedbackService(db, tenant_id=tenant_anchor)
     return await service.get_statistics()
 
 
@@ -120,6 +128,7 @@ async def get_feedback(
 async def create_feedback(
     data: FeedbackCreate,
     db: AsyncSession = Depends(get_db),
+    _tenant_guard: None = Depends(require_tenant_active_for_write),
 ):
     service = FeedbackService(db)
     feedback = await service.create(data)
@@ -132,9 +141,10 @@ async def reply_feedback(
     data: FeedbackReply,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("feedback:reply")),
 ):
-    service = FeedbackService(db)
+    service = FeedbackService(db, tenant_id=tenant_anchor)
     handler_id = current_admin.get("id")
     feedback = await service.reply(feedback_id, handler_id, data)
     if not feedback:
@@ -148,9 +158,10 @@ async def update_feedback_status(
     new_status: FeedbackStatus = Query(..., alias="status", description="状态"),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("feedback:reply")),
 ):
-    service = FeedbackService(db)
+    service = FeedbackService(db, tenant_id=tenant_anchor)
     feedback = await service.update_status(feedback_id, new_status.value)
     if not feedback:
         raise HTTPException(status_code=404, detail="反馈不存在，请检查后重试")
@@ -162,9 +173,10 @@ async def delete_feedback(
     feedback_id: str,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("feedback:delete")),
 ):
-    service = FeedbackService(db)
+    service = FeedbackService(db, tenant_id=tenant_anchor)
     success = await service.delete(feedback_id)
     if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="反馈不存在，请检查后重试")

@@ -4,14 +4,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_admin, require_permission
+from app.api.deps import get_current_admin, require_admin_tenant_anchor, require_permission
 from app.core.config import settings
 from app.db.session import get_db
 from app.infrastructure.notifications.quota import NotificationQuotaService
 from app.modules.notification_logs.service import NotificationLogService
-from app.middleware.tenant_context import get_current_tenant_id
 from app.models.notification_log import NotificationLog
-from app.modules.notification_logs.service import NotificationLogService
 from app.schemas.notification_log import (
     NotificationChannel,
     NotificationLogQuery,
@@ -24,6 +22,29 @@ from app.schemas.notification_log import (
 from app.schemas.response import PageResponse
 
 router = APIRouter()
+
+
+def _require_tenant_scope(current_admin: dict, tenant_id: str | None) -> str:
+    """R1-16：query 中的 tenant_id 只能作为锚点的来源，不能越过账号所属租户。
+
+    - 租户管理员传入他人 tenant_id → 403；
+    - 平台管理员未指定租户（query/header 均无）→ 400；
+    - 平台管理员指定租户 → 以该租户为锚点。
+    """
+    anchor = require_admin_tenant_anchor(
+        tenant_id=tenant_id, current_admin=current_admin
+    )
+    if tenant_id and anchor and tenant_id != anchor:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="无权访问其他租户的数据",
+        )
+    if not anchor:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="无法确定租户ID",
+        )
+    return anchor
 
 
 @router.get("", response_model=PageResponse[NotificationLogResponse], summary="获取通知日志列表")
@@ -87,12 +108,7 @@ async def get_notification_usage_stats(
     _: None = Depends(require_permission("system:monitoring")),
 ):
     """获取通知用量统计"""
-    effective_tenant_id = tenant_id or get_current_tenant_id()
-    if not effective_tenant_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="无法确定租户ID",
-        )
+    effective_tenant_id = _require_tenant_scope(current_admin, tenant_id)
 
     service = NotificationLogService(db)
     return await service.get_usage_stats(tenant_id=effective_tenant_id, period=period)
@@ -106,12 +122,7 @@ async def get_notification_quota(
     _: None = Depends(require_permission("system:monitoring")),
 ):
     """获取通知配额信息"""
-    effective_tenant_id = tenant_id or get_current_tenant_id()
-    if not effective_tenant_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="无法确定租户ID",
-        )
+    effective_tenant_id = _require_tenant_scope(current_admin, tenant_id)
 
     quota_service = NotificationQuotaService(db, usage_querier=NotificationLogService(db))
     quota_info = await quota_service.get_quota_info(effective_tenant_id)
@@ -132,12 +143,7 @@ async def update_notification_quota(
     注意：当前实现将配额存储在 system_settings 中，
     更好的方案是在 Tenant 或 SubscriptionPlan 中添加配额字段。
     """
-    effective_tenant_id = tenant_id or get_current_tenant_id()
-    if not effective_tenant_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="无法确定租户ID",
-        )
+    effective_tenant_id = _require_tenant_scope(current_admin, tenant_id)
 
     from sqlalchemy import select
 
@@ -146,11 +152,12 @@ async def update_notification_quota(
     update_count = 0
     for field, value in quota_update.model_dump(exclude_unset=True).items():
         if value is not None:
-            # 检查是否已存在
+            # 检查是否已存在（限定当前租户维度，避免覆盖其它租户配置）
             result = await db.execute(
                 select(SystemSetting).where(
                     SystemSetting.category == "notification_quota",
                     SystemSetting.key == field,
+                    SystemSetting.tenant_id == effective_tenant_id,
                 )
             )
             setting = result.scalar_one_or_none()
@@ -159,6 +166,7 @@ async def update_notification_quota(
                 setting.value = str(value)
             else:
                 new_setting = SystemSetting(
+                    tenant_id=effective_tenant_id,
                     category="notification_quota",
                     key=field,
                     value=str(value),

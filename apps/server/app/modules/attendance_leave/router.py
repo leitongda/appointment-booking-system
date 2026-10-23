@@ -6,7 +6,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_admin
+from app.api.deps import get_current_admin, require_admin_tenant_anchor
 from app.common.auth_unified import get_current_account
 from app.core.config import settings
 from app.db.session import get_db
@@ -26,6 +26,16 @@ from app.schemas.rule_set import PageResult
 router = APIRouter()
 
 
+def _require_anchor(tenant_anchor: str | None) -> str:
+    """R1-11：管理端写路径必须拿到账号锚点，禁止写出 tenant_id=NULL 的记录。"""
+    if not tenant_anchor:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="无法确定租户ID，请指定 tenant_id 后重试",
+        )
+    return tenant_anchor
+
+
 # ==================== 假期类型 ====================
 
 
@@ -35,9 +45,9 @@ async def get_leave_types(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(50, ge=1, le=settings.MAX_PAGE_SIZE, description="每页数量"),
     db: AsyncSession = Depends(get_db),
-    current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
 ):
-    service = AttendanceLeaveService(db)
+    service = AttendanceLeaveService(db, tenant_id=tenant_anchor)
     items, total = await service.get_type_list(enabled=enabled, page=page, page_size=page_size)
     return PageResult(data=items, total=total)
 
@@ -46,9 +56,10 @@ async def get_leave_types(
 async def create_leave_type(
     data: LeaveTypeCreate,
     db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     current_admin: dict = Depends(get_current_admin),
 ):
-    service = AttendanceLeaveService(db)
+    service = AttendanceLeaveService(db, tenant_id=_require_anchor(tenant_anchor))
     try:
         leave_type = await service.create_type(
             data=data.model_dump(),
@@ -64,9 +75,10 @@ async def update_leave_type(
     type_id: str,
     data: LeaveTypeUpdate,
     db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     current_admin: dict = Depends(get_current_admin),
 ):
-    service = AttendanceLeaveService(db)
+    service = AttendanceLeaveService(db, tenant_id=_require_anchor(tenant_anchor))
     leave_type = await service.update_type(
         type_id=type_id,
         data=data.model_dump(exclude_unset=True),
@@ -81,9 +93,10 @@ async def update_leave_type(
 async def delete_leave_type(
     type_id: str,
     db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     current_admin: dict = Depends(get_current_admin),
 ):
-    service = AttendanceLeaveService(db)
+    service = AttendanceLeaveService(db, tenant_id=_require_anchor(tenant_anchor))
     success = await service.delete_type(type_id)
     if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="假期类型不存在")
@@ -98,9 +111,9 @@ async def get_leave_balances(
     account_id: str = Query(..., description="账号ID"),
     year: int | None = Query(None, description="年度"),
     db: AsyncSession = Depends(get_db),
-    current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
 ):
-    service = AttendanceLeaveService(db)
+    service = AttendanceLeaveService(db, tenant_id=tenant_anchor)
     return await service.get_balances(account_id=account_id, year=year)
 
 
@@ -108,9 +121,10 @@ async def get_leave_balances(
 async def update_leave_balance(
     data: LeaveBalanceUpdate,
     db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     current_admin: dict = Depends(get_current_admin),
 ):
-    service = AttendanceLeaveService(db)
+    service = AttendanceLeaveService(db, tenant_id=_require_anchor(tenant_anchor))
     balance = await service.update_balance(
         account_id=data.account_id,
         leave_type_id=data.leave_type_id,
@@ -162,10 +176,11 @@ async def get_all_leave_requests(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE, description="每页数量"),
     db: AsyncSession = Depends(get_db),
-    current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
 ):
-    service = AttendanceLeaveService(db)
+    service = AttendanceLeaveService(db, tenant_id=tenant_anchor)
     items, total = await service.get_all_requests(
+        tenant_id=tenant_anchor,
         keyword=keyword,
         status=status_filter,
         page=page,
@@ -179,9 +194,10 @@ async def approve_leave_request(
     request_id: str,
     body: LeaveReviewRequest | None = None,
     db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     current_admin: dict = Depends(get_current_admin),
 ):
-    service = AttendanceLeaveService(db)
+    service = AttendanceLeaveService(db, tenant_id=_require_anchor(tenant_anchor))
     comment = body.comment if body else None
     leave_request = await service.approve(
         request_id=request_id,
@@ -198,9 +214,10 @@ async def reject_leave_request(
     request_id: str,
     body: LeaveReviewRequest | None = None,
     db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     current_admin: dict = Depends(get_current_admin),
 ):
-    service = AttendanceLeaveService(db)
+    service = AttendanceLeaveService(db, tenant_id=_require_anchor(tenant_anchor))
     comment = body.comment if body else None
     leave_request = await service.reject(
         request_id=request_id,

@@ -11,12 +11,27 @@ from app.utils.audit import set_create_audit, set_update_audit
 
 
 class ScheduleRoomService:
-    def __init__(self, db: AsyncSession):
+    """诊室服务
+
+    Args:
+        db: 数据库会话
+        tenant_id: 管理员账号租户锚点（R1-13）。查询/写入以锚点强过滤；
+            未传入时才回退请求上下文（兼容内部调用）。
+    """
+
+    def __init__(self, db: AsyncSession, tenant_id: str | None = None):
         self.db = db
+        self.tenant_id = tenant_id
+
+    def _tenant(self) -> str | None:
+        """账号锚点优先，未提供时回退请求上下文。"""
+        if self.tenant_id is not None:
+            return self.tenant_id
+        return get_current_tenant_id()
 
     async def get_by_id(self, room_id: str) -> ScheduleRoom | None:
         conditions = [ScheduleRoom.id == room_id]
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
         if tenant_id is not None:
             conditions.append(ScheduleRoom.tenant_id == tenant_id)
 
@@ -42,7 +57,7 @@ class ScheduleRoomService:
         count_query = select(func.count(ScheduleRoom.id))
 
         # 租户过滤
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
         if tenant_id is not None:
             query = query.where(ScheduleRoom.tenant_id == tenant_id)
             count_query = count_query.where(ScheduleRoom.tenant_id == tenant_id)
@@ -68,7 +83,7 @@ class ScheduleRoomService:
         return list(result.scalars().all()), count_result.scalar() or 0
 
     async def create(self, data, operator_id: str | None = None) -> ScheduleRoom:
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
 
         room = ScheduleRoom(
             id=str(uuid.uuid4()),
@@ -126,7 +141,7 @@ class ScheduleRoomService:
 
         # 检查是否有关联排班
         conditions = [Schedule.room_id == room_id]
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
         if tenant_id is not None:
             conditions.append(Schedule.tenant_id == tenant_id)
         result = await self.db.execute(

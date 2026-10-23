@@ -16,10 +16,23 @@ from app.utils.audit import set_create_audit, set_update_audit
 
 
 class AttendanceLeaveService:
-    """假期管理服务"""
+    """假期管理服务
 
-    def __init__(self, db: AsyncSession):
+    Args:
+        db: 数据库会话
+        tenant_id: 管理员账号租户锚点（R1-11）。管理端查询/写入以锚点强过滤；
+            未传入时回退请求上下文（患者自助端依赖请求上下文）。
+    """
+
+    def __init__(self, db: AsyncSession, tenant_id: str | None = None):
         self.db = db
+        self.tenant_id = tenant_id
+
+    def _tenant(self) -> str | None:
+        """账号锚点优先，未提供时回退请求上下文。"""
+        if self.tenant_id is not None:
+            return self.tenant_id
+        return get_current_tenant_id()
 
     # ==================== 假期类型 ====================
 
@@ -30,20 +43,20 @@ class AttendanceLeaveService:
         page_size: int = 50,
     ) -> tuple[list[AttendanceLeaveType], int]:
         """获取假期类型列表"""
-        tenant_id = get_current_tenant_id()
-        conditions = [AttendanceLeaveType.tenant_id == tenant_id]
+        tenant_id = self._tenant()
+        conditions = [AttendanceLeaveType.tenant_id == tenant_id] if tenant_id else []
 
         if enabled is not None:
             conditions.append(AttendanceLeaveType.enabled == enabled)
 
         count_result = await self.db.execute(
-            select(func.count(AttendanceLeaveType.id)).where(and_(*conditions))
+            select(func.count(AttendanceLeaveType.id)).where(and_(*conditions) if conditions else True)
         )
         total = count_result.scalar_one() or 0
 
         result = await self.db.execute(
             select(AttendanceLeaveType)
-            .where(and_(*conditions))
+            .where(and_(*conditions) if conditions else True)
             .order_by(AttendanceLeaveType.sort_order.asc(), AttendanceLeaveType.created_at.desc())
             .offset((page - 1) * page_size)
             .limit(page_size)
@@ -52,7 +65,7 @@ class AttendanceLeaveService:
 
     async def get_type_by_id(self, type_id: str) -> AttendanceLeaveType | None:
         """获取假期类型详情"""
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
         result = await self.db.execute(
             select(AttendanceLeaveType).where(
                 AttendanceLeaveType.id == type_id,
@@ -67,7 +80,7 @@ class AttendanceLeaveService:
         Raises:
             ValueError: 代码已存在
         """
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
 
         existing = await self.db.execute(
             select(AttendanceLeaveType).where(
@@ -123,7 +136,7 @@ class AttendanceLeaveService:
         self, account_id: str, year: int | None = None
     ) -> list[dict]:
         """获取员工假期余额列表"""
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
         if year is None:
             year = date.today().year
 
@@ -166,7 +179,7 @@ class AttendanceLeaveService:
         self, account_id: str, leave_type_id: str, year: int, total_days: float, operator_id: str | None = None
     ) -> AttendanceLeaveBalance:
         """更新假期余额（不存在则创建）"""
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
 
         result = await self.db.execute(
             select(AttendanceLeaveBalance).where(
@@ -204,7 +217,7 @@ class AttendanceLeaveService:
         Returns:
             新建的余额记录数
         """
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
 
         # 获取所有启用的假期类型
         types_result = await self.db.execute(
@@ -246,7 +259,7 @@ class AttendanceLeaveService:
         self, account_id: str, data: dict, operator_id: str | None = None
     ) -> AttendanceLeaveRequest:
         """创建假期申请"""
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
         duration_days = await self._calc_duration_days(data["start_date"], data["end_date"])
 
         leave_request = AttendanceLeaveRequest(
@@ -271,7 +284,7 @@ class AttendanceLeaveService:
         self, account_id: str, page: int = 1, page_size: int = 10
     ) -> tuple[list[dict], int]:
         """获取我的假期申请列表"""
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
         conditions = [
             AttendanceLeaveRequest.tenant_id == tenant_id,
             AttendanceLeaveRequest.account_id == account_id,
@@ -330,10 +343,10 @@ class AttendanceLeaveService:
         page_size: int = 10,
     ) -> tuple[list[dict], int]:
         """获取所有假期申请（管理员）"""
-        if tenant_id is None:
-            tenant_id = get_current_tenant_id()
-
-        conditions = [AttendanceLeaveRequest.tenant_id == tenant_id]
+        tenant_id = tenant_id or self._tenant()
+        conditions = (
+            [AttendanceLeaveRequest.tenant_id == tenant_id] if tenant_id else []
+        )
 
         if status:
             conditions.append(AttendanceLeaveRequest.status == status)
@@ -344,7 +357,7 @@ class AttendanceLeaveService:
             )
 
         count_result = await self.db.execute(
-            select(func.count(AttendanceLeaveRequest.id)).where(and_(*conditions))
+            select(func.count(AttendanceLeaveRequest.id)).where(and_(*conditions) if conditions else True)
         )
         total = count_result.scalar_one() or 0
 
@@ -357,7 +370,7 @@ class AttendanceLeaveService:
                 AttendanceLeaveType,
                 AttendanceLeaveRequest.leave_type_id == AttendanceLeaveType.id,
             )
-            .where(and_(*conditions))
+            .where(and_(*conditions) if conditions else True)
             .order_by(AttendanceLeaveRequest.created_at.desc())
             .offset((page - 1) * page_size)
             .limit(page_size)
@@ -389,7 +402,7 @@ class AttendanceLeaveService:
 
     async def _get_request_by_id(self, request_id: str) -> AttendanceLeaveRequest | None:
         """获取假期申请详情"""
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
         result = await self.db.execute(
             select(AttendanceLeaveRequest).where(
                 AttendanceLeaveRequest.id == request_id,

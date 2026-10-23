@@ -57,6 +57,23 @@ async def _get_active_rule_set_ids(db, shift_type_ids: list[str]) -> set:
 
 
 class RuleSetQueryMixin:
+    """规则组查询
+
+    `tenant_id` 为管理员账号锚点（R1-8）：查询以锚点强过滤；
+    未传入时才回退请求上下文（兼容医生端只读接口）。
+    """
+
+    tenant_id: str | None = None
+
+    def __init__(self, db=None, tenant_id: str | None = None):
+        self.db = db
+        self.tenant_id = tenant_id
+
+    def _tenant(self) -> str | None:
+        """账号锚点优先，未提供时回退请求上下文。"""
+        if self.tenant_id is not None:
+            return self.tenant_id
+        return get_current_tenant_id()
 
     async def _batch_load_schedule_templates(
         self, rule_set_ids: list[str]
@@ -117,7 +134,7 @@ class RuleSetQueryMixin:
         conditions = [RuleSet.deleted_at.is_(None)]
 
         # 租户过滤：tenant_id 为 None 时（超级管理员等场景）不添加过滤条件
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
         if tenant_id is not None:
             conditions.append(RuleSet.tenant_id == tenant_id)
 
@@ -191,7 +208,7 @@ class RuleSetQueryMixin:
         conditions = [RuleSet.id == rule_set_id, RuleSet.deleted_at.is_(None)]
 
         # 租户过滤：tenant_id 为 None 时（超级管理员等场景）不添加过滤条件
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
         if tenant_id is not None:
             conditions.append(RuleSet.tenant_id == tenant_id)
 
@@ -304,7 +321,14 @@ class RuleSetQueryMixin:
         return RuleSetDetailResponse(**data)
 
     async def get_window_by_id(self, window_id: str) -> RuleWindow | None:
-        result = await self.db.execute(select(RuleWindow).where(RuleWindow.id == window_id))
+        """按 ID 查询时间窗，跨租户视为不存在（R1-8）。"""
+        stmt = select(RuleWindow).where(RuleWindow.id == window_id)
+        tenant_id = self._tenant()
+        if tenant_id is not None:
+            stmt = stmt.join(RuleSet, RuleWindow.rule_set_id == RuleSet.id).where(
+                RuleSet.tenant_id == tenant_id
+            )
+        result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
     # ==================== 预设模板 ====================
@@ -333,7 +357,7 @@ class RuleSetQueryMixin:
         """获取预设模板列表（系统预设 + 当前租户自定义预设）。"""
         await self.ensure_system_presets()
 
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
         conditions = [RuleSetPreset.is_system == True]
         if tenant_id is not None:
             # 系统预设 + 当前租户的自定义预设
@@ -361,7 +385,7 @@ class RuleSetQueryMixin:
     ) -> tuple[list[RuleSetAuditLog], int]:
         conditions = [RuleSetAuditLog.rule_set_id == rule_set_id]
 
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
         if tenant_id is not None:
             conditions.append(RuleSetAuditLog.tenant_id == tenant_id)
 

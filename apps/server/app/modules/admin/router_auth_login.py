@@ -12,6 +12,7 @@ from app.core.redis import RedisCache
 from app.core.security import create_access_token, create_refresh_token, get_rsa_public_key, rsa_decrypt
 from app.db.session import get_db
 from app.infrastructure.email.service import EmailService
+from app.middleware.tenant_context import get_current_tenant_id
 from app.modules.settings.service import SettingsService
 from app.modules.email_templates.service import EmailTemplateService
 from app.models.admin import Admin
@@ -283,7 +284,8 @@ async def send_sms_code(
     from app.infrastructure.sms.service import SmsService
 
     service = AdminService(db)
-    admin = await service.get_by_phone(data.phone)
+    # R1-6：service 不再隐式读上下文，登录场景由路由显式传入租户上下文作为手机号收敛条件
+    admin = await service.get_by_phone(data.phone, tenant_id=get_current_tenant_id())
     if not admin:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="该手机号未注册，请先注册账号")
     if admin.status != 1:
@@ -308,7 +310,7 @@ async def sms_login(
     if not is_valid:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="验证码错误或已过期，请重新获取")
 
-    admin = await service.get_by_phone(data.phone)
+    admin = await service.get_by_phone(data.phone, tenant_id=get_current_tenant_id())
     if not admin:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="该手机号未注册，请先注册账号")
     if admin.status != 1:

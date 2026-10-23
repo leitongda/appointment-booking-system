@@ -108,13 +108,17 @@ class RevenueService:
         start_date: date,
         end_date: date | None = None,
         store_id: str | None = None,
-        status_list: list[int] = None
+        status_list: list[int] = None,
+        tenant_id: str | None = None,
     ) -> Decimal:
         """
         计算时间段内的总收入
 
         由于需要逐条判断初诊/复诊，这里采用批量查询然后遍历计算的方式
         对于大数据量可以考虑使用缓存或定期聚合
+
+        Args:
+            tenant_id: 租户锚点（None 表示平台管理员，不按租户过滤）
         """
         if status_list is None:
             status_list = list(REVENUE_STATUSES)  # 已签到/历史候诊/就诊中/已完成
@@ -139,6 +143,10 @@ class RevenueService:
         if store_id:
             query = query.where(Doctor.store_id == store_id)
 
+        # 租户过滤（R1-3）
+        if tenant_id:
+            query = query.where(Doctor.tenant_id == tenant_id)
+
         # 排除软删除的医生
         query = query.where(Doctor.deleted_at.is_(None))
 
@@ -156,12 +164,16 @@ class RevenueService:
         self,
         start_date: date,
         end_date: date,
-        store_id: str | None = None
+        store_id: str | None = None,
+        tenant_id: str | None = None,
     ) -> dict[str, float]:
         """
         计算收入趋势
 
         返回 {日期: 收入} 的字典
+
+        Args:
+            tenant_id: 租户锚点（None 表示平台管理员，不按租户过滤）
         """
         # 查询预约
         query = (
@@ -179,6 +191,10 @@ class RevenueService:
 
         if store_id:
             query = query.where(Doctor.store_id == store_id)
+
+        # 租户过滤（R1-3）
+        if tenant_id:
+            query = query.where(Doctor.tenant_id == tenant_id)
 
         # 排除软删除的医生
         query = query.where(Doctor.deleted_at.is_(None))

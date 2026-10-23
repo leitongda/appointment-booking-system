@@ -4,7 +4,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_admin, require_permission
+from app.api.deps import (
+    get_current_admin,
+    get_current_tenant,
+    require_admin_tenant_anchor,
+    require_permission,
+)
 from app.core.config import settings
 from app.db.session import get_db
 from app.modules.booking_notices.service import BookingNoticeService
@@ -17,12 +22,25 @@ from app.schemas.booking_notice import (
 router = APIRouter()
 
 
+async def _require_public_tenant(
+    tenant: dict | None = Depends(get_current_tenant),
+) -> dict:
+    """R1-18：公开端必须识别租户，缺失时 400。"""
+    if not tenant:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="缺少租户上下文，请通过 X-Tenant-ID 或 X-Tenant-Code 指定租户",
+        )
+    return tenant
+
+
 @router.get("/public", response_model=list[BookingNoticeResponse], summary="获取生效预约须知列表")
 async def get_public_notices(
     type: str | None = Query(None, description="类型: BOOKING/VISIT/REFUND"),
     db: AsyncSession = Depends(get_db),
+    tenant: dict = Depends(_require_public_tenant),
 ):
-    service = BookingNoticeService(db)
+    service = BookingNoticeService(db, tenant_id=tenant["id"])
     return await service.get_active_list(notice_type=type)
 
 
@@ -34,8 +52,9 @@ async def get_notices(
     page_size: int = Query(20, ge=1, le=settings.MAX_PAGE_SIZE, alias="pageSize"),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
 ):
-    service = BookingNoticeService(db)
+    service = BookingNoticeService(db, tenant_id=tenant_anchor)
     notices, total = await service.get_list(
         notice_type=type,
         status=status,
@@ -55,8 +74,9 @@ async def get_notice(
     notice_id: str,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
 ):
-    service = BookingNoticeService(db)
+    service = BookingNoticeService(db, tenant_id=tenant_anchor)
     notice = await service.get_by_id(notice_id)
     if not notice:
         raise HTTPException(status_code=404, detail="预约须知不存在")
@@ -68,9 +88,10 @@ async def create_notice(
     data: BookingNoticeCreate,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("content:notice:create")),
 ):
-    service = BookingNoticeService(db)
+    service = BookingNoticeService(db, tenant_id=tenant_anchor)
     return await service.create(data, operator_id=current_admin.get("id"))
 
 
@@ -80,9 +101,10 @@ async def update_notice(
     data: BookingNoticeUpdate,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("content:notice:update")),
 ):
-    service = BookingNoticeService(db)
+    service = BookingNoticeService(db, tenant_id=tenant_anchor)
     notice = await service.update(notice_id, data, operator_id=current_admin.get("id"))
     if not notice:
         raise HTTPException(status_code=404, detail="预约须知不存在")
@@ -94,9 +116,10 @@ async def delete_notice(
     notice_id: str,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("content:notice:delete")),
 ):
-    service = BookingNoticeService(db)
+    service = BookingNoticeService(db, tenant_id=tenant_anchor)
     success = await service.delete(notice_id)
     if not success:
         raise HTTPException(status_code=404, detail="预约须知不存在")
@@ -108,9 +131,10 @@ async def update_notice_status(
     new_status: int = Query(..., ge=0, le=1, description="状态: 0禁用 1启用", alias="status"),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("content:notice:update")),
 ):
-    service = BookingNoticeService(db)
+    service = BookingNoticeService(db, tenant_id=tenant_anchor)
     notice = await service.update_status(notice_id, new_status, operator_id=current_admin.get("id"))
     if not notice:
         raise HTTPException(status_code=404, detail="预约须知不存在")

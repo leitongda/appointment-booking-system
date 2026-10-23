@@ -7,7 +7,12 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_admin, get_store_filter, require_permission
+from app.api.deps import (
+    get_current_admin,
+    get_store_filter,
+    require_admin_tenant_anchor,
+    require_permission,
+)
 from app.core.config import settings
 from app.db.session import get_db
 from app.modules.freelance_fees.schemas import (
@@ -34,6 +39,20 @@ from app.utils.audit import set_create_audit, set_update_audit
 router = APIRouter()
 
 
+def _require_anchor(tenant_anchor: str | None) -> str:
+    """R1-4：写路径必须拿到账号锚点，平台管理员未显式指定租户时拒绝。
+
+    与 PATIENT_ANCHOR_FAIL_CLOSE 灰度开关无关：写操作不允许落到
+    `tenant_id=NULL` 的全局行。
+    """
+    if not tenant_anchor:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="无法确定租户ID，请指定 tenant_id 后重试",
+        )
+    return tenant_anchor
+
+
 # ========== 兼职人员 ==========
 
 @router.get("/freelancers", response_model=PageResponse[FreelancerResponse], summary="兼职人员列表")
@@ -45,10 +64,11 @@ async def get_freelancer_list(
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("freelance:list")),
 ):
     store_filter = get_store_filter(current_admin)
-    service = FreelanceService(db)
+    service = FreelanceService(db, tenant_id=tenant_anchor)
     query = FreelancerQuery(
         name=name,
         store_id=store_filter if isinstance(store_filter, str) else store_id,
@@ -69,9 +89,10 @@ async def get_freelancer_list(
 async def get_freelancer(
     freelancer_id: str,
     db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("freelance:list")),
 ):
-    service = FreelanceService(db)
+    service = FreelanceService(db, tenant_id=tenant_anchor)
     freelancer = await service.get_freelancer_by_id(freelancer_id)
     if not freelancer:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="兼职人员不存在")
@@ -83,9 +104,10 @@ async def create_freelancer(
     data: FreelancerCreate,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("freelance:create")),
 ):
-    service = FreelanceService(db)
+    service = FreelanceService(db, tenant_id=_require_anchor(tenant_anchor))
     freelancer = await service.create_freelancer(data, operator_id=current_admin.get("id"))
     return FreelancerResponse.model_validate(freelancer)
 
@@ -96,9 +118,10 @@ async def update_freelancer(
     data: FreelancerUpdate,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("freelance:update")),
 ):
-    service = FreelanceService(db)
+    service = FreelanceService(db, tenant_id=_require_anchor(tenant_anchor))
     freelancer = await service.update_freelancer(freelancer_id, data, operator_id=current_admin.get("id"))
     if not freelancer:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="兼职人员不存在")
@@ -109,9 +132,10 @@ async def update_freelancer(
 async def delete_freelancer(
     freelancer_id: str,
     db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("freelance:delete")),
 ):
-    service = FreelanceService(db)
+    service = FreelanceService(db, tenant_id=_require_anchor(tenant_anchor))
     success = await service.delete_freelancer(freelancer_id)
     if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="兼职人员不存在")
@@ -129,10 +153,11 @@ async def get_task_list(
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("freelance:list")),
 ):
     store_filter = get_store_filter(current_admin)
-    service = FreelanceService(db)
+    service = FreelanceService(db, tenant_id=tenant_anchor)
     query = FreelanceTaskQuery(
         freelancer_id=freelancer_id,
         store_id=store_filter if isinstance(store_filter, str) else store_id,
@@ -159,9 +184,10 @@ async def get_task_list(
 async def get_task(
     task_id: str,
     db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("freelance:list")),
 ):
-    service = FreelanceService(db)
+    service = FreelanceService(db, tenant_id=tenant_anchor)
     task = await service.get_task_by_id(task_id)
     if not task:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
@@ -178,9 +204,10 @@ async def create_task(
     data: FreelanceTaskCreate,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("freelance:create")),
 ):
-    service = FreelanceService(db)
+    service = FreelanceService(db, tenant_id=_require_anchor(tenant_anchor))
     task = await service.create_task(data, operator_id=current_admin.get("id"))
     return FreelanceTaskResponse.model_validate(task)
 
@@ -191,9 +218,10 @@ async def update_task(
     data: FreelanceTaskUpdate,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("freelance:update")),
 ):
-    service = FreelanceService(db)
+    service = FreelanceService(db, tenant_id=_require_anchor(tenant_anchor))
     task = await service.update_task(task_id, data, operator_id=current_admin.get("id"))
     if not task:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
@@ -206,9 +234,10 @@ async def update_task(
 async def get_task_interactions(
     task_id: str,
     db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("freelance:list")),
 ):
-    service = FreelanceService(db)
+    service = FreelanceService(db, tenant_id=tenant_anchor)
     interactions = await service.get_interactions_by_task(task_id)
     return [FreelanceInteractionResponse.model_validate(i) for i in interactions]
 
@@ -218,9 +247,10 @@ async def create_interaction(
     data: FreelanceInteractionCreate,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("freelance:create")),
 ):
-    service = FreelanceService(db)
+    service = FreelanceService(db, tenant_id=_require_anchor(tenant_anchor))
     interaction = await service.add_interaction(data, operator_id=current_admin.get("id"))
     if not interaction:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
@@ -234,11 +264,12 @@ async def batch_update_engagement(
     data: EngagementBatchUpdate,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("freelance:update")),
 ):
     """批量更新任务的点赞、评论、收录等数据（数据采集用）"""
     from decimal import Decimal
-    service = FreelanceService(db)
+    service = FreelanceService(db, tenant_id=_require_anchor(tenant_anchor))
     updated = 0
     errors = []
 
@@ -284,10 +315,11 @@ async def get_settlement_list(
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("freelance:list")),
 ):
     store_filter = get_store_filter(current_admin)
-    service = FreelanceService(db)
+    service = FreelanceService(db, tenant_id=tenant_anchor)
     query = FreelanceSettlementQuery(
         freelancer_id=freelancer_id,
         store_id=store_filter if isinstance(store_filter, str) else store_id,
@@ -312,9 +344,10 @@ async def get_settlement_list(
 async def get_settlement(
     settlement_id: str,
     db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("freelance:list")),
 ):
-    service = FreelanceService(db)
+    service = FreelanceService(db, tenant_id=tenant_anchor)
     settlement = await service.get_settlement_by_id(settlement_id)
     if not settlement:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="结算单不存在")
@@ -336,9 +369,10 @@ async def generate_settlement(
     store_id: str | None = Query(None, description="门店ID"),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("freelance:settle")),
 ):
-    service = FreelanceService(db)
+    service = FreelanceService(db, tenant_id=_require_anchor(tenant_anchor))
     settlement = await service.generate_settlement(
         freelancer_id=freelancer_id,
         store_id=store_id,
@@ -355,9 +389,10 @@ async def confirm_settlement(
     data: SettlementConfirmRequest,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("freelance:settle")),
 ):
-    service = FreelanceService(db)
+    service = FreelanceService(db, tenant_id=_require_anchor(tenant_anchor))
     settlement = await service.confirm_settlement(
         settlement_id=settlement_id,
         operator_id=current_admin.get("id"),
@@ -374,9 +409,10 @@ async def reject_settlement(
     data: SettlementRejectRequest,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("freelance:settle")),
 ):
-    service = FreelanceService(db)
+    service = FreelanceService(db, tenant_id=_require_anchor(tenant_anchor))
     settlement = await service.reject_settlement(
         settlement_id=settlement_id,
         operator_id=current_admin.get("id"),
@@ -392,9 +428,10 @@ async def mark_settlement_paid(
     settlement_id: str,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("freelance:settle")),
 ):
-    service = FreelanceService(db)
+    service = FreelanceService(db, tenant_id=_require_anchor(tenant_anchor))
     settlement = await service.mark_settlement_paid(
         settlement_id=settlement_id,
         operator_id=current_admin.get("id"),
@@ -411,10 +448,11 @@ async def get_statistics(
     store_id: str | None = None,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("freelance:list")),
 ):
     store_filter = get_store_filter(current_admin)
-    service = FreelanceService(db)
+    service = FreelanceService(db, tenant_id=tenant_anchor)
     stats = await service.get_freelancer_stats(
         store_id=store_filter if isinstance(store_filter, str) else store_id,
     )
@@ -426,10 +464,11 @@ async def get_statistics_by_freelancer(
     store_id: str | None = None,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("freelance:list")),
 ):
     store_filter = get_store_filter(current_admin)
-    service = FreelanceService(db)
+    service = FreelanceService(db, tenant_id=tenant_anchor)
     return await service.get_stats_by_freelancer(
         store_id=store_filter if isinstance(store_filter, str) else store_id,
     )
@@ -441,10 +480,11 @@ async def get_statistics_by_month(
     months: int = Query(12, ge=1, le=24),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("freelance:list")),
 ):
     store_filter = get_store_filter(current_admin)
-    service = FreelanceService(db)
+    service = FreelanceService(db, tenant_id=tenant_anchor)
     return await service.get_stats_by_month(
         store_id=store_filter if isinstance(store_filter, str) else store_id,
         months=months,
@@ -456,10 +496,11 @@ async def get_task_statistics(
     store_id: str | None = None,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("freelance:list")),
 ):
     store_filter = get_store_filter(current_admin)
-    service = FreelanceService(db)
+    service = FreelanceService(db, tenant_id=tenant_anchor)
     return await service.get_task_stats(
         store_id=store_filter if isinstance(store_filter, str) else store_id,
     )
@@ -475,21 +516,21 @@ async def export_settlements(
     end_date: datetime | None = None,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("freelance:list")),
 ):
     """导出结算列表为 Excel"""
     from app.infrastructure.excel.export_service import ExcelExportService
-    from app.middleware.tenant_context import get_current_tenant_id
     from app.models.freelance import Freelancer, FreelanceSettlement
 
     store_filter = get_store_filter(current_admin)
-    tenant_id = get_current_tenant_id()
+    # R1-4：导出属于跨租户数据面，平台管理员必须显式指定租户
+    tenant_id = _require_anchor(tenant_anchor)
 
     stmt = select(FreelanceSettlement).join(
         Freelancer, FreelanceSettlement.freelancer_id == Freelancer.id
     )
-    if tenant_id:
-        stmt = stmt.where(FreelanceSettlement.tenant_id == tenant_id)
+    stmt = stmt.where(FreelanceSettlement.tenant_id == tenant_id)
     if isinstance(store_filter, str):
         stmt = stmt.where(FreelanceSettlement.store_id == store_filter)
     elif store_id:
@@ -573,10 +614,10 @@ async def import_freelancers(
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("freelance:create")),
 ):
     """批量导入兼职人员"""
-    from app.middleware.tenant_context import get_current_tenant_id
     from app.models.freelance import Freelancer
     from app.models.store import Store
     from app.modules.import_export.service_import import ImportService
@@ -585,9 +626,8 @@ async def import_freelancers(
     if not filename.endswith((".xlsx", ".xls")):
         raise HTTPException(status_code=400, detail="请上传 .xlsx 或 .xls 格式的 Excel 文件")
 
-    tenant_id = get_current_tenant_id()
-    if not tenant_id:
-        raise HTTPException(status_code=400, detail="导入操作需要租户上下文")
+    # R1-4/R1-5：导入只认账号锚点，不再回退请求上下文
+    tenant_id = _require_anchor(tenant_anchor)
 
     content = await file.read()
     headers = ["姓名", "手机号", "门店名称", "平台", "账号名", "账号类型", "备注"]
@@ -631,6 +671,7 @@ async def import_freelancers(
 
     import_service = ImportService(db)
     result = await import_service.validate_and_import(
-        content, file.filename, headers, required_fields, process_row
+        content, file.filename, headers, required_fields, process_row,
+        tenant_id=tenant_id,
     )
     return result

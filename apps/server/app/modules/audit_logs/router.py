@@ -1,20 +1,34 @@
 """审计日志 API"""
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy import and_, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.deps import get_current_admin
+from app.api.deps import get_current_admin, require_admin_tenant_anchor
 from app.core.config import settings
 from app.db.session import get_db
-from app.middleware.tenant_context import get_current_tenant_id
 from app.models.appointment import Appointment
 from app.models.rule_set import AppointmentCheckin
 
 router = APIRouter()
+
+
+def _resolve_audit_tenant(current_admin: dict, tenant_id: str | None) -> str:
+    """R1-19：审计数据只按账号锚点访问（不回退请求上下文）。
+
+    - 租户管理员传他人 tenant_id → 403；
+    - 平台管理员未指定租户 → 400；
+    - 平台管理员指定租户 → 以该租户为锚点。
+    """
+    anchor = require_admin_tenant_anchor(tenant_id=tenant_id, current_admin=current_admin)
+    if tenant_id and anchor and tenant_id != anchor:
+        raise HTTPException(status_code=403, detail="无权访问其他租户的数据")
+    if not anchor:
+        raise HTTPException(status_code=400, detail="无法确定租户ID，请指定 tenant_id 后重试")
+    return anchor
 
 
 @router.get("/checkin-logs")
@@ -27,11 +41,12 @@ async def get_checkin_logs(
     end_time: datetime | None = Query(None, description="结束时间"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=settings.MAX_PAGE_SIZE, description="每页数量"),
+    tenant_id: str | None = Query(None, description="租户ID（平台管理员必须显式指定）"),
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
 ):
     """查询签到审计日志"""
-    tenant_id = get_current_tenant_id()
+    tenant_id = _resolve_audit_tenant(current_admin, tenant_id)
 
     # 构建 with appointment join
     query = select(AppointmentCheckin).options(
@@ -114,11 +129,12 @@ async def get_checkin_logs(
 async def get_checkin_log_statistics(
     start_date: datetime | None = Query(None, description="开始日期"),
     end_date: datetime | None = Query(None, description="结束日期"),
+    tenant_id: str | None = Query(None, description="租户ID（平台管理员必须显式指定）"),
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
 ):
     """获取签到审计日志统计"""
-    tenant_id = get_current_tenant_id()
+    tenant_id = _resolve_audit_tenant(current_admin, tenant_id)
 
     query = select(
         AppointmentCheckin.status,
@@ -174,15 +190,10 @@ async def export_audit_logs(
 
     from app.models.tenant_audit_log import TenantAuditLog
 
-    # 确定租户范围
-    if not current_admin.get("is_super_admin"):
-        tid = current_admin.get("tenant_id")
-        if not tid:
-            raise HTTPException(status_code=403, detail="未关联租户")
-    else:
-        tid = tenant_id
-        if not tid:
-            raise HTTPException(status_code=400, detail="请指定 tenant_id")
+    # R1-19：确定租户范围（只认账号锚点，不回退请求上下文）
+    tid = _resolve_audit_tenant(current_admin, tenant_id)
+    if not current_admin.get("is_super_admin") and tenant_id and tenant_id != tid:
+        raise HTTPException(status_code=403, detail="无权导出其他租户的审计日志")
 
     query = select(TenantAuditLog).where(TenantAuditLog.tenant_id == tid)
 

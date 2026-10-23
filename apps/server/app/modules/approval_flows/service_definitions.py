@@ -46,10 +46,23 @@ def _normalize_listeners(listeners: list[dict] | None) -> list[dict] | None:
 
 
 class FlowDefinitionService:
-    """审批流定义 CRUD 服务"""
+    """审批流定义 CRUD 服务
 
-    def __init__(self, db: AsyncSession):
+    Args:
+        db: 数据库会话
+        tenant_id: 管理员账号租户锚点（R1-7）。查询/写入以锚点为准；
+            未传入时才回退请求上下文（兼容医生端/内部调用）。
+    """
+
+    def __init__(self, db: AsyncSession, tenant_id: str | None = None):
         self.db = db
+        self.tenant_id = tenant_id
+
+    def _anchor(self) -> str | None:
+        """账号锚点优先，未提供时回退请求上下文（仅为兼容非管理端调用）。"""
+        if self.tenant_id is not None:
+            return self.tenant_id
+        return get_current_tenant_id()
 
     async def get_list(
         self,
@@ -64,7 +77,7 @@ class FlowDefinitionService:
         stmt = select(ApprovalFlowDefinition)
         count_stmt = select(func.count(ApprovalFlowDefinition.id))
 
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._anchor()
         if tenant_id:
             stmt = stmt.where(ApprovalFlowDefinition.tenant_id == tenant_id)
             count_stmt = count_stmt.where(ApprovalFlowDefinition.tenant_id == tenant_id)
@@ -90,14 +103,17 @@ class FlowDefinitionService:
         return list(result.scalars().all()), count_result.scalar() or 0
 
     async def get_by_id(self, flow_def_id: str) -> ApprovalFlowDefinition | None:
-        """获取流程定义详情（含节点和条件）"""
+        """获取流程定义详情（含节点和条件），按租户锚点强过滤。"""
         stmt = select(ApprovalFlowDefinition).where(ApprovalFlowDefinition.id == flow_def_id)
+        tenant_id = self._anchor()
+        if tenant_id:
+            stmt = stmt.where(ApprovalFlowDefinition.tenant_id == tenant_id)
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
     async def get_by_business_type(self, business_type: str) -> ApprovalFlowDefinition | None:
         """按业务类型获取激活的流程定义"""
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._anchor()
         stmt = select(ApprovalFlowDefinition).where(
             and_(
                 ApprovalFlowDefinition.business_type == business_type,
@@ -112,7 +128,7 @@ class FlowDefinitionService:
 
     async def get_by_name(self, name: str, business_type: str = "custom") -> ApprovalFlowDefinition | None:
         """按名称查找最新版本的流程定义"""
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._anchor()
         stmt = select(ApprovalFlowDefinition).where(
             ApprovalFlowDefinition.name == name,
             ApprovalFlowDefinition.business_type == business_type,
@@ -180,7 +196,7 @@ class FlowDefinitionService:
 
     async def create(self, data: FlowDefinitionCreate, user_id: str) -> ApprovalFlowDefinition:
         """创建流程定义"""
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._anchor()
 
         # 计算版本号
         version = await self._next_version(data.business_type, tenant_id)
@@ -240,6 +256,8 @@ class FlowDefinitionService:
                 self.db.add(condition)
 
         await self.db.flush()
+        # 关系为 selectin 懒加载，序列化前显式加载，避免异步会话中隐式 IO
+        await self.db.refresh(flow_def, attribute_names=["nodes", "conditions"])
         return flow_def
 
     async def update(self, flow_def_id: str, data: FlowDefinitionUpdate, user_id: str) -> ApprovalFlowDefinition | None:
@@ -323,7 +341,7 @@ class FlowDefinitionService:
             raise ValueError("流程校验失败: " + "；".join(validation["errors"]))
 
         # 归档同业务类型的其他激活流程
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._anchor()
         stmt = select(ApprovalFlowDefinition).where(
             and_(
                 ApprovalFlowDefinition.business_type == flow_def.business_type,

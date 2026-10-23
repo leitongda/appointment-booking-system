@@ -2,23 +2,41 @@
 from datetime import datetime
 from io import BytesIO
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.deps import get_current_admin, require_permission
-from app.common.deps import check_store_access, get_store_filter, get_tenant_filter
+from app.api.deps import (
+    get_current_admin,
+    require_admin_tenant_anchor,
+    require_permission,
+)
+from app.common.deps import check_store_access, get_store_filter
+from app.common.feature_deps import require_feature
 from app.db.session import get_db
 from app.infrastructure.excel.export_service import ExcelExportService
-from app.middleware.tenant_context import get_current_tenant_id
 from app.models.department import Department
 from app.models.doctor import Doctor
 from app.models.store import Store
 from app.models.user import Patient
 
-router = APIRouter()
+# R3-5：数据导出统一受租户 export_data 功能开关控制
+# （FEATURE_ENFORCEMENT_ENABLED=False 时 require_feature 直接放行）
+router = APIRouter(
+    dependencies=[Depends(require_feature("export_data", get_current_admin))]
+)
+
+
+def _require_export_tenant(tenant_anchor: str | None) -> str:
+    """R1-5：导出必须拿到管理员账号锚点，平台管理员未指定租户时拒绝。"""
+    if not tenant_anchor:
+        raise HTTPException(
+            status_code=400,
+            detail="导出操作需要租户上下文，请指定 tenant_id 后重试",
+        )
+    return tenant_anchor
 
 
 def _apply_store_filter(
@@ -52,14 +70,15 @@ async def export_doctors(
     status: int | None = None,
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("doctor:export", "doctor:list")),
 ):
     """导出医生列表"""
     # 获取门店过滤条件
     filter_store_ids = get_store_filter(current_admin)
 
-    # 获取租户过滤条件（双重保险）
-    tenant_id = get_tenant_filter(current_admin)
+    # R1-5：导出只认管理员账号锚点
+    tenant_id = _require_export_tenant(tenant_anchor)
 
     # 如果用户传了 store_id，验证权限
     if store_id and not current_admin.get("is_super_admin"):
@@ -126,13 +145,12 @@ async def export_patients(
     keyword: str | None = None,
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("patient:export", "patient:list")),
 ):
     """导出患者列表"""
     # 获取租户过滤
-    tenant_id = get_tenant_filter(current_admin)
-    if not tenant_id:
-        tenant_id = get_current_tenant_id()
+    tenant_id = _require_export_tenant(tenant_anchor)
 
     query = select(Patient)
 
@@ -184,14 +202,15 @@ async def export_departments(
     status: int | None = None,
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("department:export", "department:list")),
 ):
     """导出科室列表"""
     # 获取门店过滤条件
     filter_store_ids = get_store_filter(current_admin)
 
-    # 获取租户过滤条件（双重保险）
-    tenant_id = get_tenant_filter(current_admin)
+    # R1-5：导出只认管理员账号锚点
+    tenant_id = _require_export_tenant(tenant_anchor)
 
     # 如果用户传了 store_id，验证权限
     if store_id and not current_admin.get("is_super_admin"):
@@ -241,14 +260,15 @@ async def export_stores(
     status: int | None = None,
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("store:export", "store:list")),
 ):
     """导出门店列表"""
     # 获取门店过滤条件
     filter_store_ids = get_store_filter(current_admin)
 
-    # 获取租户过滤条件（双重保险）
-    tenant_id = get_tenant_filter(current_admin)
+    # R1-5：导出只认管理员账号锚点
+    tenant_id = _require_export_tenant(tenant_anchor)
 
     query = select(Store)
 
@@ -294,6 +314,7 @@ async def export_schedule_templates(
     status: int | None = None,
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("schedule_template:export", "schedule_template:list")),
 ):
     """导出排班模板列表"""
@@ -304,8 +325,8 @@ async def export_schedule_templates(
     # 获取门店过滤条件
     filter_store_ids = get_store_filter(current_admin)
 
-    # 获取租户过滤条件（双重保险）
-    tenant_id = get_tenant_filter(current_admin)
+    # R1-5：导出只认管理员账号锚点
+    tenant_id = _require_export_tenant(tenant_anchor)
 
     # 如果用户传了 store_id，验证权限
     if store_id and not current_admin.get("is_super_admin"):
@@ -377,6 +398,7 @@ async def export_users(
     status: int | None = None,
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("admin:export", "admin:list")),
 ):
     """导出系统用户列表"""
@@ -393,11 +415,15 @@ async def export_users(
             store_id = None
 
     final_store_ids = store_id if store_id else filter_store_ids
+    tenant_id = _require_export_tenant(tenant_anchor)
 
     query = select(Admin).options(
         selectinload(Admin.role),
         selectinload(Admin.stores),
     )
+
+    # R1-5：系统用户导出必须按租户过滤
+    query = query.where(Admin.tenant_id == tenant_id)
 
     # 应用门店过滤（多对多关系）
     if final_store_ids is not None:
@@ -449,15 +475,14 @@ async def export_logs(
     end_time: datetime | None = None,
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("log:export", "log:list")),
 ):
     """导出操作日志"""
     from app.models.admin import OperationLog
 
     # 获取租户过滤条件
-    tenant_id = get_tenant_filter(current_admin)
-    if not tenant_id:
-        tenant_id = get_current_tenant_id()
+    tenant_id = _require_export_tenant(tenant_anchor)
 
     query = select(OperationLog)
     conditions = []
@@ -511,15 +536,14 @@ async def export_feedbacks(
     feedback_type: str | None = None,
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("feedback:export", "feedback:list")),
 ):
     """导出用户反馈"""
     from app.models.feedback import Feedback
 
     # 获取租户过滤条件
-    tenant_id = get_tenant_filter(current_admin)
-    if not tenant_id:
-        tenant_id = get_current_tenant_id()
+    tenant_id = _require_export_tenant(tenant_anchor)
 
     query = select(Feedback)
 
@@ -570,6 +594,7 @@ async def export_schedules(
     status: int | None = None,
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("schedule:read")),
 ):
     """导出排班数据（多工作表：排班明细 + 汇总统计）"""
@@ -587,9 +612,7 @@ async def export_schedules(
             raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail="您无权访问此门店数据")
 
     # 获取租户过滤条件
-    tenant_id = get_tenant_filter(current_admin)
-    if not tenant_id:
-        tenant_id = get_current_tenant_id()
+    tenant_id = _require_export_tenant(tenant_anchor)
 
     # 构建查询
     query = (
@@ -711,6 +734,7 @@ async def export_rule_sets(
     enabled: bool | None = None,
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("rule_set:export", "rule_set:list")),
 ):
     """导出规则组列表（多工作表）"""
@@ -719,9 +743,7 @@ async def export_rule_sets(
     from app.models.rule_set import RuleSet
 
     # 获取租户过滤条件
-    tenant_id = get_tenant_filter(current_admin)
-    if not tenant_id:
-        tenant_id = get_current_tenant_id()
+    tenant_id = _require_export_tenant(tenant_anchor)
 
     # 查询所有规则组及其关联数据
     query = select(RuleSet).options(

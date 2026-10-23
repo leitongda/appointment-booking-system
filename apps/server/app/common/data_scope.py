@@ -8,10 +8,15 @@
     query = apply_data_scope(query, Doctor, current_admin)
 """
 import json
+import logging
 from typing import Any
 
-from sqlalchemy import Select
+from sqlalchemy import Select, false
 from sqlalchemy.orm import DeclarativeBase
+
+from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class DataScopeFilter:
@@ -95,6 +100,24 @@ class DataScopeFilter:
             tenant_id = admin_info.get("tenant_id")
             if tenant_id and hasattr(model, tenant_id_column):
                 return getattr(model, tenant_id_column) == tenant_id
+
+            # 租户范围但缺少租户锚点（或模型没有 tenant_id 列）：
+            # TENANT_FILTER_FAIL_CLOSE=True 时 fail-close（永假条件 → 空结果）；
+            # 灰度关闭时保留旧行为（不过滤）并告警（R1-3）。
+            if settings.TENANT_FILTER_FAIL_CLOSE:
+                logger.warning(
+                    "data_scope tenant branch without tenant anchor: admin_id=%s model=%s (fail-close)",
+                    admin_info.get("id"),
+                    getattr(model, "__name__", model),
+                )
+                return false()
+
+            logger.warning(
+                "data_scope tenant branch without tenant anchor: admin_id=%s model=%s "
+                "(TENANT_FILTER_FAIL_CLOSE=False)",
+                admin_info.get("id"),
+                getattr(model, "__name__", model),
+            )
             return None
 
         if scope_type == "store":

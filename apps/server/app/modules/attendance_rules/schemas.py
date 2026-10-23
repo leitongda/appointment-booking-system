@@ -1,5 +1,7 @@
 """考勤规则管理 Schema 定义"""
 
+from datetime import datetime
+
 from pydantic import Field
 
 from app.schemas.base import BaseSchema
@@ -37,4 +39,4 @@ class AttendanceRuleResponse(BaseSchema):
     overtime_enabled: bool
     overtime_min_minutes: int
     enabled: bool
-    created_at: str | None = None
+    created_at: datetime | None = None

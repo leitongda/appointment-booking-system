@@ -41,8 +41,8 @@ class AdminService:
         )
         conditions = []
 
-        # 租户过滤：非平台管理员只能看到本租户的管理员
-        effective_tenant_id = tenant_id or get_current_tenant_id()
+        # R1-6：租户过滤只认显式锚点，不再回退请求上下文
+        effective_tenant_id = tenant_id
         if effective_tenant_id:
             conditions.append(Admin.tenant_id == effective_tenant_id)
 
@@ -93,8 +93,8 @@ class AdminService:
             .where(Admin.id == admin_id)
         )
 
-        # 租户过滤
-        effective_tenant_id = tenant_id or get_current_tenant_id()
+        # R1-6：租户过滤只认显式锚点
+        effective_tenant_id = tenant_id
         if effective_tenant_id:
             query = query.where(Admin.tenant_id == effective_tenant_id)
 
@@ -119,8 +119,8 @@ class AdminService:
             .where(Admin.username == username)
         )
 
-        # 租户过滤（用于唯一性检查场景）
-        effective_tenant_id = tenant_id or get_current_tenant_id()
+        # R1-6：唯一性检查只认显式锚点
+        effective_tenant_id = tenant_id
         if effective_tenant_id:
             query = query.where(Admin.tenant_id == effective_tenant_id)
 
@@ -145,8 +145,8 @@ class AdminService:
             .where(Admin.phone == phone)
         )
 
-        # 租户过滤（用于唯一性检查场景）
-        effective_tenant_id = tenant_id or get_current_tenant_id()
+        # R1-6：唯一性检查只认显式锚点
+        effective_tenant_id = tenant_id
         if effective_tenant_id:
             query = query.where(Admin.tenant_id == effective_tenant_id)
 
@@ -227,12 +227,14 @@ class AdminService:
 
         - 平台管理员：必须显式指定 tenant_id（否则 400），以其为目标租户；
         - 租户管理员：载荷 tenant_id 不得指向其他租户（否则 403），目标恒为自身租户；
-        - 内部调用（actor 为空）：沿用上下文推断，保持向后兼容。
+        - 内部调用（actor 为空）：必须显式给定 tenant_id，不回退请求上下文（R1-6）。
         """
         payload_tenant_id = data.get("tenant_id")
 
         if actor is None:
-            return payload_tenant_id or get_current_tenant_id()
+            if not payload_tenant_id:
+                raise ValueError("创建管理员时必须指定 tenant_id")
+            return payload_tenant_id
 
         is_platform = bool(actor.get("is_super_admin") or actor.get("is_platform_admin"))
         actor_tenant_id = actor.get("tenant_id")
@@ -264,13 +266,14 @@ class AdminService:
         operator_id: str | None = None,
         actor: dict | None = None,
     ) -> Admin:
-        # 租户内检查用户名唯一性
-        existing = await self.get_by_username(data["username"])
+        # 先消解目标租户，再做租户内唯一性检查（R1-6：不依赖请求上下文）
+        tenant_id = self._resolve_create_tenant_id(data, actor)
+
+        existing = await self.get_by_username(data["username"], tenant_id=tenant_id)
         if existing:
             raise ValueError("用户名已存在")
 
-        # 先消解目标租户，再校验角色归属（防止借载荷 tenant_id 换锚跨租户建号）
-        tenant_id = self._resolve_create_tenant_id(data, actor)
+        # 校验角色归属（防止借载荷 tenant_id 换锚跨租户建号）
 
         role_id = data.get("role_id")
         if role_id and tenant_id:
@@ -337,14 +340,20 @@ class AdminService:
         await self.db.commit()
         return await self.get_by_id(admin.id)
 
-    async def update(self, admin_id: str, data: dict, operator_id: str | None = None) -> Admin | None:
-        admin = await self.get_by_id(admin_id)
+    async def update(
+        self,
+        admin_id: str,
+        data: dict,
+        operator_id: str | None = None,
+        tenant_id: str | None = None,
+    ) -> Admin | None:
+        admin = await self.get_by_id(admin_id, tenant_id=tenant_id)
         if not admin:
             return None
 
         if data.get("username") and data["username"] != admin.username:
             # 租户内检查用户名唯一性
-            existing = await self.get_by_username(data["username"])
+            existing = await self.get_by_username(data["username"], tenant_id=admin.tenant_id)
             if existing:
                 raise ValueError("用户名已存在")
 
@@ -402,11 +411,13 @@ class AdminService:
         )
 
         await self.db.commit()
-        return await self.get_by_id(admin_id)
+        return await self.get_by_id(admin_id, tenant_id=tenant_id)
 
-    async def reset_password(self, admin_id: str, new_password: str) -> bool:
+    async def reset_password(
+        self, admin_id: str, new_password: str, tenant_id: str | None = None
+    ) -> bool:
         # 租户过滤：通过 get_by_id 查询，确保不能跨租户重置密码
-        admin = await self.get_by_id(admin_id)
+        admin = await self.get_by_id(admin_id, tenant_id=tenant_id)
         if not admin:
             return False
 
@@ -448,17 +459,17 @@ class AdminService:
 
             await self.db.commit()
 
-    async def delete(self, admin_id: str) -> bool:
-        admin = await self.get_by_id(admin_id)
+    async def delete(self, admin_id: str, tenant_id: str | None = None) -> bool:
+        admin = await self.get_by_id(admin_id, tenant_id=tenant_id)
         if not admin:
             return False
 
         if admin.role and admin.role.code == "SUPER_ADMIN":
             # 租户过滤：只在当前租户范围内统计超级管理员数量
             count_query = select(func.count(Admin.id)).join(Role).where(Role.code == "SUPER_ADMIN")
-            effective_tenant_id = get_current_tenant_id()
-            if effective_tenant_id:
-                count_query = count_query.where(Admin.tenant_id == effective_tenant_id)
+            # R1-6：以目标管理员所属租户统计，不读请求上下文
+            if admin.tenant_id:
+                count_query = count_query.where(Admin.tenant_id == admin.tenant_id)
             super_admin_count = await self.db.scalar(count_query)
             if super_admin_count and super_admin_count <= 1:
                 raise ValueError("不能删除最后一个超级管理员")

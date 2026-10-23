@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import (
     get_current_account_dict,
     get_current_admin,
+    require_admin_tenant_anchor,
     require_permission,
 )
 from app.db.session import get_db
@@ -32,16 +33,36 @@ router = APIRouter()
 
 # ========== 消息发送 ==========
 
+def _apply_tenant_anchor(
+    event: NotificationEvent, tenant_anchor: str | None
+) -> NotificationEvent:
+    """R1-17：请求体里的 tenant_id 不能越过管理端锚点。
+
+    - 锚点存在时以锚点为准；
+    - 请求体显式指定了不同租户 → 403；
+    - 锚点为空（平台管理员未指定租户且开关关闭）时保留请求体值。
+    """
+    if not tenant_anchor:
+        return event
+    if event.tenant_id and event.tenant_id != tenant_anchor:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="请求体 tenantId 与当前租户不一致",
+        )
+    return event.model_copy(update={"tenant_id": tenant_anchor})
+
+
 @router.post("/send", response_model=SendResult, summary="发送统一通知")
 async def send_notification(
     event: NotificationEvent,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("message:send")),
 ):
     """发送统一通知"""
     service = UnifiedMessageService(db)
-    return await service.send(event)
+    return await service.send(_apply_tenant_anchor(event, tenant_anchor))
 
 
 @router.post("/send-batch", response_model=BatchSendResult, summary="批量发送通知")
@@ -50,11 +71,14 @@ async def send_batch_notification(
     rule_id: str | None = Query(None, description="指定接收人规则ID"),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("message:send")),
 ):
     """根据规则批量发送通知"""
     service = UnifiedMessageService(db)
-    return await service.send_to_rule(event, rule_id=rule_id)
+    return await service.send_to_rule(
+        _apply_tenant_anchor(event, tenant_anchor), rule_id=rule_id
+    )
 
 
 # ========== 消息查询 ==========
@@ -190,12 +214,13 @@ async def get_templates(
     status: int | None = Query(None, ge=0, le=1, description="状态"),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("message:list")),
 ):
     """获取统一模板列表"""
     service = UnifiedMessageService(db)
     return await service.get_templates(
-        tenant_id=current_admin.get("tenant_id"),
+        tenant_id=tenant_anchor,
         message_type=message_type,
         status=status,
     )
@@ -210,13 +235,14 @@ async def create_template(
     data: UnifiedTemplateCreate,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("message:send")),
 ):
     """创建统一模板"""
     service = UnifiedMessageService(db)
     try:
         template = await service.create_template(
-            tenant_id=current_admin.get("tenant_id"),
+            tenant_id=tenant_anchor,
             template_data=data.model_dump(),
         )
         return UnifiedTemplateResponse.model_validate(template)
@@ -234,13 +260,14 @@ async def update_template(
     data: UnifiedTemplateCreate,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("message:send")),
 ):
     """更新统一模板"""
     service = UnifiedMessageService(db)
     template = await service.update_template(
         template_id=template_id,
-        tenant_id=current_admin.get("tenant_id"),
+        tenant_id=tenant_anchor,
         template_data=data.model_dump(),
     )
     if not template:
@@ -253,11 +280,12 @@ async def delete_template(
     template_id: str,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("message:delete")),
 ):
     """删除统一模板"""
     service = UnifiedMessageService(db)
-    success = await service.delete_template(template_id, current_admin.get("tenant_id"))
+    success = await service.delete_template(template_id, tenant_anchor)
     if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="模板不存在")
     return {"message": "删除成功"}
@@ -274,12 +302,13 @@ async def get_rules(
     event_type: str | None = Query(None, description="事件类型"),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("message:list")),
 ):
     """获取接收人规则列表"""
     service = UnifiedMessageService(db)
     return await service.get_rules(
-        tenant_id=current_admin.get("tenant_id"),
+        tenant_id=tenant_anchor,
         event_type=event_type,
     )
 
@@ -293,12 +322,13 @@ async def create_rule(
     data: RecipientRuleCreate,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("message:send")),
 ):
     """创建接收人规则"""
     service = UnifiedMessageService(db)
     rule = await service.create_rule(
-        tenant_id=current_admin.get("tenant_id"),
+        tenant_id=tenant_anchor,
         rule_data=data.model_dump(),
     )
     return RecipientRuleResponse.model_validate(rule)
@@ -314,13 +344,14 @@ async def update_rule(
     data: RecipientRuleCreate,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("message:send")),
 ):
     """更新接收人规则"""
     service = UnifiedMessageService(db)
     rule = await service.update_rule(
         rule_id=rule_id,
-        tenant_id=current_admin.get("tenant_id"),
+        tenant_id=tenant_anchor,
         rule_data=data.model_dump(),
     )
     if not rule:
@@ -333,11 +364,12 @@ async def delete_rule(
     rule_id: str,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("message:delete")),
 ):
     """删除接收人规则"""
     service = UnifiedMessageService(db)
-    success = await service.delete_rule(rule_id, current_admin.get("tenant_id"))
+    success = await service.delete_rule(rule_id, tenant_anchor)
     if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="规则不存在")
     return {"message": "删除成功"}

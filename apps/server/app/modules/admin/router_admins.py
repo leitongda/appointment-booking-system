@@ -4,7 +4,13 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import check_store_access, get_current_admin, get_tenant_filter, require_permission
+from app.api.deps import (
+    check_store_access,
+    get_current_admin,
+    get_store_filter,
+    require_admin_tenant_anchor,
+    require_permission,
+)
 from app.core.config import settings
 from app.db.session import get_db
 from app.modules.admin.helpers import build_admin_response
@@ -13,6 +19,16 @@ from app.modules.admin.service_admins import AdminService, TenantScopeError
 from app.schemas.response import PageResponse
 
 router = APIRouter()
+
+
+def _require_admin_tenant(tenant_anchor: str | None) -> str:
+    """R1-6：管理员管理端点必须拿到账号锚点，平台管理员未指定租户时 400。"""
+    if not tenant_anchor:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="无法确定租户ID，请指定 tenant_id 后重试",
+        )
+    return tenant_anchor
 
 
 @router.get("/admins", response_model=PageResponse[AdminResponse], summary="获取管理员列表")
@@ -25,10 +41,10 @@ async def get_admins(
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
 ):
-    from app.api.deps import get_store_filter
-
     service = AdminService(db)
+    tenant_id = _require_admin_tenant(tenant_anchor)
     store_filter = get_store_filter(current_admin)
     if store_filter:
         store_id = store_filter
@@ -39,6 +55,7 @@ async def get_admins(
         store_id=store_id,
         page=page,
         page_size=page_size,
+        tenant_id=tenant_id,
     )
     return PageResponse(data=[build_admin_response(item) for item in items], total=total, page=page, page_size=page_size)
 
@@ -48,9 +65,11 @@ async def get_admin(
     admin_id: str,
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
 ):
     service = AdminService(db)
-    admin = await service.get_by_id(admin_id)
+    tenant_id = _require_admin_tenant(tenant_anchor)
+    admin = await service.get_by_id(admin_id, tenant_id=tenant_id)
     if not admin:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="管理员不存在，请检查后重试")
     return build_admin_response(admin)
@@ -61,15 +80,22 @@ async def create_admin(
     data: AdminCreate,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("system:user:create")),
 ):
-    from app.api.deps import get_store_filter
-
+    # R1-6：显式锚点优先（query/header），平台管理员也可用载荷 tenant_id 指定目标租户
+    tenant_id = _require_admin_tenant(tenant_anchor or data.tenant_id)
     store_filter = get_store_filter(current_admin)
     if store_filter:
         if data.store_id and data.store_id != store_filter:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="只能在本门店创建用户，请选择正确的门店")
         data.store_id = store_filter
+
+    # R1-6：锚点即目标租户，载荷 tenant_id 不得越过锚点
+    if data.tenant_id is None:
+        data.tenant_id = tenant_id
+    elif data.tenant_id != tenant_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="禁止跨租户创建管理员")
 
     service = AdminService(db)
     try:
@@ -78,7 +104,7 @@ async def create_admin(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-    admin = await service.get_by_id(admin.id)
+    admin = await service.get_by_id(admin.id, tenant_id=tenant_id)
     return build_admin_response(admin)
 
 
@@ -88,18 +114,18 @@ async def update_admin(
     data: AdminUpdate,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("system:user:update")),
 ):
-    from app.api.deps import get_store_filter
+    tenant_id = _require_admin_tenant(tenant_anchor)
 
     service = AdminService(db)
-    admin = await service.get_by_id(admin_id)
+    admin = await service.get_by_id(admin_id, tenant_id=tenant_id)
     if not admin:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在，请检查后重试")
 
-    # 租户校验：非超管只能修改本租户的管理员
-    tenant_filter = get_tenant_filter(current_admin)
-    if tenant_filter and admin.tenant_id != tenant_filter:
+    # 租户校验：锚点之外的管理员一律拒绝
+    if admin.tenant_id != tenant_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权修改其他租户的管理员")
 
     store_filter = get_store_filter(current_admin)
@@ -115,11 +141,11 @@ async def update_admin(
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权修改用户的门店归属")
 
     try:
-        await service.update(admin_id, data.model_dump(exclude_unset=True))
+        await service.update(admin_id, data.model_dump(exclude_unset=True), tenant_id=tenant_id)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
-    admin = await service.get_by_id(admin_id)
+    admin = await service.get_by_id(admin_id, tenant_id=tenant_id)
     return build_admin_response(admin)
 
 
@@ -129,20 +155,20 @@ async def reset_admin_password(
     new_password: str = Query(..., min_length=6),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("system:user:reset-password")),
 ):
+    tenant_id = _require_admin_tenant(tenant_anchor)
     service = AdminService(db)
 
-    # 租户校验：非超管只能重置本租户管理员的密码
-    tenant_filter = get_tenant_filter(current_admin)
-    if tenant_filter:
-        admin = await service.get_by_id(admin_id)
-        if not admin:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="管理员不存在，请检查后重试")
-        if admin.tenant_id != tenant_filter:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权重置其他租户管理员的密码")
+    # 租户校验：锚点之外的管理员一律拒绝
+    admin = await service.get_by_id(admin_id, tenant_id=tenant_id)
+    if not admin:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="管理员不存在，请检查后重试")
+    if admin.tenant_id != tenant_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权重置其他租户管理员的密码")
 
-    success = await service.reset_password(admin_id, new_password)
+    success = await service.reset_password(admin_id, new_password, tenant_id=tenant_id)
     if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="管理员不存在，请检查后重试")
     return {"message": "密码重置成功"}
@@ -153,21 +179,21 @@ async def delete_admin(
     admin_id: str,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("system:user:delete")),
 ):
+    tenant_id = _require_admin_tenant(tenant_anchor)
     service = AdminService(db)
 
-    # 租户校验：非超管只能删除本租户的管理员
-    tenant_filter = get_tenant_filter(current_admin)
-    if tenant_filter:
-        admin = await service.get_by_id(admin_id)
-        if not admin:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="管理员不存在，请检查后重试")
-        if admin.tenant_id != tenant_filter:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权删除其他租户的管理员")
+    # 租户校验：锚点之外的管理员一律拒绝
+    admin = await service.get_by_id(admin_id, tenant_id=tenant_id)
+    if not admin:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="管理员不存在，请检查后重试")
+    if admin.tenant_id != tenant_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权删除其他租户的管理员")
 
     try:
-        success = await service.delete(admin_id)
+        success = await service.delete(admin_id, tenant_id=tenant_id)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     if not success:

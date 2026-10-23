@@ -6,12 +6,16 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_admin, get_store_filter, require_permission
+from app.api.deps import (
+    get_current_admin,
+    get_store_filter,
+    require_admin_tenant_anchor,
+    require_permission,
+)
 from app.core.config import settings
 from app.core.security import get_password_hash
 from app.db.session import get_db
 from app.infrastructure.excel.import_service import ExcelImportService
-from app.middleware.tenant_context import get_current_tenant_id
 from app.models.department import Department
 from app.models.doctor import Doctor
 from app.models.schedule import Schedule
@@ -26,6 +30,16 @@ router = APIRouter()
 SUPPORTED_EXCEL_EXTENSIONS = (".xlsx", ".xls")
 
 
+def _require_tenant_anchor(tenant_anchor: str | None) -> str:
+    """R1-5：导入必须拿到管理员账号锚点，否则拒绝。"""
+    if not tenant_anchor:
+        raise HTTPException(
+            status_code=400,
+            detail="导入操作需要租户上下文，请指定 tenant_id 后重试",
+        )
+    return tenant_anchor
+
+
 def validate_excel_upload(file: UploadFile) -> None:
     filename = (file.filename or "").lower()
     if not filename.endswith(SUPPORTED_EXCEL_EXTENSIONS):
@@ -37,14 +51,13 @@ async def import_doctors(
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("doctor:create")),
 ):
     validate_excel_upload(file)
 
-    # 获取租户上下文
-    tenant_id = get_current_tenant_id()
-    if not tenant_id:
-        raise HTTPException(status_code=400, detail="导入操作需要租户上下文")
+    # R1-5：导入只认管理员账号锚点，不回退请求上下文
+    tenant_id = _require_tenant_anchor(tenant_anchor)
 
     content = await file.read()
 
@@ -92,7 +105,8 @@ async def import_doctors(
 
     import_service = ImportService(db)
     result = await import_service.validate_and_import(
-        content, file.filename, headers, required_fields, process_row
+        content, file.filename, headers, required_fields, process_row,
+        tenant_id=tenant_id,
     )
 
     return result
@@ -103,14 +117,13 @@ async def import_patients(
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("patient:create")),
 ):
     validate_excel_upload(file)
 
-    # 获取租户上下文
-    tenant_id = get_current_tenant_id()
-    if not tenant_id:
-        raise HTTPException(status_code=400, detail="导入操作需要租户上下文")
+    # R1-5：导入只认管理员账号锚点，不回退请求上下文
+    tenant_id = _require_tenant_anchor(tenant_anchor)
 
     content = await file.read()
 
@@ -164,7 +177,8 @@ async def import_patients(
 
     import_service = ImportService(db)
     result = await import_service.validate_and_import(
-        content, file.filename, headers, required_fields, process_row
+        content, file.filename, headers, required_fields, process_row,
+        tenant_id=tenant_id,
     )
 
     return result
@@ -175,14 +189,13 @@ async def import_departments(
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("department:create")),
 ):
     validate_excel_upload(file)
 
-    # 获取租户上下文
-    tenant_id = get_current_tenant_id()
-    if not tenant_id:
-        raise HTTPException(status_code=400, detail="导入操作需要租户上下文")
+    # R1-5：导入只认管理员账号锚点，不回退请求上下文
+    tenant_id = _require_tenant_anchor(tenant_anchor)
 
     content = await file.read()
 
@@ -221,7 +234,8 @@ async def import_departments(
 
     import_service = ImportService(db)
     result = await import_service.validate_and_import(
-        content, file.filename, headers, required_fields, process_row
+        content, file.filename, headers, required_fields, process_row,
+        tenant_id=tenant_id,
     )
 
     return result
@@ -232,14 +246,13 @@ async def import_stores(
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("store:create")),
 ):
     validate_excel_upload(file)
 
-    # 获取租户上下文
-    tenant_id = get_current_tenant_id()
-    if not tenant_id:
-        raise HTTPException(status_code=400, detail="导入操作需要租户上下文")
+    # R1-5：导入只认管理员账号锚点，不回退请求上下文
+    tenant_id = _require_tenant_anchor(tenant_anchor)
 
     content = await file.read()
 
@@ -261,7 +274,8 @@ async def import_stores(
 
     import_service = ImportService(db)
     result = await import_service.validate_and_import(
-        content, file.filename, headers, required_fields, process_row
+        content, file.filename, headers, required_fields, process_row,
+        tenant_id=tenant_id,
     )
 
     return result
@@ -272,14 +286,14 @@ async def import_rule_sets(
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("rule_set:create")),
 ):
     """导入规则组数据（多工作表 Excel：规则组、时间窗、预约策略、签到策略、容量策略）"""
     validate_excel_upload(file)
 
-    tenant_id = get_current_tenant_id()
-    if not tenant_id:
-        raise HTTPException(status_code=400, detail="导入操作需要租户上下文")
+    # R1-5：导入只认管理员账号锚点，不回退请求上下文
+    tenant_id = _require_tenant_anchor(tenant_anchor)
 
     content = await file.read()
 
@@ -346,6 +360,7 @@ async def import_schedules(
     conflict_strategy: str = Form("skip"),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("schedule:create")),
 ):
     """从 Excel 文件导入排班数据。
@@ -362,9 +377,8 @@ async def import_schedules(
     if conflict_strategy not in VALID_CONFLICT_STRATEGIES:
         raise HTTPException(status_code=400, detail="无效的冲突策略，可选值: skip/overwrite/report")
 
-    tenant_id = get_current_tenant_id()
-    if not tenant_id:
-        raise HTTPException(status_code=400, detail="导入操作需要租户上下文")
+    # R1-5：导入只认管理员账号锚点，不回退请求上下文
+    tenant_id = _require_tenant_anchor(tenant_anchor)
 
     store_filter = get_store_filter(current_admin)
 

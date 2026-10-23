@@ -20,12 +20,17 @@ class ShiftTypeService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
+    def _tenant(self, tenant_id: str | None) -> str | None:
+        """显式锚点优先；未传时回退请求上下文（R1-12）"""
+        return tenant_id if tenant_id is not None else get_current_tenant_id()
+
     async def get_list(
         self,
         enabled: bool | None = None,
         keyword: str | None = None,
         page: int = 1,
-        page_size: int = 10
+        page_size: int = 10,
+        tenant_id: str | None = None,
     ) -> tuple[list[ShiftType], int]:
         """获取班次类型列表
 
@@ -34,12 +39,17 @@ class ShiftTypeService:
             keyword: 搜索关键词
             page: 页码
             page_size: 每页数量
+            tenant_id: 租户锚点（显式优先，未传回退请求上下文）
 
         Returns:
             (班次类型列表, 总数)
         """
         # 构建查询条件
         conditions = []
+
+        tenant_id = self._tenant(tenant_id)
+        if tenant_id:
+            conditions.append(ShiftType.tenant_id == tenant_id)
 
         if enabled is not None:
             conditions.append(ShiftType.enabled == enabled)
@@ -71,45 +81,54 @@ class ShiftTypeService:
 
         return list(shift_types), total
 
-    async def get_all_enabled(self) -> list[ShiftType]:
+    async def get_all_enabled(self, tenant_id: str | None = None) -> list[ShiftType]:
         """获取所有启用的班次类型
+
+        Args:
+            tenant_id: 租户锚点（显式优先，未传回退请求上下文）
 
         Returns:
             班次类型列表
         """
-        result = await self.db.execute(
-            select(ShiftType)
-            .where(ShiftType.enabled == True)
-            .order_by(ShiftType.code.asc())
-        )
+        tenant_id = self._tenant(tenant_id)
+        stmt = select(ShiftType).where(ShiftType.enabled == True)  # noqa: E712
+        if tenant_id:
+            stmt = stmt.where(ShiftType.tenant_id == tenant_id)
+        result = await self.db.execute(stmt.order_by(ShiftType.code.asc()))
         return list(result.scalars().all())
 
-    async def get_by_id(self, shift_type_id: str) -> ShiftType | None:
+    async def get_by_id(
+        self, shift_type_id: str, tenant_id: str | None = None
+    ) -> ShiftType | None:
         """获取班次类型详情
 
         Args:
             shift_type_id: 班次类型ID
+            tenant_id: 租户锚点（显式优先，未传回退请求上下文）
 
         Returns:
             班次类型
         """
-        result = await self.db.execute(
-            select(ShiftType).where(ShiftType.id == shift_type_id)
-        )
+        tenant_id = self._tenant(tenant_id)
+        stmt = select(ShiftType).where(ShiftType.id == shift_type_id)
+        if tenant_id:
+            stmt = stmt.where(ShiftType.tenant_id == tenant_id)
+        result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_by_code(self, code: str) -> ShiftType | None:
+    async def get_by_code(self, code: str, tenant_id: str | None = None) -> ShiftType | None:
         """根据代码获取班次类型（按当前租户过滤）
 
         Args:
             code: 类型代码
+            tenant_id: 租户锚点（显式优先，未传回退请求上下文）
 
         Returns:
             班次类型
         """
         # 租户隔离：编码唯一性检查限定在当前租户范围内；
         # 无租户上下文时限定平台级记录（tenant_id IS NULL）
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant(tenant_id)
         conditions = [ShiftType.code == code]
         if tenant_id:
             conditions.append(ShiftType.tenant_id == tenant_id)
@@ -124,7 +143,8 @@ class ShiftTypeService:
         name: str,
         description: str | None = None,
         enabled: bool = True,
-        operator_id: str | None = None
+        operator_id: str | None = None,
+        tenant_id: str | None = None,
     ) -> ShiftType:
         """创建班次类型
 
@@ -134,6 +154,7 @@ class ShiftTypeService:
             description: 描述
             enabled: 是否启用
             operator_id: 操作人ID
+            tenant_id: 租户锚点（显式优先，未传回退请求上下文）
 
         Returns:
             创建的班次类型
@@ -141,8 +162,10 @@ class ShiftTypeService:
         Raises:
             ValueError: 代码已存在
         """
-        # 检查代码是否已存在
-        existing = await self.get_by_code(code)
+        tenant_id = self._tenant(tenant_id)
+
+        # 检查代码是否已存在（同租户内）
+        existing = await self.get_by_code(code, tenant_id=tenant_id)
         if existing:
             raise ValueError(f"类型代码 '{code}' 已存在")
 
@@ -152,7 +175,7 @@ class ShiftTypeService:
             name=name,
             description=description,
             enabled=enabled,
-            tenant_id=get_current_tenant_id(),
+            tenant_id=tenant_id,
         )
 
         set_create_audit(shift_type, operator_id)
@@ -169,7 +192,8 @@ class ShiftTypeService:
         name: str | None = None,
         description: str | None = None,
         enabled: bool | None = None,
-        operator_id: str | None = None
+        operator_id: str | None = None,
+        tenant_id: str | None = None,
     ) -> ShiftType | None:
         """更新班次类型
 
@@ -179,11 +203,13 @@ class ShiftTypeService:
             description: 描述
             enabled: 是否启用
             operator_id: 操作人ID
+            tenant_id: 租户锚点（显式优先，未传回退请求上下文）
 
         Returns:
             更新后的班次类型
         """
-        shift_type = await self.get_by_id(shift_type_id)
+        tenant_id = self._tenant(tenant_id)
+        shift_type = await self.get_by_id(shift_type_id, tenant_id=tenant_id)
         if not shift_type:
             return None
 
@@ -200,38 +226,42 @@ class ShiftTypeService:
         await self.db.refresh(shift_type)
 
         if enabled is not None:
-            await self._invalidate_rule_cache_for_shift_type(shift_type_id)
+            await self._invalidate_rule_cache_for_shift_type(shift_type_id, tenant_id)
 
         return shift_type
 
-    async def delete(self, shift_type_id: str) -> bool:
+    async def delete(self, shift_type_id: str, tenant_id: str | None = None) -> bool:
         """删除班次类型
 
         Args:
             shift_type_id: 班次类型ID
+            tenant_id: 租户锚点（显式优先，未传回退请求上下文）
 
         Returns:
             是否删除成功
         """
-        shift_type = await self.get_by_id(shift_type_id)
+        tenant_id = self._tenant(tenant_id)
+        shift_type = await self.get_by_id(shift_type_id, tenant_id=tenant_id)
         if not shift_type:
             return False
 
         await self.db.delete(shift_type)
         await self.db.commit()
 
-        await self._invalidate_rule_cache_for_shift_type(shift_type_id)
+        await self._invalidate_rule_cache_for_shift_type(shift_type_id, tenant_id)
 
         return True
 
-    async def _invalidate_rule_cache_for_shift_type(self, shift_type_id: str) -> None:
+    async def _invalidate_rule_cache_for_shift_type(
+        self, shift_type_id: str, tenant_id: str | None = None
+    ) -> None:
         """禁用或删除班次类型后，清除该班次类型关联的规则引擎缓存。"""
         try:
             from app.core.redis import RedisCache
-            from app.middleware.tenant_context import get_current_tenant_id
             from app.modules.rule_engine.cache import RuleCache
 
-            tenant_id = get_current_tenant_id()
+            # R1-12：缓存失效必须使用同一租户锚点，避免清错租户缓存
+            tenant_id = self._tenant(tenant_id)
             rule_cache = RuleCache(RedisCache())
             await rule_cache.invalidate_v2(tenant_id, [shift_type_id])
         except Exception:

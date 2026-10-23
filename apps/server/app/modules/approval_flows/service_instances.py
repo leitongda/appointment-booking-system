@@ -13,11 +13,31 @@ logger = logging.getLogger(__name__)
 
 
 class ApprovalInstanceService:
-    """审批实例服务"""
+    """审批实例服务
 
-    def __init__(self, db: AsyncSession):
+    Args:
+        db: 数据库会话
+        tenant_id: 管理员账号租户锚点（R1-7）。查询/处置以锚点强过滤；
+            未传入时才回退请求上下文（兼容审批引擎内部调用）。
+    """
+
+    def __init__(self, db: AsyncSession, tenant_id: str | None = None):
         self.db = db
-        self.engine = ApprovalEngine(db)
+        self.tenant_id = tenant_id
+        self.engine = ApprovalEngine(db, tenant_id=tenant_id)
+
+    def _anchor(self) -> str | None:
+        """账号锚点优先，未提供时回退请求上下文。"""
+        if self.tenant_id is not None:
+            return self.tenant_id
+        return get_current_tenant_id()
+
+    async def ensure_visible(self, instance_id: str) -> ApprovalInstance:
+        """按租户锚点校验实例可见性，不可见时抛 ValueError（路由映射 404）。"""
+        instance = await self.get_by_id(instance_id)
+        if not instance:
+            raise ValueError("审批实例不存在")
+        return instance
 
     async def get_list(
         self,
@@ -29,7 +49,7 @@ class ApprovalInstanceService:
         stmt = select(ApprovalInstance)
         count_stmt = select(func.count(ApprovalInstance.id))
 
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._anchor()
         if tenant_id:
             stmt = stmt.where(ApprovalInstance.tenant_id == tenant_id)
             count_stmt = count_stmt.where(ApprovalInstance.tenant_id == tenant_id)
@@ -118,7 +138,7 @@ class ApprovalInstanceService:
             ApprovalInstance.id.in_(pending_subquery),
         )
 
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._anchor()
         if tenant_id:
             stmt = stmt.where(ApprovalInstance.tenant_id == tenant_id)
             count_stmt = count_stmt.where(ApprovalInstance.tenant_id == tenant_id)
@@ -136,19 +156,25 @@ class ApprovalInstanceService:
         return list(result.scalars().all()), count_result.scalar() or 0
 
     async def get_by_id(self, instance_id: str) -> ApprovalInstance | None:
-        """获取实例详情"""
+        """获取实例详情，按租户锚点强过滤。"""
         stmt = select(ApprovalInstance).where(ApprovalInstance.id == instance_id)
+        tenant_id = self._anchor()
+        if tenant_id:
+            stmt = stmt.where(ApprovalInstance.tenant_id == tenant_id)
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
     async def get_by_business(self, business_type: str, business_id: str) -> ApprovalInstance | None:
-        """按业务 ID 获取实例"""
+        """按业务 ID 获取实例，按租户锚点强过滤。"""
         stmt = select(ApprovalInstance).where(
             and_(
                 ApprovalInstance.business_type == business_type,
                 ApprovalInstance.business_id == business_id,
             )
         )
+        tenant_id = self._anchor()
+        if tenant_id:
+            stmt = stmt.where(ApprovalInstance.tenant_id == tenant_id)
         stmt = stmt.order_by(ApprovalInstance.created_at.desc())
         result = await self.db.execute(stmt)
         return result.scalars().first()
@@ -237,7 +263,7 @@ class ApprovalInstanceService:
                 ),
             )
         )
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._anchor()
         if tenant_id:
             stmt = stmt.where(ApprovalInstance.tenant_id == tenant_id)
 

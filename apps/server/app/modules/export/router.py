@@ -2,17 +2,31 @@
 from datetime import date
 from io import BytesIO
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_admin
-from app.common.deps import get_store_filter, get_tenant_filter, require_permission
+from app.api.deps import get_current_admin, require_admin_tenant_anchor
+from app.common.deps import get_store_filter, require_permission
+from app.common.feature_deps import require_feature
 from app.db.session import get_db
-from app.middleware.tenant_context import get_current_tenant_id
 from app.modules.export.service import ExportService
 
-router = APIRouter()
+# R3-5：数据导出统一受租户 export_data 功能开关控制
+# （FEATURE_ENFORCEMENT_ENABLED=False 时 require_feature 直接放行）
+router = APIRouter(
+    dependencies=[Depends(require_feature("export_data", get_current_admin))]
+)
+
+
+def _require_export_tenant(tenant_anchor: str | None) -> str:
+    """R1-19：导出只认管理员账号锚点，平台管理员未指定租户时 400。"""
+    if not tenant_anchor:
+        raise HTTPException(
+            status_code=400,
+            detail="导出操作需要租户上下文，请指定 tenant_id 后重试",
+        )
+    return tenant_anchor
 
 
 @router.get("/appointments", summary="导出预约记录")
@@ -23,16 +37,15 @@ async def export_appointments(
     doctor_id: str | None = None,
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("appointment:export", "appointment:list")),
 ):
     """导出预约记录"""
     # 获取门店过滤条件
     store_ids = get_store_filter(current_admin)
 
-    # 获取租户过滤条件
-    tenant_id = get_tenant_filter(current_admin)
-    if not tenant_id:
-        tenant_id = get_current_tenant_id()
+    # R1-19：导出只认管理员账号锚点，不回退请求上下文
+    tenant_id = _require_export_tenant(tenant_anchor)
 
     service = ExportService(db)
     excel_bytes, filename = await service.export_appointments(
@@ -58,13 +71,12 @@ async def export_patients(
     keyword: str | None = None,
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("patient:export", "patient:list")),
 ):
     """导出患者列表"""
-    # 获取租户过滤条件
-    tenant_id = get_tenant_filter(current_admin)
-    if not tenant_id:
-        tenant_id = get_current_tenant_id()
+    # R1-19：导出只认管理员账号锚点，不回退请求上下文
+    tenant_id = _require_export_tenant(tenant_anchor)
 
     # 患者表没有 store_id，暂不进行门店过滤
     service = ExportService(db)
@@ -86,16 +98,15 @@ async def export_schedules(
     doctor_id: str | None = None,
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("schedule:export", "schedule:list")),
 ):
     """导出排班记录"""
     # 获取门店过滤条件
     store_ids = get_store_filter(current_admin)
 
-    # 获取租户过滤条件
-    tenant_id = get_tenant_filter(current_admin)
-    if not tenant_id:
-        tenant_id = get_current_tenant_id()
+    # R1-19：导出只认管理员账号锚点，不回退请求上下文
+    tenant_id = _require_export_tenant(tenant_anchor)
 
     service = ExportService(db)
     excel_bytes, filename = await service.export_schedules(

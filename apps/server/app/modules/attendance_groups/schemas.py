@@ -1,5 +1,7 @@
 """签到组管理 Schema 定义"""
 
+from datetime import datetime
+
 from pydantic import Field
 
 from app.schemas.base import BaseSchema
@@ -50,7 +52,7 @@ class AttendanceGroupResponse(BaseSchema):
     require_device_bind: bool = False
     enabled: bool
     member_count: int = 0
-    created_at: str | None = None
+    created_at: datetime | None = None
 
 
 class GroupMemberAdd(BaseSchema):

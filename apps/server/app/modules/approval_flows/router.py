@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.auth_deps import get_current_admin
 from app.common.permission_deps import require_permission
+from app.common.tenant_deps import require_admin_tenant_anchor
 from app.db.session import get_db
 from app.modules.approval_flows.schemas import (
     FlowDefinitionCreate,
@@ -16,6 +17,19 @@ from app.modules.approval_flows.schemas import (
 from app.modules.approval_flows.service_definitions import FlowDefinitionService
 
 router = APIRouter()
+
+
+def _require_anchor(tenant_anchor: str | None) -> str:
+    """R1-7：创建/复制流程定义必须拿到账号锚点。
+
+    不允许落库 `tenant_id=NULL` 的全局流程定义（平台管理员需显式指定租户）。
+    """
+    if not tenant_anchor:
+        raise HTTPException(
+            status_code=400,
+            detail="无法确定租户ID，请指定 tenant_id 后重试",
+        )
+    return tenant_anchor
 
 
 class BatchDeleteRequest(BaseModel):
@@ -38,9 +52,10 @@ async def list_flow_definitions(
     business_type: str | None = None,
     status: str | None = None,
     db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _=Depends(require_permission("approval-flow:list")),
 ):
-    service = FlowDefinitionService(db)
+    service = FlowDefinitionService(db, tenant_id=tenant_anchor)
     items, total = await service.get_list(page, page_size, business_type, status, name=name)
     result_items = []
     for item in items:
@@ -61,9 +76,10 @@ async def list_flow_definitions(
 async def get_by_business_type(
     business_type: str,
     db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _=Depends(require_permission("approval-flow:list")),
 ):
-    service = FlowDefinitionService(db)
+    service = FlowDefinitionService(db, tenant_id=tenant_anchor)
     flow_def = await service.get_by_business_type(business_type)
     if not flow_def:
         return None
@@ -73,6 +89,7 @@ async def get_by_business_type(
 @router.get("/templates/list", summary="获取流程模板列表")
 async def list_templates(
     db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _=Depends(require_permission("approval-flow:list")),
 ):
     """返回预置的流程模板"""
@@ -137,10 +154,11 @@ async def list_templates(
 async def export_flow(
     flow_def_id: str,
     db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _=Depends(require_permission("approval-flow:list")),
 ):
     """导出流程定义的完整 JSON（可用于导入）"""
-    service = FlowDefinitionService(db)
+    service = FlowDefinitionService(db, tenant_id=tenant_anchor)
     flow_def = await service.get_by_id(flow_def_id)
     if not flow_def:
         raise HTTPException(status_code=404, detail="流程定义不存在")
@@ -186,11 +204,12 @@ async def export_flow(
 async def import_flow(
     data: FlowDefinitionCreate,
     db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _=Depends(require_permission("approval-flow:create")),
     current_admin: dict = Depends(get_current_admin),
 ):
     """导入流程定义（接受导出的 JSON 格式，创建为草稿状态）"""
-    service = FlowDefinitionService(db)
+    service = FlowDefinitionService(db, tenant_id=_require_anchor(tenant_anchor))
     flow_def = await service.create(data, current_admin["id"])
     await db.commit()
     return FlowDefinitionResponse.model_validate(flow_def)
@@ -219,6 +238,7 @@ async def import_bpmn(
     files: list[UploadFile] = File(..., description="BPMN XML 文件 (.bpmn / .xml)，支持多文件"),
     business_type: str = Query("custom", description="业务类型"),
     db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _=Depends(require_permission("approval-flow:create")),
     current_admin: dict = Depends(get_current_admin),
 ):
@@ -228,7 +248,7 @@ async def import_bpmn(
 
     results = []
     errors = []
-    service = FlowDefinitionService(db)
+    service = FlowDefinitionService(db, tenant_id=_require_anchor(tenant_anchor))
 
     for file in files:
         filename = file.filename or "unnamed.bpmn"
@@ -283,6 +303,7 @@ async def import_bpmn(
 async def batch_delete_flows(
     body: BatchDeleteRequest,
     db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _=Depends(require_permission("approval-flow:delete")),
     current_admin: dict = Depends(get_current_admin),
 ):
@@ -290,7 +311,7 @@ async def batch_delete_flows(
 
     逐条处理，未找到或非草稿状态的条目会收集到 failed 中，不影响其他可删除条目。
     """
-    service = FlowDefinitionService(db)
+    service = FlowDefinitionService(db, tenant_id=tenant_anchor)
     result = await service.batch_delete(body.ids, current_admin["id"])
     await db.commit()
     return result
@@ -300,9 +321,10 @@ async def batch_delete_flows(
 async def get_flow_definition(
     flow_def_id: str,
     db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _=Depends(require_permission("approval-flow:list")),
 ):
-    service = FlowDefinitionService(db)
+    service = FlowDefinitionService(db, tenant_id=tenant_anchor)
     flow_def = await service.get_by_id(flow_def_id)
     if not flow_def:
         raise HTTPException(status_code=404, detail="流程定义不存在")
@@ -313,10 +335,11 @@ async def get_flow_definition(
 async def create_flow_definition(
     data: FlowDefinitionCreate,
     db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _=Depends(require_permission("approval-flow:create")),
     current_admin: dict = Depends(get_current_admin),
 ):
-    service = FlowDefinitionService(db)
+    service = FlowDefinitionService(db, tenant_id=_require_anchor(tenant_anchor))
     flow_def = await service.create(data, current_admin["id"])
     await db.commit()
     return FlowDefinitionResponse.model_validate(flow_def)
@@ -327,10 +350,11 @@ async def update_flow_definition(
     flow_def_id: str,
     data: FlowDefinitionUpdate,
     db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _=Depends(require_permission("approval-flow:update")),
     current_admin: dict = Depends(get_current_admin),
 ):
-    service = FlowDefinitionService(db)
+    service = FlowDefinitionService(db, tenant_id=tenant_anchor)
     try:
         flow_def = await service.update(flow_def_id, data, current_admin["id"])
     except ValueError as e:
@@ -345,10 +369,11 @@ async def update_flow_definition(
 async def activate_flow(
     flow_def_id: str,
     db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _=Depends(require_permission("approval-flow:manage")),
     current_admin: dict = Depends(get_current_admin),
 ):
-    service = FlowDefinitionService(db)
+    service = FlowDefinitionService(db, tenant_id=tenant_anchor)
     try:
         flow_def = await service.activate(flow_def_id, current_admin["id"])
     except ValueError as e:
@@ -363,10 +388,11 @@ async def activate_flow(
 async def archive_flow(
     flow_def_id: str,
     db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _=Depends(require_permission("approval-flow:manage")),
     current_admin: dict = Depends(get_current_admin),
 ):
-    service = FlowDefinitionService(db)
+    service = FlowDefinitionService(db, tenant_id=tenant_anchor)
     flow_def = await service.archive(flow_def_id, current_admin["id"])
     if not flow_def:
         raise HTTPException(status_code=404, detail="流程定义不存在")
@@ -378,10 +404,11 @@ async def archive_flow(
 async def delete_flow(
     flow_def_id: str,
     db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _=Depends(require_permission("approval-flow:delete")),
     current_admin: dict = Depends(get_current_admin),
 ):
-    service = FlowDefinitionService(db)
+    service = FlowDefinitionService(db, tenant_id=tenant_anchor)
     try:
         result = await service.delete(flow_def_id, current_admin["id"])
     except ValueError as e:
@@ -396,10 +423,11 @@ async def delete_flow(
 async def copy_flow(
     flow_def_id: str,
     db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _=Depends(require_permission("approval-flow:create")),
     current_admin: dict = Depends(get_current_admin),
 ):
-    service = FlowDefinitionService(db)
+    service = FlowDefinitionService(db, tenant_id=_require_anchor(tenant_anchor))
     flow_def = await service.copy(flow_def_id, current_admin["id"])
     if not flow_def:
         raise HTTPException(status_code=404, detail="流程定义不存在")
@@ -411,7 +439,8 @@ async def copy_flow(
 async def validate_flow(
     flow_def_id: str,
     db: AsyncSession = Depends(get_db),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _=Depends(require_permission("approval-flow:list")),
 ):
-    service = FlowDefinitionService(db)
+    service = FlowDefinitionService(db, tenant_id=tenant_anchor)
     return await service.validate(flow_def_id)

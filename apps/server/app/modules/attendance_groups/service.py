@@ -15,16 +15,29 @@ from app.utils.audit import set_create_audit, set_update_audit
 
 
 class AttendanceGroupService:
-    """签到组服务"""
+    """签到组服务
 
-    def __init__(self, db: AsyncSession):
+    Args:
+        db: 数据库会话
+        tenant_id: 管理员账号租户锚点（R1-11）。查询/写入以锚点强过滤；
+            未传入时才回退请求上下文（兼容内部调用）。
+    """
+
+    def __init__(self, db: AsyncSession, tenant_id: str | None = None):
         self.db = db
-        self._tenant_id = get_current_tenant_id()
+        self.tenant_id = tenant_id
+
+    def _tenant(self) -> str | None:
+        """账号锚点优先，未提供时回退请求上下文。"""
+        if self.tenant_id is not None:
+            return self.tenant_id
+        return get_current_tenant_id()
 
     def _apply_tenant(self, query):
         """对查询施加租户过滤"""
-        if self._tenant_id:
-            query = query.where(AttendanceGroup.tenant_id == self._tenant_id)
+        tenant_id = self._tenant()
+        if tenant_id:
+            query = query.where(AttendanceGroup.tenant_id == tenant_id)
         return query
 
     async def get_list(
@@ -105,7 +118,7 @@ class AttendanceGroupService:
         """创建签到组"""
         group = AttendanceGroup(
             id=str(uuid.uuid4()),
-            tenant_id=self._tenant_id,
+            tenant_id=self._tenant(),
             name=data["name"],
             description=data.get("description"),
             check_method=data.get("check_method", "gps"),
@@ -184,7 +197,7 @@ class AttendanceGroupService:
                 id=str(uuid.uuid4()),
                 group_id=group_id,
                 account_id=aid,
-                tenant_id=self._tenant_id,
+                tenant_id=self._tenant(),
             )
             self.db.add(member)
             added += 1
@@ -200,8 +213,9 @@ class AttendanceGroupService:
             AttendanceGroupMember.group_id == group_id,
             AttendanceGroupMember.account_id == account_id,
         )
-        if self._tenant_id:
-            q = q.where(AttendanceGroupMember.tenant_id == self._tenant_id)
+        tenant_id = self._tenant()
+        if tenant_id:
+            q = q.where(AttendanceGroupMember.tenant_id == tenant_id)
 
         member = (await self.db.execute(q)).scalar_one_or_none()
         if not member:
@@ -223,8 +237,9 @@ class AttendanceGroupService:
             (成员字典列表, 总数)
         """
         base_cond = AttendanceGroupMember.group_id == group_id
-        if self._tenant_id:
-            base_cond = and_(base_cond, AttendanceGroupMember.tenant_id == self._tenant_id)
+        tenant_id = self._tenant()
+        if tenant_id:
+            base_cond = and_(base_cond, AttendanceGroupMember.tenant_id == tenant_id)
 
         # 总数
         count_q = select(func.count(AttendanceGroupMember.id)).where(base_cond)

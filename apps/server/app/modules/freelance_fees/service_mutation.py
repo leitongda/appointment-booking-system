@@ -5,7 +5,6 @@ from decimal import Decimal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.middleware.tenant_context import get_current_tenant_id
 from app.models.freelance import (
     FreelanceInteraction,
     Freelancer,
@@ -68,15 +67,25 @@ def _calculate_planned_dates(published_at: datetime, holidays: set | None = None
 
 
 class FreelanceMutationMixin:
-    """兼职费用写入"""
+    """兼职费用写入
 
-    def __init__(self, db: AsyncSession):
+    `tenant_id` 为管理员账号锚点（R1-4）：写路径必须非空，
+    避免平台管理员在未指定租户时写出租户为 NULL 的全局行。
+    """
+
+    def __init__(self, db: AsyncSession, tenant_id: str | None = None):
         self.db = db
+        self.tenant_id = tenant_id
+
+    def _require_tenant(self) -> str:
+        if not self.tenant_id:
+            raise ValueError("写操作必须指定租户")
+        return self.tenant_id
 
     # ---------- 兼职人员 ----------
 
     async def create_freelancer(self, data: FreelancerCreate, operator_id: str | None = None) -> Freelancer:
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._require_tenant()
         freelancer = Freelancer(
             id=str(uuid.uuid4()),
             tenant_id=tenant_id,
@@ -91,7 +100,7 @@ class FreelanceMutationMixin:
 
     async def update_freelancer(self, freelancer_id: str, data: FreelancerUpdate, operator_id: str | None = None) -> Freelancer | None:
         from app.modules.freelance_fees.service_query import FreelanceQueryMixin
-        query_svc = FreelanceQueryMixin(self.db)
+        query_svc = FreelanceQueryMixin(self.db, tenant_id=self.tenant_id)
         freelancer = await query_svc.get_freelancer_by_id(freelancer_id)
         if not freelancer:
             return None
@@ -107,7 +116,7 @@ class FreelanceMutationMixin:
 
     async def delete_freelancer(self, freelancer_id: str) -> bool:
         from app.modules.freelance_fees.service_query import FreelanceQueryMixin
-        query_svc = FreelanceQueryMixin(self.db)
+        query_svc = FreelanceQueryMixin(self.db, tenant_id=self.tenant_id)
         freelancer = await query_svc.get_freelancer_by_id(freelancer_id)
         if not freelancer:
             return False
@@ -118,7 +127,7 @@ class FreelanceMutationMixin:
     # ---------- 发布任务 ----------
 
     async def create_task(self, data: FreelanceTaskCreate, operator_id: str | None = None) -> FreelanceTask:
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._require_tenant()
 
         # 计算理论结算日（含节假日顺延）
         published_at = data.published_at or datetime.utcnow()
@@ -146,7 +155,7 @@ class FreelanceMutationMixin:
 
     async def update_task(self, task_id: str, data: FreelanceTaskUpdate, operator_id: str | None = None) -> FreelanceTask | None:
         from app.modules.freelance_fees.service_query import FreelanceQueryMixin
-        query_svc = FreelanceQueryMixin(self.db)
+        query_svc = FreelanceQueryMixin(self.db, tenant_id=self.tenant_id)
         task = await query_svc.get_task_by_id(task_id)
         if not task:
             return None
@@ -167,12 +176,12 @@ class FreelanceMutationMixin:
 
     async def add_interaction(self, data: FreelanceInteractionCreate, operator_id: str | None = None) -> FreelanceInteraction | None:
         from app.modules.freelance_fees.service_query import FreelanceQueryMixin
-        query_svc = FreelanceQueryMixin(self.db)
+        query_svc = FreelanceQueryMixin(self.db, tenant_id=self.tenant_id)
         task = await query_svc.get_task_by_id(data.task_id)
         if not task:
             return None
 
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._require_tenant()
         interaction = FreelanceInteraction(
             id=str(uuid.uuid4()),
             tenant_id=tenant_id,
@@ -203,9 +212,9 @@ class FreelanceMutationMixin:
     ) -> FreelanceSettlement | None:
         """为指定兼职人员生成结算单"""
         from app.modules.freelance_fees.service_query import FreelanceQueryMixin
-        query_svc = FreelanceQueryMixin(self.db)
+        query_svc = FreelanceQueryMixin(self.db, tenant_id=self.tenant_id)
 
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._require_tenant()
         freelancer = await query_svc.get_freelancer_by_id(freelancer_id)
         if not freelancer:
             return None
@@ -355,17 +364,16 @@ class FreelanceMutationMixin:
     async def _notify_settlement_event(self, settlement: FreelanceSettlement, event_type: str, operator_id: str | None = None):
         """发送结算通知"""
         try:
-            from app.middleware.tenant_context import get_current_tenant_id
             from app.modules.unified_message.schemas import NotificationEvent
             from app.modules.unified_message.service import UnifiedMessageService
 
-            tenant_id = get_current_tenant_id()
+            tenant_id = self.tenant_id
             if not tenant_id:
                 return
 
             # 查找兼职人员信息
             from app.modules.freelance_fees.service_query import FreelanceQueryMixin
-            query_svc = FreelanceQueryMixin(self.db)
+            query_svc = FreelanceQueryMixin(self.db, tenant_id=self.tenant_id)
             freelancer = await query_svc.get_freelancer_by_id(settlement.freelancer_id)
 
             event_titles = {
@@ -407,7 +415,7 @@ class FreelanceMutationMixin:
 
     async def confirm_settlement(self, settlement_id: str, operator_id: str | None = None, remark: str | None = None) -> FreelanceSettlement | None:
         from app.modules.freelance_fees.service_query import FreelanceQueryMixin
-        query_svc = FreelanceQueryMixin(self.db)
+        query_svc = FreelanceQueryMixin(self.db, tenant_id=self.tenant_id)
         settlement = await query_svc.get_settlement_by_id(settlement_id)
         if not settlement or settlement.status != "pending":
             return None
@@ -428,7 +436,7 @@ class FreelanceMutationMixin:
 
     async def reject_settlement(self, settlement_id: str, operator_id: str | None = None, reject_reason: str = "") -> FreelanceSettlement | None:
         from app.modules.freelance_fees.service_query import FreelanceQueryMixin
-        query_svc = FreelanceQueryMixin(self.db)
+        query_svc = FreelanceQueryMixin(self.db, tenant_id=self.tenant_id)
         settlement = await query_svc.get_settlement_by_id(settlement_id)
         if not settlement or settlement.status != "pending":
             return None
@@ -446,7 +454,7 @@ class FreelanceMutationMixin:
 
     async def mark_settlement_paid(self, settlement_id: str, operator_id: str | None = None) -> FreelanceSettlement | None:
         from app.modules.freelance_fees.service_query import FreelanceQueryMixin
-        query_svc = FreelanceQueryMixin(self.db)
+        query_svc = FreelanceQueryMixin(self.db, tenant_id=self.tenant_id)
         settlement = await query_svc.get_settlement_by_id(settlement_id)
         if not settlement or settlement.status != "confirmed":
             return None

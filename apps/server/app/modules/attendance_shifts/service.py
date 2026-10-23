@@ -11,10 +11,23 @@ from app.utils.audit import set_create_audit, set_update_audit
 
 
 class AttendanceShiftService:
-    """考勤班次服务"""
+    """考勤班次服务
 
-    def __init__(self, db: AsyncSession):
+    Args:
+        db: 数据库会话
+        tenant_id: 管理员账号租户锚点（R1-11）。查询/写入以锚点强过滤；
+            未传入时才回退请求上下文（兼容内部调用）。
+    """
+
+    def __init__(self, db: AsyncSession, tenant_id: str | None = None):
         self.db = db
+        self.tenant_id = tenant_id
+
+    def _tenant(self) -> str | None:
+        """账号锚点优先，未提供时回退请求上下文。"""
+        if self.tenant_id is not None:
+            return self.tenant_id
+        return get_current_tenant_id()
 
     async def get_list(
         self,
@@ -24,8 +37,10 @@ class AttendanceShiftService:
         page_size: int = 10,
     ) -> tuple[list[AttendanceShift], int]:
         """获取考勤班次列表"""
-        tenant_id = get_current_tenant_id()
-        conditions = [AttendanceShift.tenant_id == tenant_id]
+        tenant_id = self._tenant()
+        conditions = []
+        if tenant_id:
+            conditions.append(AttendanceShift.tenant_id == tenant_id)
 
         if enabled is not None:
             conditions.append(AttendanceShift.enabled == enabled)
@@ -36,14 +51,17 @@ class AttendanceShiftService:
                 | (AttendanceShift.code.ilike(f"%{keyword}%"))
             )
 
-        count_query = select(func.count(AttendanceShift.id)).where(and_(*conditions))
+        count_query = select(func.count(AttendanceShift.id))
+        query = select(AttendanceShift)
+        if conditions:
+            count_query = count_query.where(and_(*conditions))
+            query = query.where(and_(*conditions))
+
         count_result = await self.db.execute(count_query)
         total = count_result.scalar_one() or 0
 
         query = (
-            select(AttendanceShift)
-            .where(and_(*conditions))
-            .order_by(AttendanceShift.created_at.desc())
+            query.order_by(AttendanceShift.created_at.desc())
             .offset((page - 1) * page_size)
             .limit(page_size)
         )
@@ -54,24 +72,20 @@ class AttendanceShiftService:
 
     async def get_by_id(self, shift_id: str) -> AttendanceShift | None:
         """获取考勤班次详情"""
-        tenant_id = get_current_tenant_id()
-        result = await self.db.execute(
-            select(AttendanceShift).where(
-                AttendanceShift.id == shift_id,
-                AttendanceShift.tenant_id == tenant_id,
-            )
-        )
+        stmt = select(AttendanceShift).where(AttendanceShift.id == shift_id)
+        tenant_id = self._tenant()
+        if tenant_id:
+            stmt = stmt.where(AttendanceShift.tenant_id == tenant_id)
+        result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
     async def get_by_code(self, code: str) -> AttendanceShift | None:
         """根据代码获取考勤班次"""
-        tenant_id = get_current_tenant_id()
-        result = await self.db.execute(
-            select(AttendanceShift).where(
-                AttendanceShift.code == code,
-                AttendanceShift.tenant_id == tenant_id,
-            )
-        )
+        stmt = select(AttendanceShift).where(AttendanceShift.code == code)
+        tenant_id = self._tenant()
+        if tenant_id:
+            stmt = stmt.where(AttendanceShift.tenant_id == tenant_id)
+        result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
     async def create(self, data: dict, operator_id: str | None = None) -> AttendanceShift:
@@ -80,7 +94,7 @@ class AttendanceShiftService:
         Raises:
             ValueError: 代码已存在
         """
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
 
         existing = await self.get_by_code(data["code"])
         if existing:
@@ -129,13 +143,9 @@ class AttendanceShiftService:
 
     async def get_all_enabled(self) -> list[AttendanceShift]:
         """获取所有启用的考勤班次（用于下拉选择）"""
-        tenant_id = get_current_tenant_id()
-        result = await self.db.execute(
-            select(AttendanceShift)
-            .where(
-                AttendanceShift.tenant_id == tenant_id,
-                AttendanceShift.enabled == True,
-            )
-            .order_by(AttendanceShift.code.asc())
-        )
+        stmt = select(AttendanceShift).where(AttendanceShift.enabled.is_(True))
+        tenant_id = self._tenant()
+        if tenant_id:
+            stmt = stmt.where(AttendanceShift.tenant_id == tenant_id)
+        result = await self.db.execute(stmt.order_by(AttendanceShift.code.asc()))
         return list(result.scalars().all())

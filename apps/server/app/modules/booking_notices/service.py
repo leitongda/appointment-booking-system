@@ -11,12 +11,27 @@ from app.utils.audit import set_create_audit, set_update_audit
 
 
 class BookingNoticeService:
-    def __init__(self, db: AsyncSession):
+    """预约须知服务
+
+    Args:
+        db: 数据库会话
+        tenant_id: 租户锚点（R1-18）。管理端传管理员账号锚点，公开传感知请求
+            上下文解析出的租户；未传入时才回退请求上下文。
+    """
+
+    def __init__(self, db: AsyncSession, tenant_id: str | None = None):
         self.db = db
+        self.tenant_id = tenant_id
+
+    def _tenant(self) -> str | None:
+        """账号锚点优先，未提供时回退请求上下文。"""
+        if self.tenant_id is not None:
+            return self.tenant_id
+        return get_current_tenant_id()
 
     def _tenant_filter(self, stmt):
         """为查询添加租户过滤"""
-        tenant_id = get_current_tenant_id()
+        tenant_id = self._tenant()
         if tenant_id:
             return stmt.where(BookingNotice.tenant_id == tenant_id)
         return stmt
@@ -72,7 +87,7 @@ class BookingNoticeService:
         """创建预约须知"""
         notice = BookingNotice(
             id=str(uuid.uuid4()),
-            tenant_id=get_current_tenant_id(),
+            tenant_id=self._tenant(),
             type=data.type,
             title=data.title,
             content=data.content,

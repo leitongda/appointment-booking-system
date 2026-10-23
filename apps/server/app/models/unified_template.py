@@ -9,6 +9,7 @@ import uuid
 from sqlalchemy import (
     JSON,
     Column,
+    ForeignKey,
     Integer,
     String,
     Text,
@@ -30,7 +31,7 @@ class UnifiedTemplate(Base, TimestampMixin):
     )
 
     id = Column(String(36), primary_key=True, default=_uuid)
-    tenant_id = Column(String(36), nullable=False, index=True, comment="租户ID")
+    tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=False, index=True, comment="租户ID")
     code = Column(String(50), nullable=False, comment="模板编码: appointment_success")
     name = Column(String(100), nullable=False, comment="模板名称")
     message_type = Column(String(30), nullable=False, comment="消息类型")

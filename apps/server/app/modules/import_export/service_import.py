@@ -2,7 +2,7 @@
 
 提供数据导入的安全封装，确保：
 1. 导入数据不能包含敏感字段（如 tenant_id）
-2. 所有数据都自动使用当前租户上下文
+2. 所有数据都使用调用方传入的租户锚点（R1-5：不回退请求上下文）
 3. 行级别的租户隔离验证
 """
 import logging
@@ -11,10 +11,8 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.common.tenant_filter import get_tenant_id_for_create
 from app.infrastructure.excel.import_service import ExcelImportError, ExcelImportService
 from app.middleware.exception import BusinessError
-from app.middleware.tenant_context import get_current_tenant_id
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +25,7 @@ class ImportService:
 
     提供数据导入的安全封装，确保：
     1. 导入数据不能包含敏感字段（如 tenant_id）
-    2. 所有数据都自动使用当前租户上下文
+    2. 所有数据都使用调用方传入的租户锚点
     3. 行级别的租户隔离验证
     """
 
@@ -55,46 +53,31 @@ class ImportService:
         tenant_id: str | None = None,
         store_id: str | None = None
     ) -> str | None:
-        """推断当前导入操作应使用的租户 ID
+        """确定当前导入操作应使用的租户 ID
 
-        优先级：
-        1. 缓存的租户 ID（已验证过）
-        2. 显式传入的 tenant_id
-        3. 从上下文获取的 tenant_id
-        4. 通过 store_id 从门店推断
+        R1-5：只接受显式锚点，不再回退请求上下文或按门店推断。
+        调用方（router）负责从 `require_admin_tenant_anchor` 取得锚点。
 
         Args:
-            tenant_id: 显式指定的租户ID
-            store_id: 门店ID（用于推断租户）
+            tenant_id: 显式指定的租户ID（管理员账号锚点）
+            store_id: 保留参数，当前不参与推断
 
         Returns:
             租户ID
 
         Raises:
-            ValueError: 无法推断租户 ID
+            ValueError: 未显式提供租户 ID
         """
         # 使用缓存的租户 ID
         if self._tenant_id:
             return self._tenant_id
 
-        # 尝试从各种来源获取租户 ID
-        effective_tenant_id = get_tenant_id_for_create(
-            tenant_id=tenant_id,
-            store_id=store_id,
-            store_model=None,  # 不在同步上下文中查询数据库
-            db=None
-        )
-
-        if not effective_tenant_id:
-            # 尝试直接从上下文获取
-            effective_tenant_id = get_current_tenant_id()
-
-        if not effective_tenant_id:
-            raise ValueError("导入数据必须指定租户，请确保请求包含有效的租户上下文")
+        if not tenant_id:
+            raise ValueError("导入数据必须指定租户，请确保请求包含有效的租户锚点")
 
         # 缓存租户 ID
-        self._tenant_id = effective_tenant_id
-        return effective_tenant_id
+        self._tenant_id = tenant_id
+        return tenant_id
 
     async def _validate_row_tenant(
         self,
@@ -120,10 +103,10 @@ class ImportService:
         Raises:
             ValueError: 关联数据不属于当前租户
         """
-        current_tenant_id = self._tenant_id or get_current_tenant_id()
+        current_tenant_id = self._tenant_id
 
         if not current_tenant_id:
-            logger.warning(f"[导入] 行 {row_id}: 无法获取当前租户上下文，跳过验证")
+            logger.warning(f"[导入] 行 {row_id}: 无法获取租户锚点，跳过验证")
             return None
 
         # 如果没有指定模型类，只验证租户上下文

@@ -4,6 +4,7 @@
 """
 from datetime import date
 from io import BytesIO
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
@@ -11,12 +12,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.auth_unified import get_current_account
 from app.common.auth_types import AccountInfo
-from app.common.deps import get_tenant_filter
-from app.common.permission_deps import get_current_admin, require_permission
+from app.common.permission_deps import require_permission
+from app.common.tenant_deps import require_admin_tenant_anchor
 from app.core.config import settings
 from app.db.session import get_db
 from app.infrastructure.excel.export_service import ExcelExportService
-from app.middleware.tenant_context import get_current_tenant_id
 from app.modules.attendance_records.schemas import (
     AttendanceRecordResponse,
     CheckInRequest,
@@ -151,14 +151,13 @@ async def get_my_records(
 )
 async def get_daily_stats(
     target_date: date,
-    current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("attendance:record")),
     db: AsyncSession = Depends(get_db),
 ):
     """获取指定日期的考勤汇总统计（管理员）"""
-    service = AttendanceRecordService(db)
-    tenant_id = current_admin.get("tenant_id")
-    stats = await service.get_daily_stats(tenant_id, target_date)
+    service = AttendanceRecordService(db, tenant_id=tenant_anchor)
+    stats = await service.get_daily_stats(tenant_anchor, target_date)
     return DailyStatResponse(**stats)
 
 
@@ -173,15 +172,14 @@ async def get_all_records(
     keyword: str | None = Query(None, description="搜索关键词"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE, description="每页数量"),
-    current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     _: None = Depends(require_permission("attendance:record")),
     db: AsyncSession = Depends(get_db),
 ):
     """获取全部考勤记录（管理员）"""
-    service = AttendanceRecordService(db)
-    tenant_id = current_admin.get("tenant_id")
+    service = AttendanceRecordService(db, tenant_id=tenant_anchor)
     records, total = await service.get_all_records(
-        tenant_id=tenant_id,
+        tenant_id=tenant_anchor,
         start_date=start_date,
         end_date=end_date,
         keyword=keyword,
@@ -214,7 +212,7 @@ async def export_attendance_records(
     start_date: str = Query(..., description="开始日期 YYYY-MM-DD"),
     end_date: str = Query(..., description="结束日期 YYYY-MM-DD"),
     keyword: str | None = Query(None, description="搜索关键词"),
-    current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
     db: AsyncSession = Depends(get_db),
     _: None = Depends(require_permission("attendance:record", "record:export")),
 ):
@@ -223,13 +221,11 @@ async def export_attendance_records(
     sd = date.fromisoformat(start_date)
     ed = date.fromisoformat(end_date)
 
-    # 2. 租户隔离
-    tenant_id = get_tenant_filter(current_admin)
-    if not tenant_id:
-        tenant_id = get_current_tenant_id()
+    # 2. 租户隔离（R1-11：账号锚点，不再回退请求上下文）
+    tenant_id = tenant_anchor
 
     # 3. 查询全部数据（不分页）
-    service = AttendanceRecordService(db)
+    service = AttendanceRecordService(db, tenant_id=tenant_anchor)
     records, _ = await service.get_all_records(
         tenant_id=tenant_id,
         start_date=sd,
@@ -297,12 +293,15 @@ async def export_attendance_records(
         ])
 
     excel_bytes = ExcelExportService.create_workbook(headers, data, "考勤报表")
-    filename = f"考勤报表_{sd.strftime('%Y%m%d')}_{ed.strftime('%Y%m%d')}.xlsx"
+    suffix = f"{sd.strftime('%Y%m%d')}_{ed.strftime('%Y%m%d')}"
+    # Content-Disposition 头只允许 latin-1：ASCII 兜底 + RFC 5987 中文文件名
+    disposition = (
+        f"attachment; filename=attendance_{suffix}.xlsx; "
+        f"filename*=UTF-8''{quote(f'考勤报表_{suffix}.xlsx')}"
+    )
 
     return StreamingResponse(
         BytesIO(excel_bytes),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={
-            "Content-Disposition": f"attachment; filename={filename}",
-        },
+        headers={"Content-Disposition": disposition},
     )

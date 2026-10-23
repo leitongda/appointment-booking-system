@@ -6,7 +6,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_admin
+from app.api.deps import get_current_admin, require_admin_tenant_anchor
 from app.core.config import settings
 from app.db.session import get_db
 from app.modules.dictionaries.schemas import (
@@ -24,6 +24,16 @@ from app.schemas.rule_set import PageResult
 router = APIRouter()
 
 
+def _require_anchor(tenant_anchor: str | None) -> str:
+    """R1-15：字典写路径必须拿到账号锚点，禁止写出 tenant_id=NULL 的记录。"""
+    if not tenant_anchor:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="无法确定租户ID，请指定 tenant_id 后重试",
+        )
+    return tenant_anchor
+
+
 # ==================== 管理 API（admin 端） ====================
 
 
@@ -35,9 +45,10 @@ async def get_dict_types(
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE, description="每页数量"),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
 ):
     """获取字典类型列表"""
-    service = DictService(db)
+    service = DictService(db, tenant_id=tenant_anchor)
     items, total = await service.get_type_list(
         status=status_,
         keyword=keyword,
@@ -52,9 +63,10 @@ async def get_dict_type(
     type_id: str,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
 ):
     """获取字典类型详情"""
-    service = DictService(db)
+    service = DictService(db, tenant_id=tenant_anchor)
     dict_type = await service.get_type_by_id(type_id)
     if not dict_type:
         raise HTTPException(
@@ -74,9 +86,10 @@ async def create_dict_type(
     data: DictTypeCreate,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
 ):
     """创建字典类型"""
-    service = DictService(db)
+    service = DictService(db, tenant_id=_require_anchor(tenant_anchor))
     try:
         dict_type = await service.create_type(
             code=data.code,
@@ -98,9 +111,10 @@ async def update_dict_type(
     data: DictTypeUpdate,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
 ):
     """更新字典类型"""
-    service = DictService(db)
+    service = DictService(db, tenant_id=_require_anchor(tenant_anchor))
     dict_type = await service.update_type(
         type_id=type_id,
         name=data.name,
@@ -121,9 +135,10 @@ async def delete_dict_type(
     type_id: str,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
 ):
     """删除字典类型（软删除：禁用）"""
-    service = DictService(db)
+    service = DictService(db, tenant_id=_require_anchor(tenant_anchor))
     success = await service.delete_type(type_id)
     if not success:
         raise HTTPException(
@@ -149,9 +164,10 @@ async def get_dict_items(
     page_size: int = Query(50, ge=1, le=200, description="每页数量"),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
 ):
     """获取字典项列表"""
-    service = DictService(db)
+    service = DictService(db, tenant_id=tenant_anchor)
     items, total = await service.get_items(
         type_id=type_id,
         status=status_,
@@ -173,9 +189,10 @@ async def create_dict_item(
     data: DictItemCreate,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
 ):
     """创建字典项"""
-    service = DictService(db)
+    service = DictService(db, tenant_id=_require_anchor(tenant_anchor))
 
     # 验证字典类型存在
     dict_type = await service.get_type_by_id(type_id)
@@ -207,9 +224,10 @@ async def update_dict_item(
     data: DictItemUpdate,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
 ):
     """更新字典项"""
-    service = DictService(db)
+    service = DictService(db, tenant_id=_require_anchor(tenant_anchor))
     item = await service.update_item(
         item_id=item_id,
         label=data.label,
@@ -237,9 +255,10 @@ async def delete_dict_item(
     item_id: str,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
 ):
     """删除字典项（软删除：禁用）"""
-    service = DictService(db)
+    service = DictService(db, tenant_id=_require_anchor(tenant_anchor))
     success = await service.delete_item(item_id)
     if not success:
         raise HTTPException(
@@ -255,9 +274,10 @@ async def sort_dict_items(
     data: SortRequest,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    tenant_anchor: str | None = Depends(require_admin_tenant_anchor),
 ):
     """批量更新字典项排序"""
-    service = DictService(db)
+    service = DictService(db, tenant_id=_require_anchor(tenant_anchor))
     items = [{"id": item.id, "sort_order": item.sort_order} for item in data.items]
     await service.sort_items(items)
     return {"message": "排序成功"}
