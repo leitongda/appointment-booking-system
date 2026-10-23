@@ -146,6 +146,18 @@ class AdminGuideTourService:
 
     async def create(self, data: GuideTourCreate, created_by: str) -> GuideTour:
         """创建指引"""
+        # 租户隔离：指引编码在租户内唯一；平台指引（tenant_id 为空）按 NULL 查重
+        conditions = [GuideTour.code == data.code]
+        if data.tenant_id:
+            conditions.append(GuideTour.tenant_id == data.tenant_id)
+        else:
+            conditions.append(GuideTour.tenant_id.is_(None))
+        existing = (
+            await self.db.execute(select(GuideTour).where(and_(*conditions)))
+        ).scalar_one_or_none()
+        if isinstance(existing, GuideTour):
+            raise ValueError(f"指引代码 '{data.code}' 已存在")
+
         tour = GuideTour(
             code=data.code,
             title=data.title,

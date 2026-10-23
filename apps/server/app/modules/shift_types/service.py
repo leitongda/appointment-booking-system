@@ -99,7 +99,7 @@ class ShiftTypeService:
         return result.scalar_one_or_none()
 
     async def get_by_code(self, code: str) -> ShiftType | None:
-        """根据代码获取班次类型
+        """根据代码获取班次类型（按当前租户过滤）
 
         Args:
             code: 类型代码
@@ -107,9 +107,15 @@ class ShiftTypeService:
         Returns:
             班次类型
         """
-        result = await self.db.execute(
-            select(ShiftType).where(ShiftType.code == code)
-        )
+        # 租户隔离：编码唯一性检查限定在当前租户范围内；
+        # 无租户上下文时限定平台级记录（tenant_id IS NULL）
+        tenant_id = get_current_tenant_id()
+        conditions = [ShiftType.code == code]
+        if tenant_id:
+            conditions.append(ShiftType.tenant_id == tenant_id)
+        else:
+            conditions.append(ShiftType.tenant_id.is_(None))
+        result = await self.db.execute(select(ShiftType).where(and_(*conditions)))
         return result.scalar_one_or_none()
 
     async def create(

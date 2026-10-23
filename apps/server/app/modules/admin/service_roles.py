@@ -85,10 +85,13 @@ class RoleService:
         return await self.db.get(Role, role_id)
 
     async def get_by_code(self, code: str, tenant_id: str | None = None) -> Role | None:
-        # 租户隔离：编码唯一性检查需限定在租户范围内
+        # 租户隔离：编码唯一性检查需限定在租户范围内；
+        # 无租户上下文时限定平台角色（tenant_id IS NULL），避免平台建角色被租户同 code 阻塞
         conditions = [Role.code == code]
         if tenant_id:
             conditions.append(Role.tenant_id == tenant_id)
+        else:
+            conditions.append(Role.tenant_id.is_(None))
         result = await self.db.execute(select(Role).where(and_(*conditions)))
         return result.scalar_one_or_none()
 

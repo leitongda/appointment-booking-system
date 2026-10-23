@@ -81,6 +81,7 @@ celery_app.conf.update(
         "app.tasks.attendance_stat_task.*": {"queue": "scheduled"},
         "app.tasks.attendance_alert_task.*": {"queue": "scheduled"},
         "app.tasks.attendance_cleanup_task.*": {"queue": "scheduled"},
+        "app.tasks.tenant_lifecycle_task.*": {"queue": "scheduled"},
     },
     
     # Beat 调度器配置（定时任务）
@@ -332,6 +333,13 @@ celery_app.conf.update(
             "schedule": crontab(minute=0, hour="*/6"),  # 每6小时整点
             "options": {"queue": "scheduled"},
         },
+
+        # 租户软删除到期清理 - 每天凌晨 3:50（首版仅 dry-run 输出清单，不物理删除）
+        "tenant-purge-deleted": {
+            "task": "app.tasks.tenant_lifecycle_task.purge_deleted_tenants_task",
+            "schedule": crontab(hour=3, minute=50),  # 每天凌晨 3:50
+            "options": {"queue": "scheduled"},
+        },
     },
 )
 
@@ -370,6 +378,7 @@ celery_app.autodiscover_tasks([
     # beat 引用了这两个模块的任务，缺了会被报 Received unregistered task 并丢弃
     "app.tasks.store_metric_task",
     "app.tasks.integration_sync_task",
+    "app.tasks.tenant_lifecycle_task",
 ])
 
 # Flower 监控配置

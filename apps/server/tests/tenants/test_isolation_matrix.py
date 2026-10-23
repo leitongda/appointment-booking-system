@@ -1,6 +1,5 @@
-"""T-2：租户隔离矩阵试点（stores / doctors）
+"""T-2：租户隔离矩阵（stores / doctors / departments）
 
-departments 条目待 P2C-7 落地后启用；其余模块随第2期各批次逐步加入注册表。
 断言要求：本租户对象必须可见 + 他租户对象必须不可见（双向断言），
 跨租户详情 403/404，跨租户写非 2xx 且他租户数据未被改动。
 """
@@ -88,6 +87,8 @@ def _own_and_foreign(env, module: str) -> tuple[str, str]:
         return env.store_a.id, env.store_b.id
     if module == "doctors":
         return env.doctor_a.id, env.doctor_b.id
+    if module == "departments":
+        return env.department_a.id, env.department_b.id
     raise AssertionError(f"未注册的模块: {module}")
 
 
@@ -151,6 +152,8 @@ async def test_cross_tenant_write_denied(
 
     if module == "stores":
         stored = await db_session.get(Store, foreign_id)
+    elif module == "departments":
+        stored = await db_session.get(Department, foreign_id)
     else:
         stored = await db_session.get(Doctor, foreign_id)
     assert stored is not None

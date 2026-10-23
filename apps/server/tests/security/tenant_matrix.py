@@ -43,4 +43,13 @@ MATRIX_MODULES: list[ModuleSpec] = [
         cross_status=(403, 404),
         extract_items=page_items,
     ),
+    ModuleSpec(
+        # 列表走 /departments/all（裸列表），详情/写入走 /departments/{id}
+        name="departments",
+        list_path="/api/v1/departments/all",
+        detail_path="/api/v1/departments/{id}",
+        write_path="/api/v1/departments/{id}",
+        cross_status=(403, 404),
+        extract_items=page_items,
+    ),
 ]
