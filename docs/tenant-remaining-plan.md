@@ -1,0 +1,444 @@
+# 租户改造剩余工作计划（P5）
+
+- 日期：2026-10-23
+- 分支：`feat/tenant-isolation-hardening`
+- 依据：四份盘点结果 `剩余租户缺口盘点`（R1）、`测试与矩阵缺口盘点`（R2）、`生命周期实施缺口盘点`（R3）、`上线与数据风险盘点`（R4）
+- 范围：只做计划与执行编排，**本文不代表任何代码或测试已经完成**。工作项编号沿用盘点编号（R1-1 … R4-15）。
+- 路径约定：后端路径相对 `apps/server/`，前端路径相对仓库根。
+
+---
+
+## 1. 现状总结
+
+### 1.1 已经成立的能力
+
+1. **管理员认证层的租户收敛已存在**：认证成功后会按账号补齐租户上下文，并对非超管做跨租户拒绝（`app/common/auth_unified.py:508-524`）；`code` 头的兜底比对受 `TENANT_CONSISTENCY_FAIL_CLOSE` 控制（`app/common/auth_unified.py:526-537`）。
+2. **管理端租户锚点底座已存在**：`resolve_admin_tenant_anchor`（`app/common/tenant_deps.py:169-198`）与 `require_admin_tenant_anchor`（`:200-209`）；平台管理员未显式指定 `tenant_id` 时受 `PATIENT_ANCHOR_FAIL_CLOSE` 控制（`:181-190`），默认关闭（`app/core/config.py:139`）。
+3. **锚点已在部分模块落地**：`resolve_admin_tenant_anchor` 仅出现在 4 个文件（`app/modules/patients/router_manage.py`、`app/modules/patients/router_users.py`、`app/modules/stores/router.py`、`app/modules/departments/router.py`）；`require_admin_tenant_anchor` 仅出现在 `messages`、`stores`、`schedules`、`doctors` 4 个 router。其余管理端仍以 `get_current_tenant_id()` 为唯一来源（`app/middleware/tenant_context.py:52`）。
+4. **迁移链已串成单头**：`p3a1_content_tenant → p3a2_admin_role_unique → p3a3_business_numbers → p3a4_config_codes → p3a5_usage_daily_unique → p3a6_tenant_fk → p3a7_settings_tenant`（各文件 `revision/down_revision`；例如 `migrations/versions/p3a6_tenant_fk.py:23-24`、`p3a7_settings_tenant.py:16-17`）。本次未用 `alembic heads` 复核（venv 解释器路径失效，见 R3 盘点）。
+5. **灰度原则已落地为开关**：`LEGACY_USER_ADMIN_FALLBACK=True`、`TENANT_FILTER_FAIL_CLOSE=False`、`TENANT_CODE_TO_ID_RESOLVE=False`、`TENANT_CONSISTENCY_FAIL_CLOSE=False`、`PATIENT_ANCHOR_FAIL_CLOSE=False`、`PUBLIC_TENANT_REQUIRED_EXTRA_PATHS=[]`、`FEATURE_ENFORCEMENT_ENABLED=False`（`app/core/config.py:131-148`）。
+
+### 1.2 剩余风险的四类形态
+
+| 类型 | 含义 | 代表点位 |
+|---|---|---|
+| (a) 平台/超管未显式指定租户 | 读全租户、写 `tenant_id=NULL` 行 | `freelance_fees/service_mutation.py:79-82`、`approval_flows/service_definitions.py:183-190`、`blacklists/service.py:106-120` |
+| (b) 遗留 NULL 租户管理员 | `TENANT_FILTER_FAIL_CLOSE=False` 时不过滤 | `app/common/tenant_deps.py:224-244`、`app/core/config.py:133` |
+| (c) 完全没写租户逻辑 | 任何租户管理员都能跨租户 | `settings`（`app/models/settings.py:20` 有列，业务零使用）、`statistics`（`app/modules/statistics/**` 无 `tenant` 命中）、`shift_types`（`service.py:149` 只在创建时写上下文） |
+| (d) 直接信任客户端租户参数 | 可跨租户读/发消息 | `notification_logs/router.py:84-117`、`unified_message/schemas.py:46` + `router.py:35-47` |
+
+### 1.3 当前缺口量化
+
+| 指标 | 现状 | 证据 |
+|---|---|---|
+| 仍引用请求上下文的模块数 | 93 个文件命中 `get_current_tenant_id` | 本次 `grep -rl ... | wc -l` |
+| 已使用账号锚点的模块 | 4 个 resolve + 4 个 require | 本次 `grep -rl` |
+| 租户隔离矩阵注册模块 | 仅 `stores`、`doctors` 两条 | `tests/security/tenant_matrix.py:29-46` |
+| 零租户逻辑模块 | `settings`、`statistics`、`shift_types` | 本次 grep：`statistics`/`settings` 业务代码零命中；`shift_types` 仅创建/缓存引用 |
+| `auto_renew` 消费方 | 0（只落库/回显） | `app/models/tenant.py:219`、`service_subscription.py:163`、`schemas.py:369/386` |
+| purge 实现 | 0（仅有配置） | `app/core/config.py:144-145`；`app/tasks/` 无对应任务 |
+| 审计 SQL 可直接执行 | 否，p3a1/p3a7 应用前会报错 | 盘点 R4-1 实跑：`scripts/tenant_null_tenant_id_audit.sql:39/63` 报 `column tenant_id does not exist` |
+
+### 1.4 关键事实与证据（后续批次直接引用）
+
+1. 平台管理员锚点只认 query 参数：`app/common/tenant_deps.py:200-209` 的 `tenant_id` 是 `Query`；而管理端只注入 header（`packages/api/src/web-interceptors.ts:297-302`，`apps/admin/src/utils/request.ts:129`）。翻 `PATIENT_ANCHOR_FAIL_CLOSE` 会打断门店/排班/医生/消息页面（R4-8）。
+2. 停服 403 的错误码在 `error.code`：`app/middleware/exception.py:80-97`；患者小程序读 `data.error_code`（`apps/patient-miniapp/src/app.tsx:181-187`），共享解析也读 `error_code`（`packages/shared/src/utils/parseTenantError.ts:39`）。
+3. 管理端结构化错误处理会提前吞掉 `TENANT_OVERDUE/TENANT_SUSPENDED`：`packages/api/src/utils/error-handling.ts:152-156` 返回 `true`，而调用发生在 403 分支之前（`packages/api/src/web-interceptors.ts:347` vs `:359-366`），导致不跳停服页（R4-9）。
+4. `waitlist /stats` 引用了不存在的列：`app/modules/waitlist/router.py:258` 使用 `WaitlistEntry.store_id`，而模型列清单（`app/models/waitlist.py:23-52`）无此列；带 `store_id` 的统计请求会 `AttributeError`（R2-8）。
+5. `stores` 的详情/状态/批量绑定未传锚点：`app/modules/stores/router.py:288`、`:486`、`:571`、`:654`；写路径的 403 来自 `check_store_access`（`:281`、`:362`），请求到不了 service，矩阵因此“假通过”（R2-9）。
+6. 6 张统一消息表的 `tenant_id` 为 `NOT NULL`：`app/models/unified_template.py:32`、`app/modules/unified_message/models.py:39/61/86/115/130`；M6 文档里的 `UPDATE ... SET tenant_id = NULL` 配方（`migrations/versions/p3a6_tenant_fk.py:9-16`）对它们不可执行（R4-6）。
+7. M6 的 16 张表与模型层不一致：迁移建了外键（`p3a6_tenant_fk.py:28-45`），但 7 个模型列未声明 `ForeignKey("tenants.id")`（R3-8）。
+8. 支付回调强制租户上下文：`app/modules/payments/service.py:179-182`、退款 `app/modules/refunds/router.py:231-233`；而文档给的是单域名回调地址（`docs/payment-launch-checklist.md:46`），微信不会带 `X-Tenant-ID`（R4-11）。
+9. 功能开关唯一接线点：`app/modules/payments/router.py:127`；`online_payment` 默认 False（`app/common/feature_definitions.py:37`）；`require_feature` 自身在 `app/common/feature_deps.py:17-43`，总开关默认 False（`app/core/config.py:148`）。
+10. 审计 SQL 的覆盖面缺口：D13 只查跨租户重复（`scripts/tenant_null_tenant_id_audit.sql:11-22`），D1 只数行数（`:65-68`），D9 缺 5 张表（`:24-39`）。
+11. 迁移含不可逆数据合并：`p3a5_usage_daily_unique.py` 按 `SUM` 合并重复用量行；`p3a1_content_tenant.py:9-10` 明确内容表回填不可自动恢复（R4-15）。
+12. 生命周期：到期任务直接把租户置欠费（`app/tasks/tenant_usage_task.py:224-229`），未读 `auto_renew`；软删除承诺 90 天后物理删除（`app/modules/tenants/service_tenant.py:291-297`）但无执行方（R3-1/R3-2）。
+
+---
+
+## 2. 批次编排原则
+
+1. **先能做、后拍板、再上环境**：无阻塞项按依赖排在前；`decision` 与 `environment` 单独成批，未决前不混入可执行批次。
+2. **锚点底座先行**：所有“把 `get_current_tenant_id()` 换成账号锚点”的模块改造，必须建立在 B1 的统一语义上，避免每个模块各写一套。
+3. **矩阵先行**：测试注册表（R2-1）先扩容，后续模块批次每改一个模块就补一条 `ModuleSpec`，防止“改了没测、测了没注册”。
+4. **小步可回滚**：每批只动一类模块；每批有独立验收门与 revert 面。
+5. **数据与代码分离**：迁移脚本、审计 SQL、物理删除属于独立批次，不与业务模块混提。
+6. **不启用未接线的开关**：`TENANT_PURGE_*` 本期只做 dry-run，不作为发布开关（R4-13）。
+
+---
+
+## 3. 批次总览
+
+| 批次 | 工作项 | 依赖 | 验收门（计划，未执行） | 阻塞 |
+|---|---|---|---|---|
+| **B0 基线与快速修复** | R2-11、R2-10、R2-8、R2-9、R1-20、R4-13 | 无 | 定向 pytest：`tests/unit/test_approval_business_callbacks.py`、`tests/tenants/test_quota.py`、`tests/tenants/test_isolation_matrix.py -k stores`；新增 waitlist `/stats` 用例 | 无 |
+| **B1 锚点底座统一** | R1-1、R4-8 | B0 | 平台管理员仅带 `X-Tenant-ID` 在 `PATIENT_ANCHOR_FAIL_CLOSE=True` 下访问 stores/schedules/doctors/messages 均为 200 且被限定；租户管理员伪造头 403 | 无 |
+| **B2 测试矩阵底座与 P2 补写** | R2-1、R2-2、R2-3、R2-4 | B0、B1 | 四个矩阵文件全绿，且新增“正控”：本租户写 2xx、跨租户写非 2xx 且 DB 未变 | 无 |
+| **B3 零租户与客户端参数** | R1-12、R1-2、R1-16、R1-17 | B1 | shift-types/settings/notification-quota/unified-message 四组新用例 | 无 |
+| **B4 统计与配额** | R1-3、R2-7 | B1 | statistics 跨租户计数双向断言；三类新增配额检查 ≥9 用例 | 无 |
+| **B5 管理端核心** | R1-4、R1-5、R1-6、R1-19 | B1、B2 | 矩阵新增 freelance-fees/import-export/admin/export/audit-logs；平台管理员无 `tenant_id` 返回 400 | 无 |
+| **B6 流程与排班配套** | R1-7、R1-8、R1-9、R1-10 | B1、B2 | approval-flows/rule-sets/suspensions/rest-days/leave-requests 矩阵读写用例 | 无 |
+| **B7 考勤与诊室** | R1-11、R1-13 | B1、B2 | 5 条 attendance 路径 + rooms/doctor-booking-settings 矩阵 | 无 |
+| **B8 患者运营与内容** | R1-14、R1-15、R1-18 | B1、B2 | blacklists/points/feedbacks 矩阵；dict 公开端与 booking-notice 公开端租户校验 | 无 |
+| **B9 数据核对与迁移脚本** | R4-1、R4-2、R4-3、R4-4、R4-5、R4-6、R3-6、R3-8、R4-14、R4-15、R4-7 | B0；R4-7 依赖 B1 | 审计 SQL 在 pre/post 两库 ERROR=0；`alembic autogenerate` 无 tenant 外键 diff；staging dry-run 可推导+不可推导=NULL 总数 | 无（staging 验证见 E1） |
+| **B10 前端错误码与功能开关** | R4-9、R3-5 | B1 | `parseTenantError` 三来源单测；未开通 `online_payment` 403、开通 200、总开关关放行 | 无 |
+| **B11 生命周期 dry-run** | R3-2 | B9 | `TENANT_PURGE_DRY_RUN=True` 只输出清单 0 删除；`ENABLED=False` 全程 no-op | 无（真实删除受 R2-5 决策约束） |
+| **D1 决策阻塞批** | R2-5、R2-6、R3-1、R3-3、R3-4、R4-10、R4-12 | B0–B11 | 各决策书面确认后再执行；未确认不动代码 | D17/D20/商务/发布方确认 |
+| **E1 环境阻塞批** | R3-7、R3-9、R4-11 | B9、D1 | 生产/预发库执行留档、微信回调实测、退款跨租户用例 | 无生产库凭证、运维窗口、微信回调测试环境 |
+
+> 说明：B0–B11 之间并非全部串行。B2 与 B3–B8 可并行开工，但 B2 的注册表必须先合入；B9 与业务模块可并行；D1/E1 必须等前置批次完成。
+
+---
+
+## 4. 批次详情
+
+### B0 基线与快速修复（无阻塞）
+
+**目标**：先清掉“会让后续测试假绿/偶发红”的确定性缺陷，并完成只登记不写代码的事项。
+
+| ID | 工作项 | 关键落点 | 验收断言 |
+|---|---|---|---|
+| R2-11 | 修复硬编码绝对路径 | `tests/unit/test_approval_business_callbacks.py:45` 的 `cwd` 改为 `Path(__file__).resolve().parents[2]` | 任意工作目录运行该文件全绿 |
+| R2-10 | 固定配额测试时间与单号 | `tests/tenants/test_quota.py:449-483`；用 freezegun/monkeypatch 固定到月中；`appointment_no` 用完整 uuid 或序号 | 连续 20 次 + 整文件运行全绿；新增“月初 UTC 跨界”回归用例 |
+| R2-8 | 修 `waitlist /stats` 并补 total 断言 | `app/modules/waitlist/router.py:258` 改为 `Schedule.store_id` 子查询/join；`:235-269` | 有/无 `store_id` 两种请求不报错；跨租户只计本租户；列表 `total == 命中数` |
+| R2-9 | 补 stores 写路径锚点 | `app/modules/stores/router.py:288`、`:486`、`:571`、`:654` 传入 `resolve_admin_tenant_anchor(...)`；矩阵补超管视角 | 超管 + A 头访问 store_b 返回 403/404 且 DB 未变；超管 + A 头改 store_a 成功 |
+| R1-20 | 登记“已正确锚定/公开端”清单 | 本文第 8 节表格即登记 | 文档评审通过，不再重复改造 |
+| R4-13 | 明确 purge 本期不启用 | 本文第 5 节与发布说明 | `grep -rn TENANT_PURGE app` 仅配置两行；发布清单标注“未接线” |
+
+**回滚**：R2-11/R2-10 只动测试；R2-8/R2-9 只动 waitlist/stores，单文件 revert 即可。
+
+### B1 锚点底座统一（无阻塞）
+
+**目标**：把“平台管理员必须显式租户”的语义变成前端可用的底座，而不是只认 query。
+
+| ID | 工作项 | 关键落点 |
+|---|---|---|
+| R1-1 | 锚点铺开与语义统一 | `app/common/tenant_deps.py:169-209` 作为唯一实现；各管理端 router 改为 `Depends(require_admin_tenant_anchor)`，service 显式收 anchor；替换 `if tenant_id:` 的隐式放行 |
+| R4-8 | 平台管理员锚点来源改为 header 兜底 | `require_admin_tenant_anchor`（`:200-209`）在 query 为空时回退 `get_current_tenant_id()`（header/子域名/路径前缀），保持“平台可跨租户、租户管理员只自身”语义 |
+
+**验收门**：
+- 平台管理员仅带 `X-Tenant-ID: <租户>`、不带 query，在 `PATIENT_ANCHOR_FAIL_CLOSE=True` 下调用 `GET /api/v1/stores`、`/schedules`、`/doctors`、`/messages`：200 且数据限定该租户。
+- 租户管理员带他人 `tenant_id`：仍被忽略/403（`tenant_deps.py:191-197`）。
+- 租户管理员无 `tenant_id`：403（`:193-196`）。
+
+**注意**：这是全仓语义改动，必须先合入 B1 再让 B3–B8 批量替换；否则各模块会各自实现一套“query 优先、header 兜底”。
+
+### B2 测试矩阵底座与 P2 补写（无阻塞）
+
+| ID | 工作项 | 关键落点 |
+|---|---|---|
+| R2-1 | 扩 `ModuleSpec` 与注册表 | `tests/security/tenant_matrix.py:17-46` 增加 `write_method`、`omit_body`；`tests/tenants/test_isolation_matrix.py:86-91` 改为通用对象工厂；`:145` 不再固定 PUT |
+| R2-2 | P2A 写/创建/患者路径 | `tests/security/test_p2a_tenant_matrix.py:156-296` 补 POST/PUT/cancel/waitlist/my/position/stats/payments/refunds；患者无头断言收紧为 400（或显式分支） |
+| R2-3 | P2B 提升到 HTTP 层 | `tests/security/test_patient_data_flow_tenant_isolation.py:233-391` 补患者/病历/报告详情+写+创建；statistics 断言 total 数值 |
+| R2-4 | P2C 写路径 | `tests/tenants/test_p2c_resource_message_anchor_matrix.py:106-240` 补排班/医生/门店/科室/消息的 create/update/delete/batch/read |
+
+**验收门**：
+- `pytest tests/security/test_p2a_tenant_matrix.py tests/security/test_patient_data_flow_tenant_isolation.py tests/tenants/test_p2c_resource_message_anchor_matrix.py tests/tenants/test_isolation_matrix.py -q` 全绿。
+- 每个模块至少一条正控（本租户写 2xx），避免“权限 403 冒充租户拦截”。
+- 列表 `total` 与命中数一致。
+
+### B3 零租户与客户端参数（无阻塞）
+
+| ID | 工作项 | 关键落点 | 验收 |
+|---|---|---|---|
+| R1-12 | `shift_types` 全链路补租户 | `app/modules/shift_types/service.py:37-72`、`:95-99`、`:119-124`、`:145-152`；`router.py:20-27/51-55/92/116` | 列表/详情/写跨租户 403/404；创建落 anchor；缓存失效（`:225-230`）用 anchor |
+| R1-2 | `settings` 补租户维度 | `app/models/settings.py:20`；`app/modules/settings/service_core.py:14-38/91-129/143-160` | 租户 A 改 booking 后 B 仍默认；平台管理员无 tenant_id 修改 400 |
+| R1-16 | `notification_logs` 不再信任 query | `app/modules/notification_logs/router.py:84-117` 改 `require_admin_tenant_anchor(..., tenant_id_override=tenant_id)` | 租户 A 传 `?tenant_id=B` 403；平台无 tenant_id 400 |
+| R1-17 | `unified_message` 覆盖请求体租户 | `app/modules/unified_message/schemas.py:46`；`router.py:35-47`、`send-batch` | A 管理员把 `event.tenantId` 设为 B 返回 403；模板端点用 anchor |
+
+**回滚**：四模块互不依赖，可分别 revert。
+
+### B4 统计与配额（无阻塞）
+
+| ID | 工作项 | 关键落点 | 验收 |
+|---|---|---|---|
+| R1-3 | statistics 增加租户维度 | `app/modules/statistics/router_overview.py:20-45` 等所有 `router_*.py`；`app/common/data_scope.py:94-98` 的 tenant 分支改 fail-close（或受开关控制） | 租户 B 的预约不计入 A 的 `/statistics/overview`；无门店租户管理员不得看全量 |
+| R2-7 | 三类配额补测 | `app/common/quota.py:263-327`；调用方 `miniapp_platform/service_instance.py:196`、`lowcode/router.py:145/343`、`upload/router.py:68/166` | 达限 403 且 `quota_type/current/limit` 正确；未达通过；limit=0/None 语义；A 达限不影响 B |
+
+**注意**：R3-3（DataScope 删除）是决策项。若 D20 先拍板删除，R1-3 应基于简化后的 fallback 路径实现；若未拍板，R1-3 只加租户条件，不动 DataScope 结构。
+
+### B5 管理端核心（无阻塞）
+
+| ID | 工作项 | 关键落点 | 验收 |
+|---|---|---|---|
+| R1-4 | `freelance_fees` 锚点与写保护 | `app/modules/freelance_fees/router.py`；`service_query.py:32-34/42-45/70-72/130-132/185-190/223-238/258-274`；`service_mutation.py:79-82/121-130/208/328` | `/freelancers`、`/tasks`、`/settlements` 矩阵；平台无 tenant_id 创建 400 |
+| R1-5 | `import_export` 去上下文回落 | `app/modules/import_export/router_import.py:45-47`；`router_export.py:133-141` 及 `:85/459-466/521-527/591-603`；`service_import.py:90/123` | 平台无 tenant_id 导出 400；A 导出不含 B 患者；导入按 anchor 预加载 |
+| R1-6 | `admin` 列表/详情/监控强过滤 | `app/modules/admin/service_admins.py:45/97/123/149/172-174`；`router_admins.py:101/137/161`；`router_roles.py:26-123`；`service_logs.py:29`；`router_monitoring.py:148/259/415` | A 的 `/admin/admins` 不含 B；跨租户 admin_id 403/404；平台无 tenant_id 400 |
+| R1-19 | `export`/`audit_logs` 去回落 | `app/modules/export/router.py:33-35/65-67/96-98`；`service.py:46-47/135-136/206-207`；`audit_logs/router.py:44-47/127-131` | `/export`、`/audit-logs/checkin-logs` 矩阵；审计跨租户仅平台且必须显式 |
+
+### B6 流程与排班配套（无阻塞）
+
+| ID | 工作项 | 关键落点 | 验收 |
+|---|---|---|---|
+| R1-7 | `approval_flows` 锚点 | `router.py:317/331/349/367/382/400`；`service_definitions.py:67-70/100-108/115-121/183-190/326-335/625-626`；`service_instances.py:33/122/241`；`engine.py:1602` | `/approval-flows`、`/approval-instances` 矩阵；create anchor 为空拒绝 |
+| R1-8 | `rule_sets` 超管端点锚点 | `router.py:121/167/208/256/396/506`；`service_query.py:119-122/193-196/336-366`；`service_mutation.py:73-82`；`audit_helpers.py:43-45/185` | 超管无 tenant_id 调 `/rule-sets` 400；跨租户读写拒绝 |
+| R1-9 | `schedule_suspensions` | `router.py:23-33/97-101/141-146/171-175`；`service.py:37-39/53-62/88/363/393/431`；`service_processing.py:174` | 列表/详情/写矩阵；跨租户处置 403/404 |
+| R1-10 | `rest_days`/`leave_requests` | `rest_days/router.py:20/86/128/145`、`service.py:27-29/47-49/92-95`；`leave_requests/router.py:24/88/128`、`service.py:25-27/37-40/79-90/344-364` | 两模块矩阵；审批/撤回路径同步锚点 |
+
+### B7 考勤与诊室（无阻塞）
+
+| ID | 工作项 | 关键落点 | 验收 |
+|---|---|---|---|
+| R1-11 | attendance 五模块统一 | `attendance_rules/service.py:26-27/50-54`；`attendance_shifts/service.py:27-28/57-61`；`attendance_groups/service.py:22-27`；`attendance_records/service.py:264/316/371/386`、`router.py:228-233`；`attendance_leave/service.py:333-337` | 5 条 attendance 路径矩阵；A 访问 B 打卡记录 403/404；groups/records 改强过滤 |
+| R1-13 | rooms/booking settings | `schedule_rooms/service.py:19-21/45-50`、`router.py:90/114/130/154`；`doctor_booking_settings/service.py:24-25/32-34/50-52/71-73/94-97/210`、`router.py:28/57/71/93` | 两模块矩阵；create anchor 空拒绝 |
+
+### B8 患者运营与内容（无阻塞）
+
+| ID | 工作项 | 关键落点 | 验收 |
+|---|---|---|---|
+| R1-14 | blacklists/points/feedbacks | `blacklists/service.py:32-40/106-120`；`points/service.py:34-36/129/298-301/356`；`feedbacks/service.py:23-25/83/173-186`；三模块 router | 列表矩阵；创建/调整 anchor 空拒绝；患者自助端点保持 `require_tenant_active_for_write` |
+| R1-15 | dictionaries 管理端+公开端 | `router.py:30-37/50-54/67-76/95-100/119`；`service.py:32-36/75-78/96-103/201-206/238-247`；`router_public.py:20-33/43-72` | 无 `X-Tenant-ID` 调 `/dict-options/{code}` 400；A 私有字典 B 不可见 |
+| R1-18 | email_templates/booking_notices | `email_templates/service.py:18-21/31-43/98-108`、`router.py:32/55/66/79/90`；`booking_notices/router.py:20-26/29-44`、`service.py:19-21` | `/booking-notices/public` 无头 400；A 须知不出现在 B；平台模板 NULL 分支仅平台管理员可写 |
+
+### B9 数据核对与迁移脚本（无阻塞，staging 验证归 E1）
+
+| ID | 工作项 | 关键落点 | 验收 |
+|---|---|---|---|
+| R4-1 | 审计 SQL 拆 pre/post 两段 | `scripts/tenant_null_tenant_id_audit.sql:1-4/36-39/60-63`；用 `to_regclass()`/`information_schema` 守卫，缺列输出 `SKIP(missing)` | 在 pre-p3a 与 post-p3a7 两库副本运行，ERROR=0；删一列只输出 SKIP |
+| R4-2 | D13 补同租户/平台重复 | `sql:11-22`；补 `GROUP BY tenant_id, code HAVING count(*)>1` 与 `WHERE tenant_id IS NULL GROUP BY code HAVING count(*)>1`；与 `p3a2_admin_role_unique.py:32-41` 门禁对齐 | 造 1 条同租户重复 + 1 条平台重复，新查询能报出 |
+| R4-3 | D1 改日志观测门禁 | `sql:65-68`；关键字 `legacy User admin fallback hit`（`app/common/auth_unified.py:411`） | 连续 2 个发布周期命中=0 才允许 `LEGACY_USER_ADMIN_FALLBACK=False` |
+| R4-4 | D9 补表与占比 | `sql:24-39`；补 `follow_up_plans/follow_up_records/follow_up_self_reports/doctor_reviews/feedbacks`；输出 `null_pct`；内容表单独成段 | 0 行表输出 0/0；各表 total 与 `information_schema` 一致 |
+| R4-5 | D20 表存在性守卫与 miniapp 口径 | `sql:6-9`；`to_regclass('role_permissions')`；新增 `miniapp_instances` 按租户 `status=2` 计数 | 未执行 `create_all` 的库输出 MISSING；分组计数可供产品拍板 |
+| R4-6 | M6 清洗配方分两类 | `migrations/versions/p3a6_tenant_fk.py:9-16`；10 张可空表 `SET NULL`，6 张 NOT NULL 表备份后重映射或 DELETE | staging 每表造 1 条孤儿，16 张表 VALIDATE 全部成功 |
+| R3-6 | 新增 M6 上线后脚本 | 新建 `scripts/m6_post_deploy_cleanse_and_validate.sql` | 清洗前后孤儿计数=0；`pg_constraint.convalidated` 全为 true |
+| R3-8 | 7 个模型列补外键 | `unified_template.py:32`、`unified_message/models.py:39/61/86/115/130`、`content_version.py:14` | `alembic autogenerate` 对 tenant 外键零 diff；单测断言 16 张表 `foreign_keys` 非空 |
+| R4-14 | 扩展 NULL 回填脚本 | `scripts/migrate_core_tenant_data.py:98/127/155/176/197/227/266/359-374`；补 medical_records/examination_reports/follow_up_*/messages/waitlist_entries；禁止默认租户兜底（`:74-89`） | staging dry-run：可推导+不可推导=NULL 总数；回填后业务表 NULL=0 |
+| R4-15 | 固化迁移顺序与备份 | 本文第 6 节；p3a1→p3a7 单头，先备份内容表与 `tenant_usage_logs` | staging 全链 upgrade 一次、downgrade 一次并记录不可恢复部分 |
+| R4-7 | 灰度开关 runbook 与 `.env.example` | `app/core/config.py:130-148`；`.env.example` 当前无 `TENANT/FEATURE/LEGACY` 命中 | `.env.example` 登记全部开关及默认值；第 5 节顺序可照单执行 |
+
+### B10 前端错误码与功能开关（无阻塞）
+
+| ID | 工作项 | 关键落点 | 验收 |
+|---|---|---|---|
+| R4-9 | 统一读 `error.code` | `packages/shared/src/utils/parseTenantError.ts:39`；`apps/patient-miniapp/src/app.tsx:181-187`；`packages/api/src/utils/error-handling.ts:152-156`；`packages/api/src/web-interceptors.ts:347/359-366` | 喂 `{code:403,error:{code:'TENANT_OVERDUE'}}` 触发 `onTenantSuspended`；患者端弹窗命中；admin 跳 `/tenant-suspended` |
+| R3-5 | 接线 `export_data`/`basic_statistics` | `app/modules/statistics/router_overview.py:20-24` 挂 `Depends(require_feature("basic_statistics"))`；真实导出端点挂 `export_data` | 未开通 403；开通 200；总开关关放行；平台管理员不受限（`feature_deps.py:31-33`） |
+
+### B11 生命周期 dry-run（无阻塞部分）
+
+| ID | 工作项 | 关键落点 | 验收 |
+|---|---|---|---|
+| R3-2 | 新建 purge 任务骨架 + dry-run | 新建 `app/tasks/tenant_lifecycle_task.py`；`get_sync_db()`；`TENANT_PURGE_ENABLED`（`config.py:144`）+ `TENANT_PURGE_DRY_RUN`（`:145`）双门禁；beat 注册 `app/celery_app.py:150-177` + `autodiscover_tasks` | `DRY_RUN=True` 只输出候选清单 0 删除；`ENABLED=False` 全程 no-op；未满 90 天不动；重复执行幂等 |
+
+**边界**：真实物理删除顺序、子表清单、失败回滚属 R2-5 决策范围；本期默认 `ENABLED=False`，不得在发布环境打开。
+
+### D1 决策阻塞批（decision）
+
+| ID | 工作项 | 决策点 | 未决时的处理 |
+|---|---|---|---|
+| R2-5 | purge 契约与 dry-run 测试 | 保留期、物理删除范围、是否含 `status=2` 归档实例 | 只做 B11 dry-run，不执行删除 |
+| R2-6 | `auto_renew` 测试 | 续费规则（扣款、重试、宽限、是否新建订阅行） | 先写测试骨架，不实现扣款 |
+| R3-1 | `auto_renew` 定时续费 | D17：延长周期 + pending 应收 + 宽限期不停服 | 保持 `tenant_usage_task.py:224-229` 现状（到期置欠费） |
+| R3-3 | DataScope/role_permissions 删除 | D20：两表行数=0、`role_permissions` 是否存在、miniapp 口径 | 保留现状，R1-3 只加租户条件 |
+| R3-4 | `FEATURE_ENFORCEMENT_ENABLED` 试点 | 试点范围与存量租户 features 回填责任 | 总开关保持 False |
+| R4-10 | `/ws/poll` 改为医生 token | 是否有历史客户端仍调用旧签名 | 保留兼容或强制升级，需发布方确认 |
+| R4-12 | `online_payment` 回填 | 是否所有套餐默认开通在线支付 | 不回填、不翻开关 |
+
+**退出条件**：每个决策有书面结论、影响面、回滚方案；D17/D20 需产品/架构签字，R4-12 需商务确认，R4-10 需发布方确认历史版本分布。
+
+### E1 环境阻塞批（environment）
+
+| ID | 工作项 | 阻塞原因 | 执行前提 |
+|---|---|---|---|
+| R3-7 | 生产执行 M6 的 VALIDATE 与孤儿清洗 | 需生产库凭证、运维窗口、备份 | B9 的 R4-6/R3-6 完成；`p3a1`–`p3a7` 已升级；生产 `pg_dump` 完成 |
+| R3-9 | 开发/预发/生产逐环境跑审计 SQL | 本会话无 `DATABASE_URL`；venv 解释器路径失效 | B9 的 R4-1/R4-2/R4-4/R4-5 完成；各环境可连库 |
+| R4-11 | 支付/退款回调租户实测 | 微信不会带 `X-Tenant-ID`；需灰度环境与回调测试 | 逐租户核对 `notify_url` 含 `/t/<tenant_code>/` 或租户子域；退款回查加 `tenant_id`（`app/modules/refunds/service.py:377`） |
+
+**回滚**：E1 全部是数据/配置动作，执行前备份、执行中逐表留档；M6 失败即停止，不回滚已 VALIDATE 的约束（外键可 `DROP CONSTRAINT`）。
+
+---
+
+## 5. 灰度开关翻转顺序
+
+> 原则：一次只翻一个开关，翻后观察至少一个业务日；任一异常立即改回默认值并重启验证。`TENANT_PURGE_*` 本期不启用。
+
+### 5.1 翻前门禁（必须先完成）
+
+| 门禁 | 工作项 | 判定 |
+|---|---|---|
+| 平台管理员租户头可用 | R4-8 | 平台管理员仅带 `X-Tenant-ID` 可正常访问 stores/schedules/doctors/messages |
+| 停服 403 能跳转/弹窗 | R4-9 | `error.code` 链路三端都能识别 |
+| 遗留管理员观测 | R4-3 | `legacy User admin fallback hit` 连续 2 个周期命中=0 |
+| 迁移与数据核对 | B9/E1 | 审计 ERROR=0、孤儿=0、16 表 VALIDATE 完成 |
+| 功能开关回填 | R4-12 | 活跃租户 `online_payment` 未开通数=0 |
+
+### 5.2 推荐翻转顺序
+
+| 步骤 | 开关 | 默认 | 前置 | 观测指标 | 回滚 |
+|---|---|---|---|---|---|
+| 1 | `TENANT_CONSISTENCY_FAIL_CLOSE` | False（`config.py:137`） | 无（只做内存比对） | `当前请求的租户与账号不匹配` 计数；应仅出现在攻击/误配流量 | 改回 False 重启 |
+| 2 | `TENANT_CODE_TO_ID_RESOLVE` | False（`:135`） | 步骤 1 稳定 | 5xx 率、请求延迟（每请求多一次 code→id 查询，`tenant_context.py:246-263`） | 改回 False |
+| 3 | `TENANT_FILTER_FAIL_CLOSE` | False（`:133`） | 步骤 2 稳定；`tenant_filter missing tenant_id` 计数=0 | 403 计数按路由分组；重点看 admin/statistics/export | 改回 False |
+| 4 | `PUBLIC_TENANT_REQUIRED_EXTRA_PATHS` | `[]`（`:141`） | 步骤 3 稳定；按路径逐条加 | 每条路径 400 计数；先加低风险路径 | 移除该路径 |
+| 5 | `PATIENT_ANCHOR_FAIL_CLOSE` | False（`:139`） | **R4-8 完成**；D4 已拍板；患者端无头行为确认 | 平台管理员 400 计数；患者端 400 分布 | 改回 False |
+| 6 | `LEGACY_USER_ADMIN_FALLBACK` | True（`:131`） | R4-3 日志命中=0 跨 2 周期 | 登录失败/管理员 401 | 改回 True |
+| 7 | `FEATURE_ENFORCEMENT_ENABLED` | False（`:148`） | R4-12 回填完成；R3-4 范围确认 | `PERMISSION_DENIED` 403 按 feature 分组；支付下单成功率 | 改回 False |
+| — | `TENANT_PURGE_ENABLED/DRY_RUN` | False/True（`:144-145`） | **本期不翻** | 仅 dry-run 清单 | 不适用 |
+
+### 5.3 特别说明
+
+- `auth_unified.py:518-524` 的“ID 不一致即 403”**不受开关控制**；一旦步骤 2 把 code 回填成 ID，该硬校验会对 code 头生效。因此步骤 1、2 必须先于步骤 5。
+- `get_tenant_filter` 的 fail-open 分支（`tenant_deps.py:224-244`）在步骤 3 翻 True 后才会变成 403；此前只告警。步骤 3 之前必须先确认 `tenant_filter missing tenant_id` 为 0。
+- 平台管理员在 `require_feature` 中天然豁免（`feature_deps.py:31-33`），步骤 7 不影响平台账号。
+
+---
+
+## 6. 数据核对 SQL 使用说明
+
+### 6.1 文件与当前状态
+
+- 文件：`apps/server/scripts/tenant_null_tenant_id_audit.sql`（当前为未跟踪文件，`git status` 显示 `??`）。
+- 用途：为 D1/D9/D13/D15/D20 与 M6 孤儿清洗提供只读依据（`sql:1-4`）。
+- **当前不可直接在生产执行**：D9 引用 `news/notices/banners/system_settings.tenant_id`（`sql:36-39`），M6 引用 `news/notices/banners/content_versions.tenant_id`（`sql:60-63`）；这些列分别由 `p3a1_content_tenant.py` 与 `p3a7_settings_tenant.py` 新增。盘点 R4-1 在本机 dev 库（`alembic_version=20260630_drop_plaintext`）实跑，得到：
+  - `psql:...:39: ERROR: column "tenant_id" does not exist`
+  - `psql:...:63: ERROR: column e.tenant_id does not exist`
+  - 由于 D9/M6 各是一条 `UNION`，任一列缺失会导致整段结果丢失，而 psql 默认继续执行后续段落，容易被误判为“已核对”。
+
+### 6.2 运行前准备
+
+1. 确认目标库的 `alembic_version`：
+   ```sql
+   SELECT version_num FROM alembic_version;
+   ```
+2. 备份：
+   ```bash
+   pg_dump "$DATABASE_URL" -Fc -f backup_$(date +%Y%m%d_%H%M).dump
+   ```
+3. 只读账号或事务只读：
+   ```bash
+   PGPASSWORD=... psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f apps/server/scripts/tenant_null_tenant_id_audit.sql
+   ```
+4. 建议加 `\set ON_ERROR_STOP on`，并在脚本末尾输出 ERROR 计数；任何 ERROR 都视为本次核对未完成。
+
+### 6.3 两阶段拆分（R4-1）
+
+| 阶段 | 适用库 | 包含段落 |
+|---|---|---|
+| **pre-migration** | `alembic_version` 在 `p3a1` 之前 | D20、D13、D15、D1、D9（仅已存在列：users/patients/doctors/stores/schedules/appointments/medical_records/examination_reports/follow_up_tasks/waitlist_entries/messages）；M6 仅已存在列的 10 张表 |
+| **post-migration** | `p3a1` + `p3a7` 之后 | D9 全量（含 news/notices/banners/system_settings）、M6 全量 16 张表、purge 候选预览 |
+
+每张表改为独立语句，并用守卫避免整段丢失：
+
+```sql
+DO $$
+BEGIN
+  IF to_regclass('public.system_settings') IS NOT NULL
+     AND EXISTS (
+       SELECT 1 FROM information_schema.columns
+       WHERE table_name='system_settings' AND column_name='tenant_id'
+     ) THEN
+    -- 执行该表的统计
+  ELSE
+    RAISE NOTICE 'SKIP(missing): system_settings.tenant_id';
+  END IF;
+END $$;
+```
+
+### 6.4 各段说明
+
+| 段 | 目的 | 判定/留档 |
+|---|---|---|
+| D20（`sql:6-9`） | `data_scopes`/`role_permissions` 行数 | 两表均存在且行数=0，才允许 R3-3 的 drop 迁移；`role_permissions` 需 `to_regclass` 守卫（可能仅由 `scripts/init_db.py:22` 的 `create_all` 建出） |
+| D13（`sql:11-22`） | 管理员用户名/角色编码冲突 | 需补“同租户内重复”和“平台行重复”两类；冲突>0 时 p3a2 会在 `create_unique_constraint` 阶段失败（`p3a2_admin_role_unique.py:32-41`） |
+| D15（`sql:41-45`） | 预约与支付配置租户不一致 | 结果>0 的回调会被拒收（`payments/service.py:179-195`）；先修数据再切回调锚点 |
+| D9（`sql:24-39`） | 各表 NULL 租户行 | 补 5 张表（R4-4）；输出 `null_pct`；内容表的 NULL 是 D10 平台级语义，不参与业务回填 |
+| M6（`sql:47-63`） | 16 表外键孤儿 | 孤儿>0 不得 VALIDATE；清洗配方见 6.5 |
+| D1（`sql:65-68`） | 管理员账号分布 | 只数行数无法识别“仅存 users 表的旧管理员”；改为日志观测门禁（R4-3） |
+| purge 预览（`sql:70-75`） | 90 天前软删除租户 | 本期只做清单，不执行删除；`TENANT_PURGE_*` 无消费方 |
+
+### 6.5 M6 清洗配方（R4-6）
+
+`p3a6_tenant_fk.py:9-16` 的通用配方是 `UPDATE <table> SET tenant_id = NULL`。该配方只适用于可空表：
+
+| 类别 | 表 | 处理 |
+|---|---|---|
+| 可空（10 张） | `email_templates`、`message_templates`、`notification_logs`、`notification_preferences`、`rule_set_audit_logs`、`schedule_audit_logs`、`news`、`notices`、`banners`、`content_versions` | 备份后 `UPDATE ... SET tenant_id = NULL WHERE 孤儿`，再 `ALTER TABLE ... VALIDATE CONSTRAINT` |
+| `NOT NULL`（6 张） | `unified_templates`、`notification_groups`、`notification_recipients`、`notification_deliveries`、`channel_strategies`、`recipient_rules` | **禁止 SET NULL**：先导出孤儿清单人工确认，按业务重映射到有效租户，或 DELETE 后重建；再 VALIDATE |
+
+执行顺序：逐表备份 → 逐表清洗 → 逐表 `VALIDATE CONSTRAINT` → 汇总 `pg_constraint.convalidated`。任一张表孤儿>0 或 VALIDATE 失败，停止并升级。
+
+### 6.6 执行与留档模板
+
+每次执行记录以下字段：
+
+```
+环境：
+DATABASE_URL 标识（脱敏）：
+alembic_version：
+执行时间：
+执行人：
+脚本版本（git sha / 文件 hash）：
+D20 data_scopes 行数 / role_permissions 行数 / 表是否存在：
+D13 冲突条数（跨租户 / 同租户 / 平台）：
+D15 不一致条数：
+D9 各表 NULL/total/null_pct：
+M6 各表孤儿数：
+ERROR 计数：
+结论：通过 / 暂停（原因）
+```
+
+### 6.7 失败处理
+
+- 任一 `ERROR`：本次核对视为未完成，不得据此翻开关或执行迁移。
+- M6 某表 VALIDATE 失败：保留 `NOT VALID` 约束，回退该表清洗改动，查孤儿来源；其余表不受影响。
+- 生产发现 NOT NULL 表大额孤儿：暂停，转人工处置，不做批量 DELETE。
+
+---
+
+## 7. 遗留决策清单
+
+| 决策 | 问题 | 建议默认 | 阻塞批次 | 需要谁拍板 |
+|---|---|---|---|---|
+| **D1** | 现网是否仍有仅存 `users` 表的旧管理员 | 先日志观测 2 个周期，命中=0 再关 `LEGACY_USER_ADMIN_FALLBACK` | 步骤 6 | 业务/运维 |
+| **D4** | 公开/患者端无租户头是 400 还是空集 | 写操作 400；读列表返回空集并告警（与 fail-close 方向一致） | 步骤 5、R1-15/R1-18 | 架构 |
+| **D13** | 跨租户重复 username/code 的改名原则 | 人工逐个处理，禁止自动加前缀（避免登录名变化） | p3a2 门禁 | 业务/DBA |
+| **D17** | `auto_renew` 语义 | 延长周期 + 生成 pending 应收账单 + 宽限期不停服，无真实扣款 | R2-6/R3-1 | 产品/商务 |
+| **D20** | DataScope/role_permissions 是否删除；miniapp 配额是否含 `status=2` | 两表行数=0 且表存在才 drop；miniapp 默认不计归档实例（需确认） | R3-3/R1-3 | 架构/产品 |
+| **purge** | 软删除保留期与物理删除范围 | 保留 90 天；首版只 dry-run；NOT NULL 子表不做批量 DELETE | R2-5/R3-2 | 产品/运维 |
+| **online_payment** | 是否所有套餐默认开通在线支付 | 先回填 `features.online_payment=true` 再翻开关 | R4-12/步骤 7 | 商务 |
+| **/ws/poll** | 历史医生端是否仍调用旧签名 | 发布说明列为破坏性变更；有存量则加过渡兼容 | R4-10 | 发布方 |
+| **feature 试点范围** | `export_data`/`basic_statistics` 是否本期接线 | 本期只接线、不翻总开关；先补负向测试 | R3-4/R3-5 | 产品 |
+
+---
+
+## 8. 已确认无需纳入 P5 的模块（R1-20 登记）
+
+以下模块已具备正确锚点或属公开/患者/平台端，后续不再重复改造：
+
+| 模块 | 现状 | 证据 |
+|---|---|---|
+| contacts | 直接用账号租户 | `app/modules/contacts/router.py:52/78/94/113` |
+| guide_tours 管理端 | 仅平台管理员 | `app/modules/guide_tours/router_admin.py:10/31/44` |
+| backup | 仅平台管理员 | `app/modules/backup/router.py:12-16/38` |
+| platform_metrics | 全端点平台管理员 | `app/modules/platform_metrics/router.py:20/37/56-65` |
+| platform_announcements | 平台语义 `target_tenant_ids` | `app/modules/platform_announcements/service.py:72/132-135` |
+| session_events / performance | 匿名公开上报 | `app/modules/session_events/router.py:133`、`app/modules/performance/router.py:102` |
+| 患者自助端 | 已按患者/租户守卫 | `user_favorites/router.py:14-62`、`appointment_satisfactions/router.py:25`、`support_tickets/router.py:69-78`、`doctor_reviews/router.py:24-29` |
+| upload | 已加租户校验 | `app/modules/upload/router.py:199-219` |
+
+**注意**：`consultation_fees` 与 `store_email_recipients` 的模型本身没有 `tenant_id` 列（`app/models/store_email_recipient.py:18-23`、`app/models/consultation_fee.py:9-65`），不能靠路由层补，需另立数据模型项。
+
+---
+
+## 9. 跨批次风险
+
+1. **锚点语义改动面大**：R4-8 让 `require_admin_tenant_anchor` 回退 header，等于改变所有已接入端点；必须先用契约测试锁住“租户管理员只自身、平台管理员可显式跨租户”。
+2. **fail-close 开关与前端联动**：步骤 3/5 一旦打开，任何仍用 `get_current_tenant_id()` 且未改造的端点都会从“看全量”变 403。翻开关前必须完成 B3–B8 的对应模块。
+3. **数据迁移不可逆**：p3a5 合并重复用量行、p3a1 内容表回填不可自动恢复；生产必须先备份并在 staging 全链演练。
+4. **NOT NULL 孤儿清洗不可照文档执行**：6 张统一消息表禁止 `SET NULL`，否则 VALIDATE 永远失败。
+5. **测试假绿**：stores 的 403 可能来自 `check_store_access` 而非租户锚点；矩阵必须补正控与超管视角。
+6. **功能开关误伤支付**：`FEATURE_ENFORCEMENT_ENABLED=True` 且未回填 `online_payment` 时，所有存量租户下单 403。
+7. **purge 空转**：`TENANT_PURGE_*` 无任何消费方，不能作为“已具备物理删除能力”的发布依据。
+8. **auto_renew 未实现**：到期任务直接置欠费（`tenant_usage_task.py:224-229`），订阅到期会停服；D17 未拍板前不要承诺自动续费。
+9. **支付回调单域名**：回调必须能从子域/路径前缀定位租户；单域名 `/api/v1/payments/wechat/callback` 会被拒收。
+10. **前端错误码链路**：后端信封是 `error.code`，前端读 `error_code`；管理端结构化分支还会提前吞掉 `TENANT_OVERDUE`。不修 R4-9 就翻停服相关开关，用户看不到停服页。
+
+---
+
+## 10. 本次执行边界（如实说明）
+
+- 本次只新增/覆盖本文档 `docs/tenant-remaining-plan.md`；未修改任何后端/前端代码，未执行 `git commit`。
+- **未运行任何 pytest**，本文所有“验收门”均为计划中的命令与断言，不代表已通过。
+- **未连接任何数据库**，未执行 `scripts/tenant_null_tenant_id_audit.sql`；文中引用的 psql 报错来自盘点 R4-1 的实测记录。
+- **未运行 `alembic heads` / `alembic check`**；迁移链单头结论来自各迁移文件的 `revision/down_revision` 静态核对。
+- 未启用任何灰度开关；未执行物理删除、续费、M6 VALIDATE 等生产动作。
+- 本次未发生 Mimosa 拦截（仅写入本文件）。
