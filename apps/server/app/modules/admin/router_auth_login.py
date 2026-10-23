@@ -67,7 +67,12 @@ def _decrypt_password(raw_password: str, encrypted: bool, identifier: str) -> st
 def _check_tenant_status_for_login(admin) -> None:
     """登录入口：检查租户订阅状态，命中则抛结构化错误码（403）。"""
     role_code = admin.role.code if admin.role else None
-    is_super_admin = role_code == "SUPER_ADMIN"
+    # 平台特权必须是平台级角色（tenant_id IS NULL），与 auth_unified 判定保持一致
+    is_super_admin = (
+        admin.role is not None
+        and admin.role.tenant_id is None
+        and role_code == "SUPER_ADMIN"
+    )
     if not admin.tenant_id or is_super_admin or not admin.tenant:
         return
 
@@ -105,7 +110,11 @@ def _check_tenant_status_for_login(admin) -> None:
 def _tenant_status_error_for_wechat(admin) -> str | None:
     """微信扫码登录：返回错误文案；可正常登录返回 None。"""
     role_code = admin.role.code if admin.role else None
-    is_super_admin = role_code == "SUPER_ADMIN"
+    is_super_admin = (
+        admin.role is not None
+        and admin.role.tenant_id is None
+        and role_code == "SUPER_ADMIN"
+    )
     if not admin.tenant_id or is_super_admin or not admin.tenant:
         return None
     if admin.tenant.status == 0:
@@ -191,18 +200,17 @@ async def admin_login(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用，请联系管理员")
 
     role_code = admin.role.code if admin.role else None
-    is_super_admin = role_code == "SUPER_ADMIN"
+    is_super_admin = (
+        admin.role is not None
+        and admin.role.tenant_id is None
+        and role_code == "SUPER_ADMIN"
+    )
     available_stores = [s for s in admin.stores if s.status != 2] if admin.stores else []
     if not is_super_admin and admin.stores and not available_stores:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您所属的门店已被禁用，请联系管理员")
 
-    # 检查租户状态（非平台管理员）
-    if admin.tenant_id and not is_super_admin:
-        if admin.tenant:
-            if admin.tenant.status == 0:
-                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="租户已被禁用")
-            if admin.tenant.status == 2:
-                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="租户已欠费，请续费后继续使用")
+    # 检查租户状态（非平台管理员；覆盖禁用/欠费/试用到期）
+    _check_tenant_status_for_login(admin)
 
     client_ip = get_client_ip(request)
     user_agent = request.headers.get("user-agent", "")

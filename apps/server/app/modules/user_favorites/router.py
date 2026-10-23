@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, require_tenant_active_for_write
 from app.core.config import settings
 from app.db.session import get_db
 from app.modules.user_favorites.service import UserFavoriteService
@@ -50,6 +50,7 @@ async def create_favorite(
     data: UserFavoriteCreate,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
+    _tenant_guard: None = Depends(require_tenant_active_for_write),
 ):
     service = UserFavoriteService(db)
     try:
@@ -63,6 +64,7 @@ async def delete_favorite(
     favorite_id: str,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
+    _tenant_guard: None = Depends(require_tenant_active_for_write),
 ):
     service = UserFavoriteService(db)
     success = await service.delete(favorite_id=favorite_id, user_id=current_user["id"])
@@ -76,6 +78,7 @@ async def delete_favorite_by_target(
     target_id: str,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
+    _tenant_guard: None = Depends(require_tenant_active_for_write),
 ):
     if target_type not in ["doctor", "department"]:
         raise HTTPException(status_code=400, detail="无效的收藏类型")

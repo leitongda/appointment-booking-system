@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, require_tenant_active_for_write
 from app.db.session import get_db
 from app.modules.appointment_satisfactions.schemas import (
     AppointmentSatisfactionCreate,
@@ -22,6 +22,7 @@ async def create_satisfaction(
     data: AppointmentSatisfactionCreate,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
+    _tenant_guard: None = Depends(require_tenant_active_for_write),
 ):
     service = AppointmentSatisfactionService(db)
     try:

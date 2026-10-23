@@ -341,3 +341,51 @@ class TestFollowUpFlow:
             "/api/v1/follow-up/statistics", headers=_auth(token)
         )
         assert response.status_code == 403, response.text
+
+
+class TestFollowUpPatientOwner:
+    """P2B-7：同租户内患者之间的水平越权必须被拒（404，不泄露存在性）"""
+
+    async def _other_patient_token(self, factory, env):
+        other_user, other_patient = await factory.create_patient(env.tenant_a.id)
+        token = create_access_token(
+            {"sub": other_user.id, "type": "user", "tenant_id": env.tenant_a.id}
+        )
+        return token, other_patient
+
+    async def test_other_patient_cannot_list_tasks(
+        self, async_client, factory, p2b_env
+    ):
+        env = p2b_env
+        token, _ = await self._other_patient_token(factory, env)
+        response = await async_client.get(
+            f"/api/v1/follow-up/tasks/patient/{env.patient_a.id}",
+            headers=_auth(token),
+        )
+        assert response.status_code == 404, response.text
+
+    async def test_other_patient_cannot_read_task_detail(
+        self, async_client, factory, p2b_env
+    ):
+        env = p2b_env
+        token, _ = await self._other_patient_token(factory, env)
+        response = await async_client.get(
+            f"/api/v1/follow-up/tasks/{env.task_a.id}",
+            headers=_auth(token),
+        )
+        assert response.status_code == 404, response.text
+
+    async def test_other_patient_cannot_complete_task(
+        self, async_client, db_session, factory, p2b_env
+    ):
+        env = p2b_env
+        token, _ = await self._other_patient_token(factory, env)
+        response = await async_client.patch(
+            f"/api/v1/follow-up/tasks/{env.task_a.id}/complete",
+            headers=_auth(token),
+        )
+        assert response.status_code == 404, response.text
+
+        refreshed = await db_session.get(FollowUpTask, env.task_a.id)
+        await db_session.refresh(refreshed)
+        assert refreshed.status == "pending"

@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, require_tenant_active_for_write
 from app.core.logging import logger
 from app.db.session import get_db
 from app.infrastructure.storage import get_storage
@@ -57,6 +57,7 @@ async def update_profile(
     data: UserUpdate,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
+    _tenant_guard: None = Depends(require_tenant_active_for_write),
 ):
     user_service = UserService(db)
     user = await user_service.update(current_user["id"], data)
@@ -79,6 +80,7 @@ async def change_password(
     data: ChangePasswordRequest,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
+    _tenant_guard: None = Depends(require_tenant_active_for_write),
 ):
     user_service = UserService(db)
     user = await user_service.get_by_id(current_user["id"])
@@ -108,6 +110,7 @@ async def bind_phone(
     data: BindPhoneRequest,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
+    _tenant_guard: None = Depends(require_tenant_active_for_write),
 ):
     user_service = UserService(db)
     success, message = await user_service.bind_phone(current_user["id"], data.phone)
@@ -121,6 +124,7 @@ async def upload_avatar(
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
+    _tenant_guard: None = Depends(require_tenant_active_for_write),
 ):
     if file.content_type not in ALLOWED_AVATAR_TYPES:
         raise HTTPException(
@@ -192,6 +196,7 @@ async def add_patient(
     data: PatientCreate,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
+    _tenant_guard: None = Depends(require_tenant_active_for_write),
 ):
     patient_service = PatientService(db)
     patient = await patient_service.create(current_user["id"], data)
@@ -204,6 +209,7 @@ async def update_patient(
     data: PatientUpdate,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
+    _tenant_guard: None = Depends(require_tenant_active_for_write),
 ):
     patient_service = PatientService(db)
     patient = await patient_service.update(patient_id, current_user["id"], data)
@@ -217,6 +223,7 @@ async def delete_patient(
     patient_id: str,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
+    _tenant_guard: None = Depends(require_tenant_active_for_write),
 ):
     patient_service = PatientService(db)
     success = await patient_service.delete(patient_id, current_user["id"])
