@@ -20,8 +20,10 @@
 import pytest
 import uuid
 from datetime import datetime, date, time, timedelta
+from io import BytesIO
 from unittest.mock import AsyncMock, MagicMock, patch
 from httpx import AsyncClient
+from openpyxl import load_workbook
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_
 
@@ -194,14 +196,18 @@ async def role_tenant_admin(db_session: AsyncSession) -> Role:
 
 @pytest.fixture
 async def role_limited(db_session: AsyncSession, tenant_a: Tenant) -> Role:
-    """创建受限角色（无导出权限）"""
+    """创建受限角色（无导出医生所需权限）
+
+    `/data/export/doctors` 的守卫是 ``require_permission("doctor:export", "doctor:list")``
+    （满足其一即可），因此受限角色必须同时不含这两个权限码。
+    """
     role = Role(
         id=str(uuid.uuid4()),
         tenant_id=tenant_a.id,
         name="普通员工",
         code="STAFF",
         status=1,
-        permissions='["patient:list", "doctor:list"]',  # 只有列表权限，无导出权限
+        permissions='["patient:list"]',  # 无 doctor:list / doctor:export
     )
     db_session.add(role)
     await db_session.commit()
@@ -757,9 +763,16 @@ class TestTenantDataIsolation:
 
 @pytest.mark.asyncio
 class TestExportPermissionControl:
-    """导出权限控制测试套件"""
+    """导出权限控制测试套件
 
-    @pytest.mark.skip("endpoint /api/v1/export/doctors returns 404, route not registered")
+    医生导出的真实路由是 ``/api/v1/data/export/doctors``（import_export 模块，
+    ``app/api/v1/__init__.py:103``）。旧的 ``/api/v1/export`` 模块只有
+    appointments/patients/schedules 三个端点——早期用例写成的
+    ``/api/v1/export/doctors`` 一直 404，2026-10-23 归因后统一改指真实路由。
+    """
+
+    EXPORT_DOCTORS = "/api/v1/data/export/doctors"
+
     async def test_export_requires_permission(
         self,
         async_client: AsyncClient,
@@ -768,10 +781,9 @@ class TestExportPermissionControl:
         admin_a_limited: Admin,
         admin_a_limited_token: str,
     ):
-        """测试导出端点需要权限"""
-        # 受限管理员（无导出权限）尝试导出医生列表
+        """测试导出端点需要权限：无 doctor:export/doctor:list 的管理员被拒。"""
         response = await async_client.get(
-            "/api/v1/export/doctors",
+            self.EXPORT_DOCTORS,
             headers={
                 "Authorization": f"Bearer {admin_a_limited_token}",
                 "X-Tenant-ID": tenant_a.id,
@@ -779,8 +791,9 @@ class TestExportPermissionControl:
         )
 
         # 应该返回 403（缺少权限）
-        assert response.status_code == 403
-        assert "权限" in extract_error_text(response.json()) or "permission" in extract_error_text(response.json()).lower()
+        assert response.status_code == 403, response.text
+        error_text = extract_error_text(response.json())
+        assert "权限" in error_text or "permission" in error_text.lower()
 
     async def test_export_with_permission(
         self,
@@ -791,18 +804,18 @@ class TestExportPermissionControl:
         admin_a_token: str,
         doctor_a: Doctor,
     ):
-        """测试有权限用户可以导出"""
-        # 管理员（有导出权限）尝试导出医生列表
+        """测试有权限用户可以导出（租户管理员角色 permissions=["*"]）。"""
         response = await async_client.get(
-            "/api/v1/export/doctors",
+            self.EXPORT_DOCTORS,
             headers={
                 "Authorization": f"Bearer {admin_a_token}",
                 "X-Tenant-ID": tenant_a.id,
             },
         )
 
-        # 应该返回 200（成功）；路由未注册时为 404。403 视为失败（有权限的用户不应被拒）
-        assert response.status_code in (200, 404), response.text
+        assert response.status_code == 200, response.text
+        content_type = response.headers.get("content-type", "")
+        assert "spreadsheet" in content_type or "excel" in content_type
 
     async def test_export_tenant_isolation(
         self,
@@ -815,24 +828,28 @@ class TestExportPermissionControl:
         doctor_a: Doctor,
         doctor_b: Doctor,
     ):
-        """测试导出数据的租户隔离"""
-        # 租户 A 管理员导出医生列表
+        """租户 A 管理员导出的医生列表只含本租户医生。"""
         response = await async_client.get(
-            "/api/v1/export/doctors",
+            self.EXPORT_DOCTORS,
             headers={
                 "Authorization": f"Bearer {admin_a_token}",
                 "X-Tenant-ID": tenant_a.id,
             },
         )
 
-        # 导出必须成功或明确 404（路由未注册）；其他状态不得静默通过
-        assert response.status_code in (200, 404), response.text
-        if response.is_success:
-            # 验证响应是 Excel 文件
-            content_type = response.headers.get("content-type", "")
-            assert "spreadsheet" in content_type or "excel" in content_type
+        assert response.status_code == 200, response.text
+        content_type = response.headers.get("content-type", "")
+        assert "spreadsheet" in content_type or "excel" in content_type
 
-    @pytest.mark.skip("endpoint /api/v1/export/doctors returns 404, route not registered")
+        workbook = load_workbook(BytesIO(response.content), read_only=True)
+        rows = [
+            "|".join("" if v is None else str(v) for v in row)
+            for row in workbook.active.iter_rows(values_only=True)
+        ]
+        workbook.close()
+        assert any(doctor_a.name in row for row in rows)
+        assert not any(doctor_b.name in row for row in rows)
+
     async def test_export_cross_tenant_denied(
         self,
         async_client: AsyncClient,
@@ -842,18 +859,17 @@ class TestExportPermissionControl:
         admin_a: Admin,
         admin_a_token: str,
     ):
-        """测试跨租户导出被拒绝"""
-        # 租户 A 管理员尝试在租户 B 上下文导出
+        """测试跨租户导出被拒绝：租户 A 管理员伪造 X-Tenant-ID: B → 403。"""
         response = await async_client.get(
-            "/api/v1/export/doctors",
+            self.EXPORT_DOCTORS,
             headers={
                 "Authorization": f"Bearer {admin_a_token}",
                 "X-Tenant-ID": tenant_b.id,  # 尝试访问租户 B
             },
         )
 
-        # 应该返回 403（租户不匹配）
-        assert response.status_code == 403
+        # 认证层的一致性强校验（非超管账号租户与请求租户不一致即 403）
+        assert response.status_code == 403, response.text
 
 
 # =================================================================
