@@ -1,7 +1,7 @@
 """兼职费用相关模型"""
 import uuid
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Index, Integer, Numeric, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import relationship
 
 from app.db.base import AuditMixin, Base
@@ -90,7 +90,18 @@ class FreelanceSettlement(Base, AuditMixin):
     tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=True, index=True, comment="租户ID")
     store_id = Column(String(36), ForeignKey("stores.id"), nullable=True, index=True, comment="门店ID")
     freelancer_id = Column(String(36), ForeignKey("freelance_freelancers.id"), nullable=False, index=True, comment="兼职人员ID")
-    settlement_no = Column(String(32), unique=True, nullable=False, comment="结算单号")
+    settlement_no = Column(String(32), nullable=False, comment="结算单号（租户内唯一）")
+
+    __table_args__ = (
+        UniqueConstraint('tenant_id', 'settlement_no', name='uq_freelance_settlements_tenant_no'),
+        Index(
+            'uq_freelance_settlements_no_platform',
+            'settlement_no',
+            unique=True,
+            postgresql_where=text('tenant_id IS NULL'),
+            sqlite_where=text('tenant_id IS NULL'),
+        ),
+    )
 
     # 结算周期
     period_start = Column(DateTime, nullable=True, comment="结算周期开始")

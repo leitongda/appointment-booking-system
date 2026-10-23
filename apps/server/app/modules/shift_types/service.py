@@ -8,6 +8,8 @@ import uuid
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.middleware.tenant_context import get_current_tenant_id
+
 from app.models.rule_set import ShiftType
 from app.utils.audit import set_create_audit, set_update_audit
 
@@ -143,7 +145,8 @@ class ShiftTypeService:
             code=code,
             name=name,
             description=description,
-            enabled=enabled
+            enabled=enabled,
+            tenant_id=get_current_tenant_id(),
         )
 
         set_create_audit(shift_type, operator_id)

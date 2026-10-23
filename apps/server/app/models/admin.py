@@ -2,7 +2,19 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Table, Text
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Table,
+    Text,
+    UniqueConstraint,
+    text,
+)
 from sqlalchemy.orm import relationship
 
 from app.db.base import AuditMixin, Base
@@ -69,8 +81,15 @@ class Role(Base, AuditMixin):
 
     # 租户内唯一约束
     __table_args__ = (
-        # 平台角色 (tenant_id = NULL) 和租户角色 (tenant_id != NULL) 的 code 分别唯一
-        # 这里使用复合唯一约束
+        UniqueConstraint('tenant_id', 'code', name='uq_roles_tenant_code'),
+        # 平台角色 (tenant_id IS NULL) 的 code 仍需唯一；复合唯一对 NULL 不生效
+        Index(
+            'uq_roles_code_platform',
+            'code',
+            unique=True,
+            postgresql_where=text('tenant_id IS NULL'),
+            sqlite_where=text('tenant_id IS NULL'),
+        ),
         {'comment': '角色表（多租户支持，统一角色类型）'},
     )
 
@@ -80,7 +99,7 @@ class Admin(Base, AuditMixin):
     __tablename__ = "admins"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    username = Column(String(50), unique=True, nullable=False, comment="用户名")
+    username = Column(String(50), nullable=False, comment="用户名（租户内唯一，平台管理员 NULL 租户）")
     password_hash = Column(String(255), nullable=False, comment="密码哈希")
     name = Column(String(50), comment="姓名")
     phone = Column(String(20), comment="手机号")
@@ -103,6 +122,18 @@ class Admin(Base, AuditMixin):
     current_store = relationship("Store", foreign_keys=[current_store_id], backref="current_admins")
     # 绑定的所有门店（多对多）
     stores = relationship("Store", secondary=admin_stores, backref="admin_members")
+
+    __table_args__ = (
+        UniqueConstraint('tenant_id', 'username', name='uq_admins_tenant_username'),
+        Index(
+            'uq_admins_username_platform',
+            'username',
+            unique=True,
+            postgresql_where=text('tenant_id IS NULL'),
+            sqlite_where=text('tenant_id IS NULL'),
+        ),
+        {'comment': '管理员表（多租户支持）'},
+    )
 
 
 class OperationLog(Base):

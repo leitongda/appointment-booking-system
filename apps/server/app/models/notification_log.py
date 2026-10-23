@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import JSON, Column, DateTime, Integer, String, Text
+from sqlalchemy import JSON, Column, DateTime, ForeignKey, Integer, String, Text
 
 from app.db.base import Base
 
@@ -10,7 +10,7 @@ class NotificationLog(Base):
     __tablename__ = "notification_logs"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    tenant_id = Column(String(36), nullable=True, index=True, comment="租户ID")
+    tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=True, index=True, comment="租户ID")
     store_id = Column(String(36), nullable=True, index=True, comment="门店ID")
     user_id = Column(String(36), nullable=True, index=True, comment="接收用户ID")
     user_type = Column(String(20), nullable=True, comment="用户类型: patient/doctor/admin")

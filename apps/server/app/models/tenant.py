@@ -9,7 +9,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from app.db.base import AuditMixin, Base
@@ -190,7 +190,7 @@ class TenantSubscription(Base, AuditMixin):
     __tablename__ = "tenant_subscriptions"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=False, comment="租户ID")
+    tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=False, index=True, comment="租户ID")
     plan_id = Column(String(36), ForeignKey("subscription_plans.id"), nullable=False, comment="订阅计划ID")
 
     # 订阅信息
@@ -227,7 +227,7 @@ class TenantUsageLog(Base):
     __tablename__ = "tenant_usage_logs"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=False, comment="租户ID")
+    tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=False, index=True, comment="租户ID")
     usage_date = Column(Date, nullable=False, comment="统计日期")
 
     # 预约统计
@@ -256,8 +256,7 @@ class TenantUsageLog(Base):
 
     # 唯一约束：每个租户每天一条记录
     __table_args__ = (
-        # 注意：唯一约束需要在 Alembic 迁移中添加
-        # UniqueConstraint('tenant_id', 'usage_date', name='uq_tenant_usage_date'),
+        UniqueConstraint('tenant_id', 'usage_date', name='uq_tenant_usage_date'),
         {'comment': '租户用量统计表'},
     )
 
@@ -267,7 +266,7 @@ class TenantNotification(Base):
     __tablename__ = "tenant_notifications"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=False, comment="租户ID")
+    tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=False, index=True, comment="租户ID")
 
     # 通知类型
     notification_type = Column(String(50), nullable=False, comment="通知类型: subscription_expiry/usage_warning/overdue")

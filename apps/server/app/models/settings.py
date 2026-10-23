@@ -17,6 +17,7 @@ class SystemSetting(Base, AuditMixin):
     __tablename__ = "system_settings"
     
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=True, index=True, comment="租户ID，NULL表示平台级配置")
     store_id = Column(String(36), ForeignKey("stores.id", ondelete="CASCADE"), nullable=True, comment="门店ID，为空表示全局配置")
     category = Column(String(50), nullable=False, comment="分类: booking, hospital, wechat, sms, time_periods")
     key = Column(String(100), nullable=False, comment="设置项键名")
@@ -30,6 +31,7 @@ class SystemSetting(Base, AuditMixin):
     __table_args__ = (
         Index('ix_system_settings_store_category', 'store_id', 'category'),
         Index('ix_system_settings_store_category_key', 'store_id', 'category', 'key'),
+        Index('ix_system_settings_tenant_category', 'tenant_id', 'category'),
         {'sqlite_autoincrement': True},
     )
 

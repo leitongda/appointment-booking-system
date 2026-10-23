@@ -5,7 +5,7 @@ GuideTourProgress: 用户进度（每人每条指引一行）
 """
 import uuid
 
-from sqlalchemy import Column, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import Column, ForeignKey, Index, Integer, String, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import JSONB
 
 from app.db.base import AuditMixin, Base
@@ -29,7 +29,7 @@ class GuideTour(Base, AuditMixin):
     __tablename__ = "guide_tours"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    code = Column(String(100), unique=True, nullable=False, index=True, comment="唯一标识，如 dashboard_overview")
+    code = Column(String(100), nullable=False, index=True, comment="唯一标识（租户内唯一，NULL 租户为平台指引）")
     title = Column(JSONB, nullable=False, comment="多语言标题 {zh, en}")
     description = Column(JSONB, nullable=True, comment="多语言描述 {zh, en}")
     steps = Column(JSONB, nullable=False, default=list, comment="步骤数组")
@@ -38,6 +38,14 @@ class GuideTour(Base, AuditMixin):
     tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=True, index=True, comment="NULL=全局指引")
 
     __table_args__ = (
+        UniqueConstraint('tenant_id', 'code', name='uq_guide_tours_tenant_code'),
+        Index(
+            'uq_guide_tours_code_platform',
+            'code',
+            unique=True,
+            postgresql_where=text('tenant_id IS NULL'),
+            sqlite_where=text('tenant_id IS NULL'),
+        ),
         {'comment': '操作指引定义'},
     )
 

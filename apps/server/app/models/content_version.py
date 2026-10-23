@@ -11,6 +11,7 @@ class ContentVersion(Base, TimestampMixin):
     __tablename__ = "content_versions"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String(36), nullable=True, index=True, comment="租户ID（NULL表示平台级；FK 见 P3-6）")
     content_type = Column(String(20), nullable=False, index=True, comment="内容类型: news/notice/banner")
     content_id = Column(String(36), nullable=False, index=True, comment="内容ID")
     operator_id = Column(String(36), nullable=True, comment="操作人ID")

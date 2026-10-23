@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, DateTime, String, UniqueConstraint
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String, UniqueConstraint
 
 from app.db.base import Base
 
@@ -13,7 +13,7 @@ class NotificationPreference(Base):
     )
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    tenant_id = Column(String(36), nullable=True, index=True, comment="租户ID")
+    tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=True, index=True, comment="租户ID")
     user_id = Column(String(36), nullable=False, index=True, comment="用户ID")
     user_type = Column(String(20), nullable=False, comment="用户类型: patient/doctor")
     appointment_enabled = Column(Boolean, default=True, comment="预约通知")

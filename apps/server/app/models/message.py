@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import relationship
 
 from app.db.base import AuditMixin, Base
@@ -34,8 +34,19 @@ class MessageTemplate(Base, AuditMixin):
     __tablename__ = "message_templates"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    tenant_id = Column(String(36), nullable=True, index=True, comment="租户ID")
-    code = Column(String(50), unique=True, nullable=False, comment="模板编码")
+    tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=True, index=True, comment="租户ID")
+    code = Column(String(50), nullable=False, comment="模板编码（租户内唯一，NULL 租户为平台模板）")
+
+    __table_args__ = (
+        UniqueConstraint('tenant_id', 'code', name='uq_message_templates_tenant_code'),
+        Index(
+            'uq_message_templates_code_platform',
+            'code',
+            unique=True,
+            postgresql_where=text('tenant_id IS NULL'),
+            sqlite_where=text('tenant_id IS NULL'),
+        ),
+    )
     name = Column(String(100), nullable=False, comment="模板名称")
     message_type = Column(String(20), nullable=False, comment="消息类型")
     title_template = Column(String(200), nullable=False, comment="标题模板")

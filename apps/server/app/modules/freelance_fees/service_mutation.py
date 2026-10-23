@@ -320,8 +320,8 @@ class FreelanceMutationMixin:
 
         total_amount = base_total + bonus_total + likes_bonus_total + interaction_total
 
-        # 生成结算单号
-        settlement_no = f"FS{now.strftime('%Y%m%d%H%M%S')}{freelancer_id[:6]}"
+        # 生成结算单号（含随机段，避免同租户同秒同兼职重复）
+        settlement_no = f"FS{now.strftime('%Y%m%d%H%M%S')}{freelancer_id[:2]}{uuid.uuid4().hex[:4].upper()}"
 
         settlement = FreelanceSettlement(
             id=str(uuid.uuid4()),

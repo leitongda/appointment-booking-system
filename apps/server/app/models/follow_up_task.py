@@ -1,7 +1,7 @@
 """随访任务模型"""
 import uuid
 
-from sqlalchemy import Column, Date, DateTime, ForeignKey, Index, Integer, String
+from sqlalchemy import Column, Date, DateTime, ForeignKey, Index, Integer, String, UniqueConstraint, text
 from sqlalchemy.orm import relationship
 
 from app.db.base import AuditMixin, Base
@@ -12,11 +12,19 @@ class FollowUpTask(Base, AuditMixin):
     __tablename__ = "follow_up_tasks"
     __table_args__ = (
         Index("idx_tasks_doctor_status_date", "doctor_id", "status", "scheduled_date"),
+        UniqueConstraint('tenant_id', 'task_no', name='uq_follow_up_tasks_tenant_no'),
+        Index(
+            'uq_follow_up_tasks_no_platform',
+            'task_no',
+            unique=True,
+            postgresql_where=text('tenant_id IS NULL'),
+            sqlite_where=text('tenant_id IS NULL'),
+        ),
     )
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=True, index=True, comment="租户ID")
-    task_no = Column(String(50), unique=True, nullable=False, comment="任务编号")
+    task_no = Column(String(50), nullable=False, comment="任务编号（租户内唯一）")
 
     # 关联信息
     patient_id = Column(String(36), ForeignKey("patients.id"), nullable=False, index=True, comment="患者ID")

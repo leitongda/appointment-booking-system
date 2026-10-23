@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, Numeric, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import relationship
 
 from app.db.base import AuditMixin, Base
@@ -10,7 +10,7 @@ class Appointment(Base, AuditMixin):
     __tablename__ = "appointments"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    appointment_no = Column(String(50), unique=True, nullable=False)
+    appointment_no = Column(String(50), nullable=False)
     user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
     patient_id = Column(String(36), ForeignKey("patients.id"), nullable=False)
     doctor_id = Column(String(36), ForeignKey("doctors.id"), nullable=False)
@@ -88,5 +88,13 @@ class Appointment(Base, AuditMixin):
     payment_miniapp_instance = relationship("MiniappInstance", backref="appointments")
 
     __table_args__ = (
+        UniqueConstraint('tenant_id', 'appointment_no', name='uq_appointments_tenant_no'),
+        Index(
+            'uq_appointments_no_platform',
+            'appointment_no',
+            unique=True,
+            postgresql_where=text('tenant_id IS NULL'),
+            sqlite_where=text('tenant_id IS NULL'),
+        ),
         {'comment': '预约表（多租户支持）'},
     )

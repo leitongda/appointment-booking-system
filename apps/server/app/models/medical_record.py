@@ -1,7 +1,7 @@
 """病历模型"""
 import uuid
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, Numeric, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import relationship
 
 from app.db.base import AuditMixin, Base
@@ -13,7 +13,18 @@ class MedicalRecord(Base, AuditMixin):
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=True, index=True, comment="租户ID")
-    record_no = Column(String(50), unique=True, nullable=False, comment="病历号")
+    record_no = Column(String(50), nullable=False, comment="病历号（租户内唯一）")
+
+    __table_args__ = (
+        UniqueConstraint('tenant_id', 'record_no', name='uq_medical_records_tenant_no'),
+        Index(
+            'uq_medical_records_no_platform',
+            'record_no',
+            unique=True,
+            postgresql_where=text('tenant_id IS NULL'),
+            sqlite_where=text('tenant_id IS NULL'),
+        ),
+    )
     
     # 关联信息
     appointment_id = Column(String(36), ForeignKey("appointments.id"), nullable=False, comment="预约ID")

@@ -50,9 +50,11 @@ def _get_holidays_sync(db, tenant_id: str) -> set:
 
 
 def _generate_settlement_no(freelancer_id: str) -> str:
-    """生成结算单号"""
+    """生成结算单号（含随机段，避免同租户同秒同兼职重复）"""
+    import uuid
+
     now = datetime.now()
-    return f"FS{now.strftime('%Y%m%d%H%M%S')}{freelancer_id[:6]}"
+    return f"FS{now.strftime('%Y%m%d%H%M%S')}{freelancer_id[:2]}{uuid.uuid4().hex[:4].upper()}"
 
 
 def _process_tenant_settlements(db, tenant_id: str) -> int:

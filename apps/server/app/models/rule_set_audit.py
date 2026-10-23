@@ -2,7 +2,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, String, Text
+from sqlalchemy import Column, DateTime, ForeignKey, String, Text
 
 from app.db.base import Base
 
@@ -12,7 +12,7 @@ class RuleSetAuditLog(Base):
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     rule_set_id = Column(String(36), nullable=False, index=True)
-    tenant_id = Column(String(36), nullable=False, index=True)
+    tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=True, index=True, comment="租户ID（历史孤儿行可为空）")
     action = Column(String(30), nullable=False)
     resource_type = Column(String(50), nullable=False)
     resource_id = Column(String(36), nullable=False)
