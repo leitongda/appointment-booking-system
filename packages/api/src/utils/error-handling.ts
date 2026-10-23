@@ -149,11 +149,15 @@ export const handleStructuredErrorCode = (
       return true;
     }
 
-    // ── 租户状态错误（由各端在 403 分支处理，此处仅标记已处理） ──
+    // ── 租户状态错误：不在此处吞掉 ──
+    // 必须返回 false 交给 403 分支（parseTenantError → onTenantSuspended）处理，
+    // 否则停服页/弹窗不会触发（R4-9）。
     case 'TENANT_SUSPENDED':
-    case 'TENANT_OVERDUE': {
-      return true;
-    }
+    case 'TENANT_SUSPENDED_WRITE':
+    case 'TENANT_OVERDUE':
+    case 'TENANT_DISABLED':
+    case 'TENANT_TRIAL_EXPIRED':
+      return false;
 
     default:
       return false;

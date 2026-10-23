@@ -343,6 +343,20 @@ export function createWebInterceptors(options: WebInterceptorOptions): WebInterc
   const handleApiError = (error: ApiError): ApiError => {
     const { code, message: errorMessage } = error;
 
+    // 403 + 租户暂停：必须先于结构化错误码分支判定（R4-9）。
+    // handleStructuredErrorCode 会把 TENANT_* 视为「已处理」，若放在前面，
+    // onTenantSuspended 永远不会触发，admin 也就不会跳 /tenant-suspended。
+    if (error.isForbidden()) {
+      const tenantReason = parseTenantError(error);
+      if (tenantReason) {
+        onTenantSuspended?.({
+          reason: tenantReason,
+          message: errorMessage || '该机构订阅已到期，暂不支持新预约，请联系机构续费。',
+        });
+        return error;
+      }
+    }
+
     // 结构化错误码（仅 admin）
     if (useStructuredErrorCode && handleStructuredErrorCode(error, deps)) {
       return error;
@@ -355,16 +369,8 @@ export function createWebInterceptors(options: WebInterceptorOptions): WebInterc
       return error;
     }
 
-    // 403
+    // 403（非租户暂停）
     if (error.isForbidden()) {
-      const tenantReason = parseTenantError(error);
-      if (tenantReason) {
-        onTenantSuspended?.({
-          reason: tenantReason,
-          message: errorMessage || '该机构订阅已到期，暂不支持新预约，请联系机构续费。',
-        });
-        return error;
-      }
       onApiErrorSideEffect?.('forbidden', error);
       deps.showError(errorMessage || ERROR_MESSAGES[403]);
       return error;
@@ -425,6 +431,19 @@ export function createWebInterceptors(options: WebInterceptorOptions): WebInterc
 
       const apiError = new ApiError(status, errorMsg, data, requestUrl, errorCode, errorDetails);
 
+      // 403 + 租户暂停：必须先于结构化错误码分支判定（R4-9）。
+      // 否则 TENANT_* 会被 handleStructuredErrorCode 提前吞掉。
+      if (status === 403) {
+        const tenantReason = parseTenantError(data);
+        if (tenantReason) {
+          onTenantSuspended?.({
+            reason: tenantReason,
+            message: data?.message || '该机构订阅已到期，暂不支持新预约，请联系机构续费。',
+          });
+          return Promise.reject(apiError);
+        }
+      }
+
       // 结构化错误码（仅 admin）
       if (useStructuredErrorCode && handleStructuredErrorCode(apiError, deps)) {
         return Promise.reject(apiError);
@@ -439,18 +458,6 @@ export function createWebInterceptors(options: WebInterceptorOptions): WebInterc
       // RSA 解密失败静默重试（仅 admin）
       if (useRsaRetry && status === 400 && errorMsg && isRsaDecryptError(errorMsg)) {
         if (rsaLoginPathGlobs.some((g) => requestUrl.includes(g))) {
-          return Promise.reject(apiError);
-        }
-      }
-
-      // 403
-      if (status === 403) {
-        const tenantReason = parseTenantError(data);
-        if (tenantReason) {
-          onTenantSuspended?.({
-            reason: tenantReason,
-            message: data?.message || '该机构订阅已到期，暂不支持新预约，请联系机构续费。',
-          });
           return Promise.reject(apiError);
         }
       }
