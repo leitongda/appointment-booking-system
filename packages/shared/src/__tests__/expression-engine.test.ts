@@ -365,25 +365,28 @@ describe('Built-in functions', () => {
 // =========================================================================
 // 8. Template interpolation
 // =========================================================================
+// 模板语法是「裸文本 + ${表达式}」（见 evaluateExpression 的文档示例
+// `Hello, ${pageState.user.name}!`），外层不要再加字符串引号——
+// 引号会被当成模板文本参与拼接。
 describe('Template interpolation', () => {
   it('interpolates a variable: Hello ${name}', () => {
-    expect(eval_("'Hello ${name}'", { name: 'World' })).toBe('Hello World');
+    expect(eval_('Hello ${name}', { name: 'World' })).toBe('Hello World');
   });
 
   it('interpolates multiple variables', () => {
-    expect(eval_("'${firstName} ${lastName}'", { firstName: 'John', lastName: 'Doe' })).toBe('John Doe');
+    expect(eval_('${firstName} ${lastName}', { firstName: 'John', lastName: 'Doe' })).toBe('John Doe');
   });
 
   it('interpolates nested property access', () => {
-    expect(eval_("'Name: ${user.name}'", { user: { name: 'Alice' } })).toBe('Name: Alice');
+    expect(eval_('Name: ${user.name}', { user: { name: 'Alice' } })).toBe('Name: Alice');
   });
 
   it('interpolates expressions inside template', () => {
-    expect(eval_("'Total: ${price * qty}'", { price: 10, qty: 3 })).toBe('Total: 30');
+    expect(eval_('Total: ${price * qty}', { price: 10, qty: 3 })).toBe('Total: 30');
   });
 
   it('returns string type for template expression', () => {
-    const result = eval_("'${count}'", { count: 42 });
+    const result = eval_('${count}', { count: 42 });
     expect(result).toBe('42');
     expect(typeof result).toBe('string');
   });
@@ -397,11 +400,11 @@ describe('Template interpolation', () => {
   });
 
   it('null/undefined inside template renders as empty string', () => {
-    expect(eval_("'Hello ${missing}'", {})).toBe('Hello ');
+    expect(eval_('Hello ${missing}', {})).toBe('Hello ');
   });
 
   it('built-in functions work inside templates', () => {
-    const result = eval_("'Length: ${length(items)}'", { items: [1, 2, 3] });
+    const result = eval_('Length: ${length(items)}', { items: [1, 2, 3] });
     expect(result).toBe('Length: 3');
   });
 });
@@ -415,7 +418,7 @@ describe('Invalid expression handling', () => {
   });
 
   it('undefined variables in templates return empty string', () => {
-    expect(eval_("'Hello ${unknownVar}'")).toBe('Hello ');
+    expect(eval_('Hello ${unknownVar}')).toBe('Hello ');
   });
 
   it('calling non-function returns undefined', () => {
@@ -594,8 +597,8 @@ describe('Prototype pollution protection', () => {
     const before = (Object.prototype as any).polluted;
     expect(before).toBeUndefined();
 
-    // 尝试通过表达式污染（应该被阻止）
-    eval_('obj["__proto__"]["polluted"] = true', { obj: {} });
+    // 引擎不支持赋值语法，污染尝试直接被语法解析拒绝
+    expect(() => eval_('obj["__proto__"]["polluted"] = true', { obj: {} })).toThrow(SyntaxError);
 
     // 验证没有被污染
     const after = (Object.prototype as any).polluted;

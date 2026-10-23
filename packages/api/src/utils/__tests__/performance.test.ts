@@ -12,6 +12,8 @@ describe('Performance Monitor', () => {
   test('should record successful API call', () => {
     const monitor = getPerformanceMonitor();
     const timer = createApiTimer('/test', 'GET');
+    // 回拨 startTime 固定已耗时：立即 recordSuccess 时 Date.now 差值可能为 0
+    (timer as any).startTime = Date.now() - 10;
 
     timer.recordSuccess();
 

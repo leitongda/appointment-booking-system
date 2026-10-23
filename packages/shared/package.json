@@ -25,6 +25,8 @@
   "scripts": {
     "lint": "echo 'lint not configured'",
     "clean": "rm -rf dist",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "gen:types": "openapi-typescript src/types/api-generated/openapi.json -o src/types/api-generated/schema.d.ts"
   },
   "dependencies": {
@@ -35,7 +37,8 @@
     "@types/node": "^20.11.0",
     "@types/react": "^18.3.0",
     "openapi-typescript": "^7.13.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vitest": "^1.6.1"
   },
   "peerDependencies": {
     "@ant-design/icons": ">=5.0.0",

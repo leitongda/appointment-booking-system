@@ -166,7 +166,7 @@ interface Token {
 
 const KEYWORDS = new Set(['true', 'false', 'null', 'undefined']);
 
-const TWO_CHAR_OPS = new Set(['===', '!==', '>=', '<=', '&&', '||', '=>', '??', '?.']);
+const MULTI_CHAR_OPS = new Set(['===', '!==', '>=', '<=', '&&', '||', '=>', '??', '?.']);
 
 function tokenize(input: string): Token[] {
   const tokens: Token[] = [];
@@ -217,7 +217,8 @@ function tokenize(input: string): Token[] {
         }
         i++;
       }
-      tokens.push({ type: 'String', value: input.slice(start + 1, i - 1), pos: start });
+      // 词法扫描时转义只用于跳过终止引号，取值时需还原 \' \" \\
+      tokens.push({ type: 'String', value: input.slice(start + 1, i - 1).replace(/\\(['"\\])/g, '$1'), pos: start });
       continue;
     }
 
@@ -232,10 +233,20 @@ function tokenize(input: string): Token[] {
       continue;
     }
 
+    // three-char operators (=== / !==) must be matched before two-char slices
+    if (i + 2 < len) {
+      const three = input.slice(i, i + 3);
+      if (MULTI_CHAR_OPS.has(three)) {
+        tokens.push({ type: 'Operator', value: three, pos: i });
+        i += 3;
+        continue;
+      }
+    }
+
     // two-char operators
     if (i + 1 < len) {
       const two = input.slice(i, i + 2);
-      if (TWO_CHAR_OPS.has(two)) {
+      if (MULTI_CHAR_OPS.has(two)) {
         tokens.push({ type: 'Operator', value: two, pos: i });
         i += 2;
         continue;
