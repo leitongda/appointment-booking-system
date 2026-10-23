@@ -69,6 +69,11 @@ def add_tenant_filter(query, model, tenant_id=None):
 - **租户管理员**（tenant_id != NULL）：只能查询本租户的数据（tenant_id 匹配）
 - **未认证请求**：拒绝访问（要求提供租户上下文）
 
+> ⚠️ 上述「无 tenant_id 即不过滤」的 fail-open 分支受灰度开关约束：
+> `TENANT_FILTER_FAIL_CLOSE=True` 时，租户管理员缺锚点直接 403，
+> `DataScopeFilter` 的租户分支返回永假条件（`app/common/data_scope.py:100-121`）。
+> 管理端新代码不要依赖该兜底，应显式走锚点依赖（见「管理端租户锚点」一节）。
+
 #### 数据可见性矩阵
 
 | 数据类型 | tenant_id | 平台管理员 | 租户管理员 | 说明 |
@@ -122,6 +127,38 @@ _current_tenant_code: ContextVar[Optional[str]] = ContextVar("_current_tenant_co
 - `X-Tenant-ID`: 当前租户ID
 - `X-Tenant-Code`: 当前租户编码
 
+### 管理端租户锚点（B1 语义）
+
+请求上下文只解决「请求来自哪个租户」，**管理端数据读写必须以账号锚点为准**，
+统一入口在 `apps/server/app/common/tenant_deps.py`：
+
+| 函数 | 语义 |
+|---|---|
+| `resolve_admin_tenant_anchor`（`:169`） | 纯函数：租户管理员恒返回账号自身 `tenant_id`（缺失 403）；平台管理员须显式指定（query 优先，缺省回退请求上下文；`PATIENT_ANCHOR_FAIL_CLOSE=True` 时缺失 400） |
+| `require_admin_tenant_anchor`（`:200`） | FastAPI 依赖版本，锚点优先级 = 显式 query 参数 > `X-Tenant-ID` / 子域名 / 路径前缀 |
+| `get_tenant_filter`（`:216`） | 兼容旧调用：平台管理员返回 None（全平台），租户管理员返回本租户；缺租户且 `TENANT_FILTER_FAIL_CLOSE=True` 时 403 |
+
+核心不变量：**客户端提供的 `tenant_id`（query / 请求体）只能作为平台管理员的锚点来源，
+绝不能越过账号所属租户**——租户管理员传他人租户一律 403/404。
+
+### 灰度开关（9 项）
+
+`app/core/config.py:131-148` 与 `apps/server/.env.example` 一一对应，默认值均保持旧行为：
+
+| 开关 | 默认 | 作用 |
+|---|---|---|
+| `LEGACY_USER_ADMIN_FALLBACK` | True | 登录时回退查 `users` 表的旧管理员 |
+| `TENANT_FILTER_FAIL_CLOSE` | False | 缺租户锚点的查询从「不过滤+告警」变 403/永假条件 |
+| `TENANT_CODE_TO_ID_RESOLVE` | False | 中间件把 code 头解析回 ID 并做强一致校验 |
+| `TENANT_CONSISTENCY_FAIL_CLOSE` | False | code 头与账号租户不一致时 403 |
+| `PATIENT_ANCHOR_FAIL_CLOSE` | False | 患者/公开端与管理端锚点缺失时 400 |
+| `PUBLIC_TENANT_REQUIRED_EXTRA_PATHS` | [] | 逐条把公开路径纳入强制租户头 |
+| `TENANT_PURGE_ENABLED` / `TENANT_PURGE_DRY_RUN` | False / True | 软删除租户物理删除任务（当前仅 dry-run，无 DELETE 代码路径） |
+| `FEATURE_ENFORCEMENT_ENABLED` | False | 租户功能开关（`require_feature`）总开关 |
+
+翻转顺序、观测指标与回滚动作见 `docs/tenant-remaining-plan.md` 第 5 节 runbook
+（一次只翻一个开关，翻前须完成对应数据核对门禁）。
+
 ## 数据隔离策略
 
 ### 数据库层面
@@ -129,11 +166,15 @@ _current_tenant_code: ContextVar[Optional[str]] = ContextVar("_current_tenant_co
 1. **字段级隔离**：所有核心表添加 `tenant_id` 字段
    - Stores, Admins, Doctors, Users, Patients
    - Departments, Schedules, Appointments
-   - Roles
+   - Roles（`p3a2` 起为 `(tenant_id, username/code)` 复合唯一；16 张业务表带 `tenants.id` 外键）
 
-2. **查询过滤**：使用 `add_tenant_filter()` 统一添加租户条件
+2. **查询过滤**：管理端 router 层以 `Depends(require_admin_tenant_anchor)` 显式收锚点、
+   service 层显式传 `tenant_id` 参数（不再隐式读请求上下文）；
+   `add_tenant_filter()` / `add_tenant_filter_with_store_fallback()` 仅作为
+   患者/公开端与遗留路径的兜底工具（`app/common/tenant_filter.py`）
 
-3. **创建时推断**：使用 `get_tenant_id_for_create()` 获取租户ID
+3. **创建时推断**：使用 `get_tenant_id_for_create()` 获取租户ID（创建路径必须落锚点，
+   锚点为空时拒绝而非落 NULL 租户行）
 
 ### 应用层面
 

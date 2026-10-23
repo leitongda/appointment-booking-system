@@ -515,7 +515,9 @@ ERROR 计数：
 
 ## 10. 本次执行边界（如实说明）
 
-- 本节第 1–6 条描述的是**盘点/计划阶段**的边界；B9 批次的实际改动见 10.1。
+- 本节第 1–6 条描述的是**盘点/计划阶段**的边界；B9 批次的实际改动见 10.1，
+  B0–B8、B10、B11 的执行记录见 10.2，前端测试可执行化与验证快照见 10.3/10.4，
+  测试补全与权限覆盖矩阵见 10.5。
 - 计划阶段只新增/覆盖本文档 `docs/tenant-remaining-plan.md`；未修改任何后端/前端代码，未执行 `git commit`。
 - **未运行任何 pytest**，本文所有“验收门”均为计划中的命令与断言，不代表已通过。
 - **未连接任何数据库**，未执行 `scripts/tenant_null_tenant_id_audit.sql`；文中引用的 psql 报错来自盘点 R4-1 的实测记录。
@@ -544,3 +546,64 @@ ERROR 计数：
 **本批未做**：未连库执行审计 SQL 或 M6 脚本（按批次约束与第 10 节边界）；
 `alembic autogenerate` 零 diff、pre/post 两库 ERROR=0、staging dry-run 等验收门
 归 E1 / staging 执行，本批未运行。
+
+### 10.2 B0–B8、B10、B11 执行记录（2026-10-23 补录）
+
+> 除 B9 外的其余无阻塞批次均已合入 `feat/tenant-isolation-hardening`。
+> 表中「验证」为 2026-10-23 本地实测（内存 SQLite + vitest，详见 10.4）。
+
+| 批次 | 提交 | 关键落点 | 验证 |
+|---|---|---|---|
+| B0 | `40285740` | waitlist `/stats` 改经 `Schedule.store_id` join（`app/modules/waitlist/router.py:161/253-263`，不再引用不存在的 `WaitlistEntry.store_id`）；stores 详情/状态/批量绑定传入锚点；approval 测试 cwd、quota 测试时间与单号固定 | waitlist /stats 矩阵用例（`test_p2a_tenant_matrix.py:239-248`）、`test_quota.py`、`test_approval_business_callbacks.py` 全绿 |
+| B1 | `2d5086da` | `require_admin_tenant_anchor` 在 query 为空时回退请求上下文（`app/common/tenant_deps.py:200-214`），平台管理员仅带 `X-Tenant-ID` 不再被误判未指定租户 | `test_isolation_matrix.py`（stores/doctors/departments + 超管视角）12 用例绿 |
+| B2 | `5de3c551` | `ModuleSpec` 增加 `write_method`/`omit_body`；P2A 补 POST/PUT/cancel/waitlist/stats/payments/refunds；P2B 升到 HTTP 层；P2C 补排班/医生/门店/科室/消息写路径 | P2A 12、P2B 15、P2C 10、基础矩阵 12 用例绿 |
+| B3–B8 | `01e39893` | 41 个业务文件接入 `require_admin_tenant_anchor`/`resolve_admin_tenant_anchor`；settings/statistics/shift_types 补租户维度；notification_logs 拒绝 query 越权（`router.py:27-47`）、unified_message 拒绝请求体越权并改写为锚点（`router.py:36-52`）；statistics 7 个 router 接租户条件、`_build_tenant_condition` 模型缺列时返回永假条件 | `test_b3`（13）/`test_b5`（21）/`test_b6`（23）/`test_b7`（35）/`test_b8`（33）/`test_statistics_tenant_isolation`（10）共 135 用例绿 |
+| B10 | `d0c71221`、`d96dad7d` | `parseTenantError` 兼容 `error.code` 信封等 5 种形态；`error-handling.ts` 不再提前吞 `TENANT_*`；`web-interceptors` 403 分支先判停服；患者端 `app.tsx:181-188` 读 `error.code`；`.env.example` 登记 9 开关 | 前端单测接入后实测：shared 157（含 parseTenantError 14）、api 15（含 tenantSuspended 3）、admin 90 全绿（见 10.3） |
+| B11 | `4fadc455` | `app/tasks/tenant_lifecycle_task.py:52` 双门禁（`TENANT_PURGE_ENABLED` 默认 False + `TENANT_PURGE_DRY_RUN`）dry-run 任务；beat 注册（`app/celery_app.py:338-341`）；代码中无任何 DELETE 路径 | 静态审查确认无删除语句；**dry-run/no-op/幂等行为尚无单测**（待补，不阻塞 D1 决策） |
+
+**遗留说明**：
+
+1. `TENANT_PURGE_*` 的 dry-run/no-op/幂等行为已补单测（见 10.5）；
+   `auto_renew` 测试骨架仍属 D1（R2-6）前置，未写。
+2. `tests/tenants/test_tenant_data_isolation.py` 中指向 `/api/v1/export/doctors`
+   的两条 skip 已归因复活（见 10.5），租户套件不再有路由级 skip。
+
+### 10.3 前端测试可执行化（2026-10-23，随 B10 验收补全）
+
+B10 的两个单测此前放在没有测试入口的包里，无法用仓库命令运行，本次接线：
+
+| 变更 | 内容 |
+|---|---|
+| 测试入口 | `packages/shared`、`packages/api` 各新增 `vitest.config.ts` 与 `test`/`test:watch` 脚本（vitest ^1.6.1，与 admin/codegen 同链）；`pnpm install` 后 lockfile 已更新；`pnpm test`（turbo）自动纳入 |
+| 存量缺陷修复（shared） | expression-engine 词法两处缺陷：① `===`/`!==` 在运算符集合里却只按 2 字符切片，永远切不出来（语法文档与解析器均声明支持）；② 字符串转义（`\'` `\"` `\\`）扫描时只用于跳过引号，取值未解码。均已修复 |
+| 存量缺陷修复（api） | `retry.test.ts` 为 Jest 时代死测试（`jest.fn`、`} as any` 非法语法，从未编译通过），按当前实现重写为 adapter 驱动真实拦截器链（重试/非幂等不重试/401-403 不重试/达上限退避 100→200→400/withRetry 标记）；`performance.test.ts` 依赖全局 API 且 0ms 偶发，配置 `globals: true` 并回拨 startTime 固定耗时 |
+| 测试语义对齐（shared） | 模板插值用例改为引擎文档语义（裸文本 `Hello ${name}`，不带外层引号）；原型污染用例改为断言赋值语法被 `SyntaxError` 拒绝 |
+
+### 10.4 验证快照（2026-10-23，HEAD=d96dad7d）
+
+| 命令 | 结果 |
+|---|---|
+| `pytest tests/tenants tests/security/test_p2a_tenant_matrix.py tests/security/test_patient_data_flow_tenant_isolation.py tests/security/test_tenant_isolation.py tests/security/test_admin_identity_anchor.py` | 344 通过 / 3 跳过 / 1 xfail |
+| `pytest tests/security` | 107 通过 |
+| `pytest tests/unit/test_tenant_anchor.py tests/unit/test_data_scope_tenant_fail_close.py tests/unit/test_feature_deps.py tests/unit/test_tenant_fk_models.py` | 34 通过 |
+| `pytest tests/unit/test_waitlist.py tests/unit/test_extra_quota.py tests/unit/test_approval_business_callbacks.py` | 70 通过 |
+| `python -c "import app.main"` | 通过 |
+| `pnpm --filter @hospital/{shared,api,website,codegen} test` + admin vitest | 157 / 15 / 26 / 26 / 90 全通过 |
+
+环境说明：`apps/server/.venv` 为旧路径（`~/letond/...`）创建、`bin/python` 软链失效，
+上述 pytest 用系统 `python3.11`（依赖齐全）执行；连库类验收门仍未运行（归 E1）。
+
+### 10.5 测试补全与权限覆盖矩阵（2026-10-23，第二批次，未提交）
+
+B0–B11 复盘时暴露的三个测试缺口在本批次收口：
+
+| 事项 | 落点 | 说明 |
+|---|---|---|
+| B11 purge 任务单测 | 新增 `apps/server/tests/unit/test_tenant_lifecycle_task.py`（6 用例） | 覆盖 B11 验收门：`ENABLED=False` 全程 no-op（不开 DB 会话）；dry-run 只列超 90 天保留期的软删除租户、行数不变；未到期/未删除不进候选；`DRY_RUN=False` 首版同样零删除；重复执行幂等。真实 SQLite 承接 `_find_expired_deleted_tenants` 查询，冻结任务内 `utcnow` 消除边界偶发 |
+| export/doctors 两条 skip 归因 | `tests/tenants/test_tenant_data_isolation.py` | 结论是**用例过期而非路由缺失**：医生导出真实路由为 `/api/v1/data/export/doctors`（`app/api/v1/__init__.py:103`），旧 `/api/v1/export` 模块只有 appointments/patients/schedules。四条用例改指真实路由并去 skip：无权限 403、有权限 200+xlsx、导出只含本租户医生（解析 xlsx 断言 A 进 B 不出）、伪造 `X-Tenant-ID` 403。受限角色 fixture 去掉 `doctor:list`（该路由守卫为 `doctor:export` OR `doctor:list`，满足其一即放行） |
+| 管理端路由↔权限守卫覆盖矩阵 | 新增 `apps/server/tests/architecture/test_admin_route_permission_matrix.py`（3 用例） | 把「`/api/v1/admin/**` 每条路由要么有权限守卫（require_permission 族 / require_platform_admin），要么在带原因的豁免台账登记」固化为 fitness test；台账反向校验防腐化；自助豁免限路径前缀防滥用。**盘点结果**：写端点全部有守卫；5 个读端点无码（`GET /admins`、`GET /admins/{id}`、`GET /roles`、`/roles/all`、`/roles/{id}`）登记为 KNOWN_GAPS——权限目录（`scripts/init_permissions.py`）无 `system:user:list`/`system:role:list` 码，直接加守卫会锁死所有非 `*` 角色且无法授权，收口需产品拍板（新权限码 + 前端角色页对齐），已作为独立工作项记录 |
+| 文件规模 fitness 基线棘轮 | `tests/architecture/test_fitness_functions.py` | B3–B8 锚点改造使 30 个 router、7 个 service、2 个 schemas 超过 legacy baseline（另有 `tenants/service_migration.py`、`service_tenant.py` 两文件此前漏登台账），3 条用例在 HEAD 上即红。按棘轮约定把基线对齐当前行数（attendance_records、statistics/router_overview 随之下调），修复后 6/6 绿 |
+
+**本批验证**（工作区，基于 HEAD=d96dad7d）：
+`pytest tests/tenants tests/security tests/architecture tests/unit/test_tenant_lifecycle_task.py`
+→ **419 通过 / 1 跳过（SyncRedis 设计内跳过）/ 1 xfail**，租户套件不再有路由级 skip。
