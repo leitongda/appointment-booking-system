@@ -607,3 +607,12 @@ B0–B11 复盘时暴露的三个测试缺口在本批次收口：
 **本批验证**（工作区，基于 HEAD=d96dad7d）：
 `pytest tests/tenants tests/security tests/architecture tests/unit/test_tenant_lifecycle_task.py`
 → **419 通过 / 1 跳过（SyncRedis 设计内跳过）/ 1 xfail**，租户套件不再有路由级 skip。
+
+### 10.6 R2-6 auto_renew 骨架与到期计数修复（2026-10-23，第三批次）
+
+按 D1 批「R2-6 未决时的处理：先写测试骨架，不实现扣款」执行：
+
+| 事项 | 落点 | 说明 |
+|---|---|---|
+| auto_renew 测试骨架 | 新增 `apps/server/tests/unit/test_auto_renew_skeleton.py`（1 契约用例 + 3 条 `xfail(strict=True)`） | 「未开自动续费到期仍置欠费」固化为普通契约用例；D17 三条期望（到期不停服 / 生成 pending 应收无真实扣款 / 订阅周期延长）以 strict xfail 登记，实现落地即 XPASS 报错，届时摘标记收口 |
+| 到期任务计数 bug | `app/tasks/tenant_usage_task.py` `send_notifications` | 闭包内 `reminded_count/suspended_count +=` 缺 `nonlocal`，每个到期租户抛 UnboundLocalError 被逐租户 except 吞掉——置欠费碰巧仍生效（状态先改后计数），但任务返回计数恒为 0 且每次执行刷错误日志。补 `nonlocal` 后契约用例通过（此前该任务零测试覆盖） |

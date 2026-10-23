@@ -198,6 +198,9 @@ def check_subscription_expiry():
 
             # 使用异步上下文发送通知
             async def send_notifications():
+                # 计数器定义在外层函数，嵌套闭包内 += 需显式 nonlocal，
+                # 否则每个到期租户都会抛 UnboundLocalError 被逐租户 except 吞掉
+                nonlocal reminded_count, suspended_count
                 async for db_async in get_async_db_context():
                     from app.infrastructure.email.service import EmailService
                     from app.modules.settings.service import SettingsService
