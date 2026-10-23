@@ -196,3 +196,50 @@ async def test_tenant_code_header_match_is_allowed(
         },
     )
     assert response.status_code == 200, response.text
+
+
+class TestAdminAnchorDependency:
+    """B1/R4-8：管理端锚点依赖的优先级与回退语义"""
+
+    async def test_platform_admin_falls_back_to_tenant_header(
+        self, async_client, multi_tenant_env, admin_token_factory
+    ):
+        """平台管理员只发 X-Tenant-ID 时，锚点应取该头而不是“未指定”"""
+        env = multi_tenant_env
+        token = admin_token_factory(env.platform_admin)
+        response = await async_client.get(
+            "/api/v1/stores",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "X-Tenant-ID": env.tenant_a.id,
+            },
+        )
+        assert response.status_code == 200, response.text
+        ids = {item["id"] for item in response.json()["data"]}
+        assert env.store_a.id in ids
+        assert env.store_b.id not in ids
+
+    async def test_platform_admin_without_any_tenant_is_400_when_switch_on(
+        self, async_client, multi_tenant_env, admin_token_factory, monkeypatch
+    ):
+        from app.core.config import settings
+
+        monkeypatch.setattr(settings, "PATIENT_ANCHOR_FAIL_CLOSE", True)
+        env = multi_tenant_env
+        token = admin_token_factory(env.platform_admin)
+        response = await async_client.get(
+            "/api/v1/stores", headers=_auth(token)
+        )
+        assert response.status_code == 400, response.text
+
+    async def test_platform_admin_without_tenant_sees_all_when_switch_off(
+        self, async_client, multi_tenant_env, admin_token_factory
+    ):
+        env = multi_tenant_env
+        token = admin_token_factory(env.platform_admin)
+        response = await async_client.get(
+            "/api/v1/stores", headers=_auth(token)
+        )
+        assert response.status_code == 200, response.text
+        ids = {item["id"] for item in response.json()["data"]}
+        assert {env.store_a.id, env.store_b.id} <= ids

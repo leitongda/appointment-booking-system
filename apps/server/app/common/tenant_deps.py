@@ -198,15 +198,19 @@ def resolve_admin_tenant_anchor(
 
 
 def require_admin_tenant_anchor(
-    tenant_id: str | None = Query(None, description="租户ID（平台管理员必填）"),
+    tenant_id: str | None = Query(None, description="租户ID（平台管理员优先使用）"),
     current_admin: dict = Depends(get_current_admin),
 ) -> str | None:
-    """管理端租户锚点依赖（P2C 共享底座）
+    """管理端租户锚点依赖（P2C 共享底座 / B1 R4-8）
 
-    P2C-1 的薄 Depends 包装：语义全部委托 resolve_admin_tenant_anchor，
-    不重复实现（合并约束 R2）。
+    锚点优先级：显式 query 参数 > 请求上下文（X-Tenant-ID / 子域名 / 路径前缀）。
+    平台管理员只发 X-Tenant-ID 时不再被误判为“未指定租户”；
+    租户管理员的锚点恒为账号自身 tenant_id（由纯函数保证）。
     """
-    return resolve_admin_tenant_anchor(current_admin, tenant_id_override=tenant_id)
+    effective_tenant_id = tenant_id or get_current_tenant_id()
+    return resolve_admin_tenant_anchor(
+        current_admin, tenant_id_override=effective_tenant_id
+    )
 
 
 def get_tenant_filter(current_admin: dict = Depends(get_current_admin)) -> str | None:
