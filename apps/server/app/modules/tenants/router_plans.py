@@ -189,3 +189,37 @@ async def delete_subscription_plan(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
         )
+
+
+@router.patch(
+    "/{tenant_id}/subscriptions/{subscription_id}/paid",
+    summary="标记订阅已支付（平台管理员）",
+)
+async def mark_subscription_paid(
+    tenant_id: str,
+    subscription_id: str,
+    payment_method: str | None = Query(None, description="支付方式"),
+    transaction_id: str | None = Query(None, description="支付交易号"),
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(require_platform_admin()),
+):
+    """订阅支付状态回写（P4-5；当前无在线收款通道，由平台管理员手工标记）"""
+    from app.modules.tenants.service_subscription import TenantSubscriptionService
+
+    subscription = await TenantSubscriptionService(db).mark_subscription_paid(
+        tenant_id=tenant_id,
+        subscription_id=subscription_id,
+        payment_method=payment_method,
+        transaction_id=transaction_id,
+        actor_id=current_admin.get("id"),
+    )
+    if not subscription:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="订阅记录不存在",
+        )
+    return {
+        "id": subscription.id,
+        "payment_status": subscription.payment_status,
+        "paid_at": subscription.paid_at.isoformat() if subscription.paid_at else None,
+    }

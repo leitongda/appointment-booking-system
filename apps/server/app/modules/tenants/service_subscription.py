@@ -191,6 +191,44 @@ class TenantSubscriptionService:
 
         return subscription
 
+    async def mark_subscription_paid(
+        self,
+        tenant_id: str,
+        subscription_id: str,
+        payment_method: str | None = None,
+        transaction_id: str | None = None,
+        actor_id: str | None = None,
+    ) -> TenantSubscription | None:
+        """标记订阅已支付（平台管理员手工回写，P4-5）"""
+        subscription = await self.db.get(TenantSubscription, subscription_id)
+        if not subscription or subscription.tenant_id != tenant_id:
+            return None
+
+        subscription.payment_status = "paid"
+        subscription.paid_at = datetime.utcnow()
+        if payment_method:
+            subscription.payment_method = payment_method
+        if transaction_id:
+            subscription.payment_transaction_id = transaction_id
+
+        from app.modules.tenants.audit_tracker import AuditTracker
+
+        try:
+            await AuditTracker(self.db).track_subscription_change(
+                tenant_id=tenant_id,
+                old_plan_id=subscription.plan_id,
+                new_plan_id=subscription.plan_id,
+                old_end_at=str(subscription.end_at),
+                new_end_at=str(subscription.end_at),
+                actor_id=actor_id,
+            )
+        except Exception:
+            pass
+
+        await self.db.commit()
+        await self.db.refresh(subscription)
+        return subscription
+
     async def get_tenant_subscriptions(
         self,
         tenant_id: str,

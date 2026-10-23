@@ -27,6 +27,7 @@ TRACKED_MODELS = {
         "max_lowcode_pages", "max_miniapp_instances",
         "features", "branding_config", "contact_name", "contact_phone",
         "contact_email", "address", "custom_domain", "subdomain",
+        "deleted_at",
     ],
     "admin": [
         "username", "name", "phone", "email", "status", "role_id",
@@ -205,6 +206,39 @@ class AuditTracker:
             action="status_change",
             before_data=json.dumps({"status": _str_val(old_status)}, ensure_ascii=False),
             after_data=json.dumps({"status": _str_val(new_status)}, ensure_ascii=False),
+            created_at=datetime.utcnow(),
+        )
+        self.db.add(log)
+        await self.db.flush()
+        return log
+
+    async def track_migration(
+        self,
+        tenant_id: str,
+        source_tenant_id: str,
+        copied: dict,
+        preserve_ids: bool = False,
+        actor_id: str | None = None,
+    ) -> TenantAuditLog:
+        """记录一次跨租户数据迁移（成功提交后调用）"""
+        log = TenantAuditLog(
+            id=str(uuid.uuid4()),
+            tenant_id=tenant_id,
+            event_type="migration",
+            actor_id=actor_id,
+            actor_type="platform_admin",
+            resource_type="tenant",
+            resource_id=tenant_id,
+            action="migrate",
+            after_data=json.dumps(
+                {
+                    "source_tenant_id": source_tenant_id,
+                    "copied": copied,
+                    "preserve_ids": preserve_ids,
+                },
+                ensure_ascii=False,
+                default=str,
+            ),
             created_at=datetime.utcnow(),
         )
         self.db.add(log)

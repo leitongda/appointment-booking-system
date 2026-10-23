@@ -260,6 +260,73 @@ class QuotaChecker:
         }
 
 
+    async def check_miniapp_instances_quota(self, tenant_id: str | None = None) -> None:
+        """检查小程序实例配额（P4-6，复用 TenantService 计数）"""
+        tenant = await self._get_tenant(tenant_id)
+        if not tenant:
+            return
+
+        limit = tenant.get_effective_max_miniapp_instances()
+        from app.modules.tenants.service_tenant import TenantService
+
+        current_count = await TenantService(self.db).get_miniapp_instance_count(tenant.id)
+
+        if limit and current_count >= limit:
+            raise QuotaCheckError(
+                message="小程序实例数量已达上限",
+                quota_type="miniapp_instances",
+                current=current_count,
+                limit=limit,
+            )
+
+    async def check_lowcode_pages_quota(self, tenant_id: str | None = None) -> None:
+        """检查低代码页面配额（P4-6，复用 TenantService 计数）"""
+        tenant = await self._get_tenant(tenant_id)
+        if not tenant:
+            return
+
+        limit = tenant.get_effective_max_lowcode_pages()
+        from app.modules.tenants.service_tenant import TenantService
+
+        current_count = await TenantService(self.db).get_lowcode_page_count(tenant.id)
+
+        if limit and current_count >= limit:
+            raise QuotaCheckError(
+                message="低代码页面数量已达上限",
+                quota_type="lowcode_pages",
+                current=current_count,
+                limit=limit,
+            )
+
+    async def check_storage_quota(self, tenant_id: str | None = None) -> None:
+        """检查存储配额（P4-6）
+
+        计量数据缺失时放行（当前 storage_used_mb 无写入方），避免误杀。
+        """
+        tenant = await self._get_tenant(tenant_id)
+        if not tenant or not tenant.subscription_plan:
+            return
+
+        max_mb = tenant.subscription_plan.max_storage_mb
+        if not max_mb:
+            return
+
+        from app.modules.tenants.service_usage import TenantUsageService
+
+        summary = await TenantUsageService(self.db).get_usage_summary(tenant.id)
+        used_mb = float(summary.get("current_storage_mb") or 0)
+        if used_mb <= 0:
+            return  # 无用量数据：放行
+
+        if used_mb >= float(max_mb):
+            raise QuotaCheckError(
+                message="存储空间已达上限",
+                quota_type="storage_mb",
+                current=used_mb,
+                limit=float(max_mb),
+            )
+
+
 async def check_quota(tenant_id: str | None, resource_type: str, db) -> None:
     """通用配额检查函数
 
@@ -287,6 +354,9 @@ async def check_quota(tenant_id: str | None, resource_type: str, db) -> None:
         "admins": checker.check_admins_quota,
         "doctors": checker.check_doctors_quota,
         "appointments": checker.check_appointments_quota,
+        "miniapp_instances": checker.check_miniapp_instances_quota,
+        "lowcode_pages": checker.check_lowcode_pages_quota,
+        "storage_mb": checker.check_storage_quota,
     }
 
     check_func = check_methods.get(resource_type)

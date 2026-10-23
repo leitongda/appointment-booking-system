@@ -244,27 +244,6 @@ def _send_websocket_notification(
         logger.error(f"发送 WebSocket 通知异常: {e}")
 
 
-def _should_use_unified(tenant_id: str) -> bool:
-    """检查租户是否启用了统一消息中心"""
-    try:
-        from app.common.feature_flags import FeatureFlagService
-        from app.db.session import async_session_maker
-
-        async def _check():
-            async with async_session_maker() as session:
-                return await FeatureFlagService.is_beta_enabled(
-                    session, tenant_id, "beta_unified_message"
-                )
-
-        loop = asyncio.new_event_loop()
-        try:
-            return loop.run_until_complete(_check())
-        finally:
-            loop.close()
-    except Exception:
-        return False
-
-
 def _send_via_unified(
     tenant_id: str,
     store_id: str | None,
@@ -431,8 +410,8 @@ def _send_reminder_for_level(
         f"找到 {len(appointments_to_remind)} 个待提醒预约"
     )
 
-    # 检查是否使用统一消息中心
-    use_unified = _should_use_unified(tenant_id)
+    # beta_unified_message 已退役（P4-8）：固定走既有发送路径
+    use_unified = False
 
     for appointment, schedule, user, doctor in appointments_to_remind:
         success = False

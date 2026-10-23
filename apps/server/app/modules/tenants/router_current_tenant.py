@@ -12,6 +12,7 @@
 - POST /me/notifications/read-all — 标记全部通知已读
 - GET /me/dashboard — 租户管理员仪表板
 """
+import json
 import logging
 import time
 from datetime import date, datetime
@@ -42,6 +43,17 @@ from app.modules.tenants.service import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+def _parse_branding_config(raw: str | None) -> dict | None:
+    """解析租户品牌配置（P4-8 接线；坏 JSON 不报错）"""
+    if not raw:
+        return None
+    try:
+        parsed = json.loads(raw)
+        return parsed if isinstance(parsed, dict) else None
+    except (json.JSONDecodeError, TypeError):
+        return None
 
 
 # ==================== 注册端点限流依赖 ====================
@@ -148,6 +160,7 @@ async def get_current_tenant_info(
         days_until_expiry=days_until_expiry,
         billing_cycle=tenant.billing_cycle or "monthly",
         contact_phone=tenant.contact_phone,
+        branding_config=_parse_branding_config(tenant.branding_config),
     )
 
 
@@ -175,6 +188,7 @@ async def get_current_tenant_public(
         subscription_end_at=t.subscription_end_at,
         is_subscription_active=t.is_subscription_active,
         name=t.name,
+        branding_config=_parse_branding_config(t.branding_config),
     )
 
 

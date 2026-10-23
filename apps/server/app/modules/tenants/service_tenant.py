@@ -36,14 +36,17 @@ class TenantService:
         )
         return result.scalar_one_or_none()
 
-    async def get_by_code(self, tenant_code: str) -> Tenant | None:
+    async def get_by_code(self, tenant_code: str, include_deleted: bool = False) -> Tenant | None:
         """通过编码获取租户"""
         result = await self.db.execute(
             select(Tenant)
             .options(selectinload(Tenant.subscription_plan))
             .where(Tenant.tenant_code == tenant_code)
         )
-        return result.scalar_one_or_none()
+        tenant = result.scalar_one_or_none()
+        if tenant and not include_deleted and tenant.deleted_at is not None:
+            return None
+        return tenant
 
     async def get_list(self, query: TenantQuery, include_deleted: bool = False) -> tuple[list[Tenant], int]:
         """获取租户列表
@@ -112,7 +115,7 @@ class TenantService:
     async def create(self, data: TenantCreate, created_by: str | None = None) -> Tenant:
         """创建租户"""
         # 检查编码是否已存在
-        existing = await self.get_by_code(data.tenant_code)
+        existing = await self.get_by_code(data.tenant_code, include_deleted=True)
         if existing:
             raise ValueError(f"租户标识 '{data.tenant_code}' 已存在")
 
@@ -142,11 +145,25 @@ class TenantService:
         )
 
         self.db.add(tenant)
-        await self.db.commit()
-        await self.db.refresh(tenant)
+        await self.db.flush()
 
-        # 初始化租户默认数据
-        await self._init_tenant_defaults(tenant)
+        # 单事务开通：默认门店/科室/角色任一失败则整体回滚，避免半开通租户
+        try:
+            await self._init_tenant_defaults(tenant)
+            from app.modules.tenants.audit_tracker import AuditTracker
+
+            await AuditTracker(self.db).track_create(
+                tenant,
+                tenant_id=tenant.id,
+                resource_type="tenant",
+                resource_id=tenant.id,
+                actor_id=created_by,
+                actor_type="platform_admin",
+            )
+            await self.db.commit()
+        except Exception as exc:
+            await self.db.rollback()
+            raise ValueError("租户开通失败，请重试") from exc
 
         # 重新加载关联
         await self.db.refresh(tenant, ["subscription_plan"])
@@ -201,8 +218,6 @@ class TenantService:
         )
         self.db.add(default_role)
         await self.db.flush()
-
-        await self.db.commit()
 
     async def update(self, tenant_id: str, data: TenantUpdate | TenantSelfUpdateRequest, updated_by: str | None = None) -> Tenant | None:
         """更新租户"""
@@ -301,6 +316,16 @@ class TenantService:
         tenant.deleted_at = datetime.utcnow()
         tenant.deleted_by = deleted_by
         tenant.status = 0  # 禁用
+        from app.modules.tenants.audit_tracker import AuditTracker
+
+        await AuditTracker(self.db).track_delete(
+            tenant,
+            tenant_id=tenant.id,
+            resource_type="tenant",
+            resource_id=tenant.id,
+            actor_id=deleted_by,
+            actor_type="platform_admin",
+        )
         await self.db.commit()
         return True
 
@@ -330,6 +355,16 @@ class TenantService:
         tenant.deleted_by = None
         tenant.status = 1  # 正常
         tenant.updated_by = restored_by
+        from app.modules.tenants.audit_tracker import AuditTracker
+
+        await AuditTracker(self.db).track_update(
+            tenant,
+            tenant_id=tenant.id,
+            resource_type="tenant",
+            resource_id=tenant.id,
+            actor_id=restored_by,
+            actor_type="platform_admin",
+        )
         await self.db.commit()
         await self.db.refresh(tenant)
         return tenant
@@ -427,9 +462,24 @@ class TenantService:
         from app.models.admin import Role
         from app.modules.tenants.service_plan import SubscriptionPlanService
 
-        existing = await self.get_by_code(data.tenant_code)
+        existing = await self.get_by_code(data.tenant_code, include_deleted=True)
         if existing:
             raise ValueError(f"租户标识 '{data.tenant_code}' 已被占用")
+
+        # 密码策略校验：租户尚未建立，使用默认策略（P4-2）
+        from app.modules.tenants.password_policy import (
+            PasswordPolicyValidator,
+            get_tenant_password_policy,
+        )
+
+        policy = await get_tenant_password_policy(self.db, None)
+        is_valid, policy_errors = PasswordPolicyValidator(policy).validate(
+            data.admin_password,
+            username=data.admin_username,
+            phone=data.contact_phone,
+        )
+        if not is_valid:
+            raise ValueError("; ".join(policy_errors))
 
         plan_svc = SubscriptionPlanService(self.db)
         default_plan = await plan_svc.get_default_plan()
@@ -475,7 +525,11 @@ class TenantService:
             updated_at=now,
         )
         self.db.add(admin)
-        await self.db.commit()
+        try:
+            await self.db.commit()
+        except Exception as exc:
+            await self.db.rollback()
+            raise ValueError("租户开通失败，请重试") from exc
 
         return {
             "tenant_id": tenant.id,

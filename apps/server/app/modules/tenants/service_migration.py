@@ -469,13 +469,28 @@ class TenantMigrationService:
                         copied_counts["rule_set_windows"] = total_windows
 
             except Exception as exc:
-                failures.append({
-                    "entity": entity_name,
-                    "error": str(exc),
-                })
-                continue
+                # 全有或全无：任一实体失败整体回滚，避免部分成功静默落库
+                await self.db.rollback()
+                raise ValueError(
+                    f"迁移失败: entity={entity_name}, error={exc}"
+                ) from exc
 
         await self.db.commit()
+
+        # 迁移审计（成功 commit 后记录，失败已在上方回滚）
+        try:
+            from app.modules.tenants.audit_tracker import AuditTracker
+
+            await AuditTracker(self.db).track_migration(
+                tenant_id=target_tenant_id,
+                source_tenant_id=source_tenant_id,
+                copied=copied_counts,
+                preserve_ids=preserve_ids,
+                actor_id=created_by,
+            )
+            await self.db.commit()
+        except Exception:
+            await self.db.rollback()
 
         duration_ms = int((time.time() - start_time) * 1000)
 

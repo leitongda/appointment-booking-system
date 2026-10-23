@@ -510,6 +510,7 @@ class CurrentTenantResponse(BaseModel):
     days_until_expiry: int | None = Field(None, serialization_alias="daysUntilExpiry")
     billing_cycle: str = Field(default="monthly", serialization_alias="billingCycle")
     contact_phone: str | None = Field(None, serialization_alias="contactPhone")
+    branding_config: dict | None = Field(None, serialization_alias="brandingConfig")
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -523,6 +524,8 @@ class CurrentTenantPublicResponse(BaseModel):
     subscription_end_at: datetime | None = Field(None, serialization_alias="subscriptionEndAt")
     is_subscription_active: bool = Field(False, serialization_alias="isSubscriptionActive")
     name: str | None = None
+    branding_config: dict | None = Field(None, serialization_alias="brandingConfig")
+    branding_config: dict | None = Field(None, serialization_alias="brandingConfig")
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -641,11 +644,15 @@ class TenantSelfRegisterRequest(BaseModel):
     @field_validator("admin_password")
     @classmethod
     def validate_password_strength(cls, v: str) -> str:
-        """注册密码需满足 PasswordPolicy 默认策略"""
-        if len(v) < 6:
-            raise ValueError("密码长度不能少于 6 位")
-        if len(v) > 20:
-            raise ValueError("密码长度不能超过 20 位")
+        """注册密码需满足 PasswordPolicy 默认策略（单一事实来源）"""
+        from app.modules.tenants.password_policy import (
+            DEFAULT_POLICY,
+            PasswordPolicyValidator,
+        )
+
+        is_valid, errors = PasswordPolicyValidator(dict(DEFAULT_POLICY)).validate(v)
+        if not is_valid:
+            raise ValueError("; ".join(errors))
         return v
 
     @field_validator("captcha_token")
