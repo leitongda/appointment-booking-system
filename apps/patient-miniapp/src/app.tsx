@@ -177,8 +177,9 @@ if (taroAdapter.interceptors) {
     }
 
     if (response.statusCode >= 400) {
-      // 租户暂停错误码识别
-      const errorCode = data?.error_code;
+      // 租户暂停错误码识别：后端统一信封为 { code, message, error: { code } }，
+      // 兼容旧版扁平 error_code（R4-9）
+      const errorCode = data?.error?.code ?? data?.error_code;
       if (
         response.statusCode === 403 &&
         (errorCode === 'TENANT_SUSPENDED_WRITE' ||
