@@ -7,6 +7,7 @@
 - 欠费自动暂停
 """
 import logging
+import uuid
 from datetime import date, datetime, timedelta
 
 from sqlalchemy import and_, func, select
@@ -18,7 +19,7 @@ from app.db.session import get_sync_db
 from app.models.appointment import Appointment
 from app.models.doctor import Doctor
 from app.models.store import Store
-from app.models.tenant import Tenant, TenantUsageLog
+from app.models.tenant import Tenant, TenantSubscription, TenantUsageLog
 from app.models.user import Patient
 
 logger = logging.getLogger(__name__)
@@ -153,6 +154,54 @@ def record_daily_usage():
             raise
 
 
+def _renew_subscription(db: Session, tenant: Tenant, now: datetime) -> bool:
+    """D17 auto_renew 到期续费：延长订阅周期 + 生成 pending 应收，无真实扣费。
+
+    语义（docs/tenant-remaining-plan.md 第 7 节 D17 建议默认）：
+    - 取该租户最新一条有效订阅；``auto_renew=False`` 或无订阅 → 返回 False（走置欠费）；
+    - 旧订阅置 ``status=2``（已过期），按原计划新建一条 ``payment_status='pending'``
+      的应收订阅（覆盖下一计费周期），租户 ``subscription_end_at`` 顺延一个周期；
+    - 不调用任何支付渠道，``paid_at`` 保持空。
+    """
+    subscription = db.execute(
+        select(TenantSubscription)
+        .where(
+            TenantSubscription.tenant_id == tenant.id,
+            TenantSubscription.status == 1,
+        )
+        .order_by(TenantSubscription.end_at.desc())
+        .limit(1)
+    ).scalar_one_or_none()
+    if subscription is None or not subscription.auto_renew:
+        return False
+
+    cycle_days = 365 if subscription.billing_cycle == "yearly" else 30
+    old_end = tenant.subscription_end_at or now
+    new_end = old_end + timedelta(days=cycle_days)
+
+    subscription.status = 2  # 旧周期结束
+    db.add(
+        TenantSubscription(
+            id=str(uuid.uuid4()),
+            tenant_id=tenant.id,
+            plan_id=subscription.plan_id,
+            plan_code=subscription.plan_code,
+            plan_name=subscription.plan_name,
+            billing_cycle=subscription.billing_cycle,
+            start_at=old_end,
+            end_at=new_end,
+            amount=subscription.amount,
+            currency=subscription.currency,
+            final_amount=subscription.final_amount,
+            payment_status="pending",  # 应收账单，等待人工/后续支付流程核销
+            status=1,
+            auto_renew=True,
+        )
+    )
+    tenant.subscription_end_at = new_end
+    return True
+
+
 @celery_app.task(
     name="app.tasks.tenant_usage_task.check_subscription_expiry",
     autoretry_for=(Exception,),
@@ -195,12 +244,13 @@ def check_subscription_expiry():
 
             reminded_count = 0
             suspended_count = 0
+            renewed_count = 0
 
             # 使用异步上下文发送通知
             async def send_notifications():
                 # 计数器定义在外层函数，嵌套闭包内 += 需显式 nonlocal，
                 # 否则每个到期租户都会抛 UnboundLocalError 被逐租户 except 吞掉
-                nonlocal reminded_count, suspended_count
+                nonlocal reminded_count, suspended_count, renewed_count
                 async for db_async in get_async_db_context():
                     from app.infrastructure.email.service import EmailService
                     from app.modules.settings.service import SettingsService
@@ -223,13 +273,20 @@ def check_subscription_expiry():
                                     f"将于 {tenant.subscription_end_at} 到期，已发送提醒"
                                 )
 
-                            # 如果已到期，标记为欠费
+                            # 如果已到期：auto_renew 租户续费不停服，其余标记为欠费
                             if tenant.subscription_end_at <= now and tenant.status == 1:
-                                tenant.status = 2  # 欠费状态
-                                # 发送欠费通知
-                                await notification_service.send_overdue_notification(tenant.id)
-                                logger.info(f"租户 {tenant.name}({tenant.tenant_code}) 已到期，标记为欠费")
-                                suspended_count += 1
+                                if _renew_subscription(db, tenant, now):
+                                    renewed_count += 1
+                                    logger.info(
+                                        f"租户 {tenant.name}({tenant.tenant_code}) 已到期，"
+                                        f"auto_renew 续费至 {tenant.subscription_end_at}，不停服"
+                                    )
+                                else:
+                                    tenant.status = 2  # 欠费状态
+                                    # 发送欠费通知
+                                    await notification_service.send_overdue_notification(tenant.id)
+                                    logger.info(f"租户 {tenant.name}({tenant.tenant_code}) 已到期，标记为欠费")
+                                    suspended_count += 1
 
                         except Exception as e:
                             logger.error(f"处理租户 {tenant.id} 通知失败: {e}")
@@ -241,9 +298,13 @@ def check_subscription_expiry():
 
             db.commit()
 
-            logger.info(f"[定时任务] 订阅到期检查完成，提醒 {reminded_count} 个，暂停 {suspended_count} 个")
+            logger.info(
+                f"[定时任务] 订阅到期检查完成，提醒 {reminded_count} 个，"
+                f"续费 {renewed_count} 个，暂停 {suspended_count} 个"
+            )
             return {
                 "reminded_count": reminded_count,
+                "renewed_count": renewed_count,
                 "suspended_count": suspended_count
             }
 

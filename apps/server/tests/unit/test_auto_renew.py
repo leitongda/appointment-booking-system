@@ -1,14 +1,9 @@
-"""R2-6：auto_renew 到期续费测试骨架（D17 未拍板，先写骨架不实现扣款）
+"""R2-6/D17：auto_renew 到期续费测试（2026-10-23 已实现收口）
 
-D17 建议语义（docs/tenant-remaining-plan.md 第 7 节）：
+D17 采纳语义（docs/tenant-remaining-plan.md 第 7 节建议默认）：
 到期时 ``auto_renew=True`` 的租户——延长订阅周期 + 生成 pending 应收账单
-（``TenantSubscription.payment_status='pending'``）+ 宽限期不停服，无真实扣款。
-
-当前实现（``app/tasks/tenant_usage_task.py`` 的 ``check_subscription_expiry``）
-不读 ``auto_renew``，到期一律置欠费（status=2）。因此：
-- 「未开自动续费仍置欠费」是必须保持的现行契约 → 普通用例；
-- auto_renew 三条期望 → ``xfail(strict=True)``，D17 实现落地后会转 XPASS
-  并报错，届时摘除标记即完成收口。
+（``TenantSubscription.payment_status='pending'``）+ 不停服，无真实扣费；
+未开自动续费的租户维持现行行为（置欠费 + 欠费通知）。
 """
 import uuid
 from contextlib import contextmanager
@@ -144,23 +139,17 @@ def test_expiry_without_auto_renew_still_marks_overdue(sync_session_maker):
     assert reloaded.status == 2
 
 
-@pytest.mark.xfail(
-    reason="R2-6/D17：auto_renew 未实现——到期任务当前直接置欠费",
-    strict=True,
-)
 def test_expiry_with_auto_renew_keeps_tenant_active(sync_session_maker):
-    """D17：auto_renew=True 到期不置欠费（宽限期不停服）。"""
+    """D17：auto_renew=True 到期不置欠费（不停服）。"""
     tenant = _seed(sync_session_maker, auto_renew=True)
 
-    check_subscription_expiry()
+    result = check_subscription_expiry()
 
+    assert result["renewed_count"] == 1
+    assert result["suspended_count"] == 0
     assert _reload(sync_session_maker, tenant.id).status == 1
 
 
-@pytest.mark.xfail(
-    reason="R2-6/D17：pending 应收账单未实现（无真实扣款）",
-    strict=True,
-)
 def test_expiry_with_auto_renew_creates_pending_receivable(sync_session_maker):
     """D17：到期生成下周期 pending 应收（TenantSubscription.payment_status='pending'）。"""
     tenant = _seed(sync_session_maker, auto_renew=True)
@@ -178,21 +167,20 @@ def test_expiry_with_auto_renew_creates_pending_receivable(sync_session_maker):
             .all()
         )
     pending = [r for r in rows if r.payment_status == "pending"]
+    expired = [r for r in rows if r.status == 2]
     assert len(pending) == 1
-    assert pending[0].paid_at is None  # 无真实扣款
+    assert pending[0].paid_at is None  # 无真实扣费
     assert pending[0].auto_renew is True
+    assert pending[0].billing_cycle == "monthly"
+    assert len(expired) == 1  # 旧订阅置为已过期
 
 
-@pytest.mark.xfail(
-    reason="R2-6/D17：订阅周期延长未实现",
-    strict=True,
-)
 def test_expiry_with_auto_renew_extends_subscription_period(sync_session_maker):
-    """D17：到期后租户订阅周期延长一个计费周期。"""
+    """D17：到期后租户订阅周期延长一个计费周期（monthly=30 天）。"""
     tenant = _seed(sync_session_maker, auto_renew=True)
     before = _reload(sync_session_maker, tenant.id).subscription_end_at
 
     check_subscription_expiry()
 
     after = _reload(sync_session_maker, tenant.id).subscription_end_at
-    assert after > before
+    assert after == before + timedelta(days=30)
