@@ -8,6 +8,28 @@ from sqlalchemy import and_, func, select
 from app.models.admin import Admin, Role
 from app.utils.audit import set_create_audit, set_update_audit
 
+# 系统保留角色编码：租户侧不得创建/改名占用，避免与平台特权判定冲突
+RESERVED_ROLE_CODES = {
+    "SUPER_ADMIN",
+    "PLATFORM_ADMIN",
+    "TENANT_ADMIN",
+    "STORE_ADMIN",
+    "STORE_USER",
+    "OPERATOR",
+    "ADMIN",
+}
+
+
+def _assert_code_not_reserved(code: str | None) -> None:
+    if code and code.strip().upper() in RESERVED_ROLE_CODES:
+        raise ValueError("该角色编码为系统保留，禁止使用")
+
+
+def _assert_permissions_scoped(permissions: list[str] | None, tenant_id: str | None) -> None:
+    """租户角色不得使用通配权限（平台权限只属于平台角色）"""
+    if tenant_id and permissions and "*" in permissions:
+        raise ValueError("租户角色不允许使用通配权限（*）")
+
 
 class RoleService:
     def __init__(self, db):
@@ -75,8 +97,10 @@ class RoleService:
         existing = await self.get_by_code(data["code"], tenant_id=tenant_id)
         if existing:
             raise ValueError("角色编码已存在")
+        _assert_code_not_reserved(data["code"])
 
         permissions = data.get("permissions", [])
+        _assert_permissions_scoped(permissions, tenant_id)
         role = Role(
             id=str(uuid.uuid4()),
             name=data["name"],
@@ -106,6 +130,11 @@ class RoleService:
             if "permissions" in data:
                 raise ValueError("超级管理员权限不可修改，始终拥有所有权限")
 
+        # 禁止把租户自建角色改名为系统保留编码
+        _assert_code_not_reserved(data.get("code"))
+        if "permissions" in data:
+            _assert_permissions_scoped(data.get("permissions"), role.tenant_id)
+
         for key, value in data.items():
             if key == "permissions":
                 value = json.dumps(value) if value else None
@@ -128,6 +157,7 @@ class RoleService:
         if role.code == "SUPER_ADMIN":
             raise ValueError("超级管理员权限不可修改，始终拥有所有权限")
 
+        _assert_permissions_scoped(permissions, role.tenant_id)
         role.permissions = json.dumps(permissions)
         set_update_audit(role, operator_id)
         await self.db.commit()

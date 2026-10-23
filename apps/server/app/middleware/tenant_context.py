@@ -23,6 +23,8 @@ from contextvars import ContextVar
 from fastapi import HTTPException, Request
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from app.core.config import settings
+
 logger = logging.getLogger("tenant")
 
 # 使用 ContextVar 存储当前请求的租户信息（支持异步任务）
@@ -71,6 +73,9 @@ def validate_public_tenant_context(path: str) -> None:
 
     对于必须识别租户的公开接口，如果没有租户上下文则抛出异常。
 
+    强制名单 = 静态 PUBLIC_TENANT_REQUIRED_PATHS + 配置项
+    PUBLIC_TENANT_REQUIRED_EXTRA_PATHS（灰度：默认空，保持现状）。
+
     Args:
         path: 请求路径
 
@@ -81,7 +86,10 @@ def validate_public_tenant_context(path: str) -> None:
     tenant_code = get_current_tenant_code()
 
     if not tenant_id and not tenant_code:
-        for prefix in PUBLIC_TENANT_REQUIRED_PATHS:
+        required_prefixes = list(PUBLIC_TENANT_REQUIRED_PATHS) + list(
+            settings.PUBLIC_TENANT_REQUIRED_EXTRA_PATHS
+        )
+        for prefix in required_prefixes:
             if path.startswith(prefix):
                 raise HTTPException(
                     status_code=400,
@@ -125,6 +133,10 @@ class TenantContextMiddleware(BaseHTTPMiddleware):
 
         # 提取租户信息
         tenant_id, tenant_code = await self._extract_tenant(request)
+
+        # tenant_code → tenant_id 回填：让管理端一致性校验对 code 头同样生效
+        if settings.TENANT_CODE_TO_ID_RESOLVE and not tenant_id and tenant_code:
+            tenant_id = await self._resolve_tenant_id_by_code(tenant_code)
 
         # 设置到请求状态和上下文变量
         request.state.tenant_id = tenant_id
@@ -230,6 +242,25 @@ class TenantContextMiddleware(BaseHTTPMiddleware):
         if match:
             return match.group(1)
         return None
+
+    async def _resolve_tenant_id_by_code(self, tenant_code: str) -> str | None:
+        """把租户编码解析为租户 ID（复用租户服务的参数化查询）
+
+        查不到时保持 None，不影响公开端既有的租户缺失校验行为。
+        """
+        from app.db.session import async_session_maker
+        from app.modules.tenants.service_tenant import TenantService
+
+        try:
+            async with async_session_maker() as session:
+                tenant = await TenantService(session).get_by_code(tenant_code)
+        except Exception:
+            logger.exception("resolve tenant id by code failed")
+            return None
+
+        if not tenant or tenant.deleted_at is not None:
+            return None
+        return tenant.id
 
 
 class TenantContext:

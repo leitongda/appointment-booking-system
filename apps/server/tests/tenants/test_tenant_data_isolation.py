@@ -801,13 +801,8 @@ class TestExportPermissionControl:
             },
         )
 
-        # 应该返回 200（成功）
-        # 注意：可能因为路由配置不同而返回 404，这里主要验证不是 403
-        assert response.status_code in [200, 404]
-        if response.status_code == 403:
-            # 如果返回 403，检查是否是因为权限问题
-            error_text = extract_error_text(response.json())
-            assert "permission" not in error_text.lower(), f"不应该因为权限问题被拒绝: {error_text}"
+        # 应该返回 200（成功）；路由未注册时为 404。403 视为失败（有权限的用户不应被拒）
+        assert response.status_code in (200, 404), response.text
 
     async def test_export_tenant_isolation(
         self,
@@ -830,8 +825,9 @@ class TestExportPermissionControl:
             },
         )
 
-        # 如果导出成功，验证只包含租户 A 的数据
-        if response.status_code == 200:
+        # 导出必须成功或明确 404（路由未注册）；其他状态不得静默通过
+        assert response.status_code in (200, 404), response.text
+        if response.is_success:
             # 验证响应是 Excel 文件
             content_type = response.headers.get("content-type", "")
             assert "spreadsheet" in content_type or "excel" in content_type

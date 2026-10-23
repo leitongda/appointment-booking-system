@@ -3,19 +3,24 @@
 提供租户校验、上下文管理、状态检查、用量限制等依赖函数。
 """
 
-from fastapi import Depends, HTTPException, Request, status
+import logging
+
+from fastapi import Depends, HTTPException, Query, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 # 重新导出认证依赖，因为租户依赖依赖它们
 from app.common.auth_deps import get_current_admin
+from app.core.config import settings
 from app.db.session import get_db
 from app.middleware.tenant_context import (
     get_current_tenant_code,
     get_current_tenant_id,
 )
 from app.models.tenant import Tenant
+
+logger = logging.getLogger("tenant")
 
 
 async def get_current_tenant(
@@ -117,6 +122,93 @@ async def get_platform_admin(
     return current_admin
 
 
+def resolve_actor_tenant_anchor(actor: dict) -> str | None:
+    """统一租户锚点解析（P2A 四模块共用）
+
+    管理员型 actor（携带 is_super_admin/is_platform_admin/is_tenant_admin/is_store_admin 任一键）：
+    - 平台管理员 → None（全平台视图）；
+    - 租户管理员 → actor["tenant_id"]，缺失即 403（audit_logs 语义）。
+
+    患者/医生型 actor：
+    - 取请求上下文租户；
+    - 缺失时受 PATIENT_ANCHOR_FAIL_CLOSE 控制：True → 400（fail-close），
+      False → warning 并返回 None（保持现网行为，便于灰度）。
+    """
+    is_admin_actor = any(
+        key in actor
+        for key in ("is_super_admin", "is_platform_admin", "is_tenant_admin", "is_store_admin")
+    )
+
+    if is_admin_actor:
+        if actor.get("is_super_admin") or actor.get("is_platform_admin"):
+            return None
+        tenant_id = actor.get("tenant_id")
+        if not tenant_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="当前管理员未关联租户，禁止访问租户数据",
+            )
+        return tenant_id
+
+    tenant_id = get_current_tenant_id()
+    if tenant_id:
+        return tenant_id
+
+    if settings.PATIENT_ANCHOR_FAIL_CLOSE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="缺少租户上下文，请通过 X-Tenant-ID 或 X-Tenant-Code 指定租户",
+        )
+
+    logger.warning(
+        "tenant anchor missing for non-admin actor (PATIENT_ANCHOR_FAIL_CLOSE=False)"
+    )
+    return None
+
+
+def resolve_admin_tenant_anchor(
+    current_admin: dict, tenant_id_override: str | None = None
+) -> str | None:
+    """管理端租户锚点（audit_logs 语义，受 PATIENT_ANCHOR_FAIL_CLOSE 灰度）
+
+    - 租户管理员：返回账号 tenant_id，缺失 403；
+    - 平台/超级管理员：必须显式指定 tenant_id（开关开启时未指定 → 400）；
+      开关关闭时返回 None 并告警，保持现网「无租户 = 不过滤」行为。
+    """
+    if current_admin.get("is_super_admin") or current_admin.get("is_platform_admin"):
+        if tenant_id_override:
+            return tenant_id_override
+        if settings.PATIENT_ANCHOR_FAIL_CLOSE:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="平台管理员访问租户数据时必须指定 tenant_id",
+            )
+        logger.warning(
+            "platform admin without tenant override (PATIENT_ANCHOR_FAIL_CLOSE=False)"
+        )
+        return None
+
+    tenant_id = current_admin.get("tenant_id")
+    if not tenant_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="当前管理员未关联租户，禁止访问租户数据",
+        )
+    return tenant_id
+
+
+def require_admin_tenant_anchor(
+    tenant_id: str | None = Query(None, description="租户ID（平台管理员必填）"),
+    current_admin: dict = Depends(get_current_admin),
+) -> str | None:
+    """管理端租户锚点依赖（P2C 共享底座）
+
+    P2C-1 的薄 Depends 包装：语义全部委托 resolve_admin_tenant_anchor，
+    不重复实现（合并约束 R2）。
+    """
+    return resolve_admin_tenant_anchor(current_admin, tenant_id_override=tenant_id)
+
+
 def get_tenant_filter(current_admin: dict = Depends(get_current_admin)) -> str | None:
     """获取租户过滤条件
 
@@ -125,13 +217,31 @@ def get_tenant_filter(current_admin: dict = Depends(get_current_admin)) -> str |
     Returns:
         - None: 平台管理员，不过滤，可查看所有租户数据
         - str: 租户ID，只能查看本租户数据
+
+    Raises:
+        HTTPException: 非平台管理员且未关联租户，且 TENANT_FILTER_FAIL_CLOSE 开启时
     """
-    if current_admin.get("is_super_admin"):
+    if current_admin.get("is_super_admin") or current_admin.get("is_platform_admin"):
         # 平台管理员可以查看所有租户数据
         return None
 
     # 租户管理员只能查看本租户数据
-    return current_admin.get("tenant_id")
+    tenant_id = current_admin.get("tenant_id")
+    if tenant_id:
+        return tenant_id
+
+    if settings.TENANT_FILTER_FAIL_CLOSE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="当前管理员未关联租户，禁止访问租户数据",
+        )
+
+    # 灰度阶段：保留旧行为（不过滤）但记录告警，便于观察存量账号
+    logger.warning(
+        "tenant_filter missing tenant_id: admin_id=%s (TENANT_FILTER_FAIL_CLOSE=False)",
+        current_admin.get("id"),
+    )
+    return None
 
 
 async def check_tenant_access(

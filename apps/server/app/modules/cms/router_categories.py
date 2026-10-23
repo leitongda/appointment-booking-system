@@ -109,6 +109,7 @@ async def update_category(
         category_id,
         data.model_dump(exclude_unset=True),
         operator_id=get_operator_id_from_admin(current_admin),
+        tenant_id=current_admin["tenant_id"],
     )
     if not category:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="栏目不存在，请检查后重试")
@@ -123,7 +124,7 @@ async def delete_category(
     _: None = Depends(require_permission("cms:category:delete")),
 ):
     service = CmsCategoryService(db)
-    success = await service.delete(category_id)
+    success = await service.delete(category_id, tenant_id=current_admin["tenant_id"])
     if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="栏目不存在，请检查后重试")
     return {"message": "删除成功"}
@@ -137,5 +138,8 @@ async def sort_categories(
     _: None = Depends(require_permission("cms:category:update")),
 ):
     service = CmsCategoryService(db)
-    updated = await service.batch_sort([item.model_dump() for item in data.items])
+    updated = await service.batch_sort(
+        [item.model_dump() for item in data.items],
+        tenant_id=current_admin["tenant_id"],
+    )
     return {"message": f"成功更新 {updated} 个栏目排序", "updated_count": updated}

@@ -48,6 +48,11 @@ def _store_condition(store_id: str | list[str] | None):
 # 站点服务
 # ============================================================
 
+def _belongs_to_tenant(obj, tenant_id: str | None) -> bool:
+    """写操作前的租户归属校验（平台管理员无租户，按既有读路径语义拒绝）"""
+    return obj is not None and obj.tenant_id == tenant_id
+
+
 class CmsSiteService:
     def __init__(self, db: AsyncSession):
         self.db = db
@@ -111,9 +116,9 @@ class CmsSiteService:
         await self.db.refresh(site)
         return site
 
-    async def update(self, site_id: str, data: dict, operator_id: str | None = None) -> CmsSite | None:
+    async def update(self, site_id: str, data: dict, operator_id: str | None = None, tenant_id: str | None = None) -> CmsSite | None:
         site = await self.get_by_id(site_id)
-        if not site:
+        if not _belongs_to_tenant(site, tenant_id):
             return None
 
         for key, value in data.items():
@@ -128,9 +133,9 @@ class CmsSiteService:
         await self.db.refresh(site)
         return site
 
-    async def delete(self, site_id: str) -> bool:
+    async def delete(self, site_id: str, tenant_id: str | None = None) -> bool:
         site = await self.get_by_id(site_id)
-        if not site or site.is_deleted:
+        if not _belongs_to_tenant(site, tenant_id) or site.is_deleted:
             return False
         site.is_deleted = True
         site.deleted_at = datetime.now()
@@ -138,9 +143,9 @@ class CmsSiteService:
         await self.db.commit()
         return True
 
-    async def restore(self, site_id: str) -> bool:
+    async def restore(self, site_id: str, tenant_id: str | None = None) -> bool:
         site = await self.get_by_id(site_id)
-        if not site or not site.is_deleted:
+        if not _belongs_to_tenant(site, tenant_id) or not site.is_deleted:
             return False
         site.is_deleted = False
         site.deleted_at = None
@@ -148,9 +153,9 @@ class CmsSiteService:
         await self.db.commit()
         return True
 
-    async def permanent_delete(self, site_id: str) -> bool:
+    async def permanent_delete(self, site_id: str, tenant_id: str | None = None) -> bool:
         site = await self.get_by_id(site_id)
-        if not site:
+        if not _belongs_to_tenant(site, tenant_id):
             return False
         await self.db.delete(site)
         await self.db.commit()
@@ -233,9 +238,9 @@ class CmsCategoryService:
         await self.db.refresh(category)
         return category
 
-    async def update(self, category_id: str, data: dict, operator_id: str | None = None) -> CmsCategory | None:
+    async def update(self, category_id: str, data: dict, operator_id: str | None = None, tenant_id: str | None = None) -> CmsCategory | None:
         category = await self.get_by_id(category_id)
-        if not category:
+        if not _belongs_to_tenant(category, tenant_id):
             return None
         for key, value in data.items():
             if hasattr(category, key) and value is not None:
@@ -245,9 +250,9 @@ class CmsCategoryService:
         await self.db.refresh(category)
         return category
 
-    async def delete(self, category_id: str) -> bool:
+    async def delete(self, category_id: str, tenant_id: str | None = None) -> bool:
         category = await self.get_by_id(category_id)
-        if not category or category.is_deleted:
+        if not _belongs_to_tenant(category, tenant_id) or category.is_deleted:
             return False
         category.is_deleted = True
         category.deleted_at = datetime.now()
@@ -255,12 +260,12 @@ class CmsCategoryService:
         await self.db.commit()
         return True
 
-    async def batch_sort(self, items: list[dict]) -> int:
-        """批量更新排序，返回更新数量"""
+    async def batch_sort(self, items: list[dict], tenant_id: str | None = None) -> int:
+        """批量更新排序，返回更新数量（非本租户栏目跳过）"""
         updated = 0
         for it in items:
             category = await self.get_by_id(it["id"])
-            if category:
+            if _belongs_to_tenant(category, tenant_id):
                 category.sort_order = it["sort_order"]
                 updated += 1
         if updated:
@@ -379,10 +384,10 @@ class CmsArticleService:
         await self.db.refresh(article)
         return article
 
-    async def update(self, article_id: str, data: dict, operator_id: str | None = None) -> CmsArticle | None:
+    async def update(self, article_id: str, data: dict, operator_id: str | None = None, tenant_id: str | None = None) -> CmsArticle | None:
         """更新文章（更新前保存版本快照到 content_versions）"""
         article = await self.get_by_id(article_id)
-        if not article:
+        if not _belongs_to_tenant(article, tenant_id):
             return None
 
         # 保存版本快照
@@ -412,9 +417,9 @@ class CmsArticleService:
         await self.db.refresh(article)
         return article
 
-    async def delete(self, article_id: str) -> bool:
+    async def delete(self, article_id: str, tenant_id: str | None = None) -> bool:
         article = await self.get_by_id(article_id)
-        if not article or article.is_deleted:
+        if not _belongs_to_tenant(article, tenant_id) or article.is_deleted:
             return False
         article.is_deleted = True
         article.deleted_at = datetime.now()
@@ -422,9 +427,9 @@ class CmsArticleService:
         await self.db.commit()
         return True
 
-    async def restore(self, article_id: str) -> bool:
+    async def restore(self, article_id: str, tenant_id: str | None = None) -> bool:
         article = await self.get_by_id(article_id)
-        if not article or not article.is_deleted:
+        if not _belongs_to_tenant(article, tenant_id) or not article.is_deleted:
             return False
         article.is_deleted = False
         article.deleted_at = None
@@ -432,9 +437,9 @@ class CmsArticleService:
         await self.db.commit()
         return True
 
-    async def permanent_delete(self, article_id: str) -> bool:
+    async def permanent_delete(self, article_id: str, tenant_id: str | None = None) -> bool:
         article = await self.get_by_id(article_id)
-        if not article:
+        if not _belongs_to_tenant(article, tenant_id):
             return False
         await self.db.delete(article)
         await self.db.commit()
@@ -446,11 +451,11 @@ class CmsArticleService:
             article.view_count = (article.view_count or 0) + 1
             await self.db.commit()
 
-    async def batch_delete(self, ids: list[str]) -> int:
+    async def batch_delete(self, ids: list[str], tenant_id: str | None = None) -> int:
         deleted_count = 0
         for article_id in ids:
             article = await self.get_by_id(article_id)
-            if article and not article.is_deleted:
+            if _belongs_to_tenant(article, tenant_id) and not article.is_deleted:
                 article.is_deleted = True
                 article.deleted_at = datetime.now()
                 set_update_audit(article)

@@ -52,6 +52,17 @@ async def verify_ws_token(token: str) -> dict | None:
         return None
 
 
+async def _get_doctor_tenant_id(doctor_id: str) -> str | None:
+    """按主键取医生租户（用于 admin 兜底连接的租户校验）"""
+    from app.db.session import async_session_maker
+
+    async with async_session_maker() as session:
+        doctor = await session.get(Doctor, doctor_id)
+    if not doctor or doctor.deleted_at is not None:
+        return None
+    return doctor.tenant_id
+
+
 @router.websocket("/doctor/{doctor_id}")
 async def doctor_websocket(
     websocket: WebSocket,
@@ -84,9 +95,22 @@ async def doctor_websocket(
 
     if token_doctor_id != doctor_id and token_sub != doctor_id:
         admin_id = payload.get("admin_id")
+        if not admin_id and payload.get("type") == "admin":
+            admin_id = payload.get("sub")
         if not admin_id:
             await websocket.close(code=4003, reason="无权限连接此医生的 WebSocket")
             return
+
+        # admin 兜底连接必须校验租户归属（平台级 token + 无租户才允许直连）
+        is_platform_token = bool(payload.get("is_platform_admin")) and not tenant_id
+        if not is_platform_token:
+            if not tenant_id:
+                await websocket.close(code=4003, reason="缺少租户上下文")
+                return
+            doctor_tenant_id = await _get_doctor_tenant_id(doctor_id)
+            if not doctor_tenant_id or doctor_tenant_id != tenant_id:
+                await websocket.close(code=4003, reason="无权连接其他租户的医生")
+                return
 
     await ws_manager.connect(websocket, doctor_id)
 
@@ -223,17 +247,20 @@ async def get_online_doctors():
 
 @router.get("/poll", summary="轮询未确认消息", response_model=PollMessagesResponse)
 async def poll_pending_messages(
-    doctor_id: str = Query(..., description="医生 ID"),
-    tenant_id: str | None = Query(None, description="租户 ID")
+    doctor: Doctor = Depends(get_current_doctor_by_token),
 ):
     """
     HTTP 轮询接口：获取未确认的 WebSocket 消息
 
     当 WebSocket 连接不可用时，客户端可使用此接口作为降级方案。
+    必须携带医生本人 token：只能拉取自己的未确认消息，防止按 doctor_id 枚举他人消息。
 
     建议轮询间隔：5-10 秒
     """
-    messages = await ws_manager.get_pending_messages(doctor_id, tenant_id)
+    from app.middleware.tenant_context import get_current_tenant_id
+
+    tenant_id = get_current_tenant_id() or doctor.tenant_id
+    messages = await ws_manager.get_pending_messages(doctor.id, tenant_id)
     return PollMessagesResponse(messages=messages, count=len(messages))
 
 

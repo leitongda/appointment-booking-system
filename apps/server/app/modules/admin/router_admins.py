@@ -9,7 +9,7 @@ from app.core.config import settings
 from app.db.session import get_db
 from app.modules.admin.helpers import build_admin_response
 from app.modules.admin.schemas import AdminCreate, AdminResponse, AdminUpdate
-from app.modules.admin.service_admins import AdminService
+from app.modules.admin.service_admins import AdminService, TenantScopeError
 from app.schemas.response import PageResponse
 
 router = APIRouter()
@@ -73,7 +73,9 @@ async def create_admin(
 
     service = AdminService(db)
     try:
-        admin = await service.create(data.model_dump())
+        admin = await service.create(data.model_dump(), actor=current_admin)
+    except TenantScopeError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     admin = await service.get_by_id(admin.id)

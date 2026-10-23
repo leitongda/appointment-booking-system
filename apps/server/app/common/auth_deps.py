@@ -8,7 +8,7 @@
 渐进式迁移期间，现有 API 路由无需修改。
 """
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -34,7 +34,8 @@ security = HTTPBearer(
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    request: Request = None,
 ) -> dict:
     """获取当前用户（增强版，包含租户校验）
 
@@ -62,7 +63,11 @@ async def get_current_user(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="身份验证失败，请重新登录")
 
     # 调用统一函数
-    account = await _get_user_account(user_id, db)
+    account = await _get_user_account(
+        user_id,
+        db,
+        request_method=request.method if request is not None else None,
+    )
 
     # 转换为旧格式（保持兼容）
     return account.to_dict()
@@ -100,7 +105,8 @@ async def get_current_doctor(
 
 async def get_current_doctor_by_token(
     credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    request: Request = None,
 ) -> Doctor:
     """
     从医生 token 中获取当前医生
@@ -136,7 +142,11 @@ async def get_current_doctor_by_token(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="无效的医生凭证，请使用医生账号登录")
 
     # 调用统一函数验证
-    await _get_doctor_account(doctor_id, db)
+    await _get_doctor_account(
+        doctor_id,
+        db,
+        request_method=request.method if request is not None else None,
+    )
 
     # 获取 Doctor 对象（保持返回类型不变）
     result = await db.execute(
@@ -217,13 +227,14 @@ async def get_current_super_admin(
 
 async def get_optional_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    request: Request = None,
 ) -> dict | None:
     """获取可选的当前用户（用于不强制登录的接口）
 
     【重构】调用统一的 get_optional_account_unified 函数。
     """
-    account = await get_optional_account_unified(credentials, db)
+    account = await get_optional_account_unified(credentials, db, request=request)
     if account:
         return account.to_dict()
     return None
@@ -231,7 +242,8 @@ async def get_optional_user(
 
 async def get_current_user_or_admin(
     credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    request: Request = None,
 ) -> dict:
     """
     获取当前用户或管理员
@@ -244,13 +256,14 @@ async def get_current_user_or_admin(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="未提供身份凭证，请先登录")
 
     # 调用统一函数
-    account = await get_current_account(credentials, db)
+    account = await get_current_account(credentials, db, request=request)
     return account.to_dict()
 
 
 async def get_current_account_dict(
     credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    request: Request = None,
 ) -> dict:
     """统一账号入口（dict 返回）
 
@@ -266,5 +279,5 @@ async def get_current_account_dict(
     id、role_type、tenant_id、phone 等，调用方可直接复用 _get_user_info
     提取 user_id / user_type。
     """
-    account = await get_current_account(credentials, db)
+    account = await get_current_account(credentials, db, request=request)
     return account.to_dict()

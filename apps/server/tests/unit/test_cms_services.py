@@ -139,7 +139,11 @@ class TestCmsSiteService:
     async def test_update_site(self, db_session):
         svc = CmsSiteService(db_session)
         created = await svc.create(_make_site_data(), tenant_id=TENANT_A)
-        updated = await svc.update(created.id, {"name": "新名称", "theme_config": {"primary": "#fff"}})
+        updated = await svc.update(
+            created.id,
+            {"name": "新名称", "theme_config": {"primary": "#fff"}},
+            tenant_id=TENANT_A,
+        )
         assert updated.name == "新名称"
         assert '"primary"' in updated.theme_config  # JSON 文本
 
@@ -148,22 +152,22 @@ class TestCmsSiteService:
         svc = CmsSiteService(db_session)
         created = await svc.create(_make_site_data(), tenant_id=TENANT_A)
 
-        assert await svc.delete(created.id) is True
+        assert await svc.delete(created.id, tenant_id=TENANT_A) is True
         assert (await svc.get_by_id(created.id)).is_deleted is True
 
-        assert await svc.restore(created.id) is True
+        assert await svc.restore(created.id, tenant_id=TENANT_A) is True
         assert (await svc.get_by_id(created.id)).is_deleted is False
 
-        assert await svc.permanent_delete(created.id) is True
+        assert await svc.permanent_delete(created.id, tenant_id=TENANT_A) is True
         assert await svc.get_by_id(created.id) is None
 
     @pytest.mark.asyncio
     async def test_delete_not_found_or_already_deleted(self, db_session):
         svc = CmsSiteService(db_session)
-        assert await svc.delete("nope") is False
+        assert await svc.delete("nope", tenant_id=TENANT_A) is False
         created = await svc.create(_make_site_data(), tenant_id=TENANT_A)
-        await svc.delete(created.id)
-        assert await svc.delete(created.id) is False  # 已删除
+        await svc.delete(created.id, tenant_id=TENANT_A)
+        assert await svc.delete(created.id, tenant_id=TENANT_A) is False  # 已删除
 
 
 # ---------------------------------------------------------------------------
@@ -217,11 +221,13 @@ class TestCmsCategoryService:
     async def test_update_and_delete(self, db_session):
         svc = CmsCategoryService(db_session)
         created = await svc.create(_make_category_data(), tenant_id=TENANT_A)
-        updated = await svc.update(created.id, {"name": "新栏目", "sort_order": 5})
+        updated = await svc.update(
+            created.id, {"name": "新栏目", "sort_order": 5}, tenant_id=TENANT_A
+        )
         assert updated.name == "新栏目"
         assert updated.sort_order == 5
 
-        assert await svc.delete(created.id) is True
+        assert await svc.delete(created.id, tenant_id=TENANT_A) is True
         assert (await svc.get_by_id(created.id)).is_deleted is True
 
     @pytest.mark.asyncio
@@ -230,7 +236,10 @@ class TestCmsCategoryService:
         c1 = await svc.create(_make_category_data(name="A", slug="a"), tenant_id=TENANT_A)
         c2 = await svc.create(_make_category_data(name="B", slug="b"), tenant_id=TENANT_A)
 
-        updated = await svc.batch_sort([{"id": c1.id, "sort_order": 2}, {"id": c2.id, "sort_order": 1}])
+        updated = await svc.batch_sort(
+            [{"id": c1.id, "sort_order": 2}, {"id": c2.id, "sort_order": 1}],
+            tenant_id=TENANT_A,
+        )
         assert updated == 2
         assert (await svc.get_by_id(c1.id)).sort_order == 2
         assert (await svc.get_by_id(c2.id)).sort_order == 1
@@ -302,7 +311,9 @@ class TestCmsArticleService:
     async def test_update_writes_version_snapshot(self, db_session):
         svc = CmsArticleService(db_session)
         created = await svc.create(_make_article_data(), tenant_id=TENANT_A)
-        updated = await svc.update(created.id, {"title": "新标题", "status": 1})
+        updated = await svc.update(
+            created.id, {"title": "新标题", "status": 1}, tenant_id=TENANT_A
+        )
 
         assert updated.title == "新标题"
         assert updated.publish_time is not None  # 发布自动补时间
@@ -335,7 +346,7 @@ class TestCmsArticleService:
         svc = CmsArticleService(db_session)
         a1 = await svc.create(_make_article_data(title="保留"), tenant_id=TENANT_A)
         a2 = await svc.create(_make_article_data(title="已删"), tenant_id=TENANT_A)
-        await svc.delete(a2.id)
+        await svc.delete(a2.id, tenant_id=TENANT_A)
 
         # 正常列表：只 a1
         _, total = await svc.get_list(tenant_id=TENANT_A)
@@ -367,10 +378,10 @@ class TestCmsArticleService:
         a1 = await svc.create(_make_article_data(), tenant_id=TENANT_A)
         a2 = await svc.create(_make_article_data(), tenant_id=TENANT_A)
 
-        assert await svc.delete(a1.id) is True
+        assert await svc.delete(a1.id, tenant_id=TENANT_A) is True
         assert (await svc.get_by_id(a1.id)).is_deleted is True
 
-        count = await svc.batch_delete([a2.id, "not-exist"])
+        count = await svc.batch_delete([a2.id, "not-exist"], tenant_id=TENANT_A)
         assert count == 1
         assert (await svc.get_by_id(a2.id)).is_deleted is True
 
@@ -378,12 +389,12 @@ class TestCmsArticleService:
     async def test_restore_and_permanent_delete(self, db_session):
         svc = CmsArticleService(db_session)
         created = await svc.create(_make_article_data(), tenant_id=TENANT_A)
-        await svc.delete(created.id)
+        await svc.delete(created.id, tenant_id=TENANT_A)
 
-        assert await svc.restore(created.id) is True
+        assert await svc.restore(created.id, tenant_id=TENANT_A) is True
         assert (await svc.get_by_id(created.id)).is_deleted is False
 
-        assert await svc.permanent_delete(created.id) is True
+        assert await svc.permanent_delete(created.id, tenant_id=TENANT_A) is True
         assert await svc.get_by_id(created.id) is None
 
     @pytest.mark.asyncio

@@ -62,6 +62,7 @@ class AdminCreate(BaseModel):
     email: str | None = Field(None, max_length=100)
     avatar: str | None = Field(None, max_length=255, description="头像URL")
     role_id: str | None = None
+    tenant_id: str | None = Field(None, description="目标租户ID（仅平台管理员可指定）")
     store_id: str | None = Field(None, description="当前门店ID（兼容旧版）")
     store_ids: list[str] | None = Field(None, description="绑定的门店ID列表")
     status: int = Field(1, ge=0, le=1)

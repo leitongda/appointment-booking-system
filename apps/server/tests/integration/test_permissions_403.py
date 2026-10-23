@@ -173,15 +173,14 @@ async def test_cross_store_access(
         headers={"Authorization": f"Bearer {token}"}
     )
 
-    # 根据实现，可能返回 403 或空列表
-    # 如果严格检查跨门店访问，应该返回 403
-    if response.status_code == 200:
-        # 如果返回 200，检查是否返回了空列表（没有跨门店数据）
+    # 跨门店访问必须被 403 拒绝或返回不含其他门店数据的列表；500 一律失败
+    assert response.status_code in (200, 403), response.text
+    if response.is_success:
         data = response.json()
-        # 确保没有返回其他门店的数据
-        if "data" in data and isinstance(data["data"], list):
-            for item in data["data"]:
-                assert item.get("store_id") != test_another_store.id
+        items = data.get("data") if isinstance(data, dict) else data
+        assert isinstance(items, list), f"200 响应应为列表结构: {data}"
+        for item in items:
+            assert item.get("store_id") != test_another_store.id
 
 
 @pytest.mark.asyncio

@@ -138,9 +138,14 @@ async def get_article_versions(
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("cms:article")),
 ):
+    """获取文章版本历史（先校验文章租户归属，防止按 id 枚举他租户快照）"""
+    article = await CmsArticleService(db).get_by_id(article_id)
+    if not article or article.tenant_id != current_admin["tenant_id"]:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="文章不存在，请检查后重试")
+
     query = (
         select(ContentVersion)
-        .where(ContentVersion.content_type == "cms_article", ContentVersion.content_id == article_id)
+        .where(ContentVersion.content_type == "cms_article", ContentVersion.content_id == article.id)
         .order_by(ContentVersion.created_at.desc())
     )
     result = await db.execute(query)
@@ -187,6 +192,7 @@ async def update_article(
         article_id,
         data.model_dump(exclude_unset=True),
         operator_id=get_operator_id_from_admin(current_admin),
+        tenant_id=current_admin["tenant_id"],
     )
     if not article:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="文章不存在，请检查后重试")
@@ -201,7 +207,7 @@ async def delete_article(
     _: None = Depends(require_permission("cms:article:delete")),
 ):
     service = CmsArticleService(db)
-    success = await service.delete(article_id)
+    success = await service.delete(article_id, tenant_id=current_admin["tenant_id"])
     if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="文章不存在，请检查后重试")
     return {"message": "删除成功"}
@@ -215,7 +221,7 @@ async def restore_article(
     _: None = Depends(require_permission("cms:article:delete")),
 ):
     service = CmsArticleService(db)
-    success = await service.restore(article_id)
+    success = await service.restore(article_id, tenant_id=current_admin["tenant_id"])
     if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="文章不存在或未在回收站中")
     return {"message": "恢复成功"}
@@ -229,7 +235,7 @@ async def permanent_delete_article(
     _: None = Depends(require_permission("cms:article:delete")),
 ):
     service = CmsArticleService(db)
-    success = await service.permanent_delete(article_id)
+    success = await service.permanent_delete(article_id, tenant_id=current_admin["tenant_id"])
     if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="文章不存在，请检查后重试")
     return {"message": "永久删除成功"}
@@ -243,7 +249,7 @@ async def batch_delete_articles(
     _: None = Depends(require_permission("cms:article:delete")),
 ):
     service = CmsArticleService(db)
-    deleted_count = await service.batch_delete(data.ids)
+    deleted_count = await service.batch_delete(data.ids, tenant_id=current_admin["tenant_id"])
     return {"message": f"成功删除 {deleted_count} 篇文章", "deleted_count": deleted_count}
 
 

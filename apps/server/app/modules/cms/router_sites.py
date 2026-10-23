@@ -103,6 +103,7 @@ async def update_site(
         site_id,
         data.model_dump(exclude_unset=True),
         operator_id=get_operator_id_from_admin(current_admin),
+        tenant_id=current_admin["tenant_id"],
     )
     if not site:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="站点不存在，请检查后重试")
@@ -117,7 +118,7 @@ async def delete_site(
     _: None = Depends(require_permission("cms:site:delete")),
 ):
     service = CmsSiteService(db)
-    success = await service.delete(site_id)
+    success = await service.delete(site_id, tenant_id=current_admin["tenant_id"])
     if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="站点不存在，请检查后重试")
     return {"message": "删除成功"}
@@ -131,7 +132,7 @@ async def restore_site(
     _: None = Depends(require_permission("cms:site:delete")),
 ):
     service = CmsSiteService(db)
-    success = await service.restore(site_id)
+    success = await service.restore(site_id, tenant_id=current_admin["tenant_id"])
     if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="站点不存在或未在回收站中")
     return {"message": "恢复成功"}
@@ -145,7 +146,7 @@ async def permanent_delete_site(
     _: None = Depends(require_permission("cms:site:delete")),
 ):
     service = CmsSiteService(db)
-    success = await service.permanent_delete(site_id)
+    success = await service.permanent_delete(site_id, tenant_id=current_admin["tenant_id"])
     if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="站点不存在，请检查后重试")
     return {"message": "永久删除成功"}
@@ -161,6 +162,6 @@ async def batch_delete_sites(
     service = CmsSiteService(db)
     deleted_count = 0
     for site_id in data.ids:
-        if await service.delete(site_id):
+        if await service.delete(site_id, tenant_id=current_admin["tenant_id"]):
             deleted_count += 1
     return {"message": f"成功删除 {deleted_count} 个站点", "deleted_count": deleted_count}

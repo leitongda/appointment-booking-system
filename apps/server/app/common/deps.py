@@ -48,6 +48,9 @@ from app.common.tenant_deps import (
     require_tenant_active_for_write,
     require_tenant_admin,
     require_tenant_context,
+    require_admin_tenant_anchor,
+    resolve_actor_tenant_anchor,
+    resolve_admin_tenant_anchor,
     validate_tenant_consistency,
 )
 from app.db.session import get_db
@@ -78,6 +81,9 @@ __all__ = [
     "validate_tenant_consistency",
     "require_tenant_context",
     "require_tenant_active_for_write",
+    "resolve_actor_tenant_anchor",
+    "resolve_admin_tenant_anchor",
+    "require_admin_tenant_anchor",
     # 权限相关
     "get_store_filter",
     "check_store_access",

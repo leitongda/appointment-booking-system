@@ -126,6 +126,26 @@ class Settings(BaseSettings):
     RATE_LIMIT_ENABLED: bool = True
     RATE_LIMIT_PER_MINUTE: int = 300  # 每分钟最大请求数（前端页面加载可能同时发起多个请求）
     RATE_LIMIT_PER_SECOND: int = 50   # 每秒最大请求数
+
+    # 多租户安全开关：遗留 User 表管理员兼容（True=保留旧行为，观察无命中后翻 False）
+    LEGACY_USER_ADMIN_FALLBACK: bool = True
+    # 多租户安全开关：非平台管理员缺少 tenant_id 时拒绝（fail-close）而非放行全量
+    TENANT_FILTER_FAIL_CLOSE: bool = False
+    # 多租户安全开关：把 X-Tenant-Code/子域名解析回填为 tenant_id（独立回滚）
+    TENANT_CODE_TO_ID_RESOLVE: bool = False
+    # 多租户安全开关：请求租户编码与账号租户不一致时拒绝（fail-close）
+    TENANT_CONSISTENCY_FAIL_CLOSE: bool = False
+    # 多租户安全开关：患者/医生端缺少租户上下文时拒绝（fail-close）而非放行
+    PATIENT_ANCHOR_FAIL_CLOSE: bool = False
+    # 公开端额外强制租户上下文的路径前缀（灰度：默认空=保持现状）
+    PUBLIC_TENANT_REQUIRED_EXTRA_PATHS: list[str] = []
+
+    # 租户物理删除开关（首版仅 dry-run 输出清单，不执行删除）
+    TENANT_PURGE_ENABLED: bool = False
+    TENANT_PURGE_DRY_RUN: bool = True
+
+    # 功能开关强制消费（P4-8 试点：online_payment；默认关闭，灰度开启）
+    FEATURE_ENFORCEMENT_ENABLED: bool = False
     
     # 日志配置
     RUNTIME_DATA_DIR: str = "var/server"

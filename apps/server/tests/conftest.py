@@ -9,8 +9,9 @@ Pytest 配置和共享 fixtures
 import asyncio
 import os
 import sys
+from dataclasses import dataclass
 from datetime import datetime, date, time, timedelta
-from typing import AsyncGenerator, Generator
+from typing import AsyncGenerator, Callable, Generator
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
@@ -541,15 +542,15 @@ def assert_schedule_booked_slots(schedule: Schedule, expected: int):
 # ==================== 管理员和角色 Fixtures ====================
 
 @pytest_asyncio.fixture
-async def test_super_admin_role(db_session: AsyncSession, test_tenant: Tenant) -> Role:
-    """创建测试超级管理员角色"""
+async def test_super_admin_role(db_session: AsyncSession) -> Role:
+    """创建测试超级管理员角色（平台级：tenant_id=NULL）"""
     import json
     role = Role(
         id=str(uuid4()),
         name="超级管理员",
         code="SUPER_ADMIN",
         description="系统超级管理员",
-        tenant_id=test_tenant.id,
+        tenant_id=None,
         status=1,
         permissions=json.dumps(["*"]),
         created_at=datetime.now(),
@@ -626,6 +627,206 @@ async def test_store_admin(db_session: AsyncSession, test_tenant: Tenant, test_s
     await db_session.commit()
     await db_session.refresh(admin)
     return admin
+
+
+# ==================== 多租户测试基建（T-1） ====================
+
+@dataclass
+class MultiTenantEnv:
+    """两个互相隔离的租户环境 + 平台管理员"""
+    tenant_a: Tenant
+    tenant_b: Tenant
+    store_a: Store
+    store_b: Store
+    role_a: Role
+    role_b: Role
+    admin_a: Admin
+    admin_b: Admin
+    platform_admin: Admin
+
+
+async def _create_tenant_admin(
+    db_session: AsyncSession,
+    tenant: Tenant,
+    store: Store,
+    *,
+    role_code: str = "TENANT_ADMIN",
+    role_name: str = "租户管理员",
+) -> tuple[Role, Admin]:
+    """创建租户内的角色与管理员账号（角色 tenant_id 指向本租户）"""
+    import bcrypt
+    import json
+
+    suffix = uuid4().hex[:8]
+    role = Role(
+        id=str(uuid4()),
+        name=role_name,
+        code=role_code,
+        description=f"测试用{role_name}",
+        tenant_id=tenant.id,
+        status=1,
+        permissions=json.dumps(["*"]),
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+    db_session.add(role)
+    await db_session.commit()
+    await db_session.refresh(role)
+
+    admin = Admin(
+        id=str(uuid4()),
+        username=f"tenant_admin_{suffix}",
+        password_hash=bcrypt.hashpw("password123".encode(), bcrypt.gensalt()).decode(),
+        name=f"{tenant.name}管理员",
+        phone=f"139{uuid4().int % 10**8:08d}",
+        role_id=role.id,
+        current_store_id=store.id,
+        tenant_id=tenant.id,
+        status=1,
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+    db_session.add(admin)
+    await db_session.commit()
+    await db_session.refresh(admin)
+    return role, admin
+
+
+@pytest_asyncio.fixture
+async def test_platform_admin_role(db_session: AsyncSession) -> Role:
+    """平台级超级管理员角色：tenant_id=NULL 是平台特权的唯一凭据"""
+    import json
+    role = Role(
+        id=str(uuid4()),
+        name="超级管理员",
+        code="SUPER_ADMIN",
+        description="平台超级管理员（不属于任何租户）",
+        tenant_id=None,
+        status=1,
+        permissions=json.dumps(["*"]),
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+    db_session.add(role)
+    await db_session.commit()
+    await db_session.refresh(role)
+    return role
+
+
+@pytest_asyncio.fixture
+async def test_platform_admin(db_session: AsyncSession, test_platform_admin_role: Role) -> Admin:
+    """平台管理员：不属于任何租户"""
+    import bcrypt
+    admin = Admin(
+        id=str(uuid4()),
+        username=f"platform_admin_{uuid4().hex[:8]}",
+        password_hash=bcrypt.hashpw("password123".encode(), bcrypt.gensalt()).decode(),
+        name="平台管理员",
+        phone=f"137{uuid4().int % 10**8:08d}",
+        role_id=test_platform_admin_role.id,
+        current_store_id=None,
+        tenant_id=None,
+        status=1,
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+    db_session.add(admin)
+    await db_session.commit()
+    await db_session.refresh(admin)
+    return admin
+
+
+@pytest_asyncio.fixture
+async def platform_admin_token(test_platform_admin: Admin) -> str:
+    """平台管理员 token"""
+    from app.core.security import create_access_token
+    return create_access_token({"sub": test_platform_admin.id, "type": "admin"})
+
+
+@pytest.fixture
+def admin_token_factory() -> Callable[[Admin], str]:
+    """闭包工厂：为任意 Admin 生成 admin 类型 access token"""
+    from app.core.security import create_access_token
+
+    def _make(admin: Admin) -> str:
+        return create_access_token({"sub": admin.id, "type": "admin"})
+
+    return _make
+
+
+@pytest_asyncio.fixture
+async def multi_tenant_env(
+    db_session: AsyncSession,
+    test_platform_admin: Admin,
+) -> MultiTenantEnv:
+    """两个互不可见的租户环境（A/B）+ 各自门店与租户管理员 + 平台管理员"""
+    from app.middleware.tenant_context import clear_tenant_context
+
+    try:
+        suffix = uuid4().hex[:8]
+        plan = SubscriptionPlan(
+            id=str(uuid4()),
+            plan_code=f"plan_{suffix}",
+            name="测试计划",
+            status=1,
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+        )
+        db_session.add(plan)
+        await db_session.commit()
+
+        tenants: list[Tenant] = []
+        stores: list[Store] = []
+        roles: list[Role] = []
+        admins: list[Admin] = []
+        for label in ("a", "b"):
+            tenant = Tenant(
+                id=str(uuid4()),
+                tenant_code=f"tenant_{label}_{suffix}",
+                name=f"测试租户{label.upper()}",
+                status=1,
+                subscription_plan_id=plan.id,
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+            )
+            db_session.add(tenant)
+            await db_session.commit()
+            await db_session.refresh(tenant)
+
+            store = Store(
+                id=str(uuid4()),
+                tenant_id=tenant.id,
+                name=f"测试门店{label.upper()}",
+                code=f"STORE_{label.upper()}_{suffix}",
+                address="测试地址",
+                phone="13800138000",
+                status=1,
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+            )
+            db_session.add(store)
+            await db_session.commit()
+            await db_session.refresh(store)
+
+            role, admin = await _create_tenant_admin(db_session, tenant, store)
+            tenants.append(tenant)
+            stores.append(store)
+            roles.append(role)
+            admins.append(admin)
+
+        return MultiTenantEnv(
+            tenant_a=tenants[0],
+            tenant_b=tenants[1],
+            store_a=stores[0],
+            store_b=stores[1],
+            role_a=roles[0],
+            role_b=roles[1],
+            admin_a=admins[0],
+            admin_b=admins[1],
+            platform_admin=test_platform_admin,
+        )
+    finally:
+        clear_tenant_context()
 
 
 # ==================== 规则组 Fixtures ====================

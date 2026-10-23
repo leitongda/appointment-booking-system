@@ -15,6 +15,10 @@ from app.models.tenant import Tenant
 from app.utils.audit import set_create_audit, set_update_audit
 
 
+class TenantScopeError(Exception):
+    """跨租户操作被拒绝（路由层映射为 403）"""
+
+
 class AdminService:
     def __init__(self, db):
         self.db = db
@@ -150,8 +154,12 @@ class AdminService:
         return result.unique().scalar_one_or_none()
 
     async def get_by_username_global(self, username: str) -> Admin | None:
-        """根据用户名查询管理员（全局查询，不限制租户，用于登录认证）"""
-        result = await self.db.execute(
+        """根据用户名查询管理员（登录认证用，兼容多租户同名）
+
+        有租户上下文时先按租户收敛；无上下文时若命中多行，抛 ValueError
+        由认证入口转为 400 引导携带 X-Tenant-Code。
+        """
+        stmt = (
             select(Admin)
             .options(
                 selectinload(Admin.role),
@@ -161,7 +169,15 @@ class AdminService:
             )
             .where(Admin.username == username)
         )
-        return result.unique().scalar_one_or_none()
+        current_tenant_id = get_current_tenant_id()
+        if current_tenant_id:
+            stmt = stmt.where(Admin.tenant_id == current_tenant_id)
+
+        result = await self.db.execute(stmt.order_by(Admin.created_at.desc()).limit(2))
+        rows = list(result.unique().scalars().all())
+        if len(rows) > 1:
+            raise ValueError("用户名在多个租户存在，请附带 X-Tenant-Code 登录")
+        return rows[0] if rows else None
 
     async def get_by_phone_global(self, phone: str) -> Admin | None:
         """根据手机号查询管理员（全局查询，不限制租户，用于登录认证）"""
@@ -206,14 +222,59 @@ class AdminService:
             return None
         return admin
 
-    async def create(self, data: dict, operator_id: str | None = None) -> Admin:
+    def _resolve_create_tenant_id(self, data: dict, actor: dict | None) -> str | None:
+        """消解创建管理员的目标租户。
+
+        - 平台管理员：必须显式指定 tenant_id（否则 400），以其为目标租户；
+        - 租户管理员：载荷 tenant_id 不得指向其他租户（否则 403），目标恒为自身租户；
+        - 内部调用（actor 为空）：沿用上下文推断，保持向后兼容。
+        """
+        payload_tenant_id = data.get("tenant_id")
+
+        if actor is None:
+            return payload_tenant_id or get_current_tenant_id()
+
+        is_platform = bool(actor.get("is_super_admin") or actor.get("is_platform_admin"))
+        actor_tenant_id = actor.get("tenant_id")
+
+        if is_platform:
+            if not payload_tenant_id:
+                raise ValueError("平台管理员创建管理员时必须指定 tenant_id")
+            return payload_tenant_id
+
+        if payload_tenant_id and payload_tenant_id != actor_tenant_id:
+            raise TenantScopeError("禁止跨租户创建管理员")
+        if not actor_tenant_id:
+            raise TenantScopeError("当前管理员未关联租户，无法创建管理员")
+        return actor_tenant_id
+
+    async def _validate_role_assignment(self, role_id: str, target_tenant_id: str | None) -> None:
+        """校验被指派角色属于目标租户，平台级角色不得通过该接口指派。"""
+        role = await self.db.get(Role, role_id)
+        if not role:
+            raise ValueError("角色不存在")
+        if role.tenant_id is None:
+            raise ValueError("平台角色不允许指派给租户成员")
+        if role.tenant_id != target_tenant_id:
+            raise ValueError("角色不属于目标租户")
+
+    async def create(
+        self,
+        data: dict,
+        operator_id: str | None = None,
+        actor: dict | None = None,
+    ) -> Admin:
         # 租户内检查用户名唯一性
         existing = await self.get_by_username(data["username"])
         if existing:
             raise ValueError("用户名已存在")
 
-        # 获取租户ID
-        tenant_id = data.get("tenant_id") or get_current_tenant_id()
+        # 先消解目标租户，再校验角色归属（防止借载荷 tenant_id 换锚跨租户建号）
+        tenant_id = self._resolve_create_tenant_id(data, actor)
+
+        role_id = data.get("role_id")
+        if role_id and tenant_id:
+            await self._validate_role_assignment(role_id, tenant_id)
 
         # 配额检查（使用租户ID）
         from app.common.quota import check_quota
@@ -239,9 +300,6 @@ class AdminService:
             store_ids.append(current_store_id)
         if store_ids and not current_store_id:
             current_store_id = store_ids[0]
-
-        # 获取租户ID
-        tenant_id = data.get("tenant_id") or get_current_tenant_id()
 
         admin = Admin(
             id=str(uuid.uuid4()),
@@ -316,6 +374,9 @@ class AdminService:
                 data["current_store_id"] = current_store_id
                 if store_ids is None:
                     store_ids = [current_store_id]
+
+        if data.get("role_id"):
+            await self._validate_role_assignment(data["role_id"], admin.tenant_id)
 
         for key, value in data.items():
             if key == "password" and value:

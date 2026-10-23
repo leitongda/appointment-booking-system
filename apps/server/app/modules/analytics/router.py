@@ -33,6 +33,23 @@ from app.utils.ip import get_client_ip
 
 logger = logging.getLogger(__name__)
 
+
+def _tenant_conditions(current_admin: dict, model) -> list:
+    """管理端租户锚点条件。
+
+    - 平台管理员：不过滤（跨租户视图）；
+    - 租户管理员：强制过滤本租户；未关联租户直接 403（fail-close）。
+    """
+    if current_admin.get("is_super_admin") or current_admin.get("is_platform_admin"):
+        return []
+    tenant_id = current_admin.get("tenant_id")
+    if not tenant_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="当前管理员未关联租户，禁止访问租户数据",
+        )
+    return [model.tenant_id == tenant_id]
+
 router = APIRouter()
 
 # ========== 安全：IP 级速率限制（Redis 滑动窗口，多实例共享） ==========
@@ -264,7 +281,7 @@ async def get_behavior_logs(
 ):
     """获取用户行为日志列表（管理员）"""
     query = select(UserBehaviorLog)
-    conditions = []
+    conditions = _tenant_conditions(current_admin, UserBehaviorLog)
     
     if platform:
         conditions.append(UserBehaviorLog.platform == platform)
@@ -311,8 +328,9 @@ async def get_behavior_overview(
 ):
     """获取用户行为概览统计（管理员）"""
     start_date = datetime.now() - timedelta(days=days)
-    
-    base_conditions = [UserBehaviorLog.created_at >= start_date]
+
+    base_conditions = _tenant_conditions(current_admin, UserBehaviorLog)
+    base_conditions.append(UserBehaviorLog.created_at >= start_date)
     if platform:
         base_conditions.append(UserBehaviorLog.platform == platform)
     
@@ -487,12 +505,13 @@ async def get_tenant_activity_stats(
     current_admin = Depends(get_current_admin),
 ):
     """获取租户活跃度统计（DAU/WAU/MAU）"""
-    tenant_id = get_current_tenant_id()
-
-    # 构建基础条件
-    base_conditions = []
-    if tenant_id:
-        base_conditions.append(UserBehaviorLog.tenant_id == tenant_id)
+    # 租户锚点取管理员账号归属，而不是可伪造的 X-Tenant-ID 头
+    base_conditions = _tenant_conditions(current_admin, UserBehaviorLog)
+    tenant_id = (
+        None
+        if not base_conditions
+        else current_admin.get("tenant_id")
+    )
 
     end_date = datetime.now().date()
     start_date = end_date - timedelta(days=days - 1)

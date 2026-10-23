@@ -128,15 +128,17 @@ def _get_setting_value(db: Session, category: str, key: str, default=None):
         return default
 
 
-def _notify_admins_sync(db: Session, title: str, content: str):
-    """发送消息通知给所有管理员（同步版本，Account 表优先）"""
+def _notify_admins_sync(db: Session, title: str, content: str, tenant_id: str | None):
+    """发送消息通知给本租户管理员（同步版本，Account 表优先）
+
+    tenant_id 必填：缺失时 fail-close（不扇出、不写无租户消息），仅记录告警。
+    """
+    if not tenant_id:
+        logger.warning("跳过管理员通知：缺少租户上下文 title=%s", title)
+        return
+
+    current_tenant_id = tenant_id
     try:
-        # 尝试从租户上下文获取 tenant_id
-        try:
-            from app.middleware.tenant_context import get_current_tenant_id
-            current_tenant_id = get_current_tenant_id()
-        except Exception:
-            current_tenant_id = None
 
         # 优先从 Account 表获取管理员列表
         admin_ids = []
@@ -166,6 +168,7 @@ def _notify_admins_sync(db: Session, title: str, content: str):
         for aid in admin_ids:
             message = Message(
                 id=str(uuid.uuid4()),
+                tenant_id=tenant_id,
                 user_id=aid,
                 user_type='admin',
                 title=title,
@@ -225,11 +228,12 @@ def auto_release_blacklist_task():
                 elif record.keyword:
                     user_info = record.keyword
                 
-                # 发送通知
+                # 发送通知（按黑名单记录所属租户收敛）
                 _notify_admins_sync(
                     db,
                     title='黑名单用户已自动解禁',
-                    content=f'用户 {user_info} 已于 {now.strftime("%Y-%m-%d %H:%M")} 自动解禁'
+                    content=f'用户 {user_info} 已于 {now.strftime("%Y-%m-%d %H:%M")} 自动解禁',
+                    tenant_id=record.tenant_id,
                 )
                 
                 released_count += 1
@@ -385,7 +389,8 @@ def mark_no_show_appointments_task():
                                 db,
                                 title='用户已自动加入黑名单',
                                 content=f'用户 {user_info} 因爽约 {no_show_count} 次，'
-                                       f'已自动加入黑名单，将于 {expire_at.strftime("%Y-%m-%d")} 自动解禁'
+                                       f'已自动加入黑名单，将于 {expire_at.strftime("%Y-%m-%d")} 自动解禁',
+                                tenant_id=tenant.id,
                             )
                             logger.info(f"用户 {user_info} 已加入黑名单")
 
@@ -486,7 +491,8 @@ def check_and_add_blacklist(user_id: str):
                         db,
                         title='用户已自动加入黑名单',
                         content=f'用户 {user_info} 因爽约 {no_show_count} 次，'
-                               f'已自动加入黑名单'
+                               f'已自动加入黑名单',
+                        tenant_id=tenant_id,
                     )
 
                     db.commit()

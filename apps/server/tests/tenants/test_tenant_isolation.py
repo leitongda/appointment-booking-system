@@ -274,9 +274,10 @@ async def test_cross_tenant_access_denied(
         },
     )
 
-    # 根据实际 API 响应调整断言
-    # 可能返回 200 但列表为空，或者返回 403
-    if response.status_code == 200:
+    # 跨租户访问必须被明确拒绝或返回不含他租户数据的列表；
+    # 500 等意外状态一律失败，禁止「非 200 即静默通过」
+    assert response.status_code in (200, 403), response.text
+    if response.is_success:
         # 确保不包含租户 B 的医生
         doctor_ids = [d.get("id") for d in extract_items(response.json())]
         assert doctor_b.id not in doctor_ids

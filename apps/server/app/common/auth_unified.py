@@ -9,8 +9,9 @@
 """
 import hashlib
 import json
+import logging
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,6 +29,7 @@ from app.common.role_permissions import (
     USER_PERMISSIONS,
     load_permissions_from_role,
 )
+from app.core.config import settings
 from app.core.error_codes import ErrorCode as TenantErrorCode
 from app.core.redis import RedisCache
 from app.core.security import decode_token
@@ -42,6 +44,8 @@ from app.models.admin import Admin
 from app.models.doctor import Doctor
 from app.models.tenant import Tenant
 from app.models.user import User
+
+logger = logging.getLogger("auth")
 
 # 开发环境导出用于测试
 __all__ = [
@@ -82,11 +86,61 @@ async def _check_token_blacklist(token: str, tenant_id: str = None) -> None:
             )
 
 
+async def _ensure_tenant_serviceable(
+    db: AsyncSession,
+    tenant_id: str | None,
+    request_method: str | None = None,
+) -> None:
+    """患者/医生 token 的租户停服校验（P4-1）
+
+    - status=0：一律拒绝（读也不允许）；
+    - status=2 / 订阅过期 / 试用到期：仅拒绝写请求（POST/PUT/PATCH/DELETE），
+      GET 放行以保证「停服可浏览」。
+    - 账号无 tenant_id 或租户行不存在：放行（历史数据防御）。
+    """
+    if not tenant_id:
+        return
+
+    result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
+    tenant = result.scalar_one_or_none()
+    if not tenant:
+        return
+
+    if tenant.status == 0:
+        raise_business_http_error(
+            status.HTTP_403_FORBIDDEN,
+            TenantErrorCode.TENANT_DISABLED,
+            "该机构已暂停服务，请联系机构管理员",
+        )
+
+    if request_method and request_method.upper() in {"POST", "PUT", "PATCH", "DELETE"}:
+        from datetime import datetime as _dt
+
+        if tenant.status == 2:
+            raise_business_http_error(
+                status.HTTP_403_FORBIDDEN,
+                TenantErrorCode.TENANT_SUSPENDED_WRITE,
+                "该机构订阅已到期，暂不支持写操作，请联系机构续费",
+            )
+        if tenant.subscription_end_at is not None and tenant.subscription_end_at < _dt.utcnow():
+            code = (
+                TenantErrorCode.TENANT_TRIAL_EXPIRED
+                if tenant.status == 3
+                else TenantErrorCode.TENANT_SUSPENDED_WRITE
+            )
+            raise_business_http_error(
+                status.HTTP_403_FORBIDDEN,
+                code,
+                "该机构订阅已到期，暂不支持写操作，请联系机构续费",
+            )
+
+
 async def _get_user_account(
     user_id: str,
     db: AsyncSession,
     token: str = None,
     check_tenant: bool = True,
+    request_method: str | None = None,
 ) -> AccountInfo:
     """从 User 表获取账号信息（含医生检查）
 
@@ -132,6 +186,8 @@ async def _get_user_account(
             )
     elif not current_tenant_id and not current_tenant_code and user.tenant_id:
         set_tenant_context(user.tenant_id)
+
+    await _ensure_tenant_serviceable(db, user.tenant_id, request_method)
 
     # 检查是否是医生
     doctor_result = await db.execute(
@@ -181,6 +237,7 @@ async def _get_doctor_account(
     token: str = None,
     check_tenant: bool = True,
     include_store_check: bool = True,
+    request_method: str | None = None,
 ) -> AccountInfo:
     """从 Doctor 表获取账号信息
 
@@ -242,6 +299,8 @@ async def _get_doctor_account(
             )
     elif not current_tenant_id and not current_tenant_code and doctor.tenant_id:
         set_tenant_context(doctor.tenant_id)
+
+    await _ensure_tenant_serviceable(db, doctor.tenant_id, request_method)
 
     # 尝试从 AccountDoctor.role_id 加载权限（fallback 到硬编码）
     doctor_role_id = None
@@ -326,6 +385,12 @@ async def _get_admin_account(
 
     if not admin:
         # 兼容旧的 User 表管理员（遗留代码，可逐步移除）
+        if not settings.LEGACY_USER_ADMIN_FALLBACK:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="账号不存在，请检查后重试"
+            )
+
         result = await db.execute(select(User).where(User.id == admin_id))
         user = result.scalar_one_or_none()
 
@@ -342,6 +407,10 @@ async def _get_admin_account(
             )
 
         # 旧用户默认为超级管理员
+        logger.warning(
+            "legacy User admin fallback hit: user_id=%s (LEGACY_USER_ADMIN_FALLBACK=True)",
+            user.id,
+        )
         admin_info = AdminInfo(
             is_super_admin=True,
             is_store_admin=False,
@@ -370,10 +439,19 @@ async def _get_admin_account(
     role_code = admin.role.code if admin.role else None
     role_name = admin.role.name if admin.role else None
     role_role_type = admin.role.role_type if admin.role else "admin"
-    is_super_admin = role_code == "SUPER_ADMIN" or role_name == "超级管理员"
+    # 平台特权必须由「平台级角色」承载：角色存在且 tenant_id 为 NULL。
+    # 仅凭角色编码字符串不足以认定平台身份——租户内可自建同名角色。
+    is_platform_role = admin.role is not None and admin.role.tenant_id is None
+    is_super_admin = is_platform_role and (
+        role_code == "SUPER_ADMIN" or role_name == "超级管理员"
+    )
     is_store_admin = role_code == "STORE_ADMIN" or role_name == "门店管理员"
     is_tenant_admin = role_code == "TENANT_ADMIN" or role_name == "租户管理员"
-    is_platform_admin = role_code == "PLATFORM_ADMIN" or role_name == "平台管理员" or is_super_admin
+    is_platform_admin = is_platform_role and (
+        role_code == "PLATFORM_ADMIN"
+        or role_name == "平台管理员"
+        or is_super_admin
+    )
     is_operator = role_role_type == "operator"
 
     # 填充租户元数据（所有有租户的管理员都需要，供 /me 等接口使用）
@@ -444,6 +522,19 @@ async def _get_admin_account(
                 detail="当前请求的租户与账号不匹配",
                 headers={"WWW-Authenticate": "Bearer"},
             )
+        # code 头兜底：中间件未回填 ID（开关关闭或解析失败）时按编码比对
+        if (
+            settings.TENANT_CONSISTENCY_FAIL_CLOSE
+            and not current_tenant_id
+            and current_tenant_code
+        ):
+            admin_tenant_code = admin.tenant.tenant_code if admin.tenant else None
+            if admin_tenant_code != current_tenant_code:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="当前请求的租户与账号不匹配",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
 
     # 过滤禁用门店（status=2 表示禁用）
     available_stores = [s for s in admin.stores if s.status != 2] if admin.stores else []
@@ -535,6 +626,7 @@ async def _get_admin_account(
 async def get_current_account(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: AsyncSession = Depends(get_db),
+    request: Request = None,
 ) -> AccountInfo:
     """统一认证入口
 
@@ -577,21 +669,27 @@ async def get_current_account(
         )
 
     token_type = payload.get("type", "")
+    request_method = request.method if request is not None else None
 
     # 根据 Token 类型分发到不同的认证逻辑
     if token_type == "admin":
         return await _get_admin_account(account_id, db, token)
     elif token_type == "doctor":
-        return await _get_doctor_account(account_id, db, token=token)
+        return await _get_doctor_account(
+            account_id, db, token=token, request_method=request_method
+        )
     else:
         # 默认为 User 表认证
-        return await _get_user_account(account_id, db, token=token)
+        return await _get_user_account(
+            account_id, db, token=token, request_method=request_method
+        )
 
 
 async def get_current_account_with_role(
     required_role: RoleType,
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: AsyncSession = Depends(get_db),
+    request: Request = None,
 ) -> AccountInfo:
     """带角色验证的统一认证
 
@@ -609,7 +707,7 @@ async def get_current_account_with_role(
     Raises:
         HTTPException: 角色不匹配时抛出 403 错误
     """
-    account = await get_current_account(credentials, db)
+    account = await get_current_account(credentials, db, request=request)
 
     if account.role_type != required_role:
         role_names = {
@@ -656,6 +754,7 @@ def require_role(required_role: RoleType):
 async def get_optional_account(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: AsyncSession = Depends(get_db),
+    request: Request = None,
 ) -> AccountInfo | None:
     """可选的统一认证
 
@@ -673,6 +772,6 @@ async def get_optional_account(
         return None
 
     try:
-        return await get_current_account(credentials, db)
+        return await get_current_account(credentials, db, request=request)
     except HTTPException:
         return None
