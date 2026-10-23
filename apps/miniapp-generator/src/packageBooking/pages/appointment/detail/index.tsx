@@ -6,6 +6,7 @@ import { appointmentApi, settingsApi } from '@hospital/api';
 import type { TimePeriodConfig } from '@hospital/api';
 import {
   APPOINTMENT_STATUS_MAP,
+  ASSISTANT_CONFIRM_STATUS,
   REFUND_STATUS_MAP,
   TIME_SLOT_MAP,
   getPeriodNameFromTime,
@@ -37,6 +38,30 @@ const StatusIconMap: Record<number, React.ComponentType<{ size?: number; color?:
   6: CloseCircleIcon,
   7: CloseCircleIcon,
   8: CloseCircleIcon,
+};
+
+// 医助确认状态展示配置（缺失视为待联系）
+const ASSISTANT_CONFIRM_VIEW: Record<number, { label: string; cls: string; desc: string }> = {
+  [ASSISTANT_CONFIRM_STATUS.NOT_REQUIRED]: {
+    label: '无需',
+    cls: 'default',
+    desc: '本单无需医助电话确认，请按预约时间到院就诊',
+  },
+  [ASSISTANT_CONFIRM_STATUS.PENDING_CONTACT]: {
+    label: '待联系',
+    cls: 'pending',
+    desc: '医助助理将尽快与您电话联系，确认到店时间，请保持手机畅通',
+  },
+  [ASSISTANT_CONFIRM_STATUS.CONTACTED]: {
+    label: '已联系',
+    cls: 'contacted',
+    desc: '医助助理已与您电话联系，请按约定时间到店；如需调整，请留意医助助理来电',
+  },
+  [ASSISTANT_CONFIRM_STATUS.CONFIRMED]: {
+    label: '已确认到店时间',
+    cls: 'confirmed',
+    desc: '到店时间已确认，请按约定时间到院就诊',
+  },
 };
 
 const AppointmentDetailPage = () => {
@@ -172,6 +197,9 @@ const AppointmentDetailPage = () => {
   }
 
   const StatusIcon = StatusIconMap[appointment.status] || CalendarIcon;
+  const assistantConfirm =
+    ASSISTANT_CONFIRM_VIEW[appointment.assistantConfirmStatus ?? ASSISTANT_CONFIRM_STATUS.PENDING_CONTACT] ||
+    ASSISTANT_CONFIRM_VIEW[ASSISTANT_CONFIRM_STATUS.PENDING_CONTACT];
   const statusStyleMap: Record<number, { background: string }> = useMemo(
     () => ({
       0: { background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)' },
@@ -263,6 +291,17 @@ const AppointmentDetailPage = () => {
             <Text className="value fee">¥{appointment.refundedAmount.toFixed(2)}</Text>
           </View>
         )}
+      </View>
+
+      {/* 医助确认 */}
+      <View className="section assistant-confirm-section">
+        <View className="assistant-confirm-head">
+          <Text className="section-title">医助确认</Text>
+          <Text className={`assistant-badge assistant-badge-${assistantConfirm.cls}`}>
+            {assistantConfirm.label}
+          </Text>
+        </View>
+        <Text className="assistant-confirm-desc">{assistantConfirm.desc}</Text>
       </View>
 
       {/* 医生信息 */}

@@ -8,6 +8,7 @@ import type { Doctor } from '@hospital/shared';
 import { APPOINTMENT_TYPE_MAP } from '@hospital/shared';
 import { DoctorIcon, HeartIcon, HeartOutlineIcon, BabyIcon } from '../../components/Icons';
 import { getToken } from '../../utils/auth';
+import { resolveDoctorIdFromParams } from '../../utils/scene';
 import { useThemePrimaryColor, useApplyThemeNavigationBar } from '../../utils/theme';
 import { getImageUrl, formatTime } from '../../utils/url';
 import './DoctorDetailFamily.less';
@@ -55,7 +56,8 @@ export function DoctorDetailFamily() {
   const primaryColor = useThemePrimaryColor();
   useApplyThemeNavigationBar();
   const router = useRouter();
-  const { id } = router.params;
+  // 支持扫码进入：显式 id 优先，其次解析 scene（海报小程序码契约见 utils/scene.ts）
+  const id = resolveDoctorIdFromParams(router.params);
 
   const [loading, setLoading] = useState(true);
   const [doctor, setDoctor] = useState<Doctor | null>(null);

@@ -87,6 +87,7 @@ class AppointmentServiceBase:
         patient_id: str | None = None,
         store_id: str | None = None,
         status: int | None = None,
+        assistant_confirm_status: int | None = None,
         start_date: date | None = None,
         end_date: date | None = None,
         keyword: str | None = None,
@@ -123,6 +124,9 @@ class AppointmentServiceBase:
         if status is not None:
             query = query.where(Appointment.status == status)
             count_query = count_query.where(Appointment.status == status)
+        if assistant_confirm_status is not None:
+            query = query.where(Appointment.assistant_confirm_status == assistant_confirm_status)
+            count_query = count_query.where(Appointment.assistant_confirm_status == assistant_confirm_status)
         if keyword:
             keyword_filter = or_(
                 Appointment.appointment_no.ilike(f"%{keyword}%"),

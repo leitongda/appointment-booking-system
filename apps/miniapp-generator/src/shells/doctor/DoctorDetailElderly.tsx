@@ -7,8 +7,10 @@ import type { DoctorReviewItem } from '@hospital/api';
 import type { Doctor } from '@hospital/shared';
 import { PageContainer } from '../../components/PageContainer';
 import { StarIcon } from '../../components/Icons';
+import DoctorPoster from '../../components/DoctorPoster';
 import { useTemplate } from '../../contexts/TemplateContext';
 import { getToken } from '../../utils/auth';
+import { resolveDoctorIdFromParams } from '../../utils/scene';
 import { getImageUrl } from '../../utils/url';
 
 /** 排班日期 */
@@ -51,10 +53,13 @@ export function DoctorDetailElderly() {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewContent, setReviewContent] = useState('');
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  // 医生海报弹层状态
+  const [showPoster, setShowPoster] = useState(false);
 
   useEffect(() => {
     const instance = Taro.getCurrentInstance();
-    const doctorId = instance?.router?.params?.id;
+    // 支持扫码进入：显式 id 优先，其次解析 scene（海报小程序码契约见 utils/scene.ts）
+    const doctorId = resolveDoctorIdFromParams(instance?.router?.params);
     if (doctorId) {
       void loadDoctor(doctorId);
     }
@@ -146,9 +151,9 @@ export function DoctorDetailElderly() {
     });
   };
 
-  // 医生海报：本期占位
+  // 医生海报：打开海报弹层（Canvas 生成，可保存到相册）
   const handleDoctorPoster = () => {
-    Taro.showToast({ title: '建设中', icon: 'none' });
+    setShowPoster(true);
   };
 
   const handleOpenReviewSheet = () => {
@@ -251,7 +256,7 @@ export function DoctorDetailElderly() {
             <Text style={{ fontSize: '36rpx', color: '#6B7280' }}>
               {doctor.departmentName}
             </Text>
-            {/* 医生海报：本期占位 */}
+            {/* 医生海报：打开海报弹层 */}
             <View
               onClick={handleDoctorPoster}
               aria-label="医生海报"
@@ -536,6 +541,18 @@ export function DoctorDetailElderly() {
           </View>
         </View>
       )}
+
+      {/* 医生海报弹层 */}
+      <DoctorPoster
+        visible={showPoster}
+        onClose={() => setShowPoster(false)}
+        doctorName={doctor.name}
+        doctorTitle={doctor.title}
+        specialty={doctor.specialty}
+        introduction={doctor.introduction}
+        avatarUrl={doctor.avatar ? getImageUrl(doctor.avatar) : ''}
+        doctorId={doctor.id}
+      />
     </PageContainer>
   );
 }

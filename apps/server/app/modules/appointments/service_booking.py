@@ -247,6 +247,7 @@ class AppointmentBookingService(AppointmentServiceBase):
                     queue_number=queue_number,
                     status=appointment_status,
                     symptom_description=data.symptom_description,
+                    assistant_confirm_status=1,
                     patient_name=patient.name,
                     patient_phone=patient.phone,
                     doctor_name=doctor.name if doctor else None,

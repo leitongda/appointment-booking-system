@@ -1,5 +1,6 @@
 from datetime import date, datetime, time
 from decimal import Decimal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import inspect as sa_inspect
@@ -55,6 +56,7 @@ class AppointmentResponse(BaseSchema):
     cancel_time: datetime | None = Field(None, description="取消时间")
     cancel_reason: str | None = Field(None, description="取消原因")
     symptom_description: str | None = Field(None, description="病情描述")
+    assistant_confirm_status: int | None = Field(None, description="医助确认: 0无需 1待联系 2已联系 3已确认到店时间")
     created_at: datetime | None = Field(None, description="创建时间")
     payment_amount: float | None = Field(None, description="支付金额（元）")
     payment_time: datetime | None = Field(None, description="支付完成时间")
@@ -124,6 +126,7 @@ class AppointmentResponse(BaseSchema):
             cancel_time=appointment.cancel_time,
             cancel_reason=appointment.cancel_reason,
             symptom_description=appointment.symptom_description,
+            assistant_confirm_status=appointment.assistant_confirm_status,
             created_at=appointment.created_at,
             payment_amount=cls._decimal_to_float(appointment.payment_amount),
             payment_time=appointment.paid_at,
@@ -171,6 +174,7 @@ class AppointmentListQuery(BaseRequestSchema):
     """
 
     status: int | None = Field(None, description="状态: 0待支付 1已预约 2已签到 3历史候诊(遗留) 4就诊中 5已完成 6已取消 7已过期 8已爽约")
+    assistant_confirm_status: int | None = Field(None, description="医助确认: 0无需 1待联系 2已联系 3已确认到店时间")
     patient_id: str | None = Field(None, description="就诊人ID")
     doctor_id: str | None = Field(None, description="医生ID")
     start_date: date | None = Field(None, description="开始日期")
@@ -191,6 +195,31 @@ class AppointmentCancelRequest(BaseModel):
     )
     
     reason: str | None = Field(None, max_length=200, description="取消原因", examples=["临时有事无法前往", "预约错误", "身体不适已恢复"])
+
+class AssistantConfirmRequest(BaseModel):
+    """医助确认到店请求
+
+    仅允许 2已联系 / 3已确认到店时间；其余值校验失败返回 422。
+    note 为医助沟通备注：appointments 表无 note 列，仅随响应回显，不落库。
+    """
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        json_schema_extra={
+            "example": {
+                "status": 3,
+                "note": "已电话确认，患者明天上午到店"
+            }
+        }
+    )
+
+    status: Annotated[Literal[2, 3], Field(..., description="医助确认状态: 2已联系 3已确认到店时间", examples=[2, 3])]
+    note: str | None = Field(None, max_length=500, description="沟通备注（仅回显，不落库）")
+
+class AssistantConfirmResponse(BaseSchema):
+    """医助确认到店响应"""
+    appointment: AppointmentResponse = Field(..., description="预约信息")
+    note: str | None = Field(None, description="沟通备注（仅回显，不落库）")
 
 class AppointmentStatistics(BaseModel):
     """预约统计信息"""

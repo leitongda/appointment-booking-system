@@ -7,7 +7,9 @@ import type { AvailableSchedule, DoctorReviewItem } from '@hospital/api';
 import type { Doctor } from '@hospital/shared';
 import { APPOINTMENT_TYPE_MAP } from '@hospital/shared';
 import { DoctorIcon, HeartIcon, HeartOutlineIcon, StarIcon } from '../../components/Icons';
+import DoctorPoster from '../../components/DoctorPoster';
 import { getToken } from '../../utils/auth';
+import { resolveDoctorIdFromParams } from '../../utils/scene';
 import { useThemePrimaryColor, useApplyThemeNavigationBar } from '../../utils/theme';
 import { getImageUrl, formatTime } from '../../utils/url';
 import './DoctorDetailStandard.less';
@@ -37,7 +39,8 @@ export function DoctorDetailStandard() {
   const primaryColor = useThemePrimaryColor();
   useApplyThemeNavigationBar();
   const router = useRouter();
-  const { id } = router.params;
+  // 支持扫码进入：显式 id 优先，其次解析 scene（海报小程序码契约见 utils/scene.ts）
+  const id = resolveDoctorIdFromParams(router.params);
 
   const [loading, setLoading] = useState(true);
   const [doctor, setDoctor] = useState<Doctor | null>(null);
@@ -67,6 +70,9 @@ export function DoctorDetailStandard() {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewContent, setReviewContent] = useState('');
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
+
+  // 医生海报弹层状态
+  const [showPoster, setShowPoster] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -191,9 +197,9 @@ export function DoctorDetailStandard() {
     }
   };
 
-  // 医生海报：本期占位
+  // 医生海报：打开海报弹层（Canvas 生成，可保存到相册）
   const handleDoctorPoster = () => {
-    Taro.showToast({ title: '建设中', icon: 'none' });
+    setShowPoster(true);
   };
 
   const handleOpenReviewSheet = () => {
@@ -675,6 +681,18 @@ export function DoctorDetailStandard() {
           </View>
         </View>
       )}
+
+      {/* 医生海报弹层 */}
+      <DoctorPoster
+        visible={showPoster}
+        onClose={() => setShowPoster(false)}
+        doctorName={doctor.name}
+        doctorTitle={doctor.title}
+        specialty={doctor.specialty}
+        introduction={doctor.introduction}
+        avatarUrl={doctor.avatar ? getImageUrl(doctor.avatar) : ''}
+        doctorId={doctor.id}
+      />
     </View>
   );
 }

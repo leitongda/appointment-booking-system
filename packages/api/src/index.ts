@@ -180,6 +180,8 @@ export { tenantApi } from './modules/tenant';
 export { analyticsApi } from './modules/analytics';
 export type { BehaviorLog, BehaviorLogListParams, BehaviorOverview, TenantActivity, DailyBehaviorItem, DailyActivityItem } from './modules/analytics';
 export { miniappPlatformApi } from './modules/miniapp-platform';
+export { marketingApi, getPosterQrcode } from './modules/marketing';
+export type { PosterQrcodeParams, PosterQrcodeResult } from './modules/marketing';
 export { notificationLogApi } from './modules/notification-log';
 export { notificationPreferenceApi } from './modules/notification-preference';
 export { paymentApi } from './modules/payment';

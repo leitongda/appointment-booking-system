@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, Numeric, SmallInteger, String, Text
 from sqlalchemy.orm import relationship
 
 from app.db.base import AuditMixin, Base
@@ -27,6 +27,11 @@ class Appointment(Base, AuditMixin):
     cancel_reason = Column(Text)
     remark = Column(Text)
     symptom_description = Column(Text, nullable=True, comment="病情描述/预填信息")
+
+    # 医助电话确认到店时间状态
+    assistant_confirm_status = Column(
+        SmallInteger, default=1, comment="医助确认: 0无需 1待联系 2已联系 3已确认到店时间"
+    )
 
     # 规则快照 - 预约时计算并存储
     book_open_at = Column(DateTime(timezone=True), nullable=True, comment="预约开放时间(快照)")

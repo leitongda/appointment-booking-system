@@ -42,6 +42,8 @@ export interface Appointment {
   refundStatus?: string;
   /** 已退款金额（元） */
   refundedAmount?: number;
+  /** 医助确认状态：0=无需 1=待联系 2=已联系 3=已确认到店（缺失视为待联系） */
+  assistantConfirmStatus?: number;
 }
 
 /** 预约详情（与 Appointment 相同，用于语义区分） */

@@ -98,3 +98,30 @@ export const APPOINTMENT_STATUS_TAG: Record<number, { text: string; color: strin
 };
 
 export const REFUNDABLE_APPOINTMENT_STATUSES = new Set([1, 2, 4, 5]);
+
+/**
+ * 医助确认状态（医助助理电话联系确认到店）
+ */
+export const ASSISTANT_CONFIRM_STATUS = {
+  NOT_REQUIRED: 0,    // 无需
+  PENDING_CONTACT: 1, // 待联系
+  CONTACTED: 2,       // 已联系
+  CONFIRMED: 3,       // 已确认到店
+} as const;
+
+export const ASSISTANT_CONFIRM_STATUS_MAP: Record<number, string> = {
+  [ASSISTANT_CONFIRM_STATUS.NOT_REQUIRED]: '无需',
+  [ASSISTANT_CONFIRM_STATUS.PENDING_CONTACT]: '待联系',
+  [ASSISTANT_CONFIRM_STATUS.CONTACTED]: '已联系',
+  [ASSISTANT_CONFIRM_STATUS.CONFIRMED]: '已确认到店',
+};
+
+/**
+ * 医助确认状态标签（text + color 组合，供 Tag 组件直接使用）
+ */
+export const ASSISTANT_CONFIRM_STATUS_TAG: Record<number, { text: string; color: string }> = {
+  [ASSISTANT_CONFIRM_STATUS.NOT_REQUIRED]: { text: '无需', color: 'default' },
+  [ASSISTANT_CONFIRM_STATUS.PENDING_CONTACT]: { text: '待联系', color: 'orange' },
+  [ASSISTANT_CONFIRM_STATUS.CONTACTED]: { text: '已联系', color: 'blue' },
+  [ASSISTANT_CONFIRM_STATUS.CONFIRMED]: { text: '已确认到店', color: 'green' },
+};

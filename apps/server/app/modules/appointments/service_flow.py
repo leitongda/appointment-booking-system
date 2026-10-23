@@ -512,3 +512,27 @@ class AppointmentFlowService(AppointmentServiceBase):
 
         self._dispatch_email_event(EventType.NO_SHOW, appointment)
         return appointment
+
+    async def set_assistant_confirm_status(
+        self,
+        appointment_id: str,
+        status: int,
+        operator_id: str | None = None,
+    ):
+        """医助电话确认到店状态
+
+        assistant_confirm_status: 0无需 1待联系 2已联系 3已确认到店时间。
+        合法取值（2/3）由请求 Schema 校验，此处不再重复校验。
+        note 不落库（appointments 无 note 列），仅由路由层回显。
+        """
+        from app.utils.audit import set_update_audit
+
+        appointment = await self.get_by_id(appointment_id)
+        if not appointment:
+            return None
+
+        appointment.assistant_confirm_status = status
+        set_update_audit(appointment, operator_id)
+        await self.db.commit()
+        await self.db.refresh(appointment)
+        return appointment
