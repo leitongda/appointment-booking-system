@@ -477,6 +477,17 @@ ERROR 计数：
 | **/ws/poll** | 历史医生端是否仍调用旧签名 | 发布说明列为破坏性变更；有存量则加过渡兼容 | R4-10 | 发布方 |
 | **feature 试点范围** | `export_data`/`basic_statistics` 是否本期接线 | 本期只接线、不翻总开关；先补负向测试 | R3-4/R3-5 | 产品 |
 
+### 7.1 决策采纳记录（2026-10-24，负责人指示按建议默认执行）
+
+| 决策 | 采纳结论 | 执行状态 |
+|---|---|---|
+| **D17** auto_renew | 延长周期（monthly=30 天 / yearly=365 天）+ 生成 pending 应收（无真实扣费）+ 不停服 | ✅ 已实现（`tenant_usage_task._renew_subscription`），4 条单测收口 |
+| **purge**（R2-5） | 保留 90 天；首版只 dry-run；NOT NULL 子表不做批量 DELETE | 维持现状，物理删除不实现 |
+| **D20**（R3-3） | drop 门禁 = 两表行数 0 且表存在，需全环境核对 | 开发库已核对（data_scopes=0、role_permissions=0）；staging/生产未核对，drop 迁移暂不编写；miniapp 配额维持默认不计归档 |
+| **R3-4** 功能开关试点 | 总开关保持 False | 已是现状 |
+| **R4-10** /ws/poll | 待发布方确认历史版本分布 | 未动 |
+| **R4-12** online_payment | 先回填再翻开关 | 回填脚本已备（`scripts/backfill_online_payment_feature.py`，默认 dry-run）；staging/生产执行归 E1 |
+
 ---
 
 ## 8. 已确认无需纳入 P5 的模块（R1-20 登记）
@@ -517,7 +528,8 @@ ERROR 计数：
 
 - 本节第 1–6 条描述的是**盘点/计划阶段**的边界；B9 批次的实际改动见 10.1，
   B0–B8、B10、B11 的执行记录见 10.2，前端测试可执行化与验证快照见 10.3/10.4，
-  测试补全与权限覆盖矩阵见 10.5。
+  测试补全与权限覆盖矩阵见 10.5，auto_renew 骨架见 10.6，
+  D17 落地与读端点权限收口见 10.7，开发库全链演练见 10.8。
 - 计划阶段只新增/覆盖本文档 `docs/tenant-remaining-plan.md`；未修改任何后端/前端代码，未执行 `git commit`。
 - **未运行任何 pytest**，本文所有“验收门”均为计划中的命令与断言，不代表已通过。
 - **未连接任何数据库**，未执行 `scripts/tenant_null_tenant_id_audit.sql`；文中引用的 psql 报错来自盘点 R4-1 的实测记录。
@@ -616,3 +628,31 @@ B0–B11 复盘时暴露的三个测试缺口在本批次收口：
 |---|---|---|
 | auto_renew 测试骨架 | 新增 `apps/server/tests/unit/test_auto_renew_skeleton.py`（1 契约用例 + 3 条 `xfail(strict=True)`） | 「未开自动续费到期仍置欠费」固化为普通契约用例；D17 三条期望（到期不停服 / 生成 pending 应收无真实扣款 / 订阅周期延长）以 strict xfail 登记，实现落地即 XPASS 报错，届时摘标记收口 |
 | 到期任务计数 bug | `app/tasks/tenant_usage_task.py` `send_notifications` | 闭包内 `reminded_count/suspended_count +=` 缺 `nonlocal`，每个到期租户抛 UnboundLocalError 被逐租户 except 吞掉——置欠费碰巧仍生效（状态先改后计数），但任务返回计数恒为 0 且每次执行刷错误日志。补 `nonlocal` 后契约用例通过（此前该任务零测试覆盖） |
+
+### 10.7 D17 落地、R4-12 脚本与读端点权限收口（2026-10-24，第四批次）
+
+| 事项 | 落点 | 说明 |
+|---|---|---|
+| D17 auto_renew 实现 | `app/tasks/tenant_usage_task.py` `_renew_subscription` | 到期租户若有 status=1 且 auto_renew 订阅：旧订阅置 2、按原计划新建 `payment_status='pending'` 应收（金额/币种快照，paid_at 空）、`tenant.subscription_end_at` 顺延一个周期；返回值新增 `renewed_count`。未开自动续费维持置欠费 |
+| 测试收口 | `tests/unit/test_auto_renew.py`（原 skeleton 改名） | 3 条 strict xfail 摘除转正 + 契约用例，4/4 绿 |
+| R4-12 回填脚本 | 新增 `scripts/backfill_online_payment_feature.py` | 只写 `tenants.features` 租户级覆盖（不动计划默认）；仅 status=1 未软删除租户；默认 dry-run、`--execute` 落库、幂等 |
+| 读端点权限收口 | `router_admins.py`：GET `/admins`、`/admins/{id}` 挂 `require_permission("system:user:list", "system:user")`；`router_roles.py`：GET `/roles`、`/roles/all`、`/roles/{id}` 挂 `("system:role:list", "system:role")` | OR 父码兼容存量授权（仅有 `system:user`/`system:role` 的角色不锁死）；权限目录 `scripts/init_permissions.py` 补两个细码；admin `access.ts` 菜单门控同步加入细码；矩阵台账 KNOWN_GAPS 清空。行为测试 `tests/security/test_admin_read_permission_guard.py` 7 用例（403/父码兼容/细码/通配/跨模块不串/详情端点） |
+
+### 10.8 E1 开发库全链演练（2026-10-24，第五批次）
+
+按第 6.8 节流程在本机开发库（PG16，`hospital_booking`）完整演练：
+
+| 步骤 | 结果 |
+|---|---|
+| 1 备份 | `pg_dump -Fc` 1.5MB，`pg_restore --list` 可读 |
+| 2 pre 审计 | `tenant_null_tenant_id_audit.sql` ERROR=0；D13 三类冲突=0、D15=0、D9 业务表 NULL=0、D20 两表=0 行、M6 既有表孤儿=**notification_logs 216**；SECTION 2 按预期 SKIP |
+| 3 `alembic heads` 复核 | 单头 `p3a7_settings_tenant`（R4-15 要求的复核首次实际执行） |
+| 4 升级 | 首跑失败：`p3a4` 假设 `guide_tours_code_key` 约束存在，开发库实为唯一索引 `ix_guide_tours_code`（create_all 历史差异）→ **修复 p3a4 按实际形态（约束/唯一索引）分别删除**；重跑 p3a1→p3a7 全链成功 |
+| 5 post 审计 | ERROR=0，SECTION 1+2 全量输出 |
+| 6 M6 清洗 | dry-run 确认 216 条 A 类（可空表）→ `apply=1` SET NULL 清零，16 个 `fk_*_tenant` 全部 VALIDATE（convalidated=t） |
+| 7 降级演练 | `downgrade 20260630_drop_plaintext` 全链成功（含修复后的 p3a4 downgrade） |
+| 8 复位 | 重新 `upgrade head` + M6 apply，最终态：p3a7、孤儿=0、16 外键 validated |
+
+**开发库演练发现并修复**：p3a4 对「唯一索引 vs 唯一约束」的历史形态差异不兼容（生产若同样经 create_all 同步过会同样失败，staging/生产执行前需按第 6.6 节留档 `pg_indexes` 形态）。
+
+**仍未做（归 E1 剩余）**：staging/生产两环境的审计与 M6（无凭证）；微信支付/退款回调租户实测；`alembic downgrade` 在生产数据的不可逆点留档（6.8 要求 staging 完整演练已由开发库部分替代，生产仍需按流程）。
