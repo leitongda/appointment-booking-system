@@ -112,7 +112,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = self.path.split("?")[0]
-        q = dict(p.split("=", 1) for p in self.path.split("?")[1].split("&") if "=" in p)
+        qs = self.path.split("?")[1] if "?" in self.path else ""
+        q = dict(p.split("=", 1) for p in qs.split("&") if "=" in p)
         if path == "/api/v1/doctors/recommended":
             return self._send(ok([DOCTOR]))
         if path.startswith("/api/v1/doctors/") and path.endswith("/schedules"):

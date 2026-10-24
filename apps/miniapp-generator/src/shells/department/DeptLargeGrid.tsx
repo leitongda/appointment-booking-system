@@ -5,30 +5,7 @@ import { departmentApi } from '@hospital/api';
 import type { Department } from '@hospital/shared';
 import { PageContainer } from '../../components/PageContainer';
 import { useTemplate } from '../../contexts/TemplateContext';
-
-/** 科室图标映射（中文首字/关键字 -> emoji） */
-const deptIconMap: Record<string, string> = {
-  '中医': '\u2695\uFE0F',
-  '内': '\u2695\uFE0F',
-  '外': '\ud83d\udce6',
-  '骨': '\u{1F9B4}',
-  '儿': '\u{1F476}',
-  '妇': '\u{1F931}',
-  '眼': '\u{1F441}',
-  '口': '\u{1F9B7}',
-  '皮': '\u{1F9B4}',
-  '针': '\u{1FA78}',
-  '推': '\u{1F64F}',
-  '康复': '\u{1F3CB}\uFE0F',
-  '理': '\u26A1',
-};
-
-function getDeptIcon(name: string): string {
-  for (const [key, icon] of Object.entries(deptIconMap)) {
-    if (name.includes(key)) return icon;
-  }
-  return '\u2695\uFE0F';
-}
+import { getDeptIcon as getSharedDeptIcon } from '../../components/Icons';
 
 /** 科室列表壳层 -- 大尺寸 2 列网格
  * 每个科室占半屏宽，图标 80rpx + 文字 40rpx，充足内边距
@@ -106,9 +83,12 @@ export function DeptLargeGrid() {
                 boxShadow: '0 2rpx 12rpx rgba(0,0,0,0.06)',
               }}
             >
-              <Text style={{ fontSize: '80rpx', marginBottom: '16rpx' }}>
-                {getDeptIcon(dept.name)}
-              </Text>
+              <View style={{ marginBottom: '16rpx', height: '80rpx', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {(() => {
+                  const DeptIcon = getSharedDeptIcon(dept.name);
+                  return <DeptIcon size={40} color={tokens.primary} />;
+                })()}
+              </View>
               <Text style={{
                 fontSize: '40rpx',
                 fontWeight: 600,

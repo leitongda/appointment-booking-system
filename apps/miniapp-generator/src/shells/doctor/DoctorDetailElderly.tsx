@@ -6,7 +6,7 @@ import { doctorApi, scheduleApi, doctorReviewApi } from '@hospital/api';
 import type { DoctorReviewItem } from '@hospital/api';
 import type { Doctor } from '@hospital/shared';
 import { PageContainer } from '../../components/PageContainer';
-import { StarIcon } from '../../components/Icons';
+import { StarIcon, DoctorIcon } from '../../components/Icons';
 import DoctorPoster from '../../components/DoctorPoster';
 import { useTemplate } from '../../contexts/TemplateContext';
 import { getToken } from '../../utils/auth';
@@ -241,7 +241,7 @@ export function DoctorDetailElderly() {
                 style={{ width: '120rpx', height: '120rpx', borderRadius: '60rpx' }}
               />
             ) : (
-              <Text style={{ fontSize: '64rpx' }}>{'\ud83e\ude7a'}</Text>
+              <DoctorIcon size={32} color={tokens.primary} />
             )}
           </View>
           <View style={{ flex: 1 }}>

@@ -1,19 +1,19 @@
 import { View, Text, Button } from '@tarojs/components';
 import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { doctorApi, contentApi } from '@hospital/api';
 import type { Doctor } from '@hospital/shared';
 import { PageContainer } from '../../components/PageContainer';
 import { useTemplate } from '../../contexts/TemplateContext';
 import { getToken } from '../../utils/auth';
-import { SpeakerIcon } from '../../components/Icons';
+import { SpeakerIcon, HospitalIcon, CalendarIcon, CardIcon, HeadsetIcon, DoctorIcon } from '../../components/Icons';
 import LoginPopup from '../../components/LoginPopup';
 
 /** 首页快捷按钮（文案取自模板 tone，对齐竞品四宫格：预约挂号/预约记录/我的就诊卡/在线客服） */
 interface HomeQuickAction {
   key: string;
   label: string;
-  icon: string;
+  icon: ReactNode;
   color: string;
   path?: string;
   needLogin?: boolean;
@@ -46,10 +46,10 @@ export function HomeElderly() {
   // 四宫格贴片色：取模板 designTokens.customColors（竞品绿色主题），缺省回落绿色系
   const tiles = tokens.customColors || {};
   const quickActions: HomeQuickAction[] = [
-    { key: 'register', label: tone.bookingLabel, icon: '\ud83c\udfe5', path: '/pages/department/index', color: tiles.tilePrimary || '#5F8F74' },
-    { key: 'appointments', label: tone.custom?.appointmentRecordsLabel || '预约记录', icon: '\ud83d\udcc5', path: '/pages/appointment/index', color: tiles.tileSecondary || '#4E8064', needLogin: true },
-    { key: 'patient_card', label: tone.patientLabel || '我的就诊卡', icon: '\ud83d\udcb3', path: '/packageProfile/pages/patient/index', color: tiles.tileTertiary || '#7CA98B', needLogin: true },
-    { key: 'service', label: tone.custom?.onlineServiceLabel || '在线客服', icon: '\ud83d\udcde', color: tiles.tileQuaternary || '#3E6B52', contact: true },
+    { key: 'register', label: tone.bookingLabel, icon: <HospitalIcon size={28} color="#FFFFFF" />, path: '/pages/department/index', color: tiles.tilePrimary || '#5F8F74' },
+    { key: 'appointments', label: tone.custom?.appointmentRecordsLabel || '预约记录', icon: <CalendarIcon size={28} color="#FFFFFF" />, path: '/pages/appointment/index', color: tiles.tileSecondary || '#4E8064', needLogin: true },
+    { key: 'patient_card', label: tone.patientLabel || '我的就诊卡', icon: <CardIcon size={28} color="#FFFFFF" />, path: '/packageProfile/pages/patient/index', color: tiles.tileTertiary || '#7CA98B', needLogin: true },
+    { key: 'service', label: tone.custom?.onlineServiceLabel || '在线客服', icon: <HeadsetIcon size={28} color="#FFFFFF" />, color: tiles.tileQuaternary || '#3E6B52', contact: true },
   ];
 
   useDidShow(() => {
@@ -190,7 +190,9 @@ export function HomeElderly() {
                 alignItems: 'center',
                 justifyContent: 'center',
               }}>
-                <Text style={{ fontSize: '56rpx', marginBottom: '8rpx' }}>{action.icon}</Text>
+                <View style={{ marginBottom: '8rpx', height: '56rpx', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {action.icon}
+                </View>
                 <Text style={{ fontSize: '36rpx', color: '#FFFFFF', fontWeight: 600 }}>{action.label}</Text>
               </View>
             </Button>
@@ -211,7 +213,9 @@ export function HomeElderly() {
                 boxShadow: '0 4rpx 16rpx rgba(95, 143, 116, 0.25)',
               }}
             >
-              <Text style={{ fontSize: '56rpx', marginBottom: '8rpx' }}>{action.icon}</Text>
+              <View style={{ marginBottom: '8rpx', height: '56rpx', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {action.icon}
+              </View>
               <Text style={{ fontSize: '36rpx', color: '#FFFFFF', fontWeight: 600 }}>{action.label}</Text>
             </View>
           ))}
@@ -307,7 +311,7 @@ export function HomeElderly() {
                 marginRight: '28rpx',
                 flexShrink: 0,
               }}>
-                <Text style={{ fontSize: '48rpx' }}>{'\ud83e\ude7a'}</Text>
+                <DoctorIcon size={24} color={tokens.primary} />
               </View>
               <View style={{ flex: 1, minWidth: 0 }}>
                 <View style={{ display: 'flex', alignItems: 'baseline', marginBottom: '8rpx' }}>

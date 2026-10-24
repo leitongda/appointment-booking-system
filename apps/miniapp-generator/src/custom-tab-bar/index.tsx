@@ -8,18 +8,16 @@ import homeIcon from '../assets/tabbar/home.png';
 import homeActiveIcon from '../assets/tabbar/home-active.png';
 import appointmentIcon from '../assets/tabbar/appointment.png';
 import appointmentActiveIcon from '../assets/tabbar/appointment-active.png';
+import orgIcon from '../assets/tabbar/org.png';
+import orgActiveIcon from '../assets/tabbar/org-active.png';
 import profileIcon from '../assets/tabbar/profile.png';
 import profileActiveIcon from '../assets/tabbar/profile-active.png';
 
 const iconMap: Record<string, { normal: string; active: string }> = {
   home: { normal: homeIcon, active: homeActiveIcon },
   appointment: { normal: appointmentIcon, active: appointmentActiveIcon },
+  org: { normal: orgIcon, active: orgActiveIcon },
   profile: { normal: profileIcon, active: profileActiveIcon },
-};
-
-// 暂无切图资源的 tab 用 emoji 占位（如机构中心），后续补图后移入 iconMap 即可
-const emojiMap: Record<string, string> = {
-  org: '\ud83c\udfec',
 };
 
 /** 依据当前页面路由推导选中 tab；不在 navSchema 中（如非本模板的 tab 页）返回 -1（全部置灰） */
@@ -78,7 +76,7 @@ export default function CustomTabBar() {
     }}>
       {tabs.map((tab, index) => {
         const isActive = selectedIndex === index;
-        const icons = iconMap[tab.iconKey];
+        const icons = iconMap[tab.iconKey] || iconMap['home'];
         return (
           <View
             key={tab.pagePath}
@@ -92,21 +90,10 @@ export default function CustomTabBar() {
               gap: '4rpx',
             }}
           >
-            {icons ? (
-              <Image
-                src={isActive ? icons.active : icons.normal}
-                style={{ width: '48rpx', height: '48rpx' }}
-              />
-            ) : (
-              <Text style={{
-                fontSize: '40rpx',
-                lineHeight: '48rpx',
-                height: '48rpx',
-                opacity: isActive ? 1 : 0.5,
-              }}>
-                {emojiMap[tab.iconKey] || '\ud83d\udccb'}
-              </Text>
-            )}
+            <Image
+              src={isActive ? icons.active : icons.normal}
+              style={{ width: '48rpx', height: '48rpx' }}
+            />
             <Text style={{
               fontSize: '22rpx',
               color: isActive ? 'var(--theme-primary, #4D7CB8)' : '#9CA3AF',

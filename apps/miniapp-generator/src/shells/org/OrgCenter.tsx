@@ -6,6 +6,7 @@ import type { Store } from '@hospital/shared';
 import { PageContainer } from '../../components/PageContainer';
 import { useTemplate } from '../../contexts/TemplateContext';
 import { getStoreId } from '../../utils/store';
+import { PhoneIcon, LocationPinIcon, StoreIcon } from '../../components/Icons';
 
 /** 机构中心壳层 -- 长辈友好/中医康养
  * 模块：门店照片 -> 名称/联系方式卡 -> 机构介绍（竞品「机构中心/机构简介」同构）
@@ -73,7 +74,7 @@ export function OrgCenter() {
           {cover ? (
             <Image src={cover} mode="aspectFill" style={{ width: '100%', height: '100%' }} />
           ) : (
-            <Text style={{ fontSize: '88rpx' }}>{'\ud83c\udfe5'}</Text>
+            <StoreIcon size={64} color={tokens.primary} />
           )}
         </View>
 
@@ -102,7 +103,9 @@ export function OrgCenter() {
               role="button"
               style={{ display: 'flex', alignItems: 'center', gap: '16rpx', marginTop: '16rpx' }}
             >
-              <Text style={{ fontSize: '36rpx' }}>{'\u260e\ufe0f'}</Text>
+              <View style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                <PhoneIcon size={28} color={tokens.primary} />
+              </View>
               <Text style={{ fontSize: '34rpx', color: tokens.primary }}>{store.phone}</Text>
               <Text style={{ fontSize: '30rpx', color: '#9CA3AF' }}>点击拨打</Text>
             </View>
@@ -115,7 +118,9 @@ export function OrgCenter() {
               role="button"
               style={{ display: 'flex', alignItems: 'flex-start', gap: '16rpx', marginTop: '20rpx' }}
             >
-              <Text style={{ fontSize: '36rpx' }}>{'\ud83d\udccd'}</Text>
+              <View style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                <LocationPinIcon size={28} color={tokens.primary} />
+              </View>
               <Text style={{ fontSize: '34rpx', color: '#22332B', flex: 1 }}>{store.address}</Text>
             </View>
           ) : null}

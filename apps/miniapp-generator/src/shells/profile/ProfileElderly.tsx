@@ -1,23 +1,24 @@
 import { View, Text } from '@tarojs/components';
 import Taro, { useDidShow } from '@tarojs/taro';
-import { useState } from 'react';
+import { useState, type ComponentType } from 'react';
 import { userApi } from '@hospital/api';
 import type { User } from '@hospital/shared';
 import { PageContainer } from '../../components/PageContainer';
 import { useTemplate } from '../../contexts/TemplateContext';
 import { getToken, removeToken } from '../../utils/auth';
 import { triggerCheckinScan } from '../../utils/checkin';
+import { CalendarIcon, ScanIcon, HeadsetIcon, AddUserIcon, SettingsIcon } from '../../components/Icons';
 import LoginPopup from '../../components/LoginPopup';
 
 /** 菜单项配置 - 长辈友好版精简菜单
  * 核心入口优先：我的挂号、扫码签到、联系客服
  */
-const menuItems = [
-  { key: 'appointments', label: '我的挂号', icon: '\ud83d\udcc5', path: '/pages/appointment/index', needLogin: true },
-  { key: 'checkin', label: '扫码签到', icon: '\ud83d\udcf7', action: 'checkin', needLogin: true },
-  { key: 'service', label: '联系客服', icon: '\ud83d\udcde', path: '/packageProfile/pages/feedback/index', needLogin: true },
-  { key: 'patient', label: '就诊人管理', icon: '\u{1F464}', path: '/packageProfile/pages/patient/index', needLogin: true },
-  { key: 'settings', label: '设置', icon: '\u2699\uFE0F', path: '/packageProfile/pages/settings/index' },
+const menuItems: Array<{ key: string; label: string; icon: ComponentType<{ size?: number; color?: string }>; path?: string; action?: string; needLogin?: boolean }> = [
+  { key: 'appointments', label: '我的挂号', icon: CalendarIcon, path: '/pages/appointment/index', needLogin: true },
+  { key: 'checkin', label: '扫码签到', icon: ScanIcon, action: 'checkin', needLogin: true },
+  { key: 'service', label: '联系客服', icon: HeadsetIcon, path: '/packageProfile/pages/feedback/index', needLogin: true },
+  { key: 'patient', label: '就诊人管理', icon: AddUserIcon, path: '/packageProfile/pages/patient/index', needLogin: true },
+  { key: 'settings', label: '设置', icon: SettingsIcon, path: '/packageProfile/pages/settings/index' },
 ];
 
 /** 个人中心壳层 -- 长辈友好版
@@ -150,7 +151,9 @@ export function ProfileElderly() {
           overflow: 'hidden',
           boxShadow: '0 2rpx 12rpx rgba(0,0,0,0.06)',
         }}>
-          {menuItems.map((item, idx) => (
+          {menuItems.map((item, idx) => {
+            const MenuIcon = item.icon;
+            return (
             <View
               key={item.key}
               onClick={() => handleMenuClick(item)}
@@ -164,11 +167,14 @@ export function ProfileElderly() {
                 borderBottom: idx < menuItems.length - 1 ? '2rpx solid #F3F4F6' : 'none',
               }}
             >
-              <Text style={{ fontSize: '48rpx', marginRight: '24rpx' }}>{item.icon}</Text>
+              <View style={{ marginRight: '24rpx', width: '48rpx', height: '48rpx', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <MenuIcon size={24} color={tokens.primary} />
+              </View>
               <Text style={{ flex: 1, fontSize: '36rpx', color: '#3D2B1F' }}>{item.label}</Text>
               <Text style={{ fontSize: '36rpx', color: '#9CA3AF' }}>{'\u203A'}</Text>
             </View>
-          ))}
+            );
+          })}
         </View>
 
         {/* 退出登录 */}

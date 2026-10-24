@@ -97,6 +97,8 @@ export default defineAppConfig({
       {
         pagePath: 'pages/org/index',
         text: '机构中心',
+        iconPath: 'assets/tabbar/org.png',
+        selectedIconPath: 'assets/tabbar/org-active.png',
       },
       {
         pagePath: 'pages/profile/index',

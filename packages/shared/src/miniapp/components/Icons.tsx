@@ -97,6 +97,12 @@ const svgs = {
   appointmentOutline: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M19 3H18V1H16V3H8V1H6V3H5C3.89 3 3 3.9 3 5V19C3 20.1 3.89 21 5 21H19C20.1 21 21 20.1 21 19V5C21 3.9 20.1 3 19 3ZM19 19H5V8H19V19ZM19 6H5V5H19V6Z" fill="{color}"/></svg>`,
   profile: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 12C14.21 12 16 10.21 16 8C16 5.79 14.21 4 12 4C9.79 4 8 5.79 8 8C8 10.21 9.79 12 12 12ZM12 14C9.33 14 4 15.34 4 18V20H20V18C20 15.34 14.67 14 12 14Z" fill="{color}"/></svg>`,
   profileOutline: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 6C13.1 6 14 6.9 14 8C14 9.1 13.1 10 12 10C10.9 10 10 9.1 10 8C10 6.9 10.9 6 12 6ZM12 4C9.79 4 8 5.79 8 8C8 10.21 9.79 12 12 12C14.21 12 16 10.21 16 8C16 5.79 14.21 4 12 4ZM12 14C9.33 14 4 15.34 4 18V20H20V18C20 15.34 14.67 14 12 14ZM6 18C6.22 17.28 9.31 16 12 16C14.7 16 17.8 17.29 18 18H6Z" fill="{color}"/></svg>`,
+  // 客服耳机
+  headset: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 1C7.03 1 3 5.03 3 10V17C3 19.21 4.79 21 7 21H9V11H5V10C5 6.13 8.13 3 12 3C15.87 3 19 6.13 19 10V11H15V21H17C19.21 21 21 19.21 21 17V10C21 5.03 16.97 1 12 1Z" fill="{color}"/></svg>`,
+  // 门店/机构
+  store: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 4H4V2H20V4ZM21 6H3L2 12V14H4V22H20V14H22V12L21 6ZM18 20H6V12H18V20ZM9 16H15V18H9V16Z" fill="{color}"/></svg>`,
+  // 地图定位
+  locationPin: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C8.13 2 5 5.13 5 9C5 14.25 12 22 12 22C12 22 19 14.25 19 9C19 5.13 15.87 2 12 2ZM12 11.5C10.62 11.5 9.5 10.38 9.5 9C9.5 7.62 10.62 6.5 12 6.5C13.38 6.5 14.5 7.62 14.5 9C14.5 10.38 13.38 11.5 12 11.5Z" fill="{color}"/></svg>`,
 };
 
 // 医院图标
@@ -329,6 +335,21 @@ export const HealthIcon = (props: IconProps) => (
 // 服务图标
 export const ServiceIcon = (props: IconProps) => (
   <SvgIcon {...props} svg={svgs.service} />
+);
+
+// 客服耳机图标
+export const HeadsetIcon = (props: IconProps) => (
+  <SvgIcon {...props} svg={svgs.headset} />
+);
+
+// 门店/机构图标
+export const StoreIcon = (props: IconProps) => (
+  <SvgIcon {...props} svg={svgs.store} />
+);
+
+// 地图定位图标
+export const LocationPinIcon = (props: IconProps) => (
+  <SvgIcon {...props} svg={svgs.locationPin} />
 );
 
 // 提示/信息图标
