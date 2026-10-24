@@ -27,6 +27,14 @@ if (taroAdapter.interceptors) {
         Authorization: `Bearer ${token}`,
       };
     }
+    // 公开接口（首页推荐/门店/评价等）按租户隔离，中间件要求携带租户头，缺失时 fail-closed 400
+    const tenantCode = process.env.TARO_APP_TENANT_CODE || '';
+    if (tenantCode && !config.header?.['X-Tenant-Code']) {
+      config.header = {
+        ...config.header,
+        'X-Tenant-Code': tenantCode,
+      };
+    }
     return config;
   });
 }

@@ -5,7 +5,7 @@ import { storeApi, contentApi } from '@hospital/api';
 import type { Store } from '@hospital/shared';
 import { PageContainer } from '../../components/PageContainer';
 import { useTemplate } from '../../contexts/TemplateContext';
-import { getStoreId } from '../../utils/store';
+import { getStoreCode } from '../../utils/store';
 import { PhoneIcon, LocationPinIcon, StoreIcon } from '../../components/Icons';
 
 /** 机构中心壳层 -- 长辈友好/中医康养
@@ -25,10 +25,11 @@ export function OrgCenter() {
 
   const loadData = async () => {
     try {
-      const storeId = getStoreId();
+      // 门店走公开 by-code 接口（/stores/{id} 是管理端接口，游客不可访问）
+      const code = getStoreCode();
       const [banners, detail] = await Promise.all([
         contentApi.getActiveBanners('org').catch(() => []),
-        storeId ? storeApi.getDetail(storeId).catch(() => null) : Promise.resolve(null),
+        code ? storeApi.getByCode(code).catch(() => null) : Promise.resolve(null),
       ]);
       if (banners.length > 0 && banners[0].imageUrl) {
         setCover(banners[0].imageUrl);
