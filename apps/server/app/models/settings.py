@@ -40,7 +40,7 @@ DEFAULT_SETTINGS = {
     'booking': {
         'advance_days': {'value': '10', 'description': '可提前预约天数'},
         'same_day_booking': {'value': 'true', 'description': '允许当天预约'},
-        'cancel_hours': {'value': '2', 'description': '就诊前不可取消时间(小时)'},
+        'cancel_hours': {'value': '12', 'description': '就诊前不可取消时间(小时)，竞品口径为12'},
         'per_day_limit': {'value': '3', 'description': '每人每天预约限制'},
         'per_doctor_limit': {'value': '1', 'description': '每人每医生预约限制'},
         'no_show_limit': {'value': '3', 'description': '爽约次数限制'},

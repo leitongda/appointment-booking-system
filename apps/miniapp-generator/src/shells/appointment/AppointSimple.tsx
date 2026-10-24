@@ -30,7 +30,10 @@ export function AppointSimple() {
   const [showLoginPopup, setShowLoginPopup] = useState(false);
 
   useDidShow(() => {
-    Taro.eventCenter.trigger('tabbar:change', 1);
+    // -1 = 不落在任何 tab 上：本页不在 elderly-tcm 的 navSchema（首页/机构中心/我的）内，
+    // 是从首页四宫格进入的导航页（竞品同形态）；其它模板的 navSchema 含「预约」tab 时，
+    // 挂载时按路由推导的选中态依然生效
+    Taro.eventCenter.trigger('tabbar:change', -1);
     const token = getToken();
     if (!token) {
       setShowLoginPopup(true);

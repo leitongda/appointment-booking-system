@@ -50,6 +50,7 @@ export {
   HeadsetIcon,
   StoreIcon,
   LocationPinIcon,
+  ShareIcon,
   TipIcon,
   FileIcon,
   ReportIcon,

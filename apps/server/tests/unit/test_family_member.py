@@ -883,3 +883,64 @@ class TestUserManageServiceFamilyMember:
         # 验证第二张卡成为默认卡
         await db_session.refresh(second_card)
         assert second_card.is_default is True
+
+
+class TestPatientCardLimit:
+    """就诊卡数量上限（每账号限绑定 5 位成员）"""
+
+    def _make_card(self, user_id: str, tenant_id: str | None, name: str) -> Patient:
+        return Patient(
+            id=str(uuid4()),
+            user_id=user_id,
+            tenant_id=tenant_id,
+            name=name,
+            phone="13900000000",
+            gender=1,
+            is_default=False,
+            card_no=f"CK{uuid4().hex[:10].upper()}",
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+        )
+
+    @pytest.mark.asyncio
+    async def test_create_card_rejected_at_limit(
+        self,
+        db_session,
+        test_user,
+        test_patient,
+    ):
+        """已有 5 张就诊卡时再创建应被拒绝"""
+        for i in range(4):  # test_patient 已占 1 张，补到 5 张
+            db_session.add(
+                self._make_card(test_user.id, test_patient.tenant_id, f"成员{i}")
+            )
+        await db_session.commit()
+
+        service = UserManageService(db_session)
+        data = FamilyMemberCreate(
+            name="第六位",
+            phone="13900008888",
+            id_card="110101199001018888",
+        )
+
+        with pytest.raises(BusinessError, match="限绑定"):
+            await service.create_card(user_id=test_user.id, data=data)
+
+    @pytest.mark.asyncio
+    async def test_create_card_allowed_below_limit(
+        self,
+        db_session,
+        test_user,
+        test_patient,
+    ):
+        """未达上限时创建正常"""
+        service = UserManageService(db_session)
+        data = FamilyMemberCreate(
+            name="第二位",
+            phone="13900007777",
+            id_card="110101199001017777",
+        )
+
+        result = await service.create_card(user_id=test_user.id, data=data)
+        assert result is not None
+        assert result["name"] == "第二位"

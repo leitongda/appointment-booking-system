@@ -84,7 +84,8 @@ export function AppointTabs() {
   );
 
   useDidShow(() => {
-    Taro.eventCenter.trigger('tabbar:change', 1);
+    // -1 = 不落在任何 tab 上：本页不在 elderly-tcm 的 navSchema 内（见 AppointSimple 同注释）
+    Taro.eventCenter.trigger('tabbar:change', -1);
     checkAndLoad();
   });
 

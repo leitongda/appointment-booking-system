@@ -8,6 +8,7 @@ import { useTemplate } from '../../contexts/TemplateContext';
 import { getToken } from '../../utils/auth';
 import { SpeakerIcon, HospitalIcon, CalendarIcon, CardIcon, HeadsetIcon, DoctorIcon } from '../../components/Icons';
 import LoginPopup from '../../components/LoginPopup';
+import PrivacyPopup, { hasAgreedPrivacy } from '../../components/PrivacyPopup';
 
 /** 首页快捷按钮（文案取自模板 tone，对齐竞品四宫格：预约挂号/预约记录/我的就诊卡/在线客服） */
 interface HomeQuickAction {
@@ -30,6 +31,8 @@ export function HomeElderly() {
   const [recentDoctors, setRecentDoctors] = useState<Doctor[]>([]);
   const [loading, setLoading] = useState(true);
   const [showLoginPopup, setShowLoginPopup] = useState(false);
+  // 首次使用弹隐私保护提示（竞品同流程）；同意一次后不再弹
+  const [showPrivacy, setShowPrivacy] = useState(() => !hasAgreedPrivacy());
 
   // 公告栏模块配置：文本优先取模块配置，缺省回落到首条 Banner 标题；linkUrl 未配置则整条不可点击
   const noticeModule = template.homeSchema.find(m => m.type === 'notice' && m.visible);
@@ -321,6 +324,22 @@ export function HomeElderly() {
                   {doctor.title && (
                     <Text style={{ fontSize: '32rpx', color: tokens.primary }}>{doctor.title}</Text>
                   )}
+                  {/* 号源角标（竞品「有号」绿标）：后端返回未来7天号源情况 */}
+                  <Text
+                    style={{
+                      marginLeft: 'auto',
+                      paddingLeft: '20rpx',
+                      paddingRight: '20rpx',
+                      paddingTop: '4rpx',
+                      paddingBottom: '4rpx',
+                      borderRadius: '9999rpx',
+                      fontSize: '28rpx',
+                      color: '#FFFFFF',
+                      backgroundColor: doctor.hasAvailableSlots ? tokens.primary : '#D1D5DB',
+                    }}
+                  >
+                    {doctor.hasAvailableSlots ? '有号' : '无号'}
+                  </Text>
                 </View>
                 <Text style={{ fontSize: '32rpx', color: '#6B7280' }}>
                   {doctor.departmentName}
@@ -341,6 +360,12 @@ export function HomeElderly() {
         visible={showLoginPopup}
         onClose={() => setShowLoginPopup(false)}
         onSuccess={handleLoginSuccess}
+      />
+
+      <PrivacyPopup
+        visible={showPrivacy}
+        onAgree={() => setShowPrivacy(false)}
+        orgName={tone.custom?.orgName}
       />
     </PageContainer>
   );

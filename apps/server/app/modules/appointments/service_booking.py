@@ -598,7 +598,7 @@ class AppointmentBookingService(AppointmentServiceBase):
             else:
                 settings_service_cls = self._compat("SettingsService", SettingsService)
                 settings_service = settings_service_cls(self.db)
-                cancel_hours = await settings_service.get_value("booking", "cancel_hours", 2)
+                cancel_hours = await settings_service.get_value("booking", "cancel_hours", 12)
                 schedule = appointment.schedule
                 if schedule and cancel_hours > 0:
                     if schedule.start_time:
