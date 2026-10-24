@@ -35,11 +35,25 @@
 2. 竞品「有号/余N」标签：生成器医生卡片暂无号源角标（需接排班余量接口），列为后续项。
 3. 导航栏标题「医院挂号」待租户品牌名注入。
 
-### 视觉核查操作（mock 已就绪）
+### 本地真实后端联调（2026-10-24）
 
-1. mock API：`python3 apps/miniapp-generator/scripts/mock-api.py 9000`（统一包装契约 + 视觉核查假数据 + 模拟小程序码 PNG）。
-2. 构建（已带 env）：`TARO_APP_API_URL=http://127.0.0.1:9000/api/v1 TARO_APP_STORE_ID=mock-store-1 node scripts/build-template.mjs --template=elderly-tcm`。
-3. 开发者工具打开本项目 → 点「编译」→ 首页将渲染公告+推荐医生，机构中心有名称/电话/地址/介绍，医生详情可打开海报弹层（含模拟码）。
+隔离环境（不碰主开发库）：
+- 独立库 `hospital_booking_tcm`（主库 dump 结构 + 手工补 127 列 + alembic stamp 127；迁移链无初始建表迁移，fresh 库无法直接 upgrade）
+- 种子：`apps/server/scripts/seed_local_demo.py`（租户 tcm-demo / 管理员 tcmadmin / 门店 / 两科室 / 两演示医生 / 今明上下午排班 / 首页公告），幂等
+- 后端 `127.0.0.1:9000`（DATABASE_URL 指向隔离库）、admin 9105、doctor 9103 已启动
+
+代码侧修复（模拟器联调实测发现）：
+1. 生成器请求头注入 `X-Tenant-Code`（TARO_APP_TENANT_CODE）——公开接口 fail-closed 必需；
+2. 机构中心改走公开 `/stores/by-code/{code}`（原 `/stores/{id}` 为管理端接口，游客 401）；
+3. **响应解包拦截器**——后端统一包装 `{code,message,data}`，此前生成器未解包，业务层拿到包装对象导致渲染空态（patient-miniapp 在其 app.tsx 有同款逻辑，生成器缺失）。
+
+实测证据：后端日志两次收到模拟器请求并返回 200（banners + doctors/recommended，带租户头）；
+curl 同接口返回两位演示医生且 `hasAvailableSlots=True`（排班生效）。
+
+遗留：模拟器画面偶发不随新构建刷新（热重载/编译触发不稳定），验证时用「清缓存 → 编译」；
+工具代理曾设为「使用系统代理」导致 127.0.0.1 请求被 Clash 拦截，已改为「不使用任何代理」。
+
+### 视觉核查操作（真实后端联调版）
 
 ## 二轮改动（绿色主题 + 机构中心 + tabBar 高亮修复）验证
 

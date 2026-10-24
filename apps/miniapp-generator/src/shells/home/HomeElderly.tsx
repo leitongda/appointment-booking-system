@@ -67,8 +67,8 @@ export function HomeElderly() {
   const loadData = async () => {
     try {
       const [banners, doctors] = await Promise.all([
-        contentApi.getActiveBanners('home').catch(() => []),
-        doctorApi.getRecommended(3).catch(() => []),
+        contentApi.getActiveBanners('home').catch(e => { console.error('[home] banners', e); return []; }),
+        doctorApi.getRecommended(3).catch(e => { console.error('[home] doctors', e); return []; }),
       ]);
       if (banners.length > 0 && banners[0].title) {
         setNotice(banners[0].title);

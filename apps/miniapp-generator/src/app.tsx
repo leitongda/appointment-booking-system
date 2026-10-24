@@ -37,6 +37,25 @@ if (taroAdapter.interceptors) {
     }
     return config;
   });
+
+  // 响应解包：与 patient-miniapp 同款。后端 UnifiedResponse 包裹为 {code,message,data}，
+  // 分页接口为 {code,data,total,...}——不解包则业务层拿到的是包装对象
+  taroAdapter.interceptors.response.use((response: any) => {
+    const data = response?.data ?? response;
+    if (data && typeof data === 'object' && 'code' in data && 'data' in data) {
+      if ('total' in data && typeof data.total === 'number') {
+        return {
+          data: data.data,
+          total: data.total,
+          success: true,
+          page: data.page ?? 1,
+          pageSize: data.pageSize ?? data.page_size ?? 10,
+        };
+      }
+      return data.data;
+    }
+    return data;
+  });
 }
 
 setHttpClient(taroAdapter);
