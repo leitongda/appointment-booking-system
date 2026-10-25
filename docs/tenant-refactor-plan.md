@@ -539,3 +539,18 @@
 - 第3期数据模型：P3-1 ~ P3-7（7 项）
 - 第4期生命周期：P4-1 ~ P4-8（8 项）
 - 测试基建：T-1 ~ T-7（7 项）
+
+---
+
+## 附2：51 项完成度交叉核对（2026-10-24）
+
+P5 收口后按工作项逐条与代码/测试/迁移实证核对，结论：**51/51 全部完成**，
+其中两处为"完成但含按决策搁置的子项"：
+
+| 期 | 项 | 证据 |
+|---|---|---|
+| P1-1~P1-8 | 全部完成 | `test_admin_identity_anchor`（P1-1/2）、`test_fail_close`（P1-3）、`auth_unified` code 分支（P1-4）、analytics `_tenant_conditions` 锚点（P1-5）、CMS 锚点（P1-6）、ws 医生认证+租户校验（P1-7，历史客户端确认归 R4-10 发布方）、blacklist_task 租户扇出（P1-8） |
+| P2A/B/C（21 项） | 全部完成 | P2A/P2B/P2C/P2C-7 矩阵测试全绿（`tests/security` + `tests/tenants`） |
+| P3-1~P3-7 | 全部完成 | p3a1–p3a7 迁移链在开发库实跑通过（见 tenant-remaining-plan §10.8）；p3a4 唯一索引形态兼容为演练后修复 |
+| P4-1~P4-8 | 全部完成 | 停服链路（P4-1）、密码策略（P4-2）、开通原子性（P4-3）、迁移审计（P4-4）、订阅闭环（P4-5，**本次核对补齐 auto_renew 的 payment_status='paid' 门禁**——未付费订阅挂账不得无限续费）、配额闭环（P4-6）、审计+软删闭环（P4-7）、死代码处置（P4-8：死分支已删、branding 已接线、feature 开关已接线；DataScope/role_permissions 的 drop 按 D20 等全环境行数核对） |
+| T-1~T-7 | 全部完成 | CI `test.yml` 已有 multi_tenant 分批步骤（SQLite + PostgreSQL 两轮） |

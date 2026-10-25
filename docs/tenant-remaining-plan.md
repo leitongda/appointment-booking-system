@@ -656,3 +656,12 @@ B0–B11 复盘时暴露的三个测试缺口在本批次收口：
 **开发库演练发现并修复**：p3a4 对「唯一索引 vs 唯一约束」的历史形态差异不兼容（生产若同样经 create_all 同步过会同样失败，staging/生产执行前需按第 6.6 节留档 `pg_indexes` 形态）。
 
 **仍未做（归 E1 剩余）**：staging/生产两环境的审计与 M6（无凭证）；微信支付/退款回调租户实测；`alembic downgrade` 在生产数据的不可逆点留档（6.8 要求 staging 完整演练已由开发库部分替代，生产仍需按流程）。
+
+### 10.9 退款收敛、51 项核对、p3a8 数据模型项与环境修复（2026-10-24，第六批次）
+
+| 事项 | 落点 | 说明 |
+|---|---|---|
+| R4-11 代码半边：退款回查租户收敛 | `refunds/service.py` `process_refund_callback` 增 `tenant_id` 参数（提供时按 (tenant_id, refund_no) 收敛）；`refunds/router.py` 回调传入解析出的租户 | 3 条单测：错租户上下文 404 且记录不被误更新、同租户正常更新、不传参保持全局幂等键查找（兼容非回调路径） |
+| 51 项主计划交叉核对 | `tenant-refactor-plan.md` 附2 | 结论 51/51 完成或按决策搁置；**抓出并修复 P4-5 语义缺口：续费须 `payment_status='paid'` 才触发**（未付费订阅挂账不得无限续费不停服），补负向单测 |
+| p3a8 数据模型项 | 迁移 `p3a8_fee_tenant` + 5 个模型列 + service 落锚 + `test_tenant_fk_models` 参数化 5 表 | consultation_fee_types/templates、store_fee_templates、doctor_consultation_fees、store_email_recipients 补 tenant_id（nullable+FK NOT VALID）；经 store/fee_type 回填；写入路径落锚（平台级类型/模板保持 NULL 语义）；M6 清洗脚本 A 类清单纳入（10+5 张）。开发库实跑：doctor_fees 15/15 回填、21/21 外键 VALIDATE。**查询侧锚点收口留待后续模块批次** |
+| 环境与构建验证 | `.venv` 重建（3.11.15 + 全依赖）；website/admin/patient-h5/miniapp 四端 build 全绿 | admin lint 存量 107 错（15+ 历史业务页面，与本轮改动无关，`access.ts` 干净），单列为技术债 |
