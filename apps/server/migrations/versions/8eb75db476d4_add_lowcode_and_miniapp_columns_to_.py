@@ -54,8 +54,8 @@ def upgrade() -> None:
     sa.UniqueConstraint('page_id', 'version', name='uq_lowcode_page_versions_page_version'),
     comment='低代码页面版本历史表'
     )
-    op.create_index(op.f('ix_lowcode_page_versions_page_id'), 'lowcode_page_versions', ['page_id'], unique=False)
-    op.create_index(op.f('ix_lowcode_page_versions_tenant_id'), 'lowcode_page_versions', ['tenant_id'], unique=False)
+    op.create_index(op.f('ix_lowcode_page_versions_page_id'), 'lowcode_page_versions', ['page_id'], unique=False, if_not_exists=True)
+    op.create_index(op.f('ix_lowcode_page_versions_tenant_id'), 'lowcode_page_versions', ['tenant_id'], unique=False, if_not_exists=True)
     op.create_table('lowcode_templates',
     sa.Column('id', sa.String(length=36), nullable=False),
     sa.Column('source_page_id', sa.String(length=36), nullable=True, comment='来源页面ID'),
@@ -85,10 +85,10 @@ def upgrade() -> None:
     sa.UniqueConstraint('source_page_id', name='uq_lowcode_templates_source_page'),
     comment='低代码市场模板表'
     )
-    op.create_index(op.f('ix_lowcode_templates_category'), 'lowcode_templates', ['category'], unique=False)
-    op.create_index(op.f('ix_lowcode_templates_created_by'), 'lowcode_templates', ['created_by'], unique=False)
-    op.create_index(op.f('ix_lowcode_templates_source_page_id'), 'lowcode_templates', ['source_page_id'], unique=False)
-    op.create_index(op.f('ix_lowcode_templates_source_tenant_id'), 'lowcode_templates', ['source_tenant_id'], unique=False)
+    op.create_index(op.f('ix_lowcode_templates_category'), 'lowcode_templates', ['category'], unique=False, if_not_exists=True)
+    op.create_index(op.f('ix_lowcode_templates_created_by'), 'lowcode_templates', ['created_by'], unique=False, if_not_exists=True)
+    op.create_index(op.f('ix_lowcode_templates_source_page_id'), 'lowcode_templates', ['source_page_id'], unique=False, if_not_exists=True)
+    op.create_index(op.f('ix_lowcode_templates_source_tenant_id'), 'lowcode_templates', ['source_tenant_id'], unique=False, if_not_exists=True)
     op.create_table('lowcode_template_forks',
     sa.Column('id', sa.String(length=36), nullable=False),
     sa.Column('original_template_id', sa.String(length=36), nullable=False, comment='原始模板ID'),
@@ -103,8 +103,8 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id'),
     comment='低代码模板Fork记录表'
     )
-    op.create_index(op.f('ix_lowcode_template_forks_forked_by_tenant_id'), 'lowcode_template_forks', ['forked_by_tenant_id'], unique=False)
-    op.create_index(op.f('ix_lowcode_template_forks_original_template_id'), 'lowcode_template_forks', ['original_template_id'], unique=False)
+    op.create_index(op.f('ix_lowcode_template_forks_forked_by_tenant_id'), 'lowcode_template_forks', ['forked_by_tenant_id'], unique=False, if_not_exists=True)
+    op.create_index(op.f('ix_lowcode_template_forks_original_template_id'), 'lowcode_template_forks', ['original_template_id'], unique=False, if_not_exists=True)
     op.create_table('lowcode_template_versions',
     sa.Column('id', sa.String(length=36), nullable=False),
     sa.Column('template_id', sa.String(length=36), nullable=False, comment='模板ID'),
@@ -123,7 +123,7 @@ def upgrade() -> None:
     sa.UniqueConstraint('template_id', 'version', name='uq_lowcode_template_versions_template_version'),
     comment='低代码模板版本历史表'
     )
-    op.create_index('ix_lowcode_template_versions_template_id', 'lowcode_template_versions', ['template_id'], unique=False)
+    op.create_index('ix_lowcode_template_versions_template_id', 'lowcode_template_versions', ['template_id'], unique=False, if_not_exists=True)
     op.alter_column('account_doctors', 'role_id',
                existing_type=sa.VARCHAR(length=36),
                comment='角色ID（关联 roles 表，支持 RBAC 权限）',
@@ -171,7 +171,7 @@ def upgrade() -> None:
     op.drop_index('idx_admins_tenant_role', table_name='admins', if_exists=True)
     op.drop_index('idx_admins_tenant_status', table_name='admins', if_exists=True)
     op.execute('ALTER TABLE admins DROP CONSTRAINT IF EXISTS uq_admins_tenant_username')
-    op.create_index(op.f('ix_admins_tenant_id'), 'admins', ['tenant_id'], unique=False)
+    op.create_index(op.f('ix_admins_tenant_id'), 'admins', ['tenant_id'], unique=False, if_not_exists=True)
     op.create_unique_constraint(None, 'admins', ['username'])
     op.execute('ALTER TABLE admins DROP CONSTRAINT IF EXISTS admins_store_id_fkey')
     op.create_foreign_key(None, 'admins', 'stores', ['current_store_id'], ['id'])
@@ -286,9 +286,9 @@ def upgrade() -> None:
     op.drop_index('ix_appointments_reminder_24h', table_name='appointments', if_exists=True)
     op.drop_index('ix_appointments_reminder_2h', table_name='appointments', if_exists=True)
     op.drop_index('ix_appointments_reminder_30min', table_name='appointments', if_exists=True)
-    op.create_index(op.f('ix_appointments_payment_miniapp_instance_id'), 'appointments', ['payment_miniapp_instance_id'], unique=False)
-    op.create_index(op.f('ix_appointments_payment_profile_id'), 'appointments', ['payment_profile_id'], unique=False)
-    op.create_index(op.f('ix_appointments_tenant_id'), 'appointments', ['tenant_id'], unique=False)
+    op.create_index(op.f('ix_appointments_payment_miniapp_instance_id'), 'appointments', ['payment_miniapp_instance_id'], unique=False, if_not_exists=True)
+    op.create_index(op.f('ix_appointments_payment_profile_id'), 'appointments', ['payment_profile_id'], unique=False, if_not_exists=True)
+    op.create_index(op.f('ix_appointments_tenant_id'), 'appointments', ['tenant_id'], unique=False, if_not_exists=True)
     op.create_table_comment(
         'appointments',
         '预约表（多租户支持）',
@@ -628,10 +628,10 @@ def upgrade() -> None:
     op.drop_index('idx_build_jobs_instance_id', table_name='build_jobs', if_exists=True)
     op.drop_index('idx_build_jobs_template_version_id', table_name='build_jobs', if_exists=True)
     op.drop_index('idx_build_jobs_tenant_id', table_name='build_jobs', if_exists=True)
-    op.create_index(op.f('ix_build_jobs_lowcode_page_id'), 'build_jobs', ['lowcode_page_id'], unique=False)
-    op.create_index(op.f('ix_build_jobs_miniapp_instance_id'), 'build_jobs', ['miniapp_instance_id'], unique=False)
-    op.create_index(op.f('ix_build_jobs_template_version_id'), 'build_jobs', ['template_version_id'], unique=False)
-    op.create_index(op.f('ix_build_jobs_tenant_id'), 'build_jobs', ['tenant_id'], unique=False)
+    op.create_index(op.f('ix_build_jobs_lowcode_page_id'), 'build_jobs', ['lowcode_page_id'], unique=False, if_not_exists=True)
+    op.create_index(op.f('ix_build_jobs_miniapp_instance_id'), 'build_jobs', ['miniapp_instance_id'], unique=False, if_not_exists=True)
+    op.create_index(op.f('ix_build_jobs_template_version_id'), 'build_jobs', ['template_version_id'], unique=False, if_not_exists=True)
+    op.create_index(op.f('ix_build_jobs_tenant_id'), 'build_jobs', ['tenant_id'], unique=False, if_not_exists=True)
     op.create_foreign_key(None, 'build_jobs', 'lowcode_pages', ['lowcode_page_id'], ['id'])
     op.alter_column('channel_strategies', 'channels',
                existing_type=postgresql.JSON(astext_type=sa.Text()),
@@ -702,7 +702,7 @@ def upgrade() -> None:
                existing_nullable=True,
                existing_server_default=sa.text('now()'))
     op.drop_index('idx_companies_tenant_id', table_name='companies', if_exists=True)
-    op.create_index(op.f('ix_companies_tenant_id'), 'companies', ['tenant_id'], unique=False)
+    op.create_index(op.f('ix_companies_tenant_id'), 'companies', ['tenant_id'], unique=False, if_not_exists=True)
     op.create_table_comment(
         'companies',
         '公司/结算主体表',
@@ -733,7 +733,7 @@ def upgrade() -> None:
                existing_server_default=sa.text('now()'))
     op.drop_index('ix_consultation_fee_types_store_code', table_name='consultation_fee_types', if_exists=True)
     op.drop_index('ix_consultation_fee_types_store_id', table_name='consultation_fee_types', if_exists=True)
-    op.create_index(op.f('ix_consultation_fee_types_code'), 'consultation_fee_types', ['code'], unique=False)
+    op.create_index(op.f('ix_consultation_fee_types_code'), 'consultation_fee_types', ['code'], unique=False, if_not_exists=True)
     op.create_unique_constraint('uq_consultation_fee_types_store_code', 'consultation_fee_types', ['store_id', 'code'])
     op.alter_column('departments', 'tenant_id',
                existing_type=sa.VARCHAR(length=36),
@@ -818,7 +818,7 @@ def upgrade() -> None:
                existing_nullable=True)
     op.drop_index('idx_departments_tenant_id', table_name='departments', if_exists=True)
     op.drop_index('idx_departments_tenant_store', table_name='departments', if_exists=True)
-    op.create_index(op.f('ix_departments_tenant_id'), 'departments', ['tenant_id'], unique=False)
+    op.create_index(op.f('ix_departments_tenant_id'), 'departments', ['tenant_id'], unique=False, if_not_exists=True)
     op.create_table_comment(
         'departments',
         '科室表（多租户支持）',
@@ -1019,9 +1019,9 @@ def upgrade() -> None:
     op.drop_index('idx_doctors_tenant_store', table_name='doctors', if_exists=True)
     op.drop_index('ix_doctors_store_id', table_name='doctors', if_exists=True)
     op.drop_index('ix_doctors_username', table_name='doctors', if_exists=True)
-    op.create_index(op.f('ix_doctors_username'), 'doctors', ['username'], unique=False)
-    op.create_index(op.f('ix_doctors_phone'), 'doctors', ['phone'], unique=False)
-    op.create_index(op.f('ix_doctors_tenant_id'), 'doctors', ['tenant_id'], unique=False)
+    op.create_index(op.f('ix_doctors_username'), 'doctors', ['username'], unique=False, if_not_exists=True)
+    op.create_index(op.f('ix_doctors_phone'), 'doctors', ['phone'], unique=False, if_not_exists=True)
+    op.create_index(op.f('ix_doctors_tenant_id'), 'doctors', ['tenant_id'], unique=False, if_not_exists=True)
     op.create_table_comment(
         'doctors',
         '医生表（多租户支持）',
@@ -1751,7 +1751,7 @@ def upgrade() -> None:
     op.add_column('lowcode_pages', sa.Column('deploy_status', sa.String(length=30), nullable=False, comment='部署状态: idle|building|built|uploading|uploaded|auditing|published|failed'))
     op.add_column('lowcode_pages', sa.Column('last_deploy_at', sa.DateTime(), nullable=True, comment='最近部署时间'))
     op.add_column('lowcode_pages', sa.Column('last_build_job_id', sa.String(length=36), nullable=True, comment='最近构建任务ID'))
-    op.create_index(op.f('ix_lowcode_pages_last_build_job_id'), 'lowcode_pages', ['last_build_job_id'], unique=False)
+    op.create_index(op.f('ix_lowcode_pages_last_build_job_id'), 'lowcode_pages', ['last_build_job_id'], unique=False, if_not_exists=True)
     op.create_foreign_key(None, 'lowcode_pages', 'build_jobs', ['last_build_job_id'], ['id'])
     op.alter_column('medical_records', 'created_at',
                existing_type=postgresql.TIMESTAMP(),
@@ -1819,11 +1819,11 @@ def upgrade() -> None:
     op.drop_index('idx_miniapp_instances_template_id', table_name='miniapp_instances', if_exists=True)
     op.drop_index('idx_miniapp_instances_template_version_id', table_name='miniapp_instances', if_exists=True)
     op.drop_index('idx_miniapp_instances_tenant_id', table_name='miniapp_instances', if_exists=True)
-    op.create_index(op.f('ix_miniapp_instances_default_payment_profile_id'), 'miniapp_instances', ['default_payment_profile_id'], unique=False)
-    op.create_index(op.f('ix_miniapp_instances_default_store_id'), 'miniapp_instances', ['default_store_id'], unique=False)
-    op.create_index(op.f('ix_miniapp_instances_template_id'), 'miniapp_instances', ['template_id'], unique=False)
-    op.create_index(op.f('ix_miniapp_instances_template_version_id'), 'miniapp_instances', ['template_version_id'], unique=False)
-    op.create_index(op.f('ix_miniapp_instances_tenant_id'), 'miniapp_instances', ['tenant_id'], unique=False)
+    op.create_index(op.f('ix_miniapp_instances_default_payment_profile_id'), 'miniapp_instances', ['default_payment_profile_id'], unique=False, if_not_exists=True)
+    op.create_index(op.f('ix_miniapp_instances_default_store_id'), 'miniapp_instances', ['default_store_id'], unique=False, if_not_exists=True)
+    op.create_index(op.f('ix_miniapp_instances_template_id'), 'miniapp_instances', ['template_id'], unique=False, if_not_exists=True)
+    op.create_index(op.f('ix_miniapp_instances_template_version_id'), 'miniapp_instances', ['template_version_id'], unique=False, if_not_exists=True)
+    op.create_index(op.f('ix_miniapp_instances_tenant_id'), 'miniapp_instances', ['tenant_id'], unique=False, if_not_exists=True)
     op.create_table_comment(
         'miniapp_instances',
         '小程序实例表',
@@ -2048,8 +2048,8 @@ def upgrade() -> None:
     op.drop_index('idx_patients_tenant_id', table_name='patients', if_exists=True)
     op.drop_index('idx_patients_tenant_user', table_name='patients', if_exists=True)
     op.drop_index('ix_patients_card_no', table_name='patients', if_exists=True)
-    op.create_index(op.f('ix_patients_card_no'), 'patients', ['card_no'], unique=False)
-    op.create_index(op.f('ix_patients_tenant_id'), 'patients', ['tenant_id'], unique=False)
+    op.create_index(op.f('ix_patients_card_no'), 'patients', ['card_no'], unique=False, if_not_exists=True)
+    op.create_index(op.f('ix_patients_tenant_id'), 'patients', ['tenant_id'], unique=False, if_not_exists=True)
     op.execute('ALTER TABLE patients DROP CONSTRAINT IF EXISTS patients_store_id_fkey')
     op.create_foreign_key(None, 'patients', 'stores', ['store_id'], ['id'])
     op.create_table_comment(
@@ -2095,8 +2095,8 @@ def upgrade() -> None:
                existing_server_default=sa.text('now()'))
     op.drop_index('idx_payment_profiles_company_id', table_name='payment_profiles', if_exists=True)
     op.drop_index('idx_payment_profiles_tenant_id', table_name='payment_profiles', if_exists=True)
-    op.create_index(op.f('ix_payment_profiles_company_id'), 'payment_profiles', ['company_id'], unique=False)
-    op.create_index(op.f('ix_payment_profiles_tenant_id'), 'payment_profiles', ['tenant_id'], unique=False)
+    op.create_index(op.f('ix_payment_profiles_company_id'), 'payment_profiles', ['company_id'], unique=False, if_not_exists=True)
+    op.create_index(op.f('ix_payment_profiles_tenant_id'), 'payment_profiles', ['tenant_id'], unique=False, if_not_exists=True)
     op.create_table_comment(
         'payment_profiles',
         '支付配置表',
@@ -2136,10 +2136,10 @@ def upgrade() -> None:
     op.drop_index('idx_payment_routes_payment_profile_id', table_name='payment_routes', if_exists=True)
     op.drop_index('idx_payment_routes_store_id', table_name='payment_routes', if_exists=True)
     op.drop_index('idx_payment_routes_tenant_id', table_name='payment_routes', if_exists=True)
-    op.create_index(op.f('ix_payment_routes_miniapp_instance_id'), 'payment_routes', ['miniapp_instance_id'], unique=False)
-    op.create_index(op.f('ix_payment_routes_payment_profile_id'), 'payment_routes', ['payment_profile_id'], unique=False)
-    op.create_index(op.f('ix_payment_routes_store_id'), 'payment_routes', ['store_id'], unique=False)
-    op.create_index(op.f('ix_payment_routes_tenant_id'), 'payment_routes', ['tenant_id'], unique=False)
+    op.create_index(op.f('ix_payment_routes_miniapp_instance_id'), 'payment_routes', ['miniapp_instance_id'], unique=False, if_not_exists=True)
+    op.create_index(op.f('ix_payment_routes_payment_profile_id'), 'payment_routes', ['payment_profile_id'], unique=False, if_not_exists=True)
+    op.create_index(op.f('ix_payment_routes_store_id'), 'payment_routes', ['store_id'], unique=False, if_not_exists=True)
+    op.create_index(op.f('ix_payment_routes_tenant_id'), 'payment_routes', ['tenant_id'], unique=False, if_not_exists=True)
     op.create_table_comment(
         'payment_routes',
         '支付路由规则表',
@@ -2273,7 +2273,7 @@ def upgrade() -> None:
                existing_nullable=True,
                existing_server_default=sa.text('now()'))
     op.drop_index('idx_release_artifacts_build_job_id', table_name='release_artifacts', if_exists=True)
-    op.create_index(op.f('ix_release_artifacts_build_job_id'), 'release_artifacts', ['build_job_id'], unique=False)
+    op.create_index(op.f('ix_release_artifacts_build_job_id'), 'release_artifacts', ['build_job_id'], unique=False, if_not_exists=True)
     op.alter_column('release_jobs', 'miniapp_instance_id',
                existing_type=sa.VARCHAR(length=36),
                comment='小程序实例ID',
@@ -2307,8 +2307,8 @@ def upgrade() -> None:
                existing_server_default=sa.text('now()'))
     op.drop_index('idx_release_jobs_artifact_id', table_name='release_jobs', if_exists=True)
     op.drop_index('idx_release_jobs_instance_id', table_name='release_jobs', if_exists=True)
-    op.create_index(op.f('ix_release_jobs_artifact_id'), 'release_jobs', ['artifact_id'], unique=False)
-    op.create_index(op.f('ix_release_jobs_miniapp_instance_id'), 'release_jobs', ['miniapp_instance_id'], unique=False)
+    op.create_index(op.f('ix_release_jobs_artifact_id'), 'release_jobs', ['artifact_id'], unique=False, if_not_exists=True)
+    op.create_index(op.f('ix_release_jobs_miniapp_instance_id'), 'release_jobs', ['miniapp_instance_id'], unique=False, if_not_exists=True)
     op.alter_column('rest_days', 'doctor_ids',
                existing_type=sa.TEXT(),
                comment='医生ID列表,JSON数组,NULL表示门店所有医生',
@@ -2342,8 +2342,8 @@ def upgrade() -> None:
                existing_nullable=True)
     op.drop_index('idx_roles_tenant_id', table_name='roles', if_exists=True)
     op.execute('ALTER TABLE roles DROP CONSTRAINT IF EXISTS uq_roles_tenant_code')
-    op.create_index(op.f('ix_roles_code'), 'roles', ['code'], unique=False)
-    op.create_index(op.f('ix_roles_tenant_id'), 'roles', ['tenant_id'], unique=False)
+    op.create_index(op.f('ix_roles_code'), 'roles', ['code'], unique=False, if_not_exists=True)
+    op.create_index(op.f('ix_roles_tenant_id'), 'roles', ['tenant_id'], unique=False, if_not_exists=True)
     op.create_table_comment(
         'roles',
         '角色表（多租户支持，统一角色类型）',
@@ -2450,11 +2450,11 @@ def upgrade() -> None:
     op.drop_index('idx_rule_sets_store_id', table_name='rule_sets', if_exists=True)
     op.drop_index('idx_rule_sets_tenant_id', table_name='rule_sets', if_exists=True)
     op.drop_index('idx_rule_sets_enabled_priority', table_name='rule_sets', if_exists=True)
-    op.create_index('idx_rule_sets_enabled_priority', 'rule_sets', ['enabled', 'priority'], unique=False)
-    op.create_index(op.f('ix_rule_sets_department_id'), 'rule_sets', ['department_id'], unique=False)
-    op.create_index(op.f('ix_rule_sets_doctor_id'), 'rule_sets', ['doctor_id'], unique=False)
-    op.create_index(op.f('ix_rule_sets_store_id'), 'rule_sets', ['store_id'], unique=False)
-    op.create_index(op.f('ix_rule_sets_tenant_id'), 'rule_sets', ['tenant_id'], unique=False)
+    op.create_index('idx_rule_sets_enabled_priority', 'rule_sets', ['enabled', 'priority'], unique=False, if_not_exists=True)
+    op.create_index(op.f('ix_rule_sets_department_id'), 'rule_sets', ['department_id'], unique=False, if_not_exists=True)
+    op.create_index(op.f('ix_rule_sets_doctor_id'), 'rule_sets', ['doctor_id'], unique=False, if_not_exists=True)
+    op.create_index(op.f('ix_rule_sets_store_id'), 'rule_sets', ['store_id'], unique=False, if_not_exists=True)
+    op.create_index(op.f('ix_rule_sets_tenant_id'), 'rule_sets', ['tenant_id'], unique=False, if_not_exists=True)
     op.drop_table_comment(
         'rule_sets',
         existing_comment='规则组表',
@@ -2526,7 +2526,7 @@ def upgrade() -> None:
     op.drop_index('ix_schedule_suspensions_doctor_id', table_name='schedule_suspensions', if_exists=True)
     op.drop_index('ix_schedule_suspensions_store_id', table_name='schedule_suspensions', if_exists=True)
     op.drop_index('ix_schedule_suspensions_suspension_date', table_name='schedule_suspensions', if_exists=True)
-    op.create_index(op.f('ix_schedule_suspensions_tenant_id'), 'schedule_suspensions', ['tenant_id'], unique=False)
+    op.create_index(op.f('ix_schedule_suspensions_tenant_id'), 'schedule_suspensions', ['tenant_id'], unique=False, if_not_exists=True)
     op.alter_column('schedule_templates', 'tenant_id',
                existing_type=sa.VARCHAR(length=36),
                nullable=True,
@@ -2558,8 +2558,8 @@ def upgrade() -> None:
     op.drop_index('ix_schedule_templates_department_id', table_name='schedule_templates', if_exists=True)
     op.drop_index('ix_schedule_templates_doctor_id', table_name='schedule_templates', if_exists=True)
     op.drop_index('ix_schedule_templates_store_id', table_name='schedule_templates', if_exists=True)
-    op.create_index(op.f('ix_schedule_templates_rule_set_id'), 'schedule_templates', ['rule_set_id'], unique=False)
-    op.create_index(op.f('ix_schedule_templates_tenant_id'), 'schedule_templates', ['tenant_id'], unique=False)
+    op.create_index(op.f('ix_schedule_templates_rule_set_id'), 'schedule_templates', ['rule_set_id'], unique=False, if_not_exists=True)
+    op.create_index(op.f('ix_schedule_templates_tenant_id'), 'schedule_templates', ['tenant_id'], unique=False, if_not_exists=True)
     op.create_table_comment(
         'schedule_templates',
         '排班模板表（多租户支持）',
@@ -2621,8 +2621,8 @@ def upgrade() -> None:
     op.drop_index('ix_schedules_template_id', table_name='schedules', if_exists=True)
     op.drop_index('ix_schedules_tenant_store_date', table_name='schedules', if_exists=True)
     op.drop_index('uq_schedule_doctor_date_time', table_name='schedules', postgresql_where='((start_time IS NOT NULL) AND (end_time IS NOT NULL))', if_exists=True)
-    op.create_index(op.f('ix_schedules_rule_set_id'), 'schedules', ['rule_set_id'], unique=False)
-    op.create_index(op.f('ix_schedules_tenant_id'), 'schedules', ['tenant_id'], unique=False)
+    op.create_index(op.f('ix_schedules_rule_set_id'), 'schedules', ['rule_set_id'], unique=False, if_not_exists=True)
+    op.create_index(op.f('ix_schedules_tenant_id'), 'schedules', ['tenant_id'], unique=False, if_not_exists=True)
     op.alter_column('shift_types', 'code',
                existing_type=sa.VARCHAR(length=50),
                comment='类型代码: OPD/CHECKUP/EXAM/NURSING/SPECIAL',
@@ -2641,7 +2641,7 @@ def upgrade() -> None:
                comment='更新时间',
                existing_server_default=sa.text('now()'))
     op.drop_index('idx_shift_types_tenant_id', table_name='shift_types', if_exists=True)
-    op.create_index(op.f('ix_shift_types_tenant_id'), 'shift_types', ['tenant_id'], unique=False)
+    op.create_index(op.f('ix_shift_types_tenant_id'), 'shift_types', ['tenant_id'], unique=False, if_not_exists=True)
     op.drop_table_comment(
         'shift_types',
         existing_comment='班次类型表',
@@ -2752,8 +2752,8 @@ def upgrade() -> None:
                existing_nullable=True)
     op.drop_index('idx_stores_tenant_id', table_name='stores', if_exists=True)
     op.drop_index('idx_stores_tenant_status', table_name='stores', if_exists=True)
-    op.create_index(op.f('ix_stores_code'), 'stores', ['code'], unique=False)
-    op.create_index(op.f('ix_stores_tenant_id'), 'stores', ['tenant_id'], unique=False)
+    op.create_index(op.f('ix_stores_code'), 'stores', ['code'], unique=False, if_not_exists=True)
+    op.create_index(op.f('ix_stores_tenant_id'), 'stores', ['tenant_id'], unique=False, if_not_exists=True)
     op.create_table_comment(
         'stores',
         '门店表（多租户支持）',
@@ -2860,7 +2860,7 @@ def upgrade() -> None:
                existing_nullable=True,
                existing_server_default=sa.text('now()'))
     op.drop_index('idx_template_versions_template_id', table_name='template_versions', if_exists=True)
-    op.create_index(op.f('ix_template_versions_template_id'), 'template_versions', ['template_id'], unique=False)
+    op.create_index(op.f('ix_template_versions_template_id'), 'template_versions', ['template_id'], unique=False, if_not_exists=True)
     op.create_table_comment(
         'template_versions',
         '模板版本表',
@@ -3075,12 +3075,12 @@ def upgrade() -> None:
     op.drop_index('idx_users_tenant_phone', table_name='users', if_exists=True)
     op.drop_index('idx_users_tenant_status', table_name='users', if_exists=True)
     op.drop_index('ix_users_openid', table_name='users', if_exists=True)
-    op.create_index(op.f('ix_users_openid'), 'users', ['openid'], unique=False)
+    op.create_index(op.f('ix_users_openid'), 'users', ['openid'], unique=False, if_not_exists=True)
     op.drop_index('ix_users_phone', table_name='users', if_exists=True)
-    op.create_index(op.f('ix_users_phone'), 'users', ['phone'], unique=False)
+    op.create_index(op.f('ix_users_phone'), 'users', ['phone'], unique=False, if_not_exists=True)
     op.drop_index('ix_users_unionid', table_name='users', if_exists=True)
-    op.create_index(op.f('ix_users_unionid'), 'users', ['unionid'], unique=False)
-    op.create_index(op.f('ix_users_tenant_id'), 'users', ['tenant_id'], unique=False)
+    op.create_index(op.f('ix_users_unionid'), 'users', ['unionid'], unique=False, if_not_exists=True)
+    op.create_index(op.f('ix_users_tenant_id'), 'users', ['tenant_id'], unique=False, if_not_exists=True)
     op.create_table_comment(
         'users',
         '用户表（多租户支持）',
@@ -3089,8 +3089,8 @@ def upgrade() -> None:
     )
     op.drop_index('ix_waitlist_schedule_id', table_name='waitlist_entries', if_exists=True)
     op.drop_index('ix_waitlist_user_id', table_name='waitlist_entries', if_exists=True)
-    op.create_index(op.f('ix_waitlist_entries_schedule_id'), 'waitlist_entries', ['schedule_id'], unique=False)
-    op.create_index(op.f('ix_waitlist_entries_user_id'), 'waitlist_entries', ['user_id'], unique=False)
+    op.create_index(op.f('ix_waitlist_entries_schedule_id'), 'waitlist_entries', ['schedule_id'], unique=False, if_not_exists=True)
+    op.create_index(op.f('ix_waitlist_entries_user_id'), 'waitlist_entries', ['user_id'], unique=False, if_not_exists=True)
     op.drop_column('waitlist_entries', 'created_by', if_exists=True)
     op.drop_column('waitlist_entries', 'updated_at', if_exists=True)
     op.drop_column('waitlist_entries', 'updated_by', if_exists=True)
@@ -3104,8 +3104,8 @@ def downgrade() -> None:
     op.add_column('waitlist_entries', sa.Column('created_by', sa.VARCHAR(length=36), autoincrement=False, nullable=True, comment='创建人ID'))
     op.drop_index(op.f('ix_waitlist_entries_user_id'), table_name='waitlist_entries', if_exists=True)
     op.drop_index(op.f('ix_waitlist_entries_schedule_id'), table_name='waitlist_entries', if_exists=True)
-    op.create_index('ix_waitlist_user_id', 'waitlist_entries', ['user_id'], unique=False)
-    op.create_index('ix_waitlist_schedule_id', 'waitlist_entries', ['schedule_id'], unique=False)
+    op.create_index('ix_waitlist_user_id', 'waitlist_entries', ['user_id'], unique=False, if_not_exists=True)
+    op.create_index('ix_waitlist_schedule_id', 'waitlist_entries', ['schedule_id'], unique=False, if_not_exists=True)
     op.drop_table_comment(
         'users',
         existing_comment='用户表（多租户支持）',
@@ -3113,14 +3113,14 @@ def downgrade() -> None:
     )
     op.drop_index(op.f('ix_users_tenant_id'), table_name='users', if_exists=True)
     op.drop_index(op.f('ix_users_unionid'), table_name='users', if_exists=True)
-    op.create_index('ix_users_unionid', 'users', ['unionid'], unique=True)
+    op.create_index('ix_users_unionid', 'users', ['unionid'], unique=True, if_not_exists=True)
     op.drop_index(op.f('ix_users_phone'), table_name='users', if_exists=True)
-    op.create_index('ix_users_phone', 'users', ['phone'], unique=True)
+    op.create_index('ix_users_phone', 'users', ['phone'], unique=True, if_not_exists=True)
     op.drop_index(op.f('ix_users_openid'), table_name='users', if_exists=True)
-    op.create_index('ix_users_openid', 'users', ['openid'], unique=True)
-    op.create_index('idx_users_tenant_status', 'users', ['tenant_id', 'status'], unique=False)
-    op.create_index('idx_users_tenant_phone', 'users', ['tenant_id', 'phone'], unique=False)
-    op.create_index('idx_users_tenant_id', 'users', ['tenant_id'], unique=False)
+    op.create_index('ix_users_openid', 'users', ['openid'], unique=True, if_not_exists=True)
+    op.create_index('idx_users_tenant_status', 'users', ['tenant_id', 'status'], unique=False, if_not_exists=True)
+    op.create_index('idx_users_tenant_phone', 'users', ['tenant_id', 'phone'], unique=False, if_not_exists=True)
+    op.create_index('idx_users_tenant_id', 'users', ['tenant_id'], unique=False, if_not_exists=True)
     op.alter_column('users', 'updated_at',
                existing_type=postgresql.TIMESTAMP(),
                comment=None,
@@ -3145,8 +3145,8 @@ def downgrade() -> None:
                existing_type=sa.VARCHAR(length=36),
                nullable=False,
                existing_comment='租户ID')
-    op.create_index('ix_user_favorites_user_id', 'user_favorites', ['user_id'], unique=False)
-    op.create_index('ix_user_favorites_target', 'user_favorites', ['target_type', 'target_id'], unique=False)
+    op.create_index('ix_user_favorites_user_id', 'user_favorites', ['user_id'], unique=False, if_not_exists=True)
+    op.create_index('ix_user_favorites_target', 'user_favorites', ['target_type', 'target_id'], unique=False, if_not_exists=True)
     op.alter_column('user_favorites', 'updated_at',
                existing_type=postgresql.TIMESTAMP(),
                comment=None,
@@ -3169,14 +3169,14 @@ def downgrade() -> None:
                comment=None,
                existing_comment='创建人ID',
                existing_nullable=True)
-    op.create_index('idx_behavior_logs_user_id', 'user_behavior_logs', ['user_id'], unique=False)
-    op.create_index('idx_behavior_logs_session_id', 'user_behavior_logs', ['session_id'], unique=False)
-    op.create_index('idx_behavior_logs_platform_event', 'user_behavior_logs', ['platform', 'event_type'], unique=False)
-    op.create_index('idx_behavior_logs_platform_created', 'user_behavior_logs', ['platform', 'created_at'], unique=False)
-    op.create_index('idx_behavior_logs_platform', 'user_behavior_logs', ['platform'], unique=False)
-    op.create_index('idx_behavior_logs_page_path', 'user_behavior_logs', ['page_path'], unique=False)
-    op.create_index('idx_behavior_logs_event_type', 'user_behavior_logs', ['event_type'], unique=False)
-    op.create_index('idx_behavior_logs_created_at', 'user_behavior_logs', ['created_at'], unique=False)
+    op.create_index('idx_behavior_logs_user_id', 'user_behavior_logs', ['user_id'], unique=False, if_not_exists=True)
+    op.create_index('idx_behavior_logs_session_id', 'user_behavior_logs', ['session_id'], unique=False, if_not_exists=True)
+    op.create_index('idx_behavior_logs_platform_event', 'user_behavior_logs', ['platform', 'event_type'], unique=False, if_not_exists=True)
+    op.create_index('idx_behavior_logs_platform_created', 'user_behavior_logs', ['platform', 'created_at'], unique=False, if_not_exists=True)
+    op.create_index('idx_behavior_logs_platform', 'user_behavior_logs', ['platform'], unique=False, if_not_exists=True)
+    op.create_index('idx_behavior_logs_page_path', 'user_behavior_logs', ['page_path'], unique=False, if_not_exists=True)
+    op.create_index('idx_behavior_logs_event_type', 'user_behavior_logs', ['event_type'], unique=False, if_not_exists=True)
+    op.create_index('idx_behavior_logs_created_at', 'user_behavior_logs', ['created_at'], unique=False, if_not_exists=True)
     op.alter_column('unified_templates', 'updated_at',
                existing_type=postgresql.TIMESTAMP(),
                comment=None,
@@ -3215,9 +3215,9 @@ def downgrade() -> None:
                comment='模板编码',
                existing_comment='模板编码: appointment_success',
                existing_nullable=False)
-    op.create_index('idx_tenants_subscription_plan', 'tenants', ['subscription_plan_id'], unique=False)
-    op.create_index('idx_tenants_status', 'tenants', ['status'], unique=False)
-    op.create_index('idx_tenants_code', 'tenants', ['tenant_code'], unique=False)
+    op.create_index('idx_tenants_subscription_plan', 'tenants', ['subscription_plan_id'], unique=False, if_not_exists=True)
+    op.create_index('idx_tenants_status', 'tenants', ['status'], unique=False, if_not_exists=True)
+    op.create_index('idx_tenants_code', 'tenants', ['tenant_code'], unique=False, if_not_exists=True)
     op.alter_column('tenants', 'updated_at',
                existing_type=postgresql.TIMESTAMP(),
                comment=None,
@@ -3288,17 +3288,17 @@ def downgrade() -> None:
         schema=None
     )
     op.create_unique_constraint('uq_tenant_usage_date', 'tenant_usage_logs', ['tenant_id', 'usage_date'], postgresql_nulls_not_distinct=False)
-    op.create_index('idx_tenant_usage_logs_tenant', 'tenant_usage_logs', ['tenant_id'], unique=False)
-    op.create_index('idx_tenant_usage_logs_date', 'tenant_usage_logs', ['usage_date'], unique=False)
+    op.create_index('idx_tenant_usage_logs_tenant', 'tenant_usage_logs', ['tenant_id'], unique=False, if_not_exists=True)
+    op.create_index('idx_tenant_usage_logs_date', 'tenant_usage_logs', ['usage_date'], unique=False, if_not_exists=True)
     op.alter_column('tenant_usage_logs', 'created_at',
                existing_type=postgresql.TIMESTAMP(),
                comment=None,
                existing_comment='创建时间',
                existing_nullable=True,
                existing_server_default=sa.text('now()'))
-    op.create_index('idx_tenant_subscriptions_tenant', 'tenant_subscriptions', ['tenant_id'], unique=False)
-    op.create_index('idx_tenant_subscriptions_status', 'tenant_subscriptions', ['status'], unique=False)
-    op.create_index('idx_tenant_subscriptions_plan', 'tenant_subscriptions', ['plan_id'], unique=False)
+    op.create_index('idx_tenant_subscriptions_tenant', 'tenant_subscriptions', ['tenant_id'], unique=False, if_not_exists=True)
+    op.create_index('idx_tenant_subscriptions_status', 'tenant_subscriptions', ['status'], unique=False, if_not_exists=True)
+    op.create_index('idx_tenant_subscriptions_plan', 'tenant_subscriptions', ['plan_id'], unique=False, if_not_exists=True)
     op.alter_column('tenant_subscriptions', 'updated_at',
                existing_type=postgresql.TIMESTAMP(),
                comment=None,
@@ -3347,7 +3347,7 @@ def downgrade() -> None:
         schema=None
     )
     op.drop_index(op.f('ix_template_versions_template_id'), table_name='template_versions', if_exists=True)
-    op.create_index('idx_template_versions_template_id', 'template_versions', ['template_id'], unique=False)
+    op.create_index('idx_template_versions_template_id', 'template_versions', ['template_id'], unique=False, if_not_exists=True)
     op.alter_column('template_versions', 'updated_at',
                existing_type=postgresql.TIMESTAMP(),
                comment=None,
@@ -3428,8 +3428,8 @@ def downgrade() -> None:
                existing_type=sa.VARCHAR(length=20),
                nullable=False,
                existing_comment='工单类型: suggestion/complaint/bug/other')
-    op.create_index('idx_subscription_plans_status', 'subscription_plans', ['status'], unique=False)
-    op.create_index('idx_subscription_plans_code', 'subscription_plans', ['plan_code'], unique=False)
+    op.create_index('idx_subscription_plans_status', 'subscription_plans', ['status'], unique=False, if_not_exists=True)
+    op.create_index('idx_subscription_plans_code', 'subscription_plans', ['plan_code'], unique=False, if_not_exists=True)
     op.alter_column('subscription_plans', 'updated_at',
                existing_type=postgresql.TIMESTAMP(),
                comment=None,
@@ -3466,8 +3466,8 @@ def downgrade() -> None:
     )
     op.drop_index(op.f('ix_stores_tenant_id'), table_name='stores', if_exists=True)
     op.drop_index(op.f('ix_stores_code'), table_name='stores', if_exists=True)
-    op.create_index('idx_stores_tenant_status', 'stores', ['tenant_id', 'status'], unique=False)
-    op.create_index('idx_stores_tenant_id', 'stores', ['tenant_id'], unique=False)
+    op.create_index('idx_stores_tenant_status', 'stores', ['tenant_id', 'status'], unique=False, if_not_exists=True)
+    op.create_index('idx_stores_tenant_id', 'stores', ['tenant_id'], unique=False, if_not_exists=True)
     op.alter_column('stores', 'updated_at',
                existing_type=postgresql.TIMESTAMP(),
                comment=None,
@@ -3533,7 +3533,7 @@ def downgrade() -> None:
                nullable=False,
                comment='租户ID',
                existing_comment='租户ID（NULL表示平台级门店）')
-    op.create_index('ix_store_visit_type_configs_store_id', 'store_visit_type_configs', ['store_id'], unique=True)
+    op.create_index('ix_store_visit_type_configs_store_id', 'store_visit_type_configs', ['store_id'], unique=True, if_not_exists=True)
     op.alter_column('store_visit_type_configs', 'updated_at',
                existing_type=postgresql.TIMESTAMP(),
                comment=None,
@@ -3547,9 +3547,9 @@ def downgrade() -> None:
                existing_nullable=True,
                existing_server_default=sa.text('now()'))
     op.execute('ALTER TABLE store_fee_templates DROP CONSTRAINT IF EXISTS uq_store_fee_templates_store_type')
-    op.create_index('ix_store_fee_templates_unique', 'store_fee_templates', ['store_id', 'fee_type_id'], unique=True)
-    op.create_index('ix_store_fee_templates_store_id', 'store_fee_templates', ['store_id'], unique=False)
-    op.create_index('ix_store_fee_templates_fee_type_id', 'store_fee_templates', ['fee_type_id'], unique=False)
+    op.create_index('ix_store_fee_templates_unique', 'store_fee_templates', ['store_id', 'fee_type_id'], unique=True, if_not_exists=True)
+    op.create_index('ix_store_fee_templates_store_id', 'store_fee_templates', ['store_id'], unique=False, if_not_exists=True)
+    op.create_index('ix_store_fee_templates_fee_type_id', 'store_fee_templates', ['fee_type_id'], unique=False, if_not_exists=True)
     op.alter_column('store_fee_templates', 'updated_at',
                existing_type=postgresql.TIMESTAMP(),
                comment=None,
@@ -3591,7 +3591,7 @@ def downgrade() -> None:
         schema=None
     )
     op.drop_index(op.f('ix_shift_types_tenant_id'), table_name='shift_types', if_exists=True)
-    op.create_index('idx_shift_types_tenant_id', 'shift_types', ['tenant_id'], unique=False)
+    op.create_index('idx_shift_types_tenant_id', 'shift_types', ['tenant_id'], unique=False, if_not_exists=True)
     op.alter_column('shift_types', 'updated_at',
                existing_type=sa.DateTime(),
                type_=postgresql.TIMESTAMP(timezone=True),
@@ -3613,19 +3613,19 @@ def downgrade() -> None:
                existing_nullable=False)
     op.drop_index(op.f('ix_schedules_tenant_id'), table_name='schedules', if_exists=True)
     op.drop_index(op.f('ix_schedules_rule_set_id'), table_name='schedules', if_exists=True)
-    op.create_index('uq_schedule_doctor_date_time', 'schedules', ['doctor_id', 'schedule_date', 'start_time', 'end_time'], unique=True, postgresql_where='((start_time IS NOT NULL) AND (end_time IS NOT NULL))')
-    op.create_index('ix_schedules_tenant_store_date', 'schedules', ['tenant_id', 'store_id', 'schedule_date'], unique=False)
-    op.create_index('ix_schedules_template_id', 'schedules', ['template_id'], unique=False)
-    op.create_index('ix_schedules_store_id', 'schedules', ['store_id'], unique=False)
-    op.create_index('ix_schedules_store_date', 'schedules', ['store_id', 'schedule_date'], unique=False)
-    op.create_index('ix_schedules_schedule_status', 'schedules', ['schedule_status'], unique=False)
-    op.create_index('ix_schedules_doctor_date', 'schedules', ['doctor_id', 'schedule_date'], unique=False)
-    op.create_index('idx_schedules_tenant_store_date', 'schedules', ['tenant_id', 'store_id', 'schedule_date'], unique=False)
-    op.create_index('idx_schedules_tenant_status', 'schedules', ['tenant_id', 'status'], unique=False)
-    op.create_index('idx_schedules_tenant_id', 'schedules', ['tenant_id'], unique=False)
-    op.create_index('idx_schedules_tenant_doctor_date', 'schedules', ['tenant_id', 'doctor_id', 'schedule_date'], unique=False)
-    op.create_index('idx_schedules_shift_type', 'schedules', ['shift_type_id'], unique=False)
-    op.create_index('idx_schedules_rule_set_id', 'schedules', ['rule_set_id'], unique=False)
+    op.create_index('uq_schedule_doctor_date_time', 'schedules', ['doctor_id', 'schedule_date', 'start_time', 'end_time'], unique=True, postgresql_where='((start_time IS NOT NULL) AND (end_time IS NOT NULL))', if_not_exists=True)
+    op.create_index('ix_schedules_tenant_store_date', 'schedules', ['tenant_id', 'store_id', 'schedule_date'], unique=False, if_not_exists=True)
+    op.create_index('ix_schedules_template_id', 'schedules', ['template_id'], unique=False, if_not_exists=True)
+    op.create_index('ix_schedules_store_id', 'schedules', ['store_id'], unique=False, if_not_exists=True)
+    op.create_index('ix_schedules_store_date', 'schedules', ['store_id', 'schedule_date'], unique=False, if_not_exists=True)
+    op.create_index('ix_schedules_schedule_status', 'schedules', ['schedule_status'], unique=False, if_not_exists=True)
+    op.create_index('ix_schedules_doctor_date', 'schedules', ['doctor_id', 'schedule_date'], unique=False, if_not_exists=True)
+    op.create_index('idx_schedules_tenant_store_date', 'schedules', ['tenant_id', 'store_id', 'schedule_date'], unique=False, if_not_exists=True)
+    op.create_index('idx_schedules_tenant_status', 'schedules', ['tenant_id', 'status'], unique=False, if_not_exists=True)
+    op.create_index('idx_schedules_tenant_id', 'schedules', ['tenant_id'], unique=False, if_not_exists=True)
+    op.create_index('idx_schedules_tenant_doctor_date', 'schedules', ['tenant_id', 'doctor_id', 'schedule_date'], unique=False, if_not_exists=True)
+    op.create_index('idx_schedules_shift_type', 'schedules', ['shift_type_id'], unique=False, if_not_exists=True)
+    op.create_index('idx_schedules_rule_set_id', 'schedules', ['rule_set_id'], unique=False, if_not_exists=True)
     op.alter_column('schedules', 'updated_at',
                existing_type=postgresql.TIMESTAMP(),
                comment=None,
@@ -3678,12 +3678,12 @@ def downgrade() -> None:
     )
     op.drop_index(op.f('ix_schedule_templates_tenant_id'), table_name='schedule_templates', if_exists=True)
     op.drop_index(op.f('ix_schedule_templates_rule_set_id'), table_name='schedule_templates', if_exists=True)
-    op.create_index('ix_schedule_templates_store_id', 'schedule_templates', ['store_id'], unique=False)
-    op.create_index('ix_schedule_templates_doctor_id', 'schedule_templates', ['doctor_id'], unique=False)
-    op.create_index('ix_schedule_templates_department_id', 'schedule_templates', ['department_id'], unique=False)
-    op.create_index('idx_schedule_templates_tenant_store', 'schedule_templates', ['tenant_id', 'store_id'], unique=False)
-    op.create_index('idx_schedule_templates_tenant_id', 'schedule_templates', ['tenant_id'], unique=False)
-    op.create_index('idx_schedule_templates_rule_set_id', 'schedule_templates', ['rule_set_id'], unique=False)
+    op.create_index('ix_schedule_templates_store_id', 'schedule_templates', ['store_id'], unique=False, if_not_exists=True)
+    op.create_index('ix_schedule_templates_doctor_id', 'schedule_templates', ['doctor_id'], unique=False, if_not_exists=True)
+    op.create_index('ix_schedule_templates_department_id', 'schedule_templates', ['department_id'], unique=False, if_not_exists=True)
+    op.create_index('idx_schedule_templates_tenant_store', 'schedule_templates', ['tenant_id', 'store_id'], unique=False, if_not_exists=True)
+    op.create_index('idx_schedule_templates_tenant_id', 'schedule_templates', ['tenant_id'], unique=False, if_not_exists=True)
+    op.create_index('idx_schedule_templates_rule_set_id', 'schedule_templates', ['rule_set_id'], unique=False, if_not_exists=True)
     op.alter_column('schedule_templates', 'updated_at',
                existing_type=postgresql.TIMESTAMP(),
                comment=None,
@@ -3712,10 +3712,10 @@ def downgrade() -> None:
                nullable=False,
                existing_comment='租户ID')
     op.drop_index(op.f('ix_schedule_suspensions_tenant_id'), table_name='schedule_suspensions', if_exists=True)
-    op.create_index('ix_schedule_suspensions_suspension_date', 'schedule_suspensions', ['suspension_date'], unique=False)
-    op.create_index('ix_schedule_suspensions_store_id', 'schedule_suspensions', ['store_id'], unique=False)
-    op.create_index('ix_schedule_suspensions_doctor_id', 'schedule_suspensions', ['doctor_id'], unique=False)
-    op.create_index('idx_schedule_suspensions_tenant_id', 'schedule_suspensions', ['tenant_id'], unique=False)
+    op.create_index('ix_schedule_suspensions_suspension_date', 'schedule_suspensions', ['suspension_date'], unique=False, if_not_exists=True)
+    op.create_index('ix_schedule_suspensions_store_id', 'schedule_suspensions', ['store_id'], unique=False, if_not_exists=True)
+    op.create_index('ix_schedule_suspensions_doctor_id', 'schedule_suspensions', ['doctor_id'], unique=False, if_not_exists=True)
+    op.create_index('idx_schedule_suspensions_tenant_id', 'schedule_suspensions', ['tenant_id'], unique=False, if_not_exists=True)
     op.alter_column('schedule_suspensions', 'updated_at',
                existing_type=postgresql.TIMESTAMP(),
                comment=None,
@@ -3738,7 +3738,7 @@ def downgrade() -> None:
                comment='选中的排班ID JSON数组',
                existing_comment='选中的排班ID,JSON数组',
                existing_nullable=True)
-    op.create_index('ix_schedule_holidays_tenant_store_date', 'schedule_holidays', ['tenant_id', 'store_id', 'holiday_date'], unique=False)
+    op.create_index('ix_schedule_holidays_tenant_store_date', 'schedule_holidays', ['tenant_id', 'store_id', 'holiday_date'], unique=False, if_not_exists=True)
     op.alter_column('schedule_holidays', 'allow_schedule',
                existing_type=sa.BOOLEAN(),
                comment='是否允许排班',
@@ -3761,8 +3761,8 @@ def downgrade() -> None:
                comment='门店ID，NULL表示全租户生效',
                existing_comment='门店ID，NULL 表示全租户生效',
                existing_nullable=True)
-    op.create_index('idx_schedule_generation_logs_template_id', 'schedule_generation_logs', ['template_id'], unique=False)
-    op.create_index('idx_schedule_generation_logs_created_at', 'schedule_generation_logs', ['created_at'], unique=False)
+    op.create_index('idx_schedule_generation_logs_template_id', 'schedule_generation_logs', ['template_id'], unique=False, if_not_exists=True)
+    op.create_index('idx_schedule_generation_logs_created_at', 'schedule_generation_logs', ['created_at'], unique=False, if_not_exists=True)
     op.create_table_comment(
         'rule_windows',
         '时间窗配置表',
@@ -3794,11 +3794,11 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_rule_sets_doctor_id'), table_name='rule_sets', if_exists=True)
     op.drop_index(op.f('ix_rule_sets_department_id'), table_name='rule_sets', if_exists=True)
     op.drop_index('idx_rule_sets_enabled_priority', table_name='rule_sets', if_exists=True)
-    op.create_index('idx_rule_sets_enabled_priority', 'rule_sets', ['enabled', 'priority', 'deleted_at'], unique=False)
-    op.create_index('idx_rule_sets_tenant_id', 'rule_sets', ['tenant_id'], unique=False)
-    op.create_index('idx_rule_sets_store_id', 'rule_sets', ['store_id'], unique=False)
-    op.create_index('idx_rule_sets_doctor_id', 'rule_sets', ['doctor_id'], unique=False)
-    op.create_index('idx_rule_sets_department_id', 'rule_sets', ['department_id'], unique=False)
+    op.create_index('idx_rule_sets_enabled_priority', 'rule_sets', ['enabled', 'priority', 'deleted_at'], unique=False, if_not_exists=True)
+    op.create_index('idx_rule_sets_tenant_id', 'rule_sets', ['tenant_id'], unique=False, if_not_exists=True)
+    op.create_index('idx_rule_sets_store_id', 'rule_sets', ['store_id'], unique=False, if_not_exists=True)
+    op.create_index('idx_rule_sets_doctor_id', 'rule_sets', ['doctor_id'], unique=False, if_not_exists=True)
+    op.create_index('idx_rule_sets_department_id', 'rule_sets', ['department_id'], unique=False, if_not_exists=True)
     op.alter_column('rule_sets', 'updated_at',
                existing_type=sa.DateTime(),
                type_=postgresql.TIMESTAMP(timezone=True),
@@ -3918,7 +3918,7 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_roles_tenant_id'), table_name='roles', if_exists=True)
     op.drop_index(op.f('ix_roles_code'), table_name='roles', if_exists=True)
     op.create_unique_constraint('uq_roles_tenant_code', 'roles', ['tenant_id', 'code'], postgresql_nulls_not_distinct=False)
-    op.create_index('idx_roles_tenant_id', 'roles', ['tenant_id'], unique=False)
+    op.create_index('idx_roles_tenant_id', 'roles', ['tenant_id'], unique=False, if_not_exists=True)
     op.alter_column('roles', 'updated_at',
                existing_type=postgresql.TIMESTAMP(),
                comment=None,
@@ -3934,9 +3934,9 @@ def downgrade() -> None:
                nullable=False,
                comment='角色编码',
                existing_comment='角色编码，租户内唯一（平台角色 tenant_id 为 NULL）')
-    op.create_index('ix_rest_days_store_id', 'rest_days', ['store_id'], unique=False)
-    op.create_index('ix_rest_days_start_date', 'rest_days', ['start_date'], unique=False)
-    op.create_index('ix_rest_days_end_date', 'rest_days', ['end_date'], unique=False)
+    op.create_index('ix_rest_days_store_id', 'rest_days', ['store_id'], unique=False, if_not_exists=True)
+    op.create_index('ix_rest_days_start_date', 'rest_days', ['start_date'], unique=False, if_not_exists=True)
+    op.create_index('ix_rest_days_end_date', 'rest_days', ['end_date'], unique=False, if_not_exists=True)
     op.alter_column('rest_days', 'updated_at',
                existing_type=postgresql.TIMESTAMP(),
                comment=None,
@@ -3956,8 +3956,8 @@ def downgrade() -> None:
                existing_nullable=True)
     op.drop_index(op.f('ix_release_jobs_miniapp_instance_id'), table_name='release_jobs', if_exists=True)
     op.drop_index(op.f('ix_release_jobs_artifact_id'), table_name='release_jobs', if_exists=True)
-    op.create_index('idx_release_jobs_instance_id', 'release_jobs', ['miniapp_instance_id'], unique=False)
-    op.create_index('idx_release_jobs_artifact_id', 'release_jobs', ['artifact_id'], unique=False)
+    op.create_index('idx_release_jobs_instance_id', 'release_jobs', ['miniapp_instance_id'], unique=False, if_not_exists=True)
+    op.create_index('idx_release_jobs_artifact_id', 'release_jobs', ['artifact_id'], unique=False, if_not_exists=True)
     op.alter_column('release_jobs', 'updated_at',
                existing_type=postgresql.TIMESTAMP(),
                comment=None,
@@ -3996,7 +3996,7 @@ def downgrade() -> None:
                existing_comment='小程序实例ID',
                existing_nullable=False)
     op.drop_index(op.f('ix_release_artifacts_build_job_id'), table_name='release_artifacts', if_exists=True)
-    op.create_index('idx_release_artifacts_build_job_id', 'release_artifacts', ['build_job_id'], unique=False)
+    op.create_index('idx_release_artifacts_build_job_id', 'release_artifacts', ['build_job_id'], unique=False, if_not_exists=True)
     op.alter_column('release_artifacts', 'updated_at',
                existing_type=postgresql.TIMESTAMP(),
                comment=None,
@@ -4099,9 +4099,9 @@ def downgrade() -> None:
                comment='优先级: 0-普通 1-重要 2-紧急',
                existing_comment='优先级',
                existing_nullable=True)
-    op.create_index('ix_permissions_parent_code', 'permissions', ['parent_code'], unique=False)
-    op.create_index('ix_permissions_control_type', 'permissions', ['control_type'], unique=False)
-    op.create_index('ix_permissions_code', 'permissions', ['code'], unique=False)
+    op.create_index('ix_permissions_parent_code', 'permissions', ['parent_code'], unique=False, if_not_exists=True)
+    op.create_index('ix_permissions_control_type', 'permissions', ['control_type'], unique=False, if_not_exists=True)
+    op.create_index('ix_permissions_code', 'permissions', ['code'], unique=False, if_not_exists=True)
     op.alter_column('permissions', 'updated_at',
                existing_type=postgresql.TIMESTAMP(),
                comment=None,
@@ -4136,10 +4136,10 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_payment_routes_store_id'), table_name='payment_routes', if_exists=True)
     op.drop_index(op.f('ix_payment_routes_payment_profile_id'), table_name='payment_routes', if_exists=True)
     op.drop_index(op.f('ix_payment_routes_miniapp_instance_id'), table_name='payment_routes', if_exists=True)
-    op.create_index('idx_payment_routes_tenant_id', 'payment_routes', ['tenant_id'], unique=False)
-    op.create_index('idx_payment_routes_store_id', 'payment_routes', ['store_id'], unique=False)
-    op.create_index('idx_payment_routes_payment_profile_id', 'payment_routes', ['payment_profile_id'], unique=False)
-    op.create_index('idx_payment_routes_miniapp_instance_id', 'payment_routes', ['miniapp_instance_id'], unique=False)
+    op.create_index('idx_payment_routes_tenant_id', 'payment_routes', ['tenant_id'], unique=False, if_not_exists=True)
+    op.create_index('idx_payment_routes_store_id', 'payment_routes', ['store_id'], unique=False, if_not_exists=True)
+    op.create_index('idx_payment_routes_payment_profile_id', 'payment_routes', ['payment_profile_id'], unique=False, if_not_exists=True)
+    op.create_index('idx_payment_routes_miniapp_instance_id', 'payment_routes', ['miniapp_instance_id'], unique=False, if_not_exists=True)
     op.alter_column('payment_routes', 'updated_at',
                existing_type=postgresql.TIMESTAMP(),
                comment=None,
@@ -4180,8 +4180,8 @@ def downgrade() -> None:
     )
     op.drop_index(op.f('ix_payment_profiles_tenant_id'), table_name='payment_profiles', if_exists=True)
     op.drop_index(op.f('ix_payment_profiles_company_id'), table_name='payment_profiles', if_exists=True)
-    op.create_index('idx_payment_profiles_tenant_id', 'payment_profiles', ['tenant_id'], unique=False)
-    op.create_index('idx_payment_profiles_company_id', 'payment_profiles', ['company_id'], unique=False)
+    op.create_index('idx_payment_profiles_tenant_id', 'payment_profiles', ['tenant_id'], unique=False, if_not_exists=True)
+    op.create_index('idx_payment_profiles_company_id', 'payment_profiles', ['company_id'], unique=False, if_not_exists=True)
     op.alter_column('payment_profiles', 'updated_at',
                existing_type=postgresql.TIMESTAMP(),
                comment=None,
@@ -4230,10 +4230,10 @@ def downgrade() -> None:
     op.create_foreign_key('patients_store_id_fkey', 'patients', 'stores', ['store_id'], ['id'], ondelete='SET NULL')
     op.drop_index(op.f('ix_patients_tenant_id'), table_name='patients', if_exists=True)
     op.drop_index(op.f('ix_patients_card_no'), table_name='patients', if_exists=True)
-    op.create_index('ix_patients_card_no', 'patients', ['card_no'], unique=True)
-    op.create_index('idx_patients_tenant_user', 'patients', ['tenant_id', 'user_id'], unique=False)
-    op.create_index('idx_patients_tenant_id', 'patients', ['tenant_id'], unique=False)
-    op.create_index('idx_patients_store_id', 'patients', ['store_id'], unique=False)
+    op.create_index('ix_patients_card_no', 'patients', ['card_no'], unique=True, if_not_exists=True)
+    op.create_index('idx_patients_tenant_user', 'patients', ['tenant_id', 'user_id'], unique=False, if_not_exists=True)
+    op.create_index('idx_patients_tenant_id', 'patients', ['tenant_id'], unique=False, if_not_exists=True)
+    op.create_index('idx_patients_store_id', 'patients', ['store_id'], unique=False, if_not_exists=True)
     op.alter_column('patients', 'updated_at',
                existing_type=postgresql.TIMESTAMP(),
                comment=None,
@@ -4292,8 +4292,8 @@ def downgrade() -> None:
                existing_type=sa.VARCHAR(length=36),
                nullable=False,
                existing_comment='租户ID')
-    op.create_index('ix_operation_logs_actor_role', 'operation_logs', ['actor_role'], unique=False)
-    op.create_index('ix_operation_logs_actor_id', 'operation_logs', ['actor_id'], unique=False)
+    op.create_index('ix_operation_logs_actor_role', 'operation_logs', ['actor_role'], unique=False, if_not_exists=True)
+    op.create_index('ix_operation_logs_actor_id', 'operation_logs', ['actor_id'], unique=False, if_not_exists=True)
     op.alter_column('operation_logs', 'admin_name',
                existing_type=sa.VARCHAR(length=50),
                comment='操作人姓名',
@@ -4345,9 +4345,9 @@ def downgrade() -> None:
                comment=None,
                existing_comment='就诊通知',
                existing_server_default=sa.text('true'))
-    op.create_index('ix_notification_logs_tenant_created_at', 'notification_logs', ['tenant_id', 'created_at'], unique=False)
-    op.create_index('ix_notification_logs_tenant_channel_status_sent_at', 'notification_logs', ['tenant_id', 'channel', 'status', 'sent_at'], unique=False)
-    op.create_index('ix_notification_logs_primary_channel', 'notification_logs', ['primary_channel'], unique=False)
+    op.create_index('ix_notification_logs_tenant_created_at', 'notification_logs', ['tenant_id', 'created_at'], unique=False, if_not_exists=True)
+    op.create_index('ix_notification_logs_tenant_channel_status_sent_at', 'notification_logs', ['tenant_id', 'channel', 'status', 'sent_at'], unique=False, if_not_exists=True)
+    op.create_index('ix_notification_logs_primary_channel', 'notification_logs', ['primary_channel'], unique=False, if_not_exists=True)
     op.alter_column('notification_logs', 'max_retries',
                existing_type=sa.INTEGER(),
                nullable=False,
@@ -4427,7 +4427,7 @@ def downgrade() -> None:
     op.drop_column('notification_deliveries', 'updated_at', if_exists=True)
     op.drop_constraint(None, 'notices', type_='foreignkey', if_exists=True)
     op.create_foreign_key('notices_store_id_fkey', 'notices', 'stores', ['store_id'], ['id'], ondelete='SET NULL')
-    op.create_index('idx_notices_store_id', 'notices', ['store_id'], unique=False)
+    op.create_index('idx_notices_store_id', 'notices', ['store_id'], unique=False, if_not_exists=True)
     op.alter_column('notices', 'updated_at',
                existing_type=postgresql.TIMESTAMP(),
                comment=None,
@@ -4440,7 +4440,7 @@ def downgrade() -> None:
                existing_nullable=True)
     op.drop_constraint(None, 'news', type_='foreignkey', if_exists=True)
     op.create_foreign_key('news_store_id_fkey', 'news', 'stores', ['store_id'], ['id'], ondelete='SET NULL')
-    op.create_index('idx_news_store_id', 'news', ['store_id'], unique=False)
+    op.create_index('idx_news_store_id', 'news', ['store_id'], unique=False, if_not_exists=True)
     op.alter_column('news', 'updated_at',
                existing_type=postgresql.TIMESTAMP(),
                comment=None,
@@ -4461,11 +4461,11 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_miniapp_instances_template_id'), table_name='miniapp_instances', if_exists=True)
     op.drop_index(op.f('ix_miniapp_instances_default_store_id'), table_name='miniapp_instances', if_exists=True)
     op.drop_index(op.f('ix_miniapp_instances_default_payment_profile_id'), table_name='miniapp_instances', if_exists=True)
-    op.create_index('idx_miniapp_instances_tenant_id', 'miniapp_instances', ['tenant_id'], unique=False)
-    op.create_index('idx_miniapp_instances_template_version_id', 'miniapp_instances', ['template_version_id'], unique=False)
-    op.create_index('idx_miniapp_instances_template_id', 'miniapp_instances', ['template_id'], unique=False)
-    op.create_index('idx_miniapp_instances_default_store_id', 'miniapp_instances', ['default_store_id'], unique=False)
-    op.create_index('idx_miniapp_instances_default_payment_profile_id', 'miniapp_instances', ['default_payment_profile_id'], unique=False)
+    op.create_index('idx_miniapp_instances_tenant_id', 'miniapp_instances', ['tenant_id'], unique=False, if_not_exists=True)
+    op.create_index('idx_miniapp_instances_template_version_id', 'miniapp_instances', ['template_version_id'], unique=False, if_not_exists=True)
+    op.create_index('idx_miniapp_instances_template_id', 'miniapp_instances', ['template_id'], unique=False, if_not_exists=True)
+    op.create_index('idx_miniapp_instances_default_store_id', 'miniapp_instances', ['default_store_id'], unique=False, if_not_exists=True)
+    op.create_index('idx_miniapp_instances_default_payment_profile_id', 'miniapp_instances', ['default_payment_profile_id'], unique=False, if_not_exists=True)
     op.alter_column('miniapp_instances', 'updated_at',
                existing_type=postgresql.TIMESTAMP(),
                comment=None,
@@ -4505,7 +4505,7 @@ def downgrade() -> None:
                existing_nullable=True)
     op.drop_constraint(None, 'messages', type_='foreignkey', if_exists=True)
     op.create_foreign_key('messages_store_id_fkey', 'messages', 'stores', ['store_id'], ['id'], ondelete='SET NULL')
-    op.create_index('idx_messages_store_id', 'messages', ['store_id'], unique=False)
+    op.create_index('idx_messages_store_id', 'messages', ['store_id'], unique=False, if_not_exists=True)
     op.alter_column('messages', 'updated_at',
                existing_type=postgresql.TIMESTAMP(),
                comment=None,
@@ -4526,7 +4526,7 @@ def downgrade() -> None:
                comment=None,
                existing_comment='创建时间',
                existing_nullable=True)
-    op.create_index('ix_medical_records_deleted_at', 'medical_records', ['deleted_at'], unique=False)
+    op.create_index('ix_medical_records_deleted_at', 'medical_records', ['deleted_at'], unique=False, if_not_exists=True)
     op.alter_column('medical_records', 'updated_at',
                existing_type=postgresql.TIMESTAMP(),
                comment=None,
@@ -4958,7 +4958,7 @@ def downgrade() -> None:
                comment=None,
                existing_comment='租户ID',
                existing_nullable=True)
-    op.create_index('ix_follow_up_tasks_deleted_at', 'follow_up_tasks', ['deleted_at'], unique=False)
+    op.create_index('ix_follow_up_tasks_deleted_at', 'follow_up_tasks', ['deleted_at'], unique=False, if_not_exists=True)
     op.alter_column('follow_up_tasks', 'updated_at',
                existing_type=postgresql.TIMESTAMP(),
                comment=None,
@@ -5062,8 +5062,8 @@ def downgrade() -> None:
                comment=None,
                existing_comment='租户ID',
                existing_nullable=True)
-    op.create_index('ix_follow_up_self_reports_deleted_at', 'follow_up_self_reports', ['deleted_at'], unique=False)
-    op.create_index('idx_self_reports_patient_date', 'follow_up_self_reports', ['patient_id', 'report_date'], unique=False)
+    op.create_index('ix_follow_up_self_reports_deleted_at', 'follow_up_self_reports', ['deleted_at'], unique=False, if_not_exists=True)
+    op.create_index('idx_self_reports_patient_date', 'follow_up_self_reports', ['patient_id', 'report_date'], unique=False, if_not_exists=True)
     op.alter_column('follow_up_self_reports', 'updated_at',
                existing_type=postgresql.TIMESTAMP(),
                comment=None,
@@ -5172,7 +5172,7 @@ def downgrade() -> None:
                comment=None,
                existing_comment='租户ID',
                existing_nullable=True)
-    op.create_index('ix_follow_up_records_deleted_at', 'follow_up_records', ['deleted_at'], unique=False)
+    op.create_index('ix_follow_up_records_deleted_at', 'follow_up_records', ['deleted_at'], unique=False, if_not_exists=True)
     op.alter_column('follow_up_records', 'updated_at',
                existing_type=postgresql.TIMESTAMP(),
                comment=None,
@@ -5260,7 +5260,7 @@ def downgrade() -> None:
                comment=None,
                existing_comment='租户ID',
                existing_nullable=True)
-    op.create_index('ix_follow_up_plans_deleted_at', 'follow_up_plans', ['deleted_at'], unique=False)
+    op.create_index('ix_follow_up_plans_deleted_at', 'follow_up_plans', ['deleted_at'], unique=False, if_not_exists=True)
     op.alter_column('follow_up_plans', 'updated_at',
                existing_type=postgresql.TIMESTAMP(),
                comment=None,
@@ -5413,9 +5413,9 @@ def downgrade() -> None:
                comment=None,
                existing_comment='关联病历ID',
                existing_nullable=True)
-    op.create_index('idx_email_templates_type', 'email_templates', ['template_type'], unique=False)
-    op.create_index('idx_email_templates_status', 'email_templates', ['status'], unique=False)
-    op.create_index('idx_email_templates_code', 'email_templates', ['code'], unique=False)
+    op.create_index('idx_email_templates_type', 'email_templates', ['template_type'], unique=False, if_not_exists=True)
+    op.create_index('idx_email_templates_status', 'email_templates', ['status'], unique=False, if_not_exists=True)
+    op.create_index('idx_email_templates_code', 'email_templates', ['code'], unique=False, if_not_exists=True)
     op.alter_column('email_templates', 'updated_at',
                existing_type=postgresql.TIMESTAMP(),
                comment=None,
@@ -5436,12 +5436,12 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_doctors_tenant_id'), table_name='doctors', if_exists=True)
     op.drop_index(op.f('ix_doctors_phone'), table_name='doctors', if_exists=True)
     op.drop_index(op.f('ix_doctors_username'), table_name='doctors', if_exists=True)
-    op.create_index('ix_doctors_username', 'doctors', ['username'], unique=True)
-    op.create_index('ix_doctors_store_id', 'doctors', ['store_id'], unique=False)
-    op.create_index('idx_doctors_tenant_store', 'doctors', ['tenant_id', 'store_id'], unique=False)
-    op.create_index('idx_doctors_tenant_status', 'doctors', ['tenant_id', 'status'], unique=False)
-    op.create_index('idx_doctors_tenant_id', 'doctors', ['tenant_id'], unique=False)
-    op.create_index('idx_doctors_tenant_department', 'doctors', ['tenant_id', 'department_id'], unique=False)
+    op.create_index('ix_doctors_username', 'doctors', ['username'], unique=True, if_not_exists=True)
+    op.create_index('ix_doctors_store_id', 'doctors', ['store_id'], unique=False, if_not_exists=True)
+    op.create_index('idx_doctors_tenant_store', 'doctors', ['tenant_id', 'store_id'], unique=False, if_not_exists=True)
+    op.create_index('idx_doctors_tenant_status', 'doctors', ['tenant_id', 'status'], unique=False, if_not_exists=True)
+    op.create_index('idx_doctors_tenant_id', 'doctors', ['tenant_id'], unique=False, if_not_exists=True)
+    op.create_index('idx_doctors_tenant_department', 'doctors', ['tenant_id', 'department_id'], unique=False, if_not_exists=True)
     op.alter_column('doctors', 'updated_at',
                existing_type=postgresql.TIMESTAMP(),
                comment=None,
@@ -5613,10 +5613,10 @@ def downgrade() -> None:
                existing_type=sa.VARCHAR(length=36),
                nullable=False,
                existing_comment='租户ID')
-    op.create_index('ix_doctor_consultation_fees_unique', 'doctor_consultation_fees', ['doctor_id', 'store_id', 'department_id', 'fee_type_id'], unique=True)
-    op.create_index('ix_doctor_consultation_fees_store', 'doctor_consultation_fees', ['store_id'], unique=False)
-    op.create_index('ix_doctor_consultation_fees_doctor', 'doctor_consultation_fees', ['doctor_id'], unique=False)
-    op.create_index('ix_doctor_consultation_fees_department', 'doctor_consultation_fees', ['department_id'], unique=False)
+    op.create_index('ix_doctor_consultation_fees_unique', 'doctor_consultation_fees', ['doctor_id', 'store_id', 'department_id', 'fee_type_id'], unique=True, if_not_exists=True)
+    op.create_index('ix_doctor_consultation_fees_store', 'doctor_consultation_fees', ['store_id'], unique=False, if_not_exists=True)
+    op.create_index('ix_doctor_consultation_fees_doctor', 'doctor_consultation_fees', ['doctor_id'], unique=False, if_not_exists=True)
+    op.create_index('ix_doctor_consultation_fees_department', 'doctor_consultation_fees', ['department_id'], unique=False, if_not_exists=True)
     op.alter_column('doctor_consultation_fees', 'updated_at',
                existing_type=postgresql.TIMESTAMP(),
                comment=None,
@@ -5630,9 +5630,9 @@ def downgrade() -> None:
                existing_nullable=True,
                existing_server_default=sa.text('now()'))
     op.execute('ALTER TABLE doctor_booking_settings DROP CONSTRAINT IF EXISTS uix_store_doctor')
-    op.create_index('uix_store_doctor', 'doctor_booking_settings', ['store_id', 'doctor_id'], unique=True)
-    op.create_index('ix_doctor_booking_settings_store', 'doctor_booking_settings', ['store_id'], unique=False)
-    op.create_index('ix_doctor_booking_settings_doctor', 'doctor_booking_settings', ['doctor_id'], unique=False)
+    op.create_index('uix_store_doctor', 'doctor_booking_settings', ['store_id', 'doctor_id'], unique=True, if_not_exists=True)
+    op.create_index('ix_doctor_booking_settings_store', 'doctor_booking_settings', ['store_id'], unique=False, if_not_exists=True)
+    op.create_index('ix_doctor_booking_settings_doctor', 'doctor_booking_settings', ['doctor_id'], unique=False, if_not_exists=True)
     op.alter_column('doctor_booking_settings', 'updated_at',
                existing_type=postgresql.TIMESTAMP(),
                comment=None,
@@ -5674,8 +5674,8 @@ def downgrade() -> None:
         schema=None
     )
     op.drop_index(op.f('ix_departments_tenant_id'), table_name='departments', if_exists=True)
-    op.create_index('idx_departments_tenant_store', 'departments', ['tenant_id', 'store_id'], unique=False)
-    op.create_index('idx_departments_tenant_id', 'departments', ['tenant_id'], unique=False)
+    op.create_index('idx_departments_tenant_store', 'departments', ['tenant_id', 'store_id'], unique=False, if_not_exists=True)
+    op.create_index('idx_departments_tenant_id', 'departments', ['tenant_id'], unique=False, if_not_exists=True)
     op.alter_column('departments', 'updated_at',
                existing_type=postgresql.TIMESTAMP(),
                comment=None,
@@ -5776,8 +5776,8 @@ def downgrade() -> None:
                existing_comment='租户ID')
     op.execute('ALTER TABLE consultation_fee_types DROP CONSTRAINT IF EXISTS uq_consultation_fee_types_store_code')
     op.drop_index(op.f('ix_consultation_fee_types_code'), table_name='consultation_fee_types', if_exists=True)
-    op.create_index('ix_consultation_fee_types_store_id', 'consultation_fee_types', ['store_id'], unique=False)
-    op.create_index('ix_consultation_fee_types_store_code', 'consultation_fee_types', ['store_id', 'code'], unique=True)
+    op.create_index('ix_consultation_fee_types_store_id', 'consultation_fee_types', ['store_id'], unique=False, if_not_exists=True)
+    op.create_index('ix_consultation_fee_types_store_code', 'consultation_fee_types', ['store_id', 'code'], unique=True, if_not_exists=True)
     op.alter_column('consultation_fee_types', 'updated_at',
                existing_type=postgresql.TIMESTAMP(),
                comment=None,
@@ -5791,7 +5791,7 @@ def downgrade() -> None:
                existing_nullable=True,
                existing_server_default=sa.text('now()'))
     op.drop_constraint(None, 'consultation_fee_templates', type_='unique', if_exists=True)
-    op.create_index('ix_consultation_fee_templates_fee_type', 'consultation_fee_templates', ['fee_type_id'], unique=True)
+    op.create_index('ix_consultation_fee_templates_fee_type', 'consultation_fee_templates', ['fee_type_id'], unique=True, if_not_exists=True)
     op.alter_column('consultation_fee_templates', 'updated_at',
                existing_type=postgresql.TIMESTAMP(),
                comment=None,
@@ -5810,7 +5810,7 @@ def downgrade() -> None:
         schema=None
     )
     op.drop_index(op.f('ix_companies_tenant_id'), table_name='companies', if_exists=True)
-    op.create_index('idx_companies_tenant_id', 'companies', ['tenant_id'], unique=False)
+    op.create_index('idx_companies_tenant_id', 'companies', ['tenant_id'], unique=False, if_not_exists=True)
     op.alter_column('companies', 'updated_at',
                existing_type=postgresql.TIMESTAMP(),
                comment=None,
@@ -5890,9 +5890,9 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_build_jobs_template_version_id'), table_name='build_jobs', if_exists=True)
     op.drop_index(op.f('ix_build_jobs_miniapp_instance_id'), table_name='build_jobs', if_exists=True)
     op.drop_index(op.f('ix_build_jobs_lowcode_page_id'), table_name='build_jobs', if_exists=True)
-    op.create_index('idx_build_jobs_tenant_id', 'build_jobs', ['tenant_id'], unique=False)
-    op.create_index('idx_build_jobs_template_version_id', 'build_jobs', ['template_version_id'], unique=False)
-    op.create_index('idx_build_jobs_instance_id', 'build_jobs', ['miniapp_instance_id'], unique=False)
+    op.create_index('idx_build_jobs_tenant_id', 'build_jobs', ['tenant_id'], unique=False, if_not_exists=True)
+    op.create_index('idx_build_jobs_template_version_id', 'build_jobs', ['template_version_id'], unique=False, if_not_exists=True)
+    op.create_index('idx_build_jobs_instance_id', 'build_jobs', ['miniapp_instance_id'], unique=False, if_not_exists=True)
     op.alter_column('build_jobs', 'updated_at',
                existing_type=postgresql.TIMESTAMP(),
                comment=None,
@@ -5938,8 +5938,8 @@ def downgrade() -> None:
     op.drop_column('build_jobs', 'artifact_url', if_exists=True)
     op.drop_column('build_jobs', 'build_log', if_exists=True)
     op.drop_column('build_jobs', 'lowcode_page_id', if_exists=True)
-    op.create_index('ix_booking_notices_type', 'booking_notices', ['type'], unique=False)
-    op.create_index('ix_booking_notices_status', 'booking_notices', ['status'], unique=False)
+    op.create_index('ix_booking_notices_type', 'booking_notices', ['type'], unique=False, if_not_exists=True)
+    op.create_index('ix_booking_notices_status', 'booking_notices', ['status'], unique=False, if_not_exists=True)
     op.alter_column('booking_notices', 'updated_at',
                existing_type=postgresql.TIMESTAMP(),
                comment=None,
@@ -5962,10 +5962,10 @@ def downgrade() -> None:
                comment=None,
                existing_comment='创建人ID',
                existing_nullable=True)
-    op.create_index('ix_blacklists_user_id', 'blacklists', ['user_id'], unique=False)
-    op.create_index('ix_blacklists_store_id', 'blacklists', ['store_id'], unique=False)
-    op.create_index('ix_blacklists_status', 'blacklists', ['status'], unique=False)
-    op.create_index('ix_blacklists_keyword', 'blacklists', ['keyword'], unique=False)
+    op.create_index('ix_blacklists_user_id', 'blacklists', ['user_id'], unique=False, if_not_exists=True)
+    op.create_index('ix_blacklists_store_id', 'blacklists', ['store_id'], unique=False, if_not_exists=True)
+    op.create_index('ix_blacklists_status', 'blacklists', ['status'], unique=False, if_not_exists=True)
+    op.create_index('ix_blacklists_keyword', 'blacklists', ['keyword'], unique=False, if_not_exists=True)
     op.alter_column('blacklists', 'updated_at',
                existing_type=postgresql.TIMESTAMP(),
                comment=None,
@@ -5991,7 +5991,7 @@ def downgrade() -> None:
                existing_nullable=True)
     op.drop_constraint(None, 'banners', type_='foreignkey', if_exists=True)
     op.create_foreign_key('banners_store_id_fkey', 'banners', 'stores', ['store_id'], ['id'], ondelete='SET NULL')
-    op.create_index('idx_banners_store_id', 'banners', ['store_id'], unique=False)
+    op.create_index('idx_banners_store_id', 'banners', ['store_id'], unique=False, if_not_exists=True)
     op.alter_column('banners', 'updated_at',
                existing_type=postgresql.TIMESTAMP(),
                comment=None,
@@ -6302,17 +6302,17 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_appointments_tenant_id'), table_name='appointments', if_exists=True)
     op.drop_index(op.f('ix_appointments_payment_profile_id'), table_name='appointments', if_exists=True)
     op.drop_index(op.f('ix_appointments_payment_miniapp_instance_id'), table_name='appointments', if_exists=True)
-    op.create_index('ix_appointments_reminder_30min', 'appointments', ['tenant_id', 'reminder_sent_30min'], unique=False)
-    op.create_index('ix_appointments_reminder_2h', 'appointments', ['tenant_id', 'reminder_sent_2h'], unique=False)
-    op.create_index('ix_appointments_reminder_24h', 'appointments', ['tenant_id', 'reminder_sent_24h'], unique=False)
-    op.create_index('idx_appointments_tenant_user', 'appointments', ['tenant_id', 'user_id'], unique=False)
-    op.create_index('idx_appointments_tenant_status', 'appointments', ['tenant_id', 'status'], unique=False)
-    op.create_index('idx_appointments_tenant_schedule', 'appointments', ['tenant_id', 'schedule_id'], unique=False)
-    op.create_index('idx_appointments_tenant_id', 'appointments', ['tenant_id'], unique=False)
-    op.create_index('idx_appointments_tenant_doctor', 'appointments', ['tenant_id', 'doctor_id'], unique=False)
-    op.create_index('idx_appointments_reminder', 'appointments', ['status', 'reminder_sent', 'schedule_id'], unique=False)
-    op.create_index('idx_appointments_payment_profile_id', 'appointments', ['payment_profile_id'], unique=False)
-    op.create_index('idx_appointments_payment_instance_id', 'appointments', ['payment_miniapp_instance_id'], unique=False)
+    op.create_index('ix_appointments_reminder_30min', 'appointments', ['tenant_id', 'reminder_sent_30min'], unique=False, if_not_exists=True)
+    op.create_index('ix_appointments_reminder_2h', 'appointments', ['tenant_id', 'reminder_sent_2h'], unique=False, if_not_exists=True)
+    op.create_index('ix_appointments_reminder_24h', 'appointments', ['tenant_id', 'reminder_sent_24h'], unique=False, if_not_exists=True)
+    op.create_index('idx_appointments_tenant_user', 'appointments', ['tenant_id', 'user_id'], unique=False, if_not_exists=True)
+    op.create_index('idx_appointments_tenant_status', 'appointments', ['tenant_id', 'status'], unique=False, if_not_exists=True)
+    op.create_index('idx_appointments_tenant_schedule', 'appointments', ['tenant_id', 'schedule_id'], unique=False, if_not_exists=True)
+    op.create_index('idx_appointments_tenant_id', 'appointments', ['tenant_id'], unique=False, if_not_exists=True)
+    op.create_index('idx_appointments_tenant_doctor', 'appointments', ['tenant_id', 'doctor_id'], unique=False, if_not_exists=True)
+    op.create_index('idx_appointments_reminder', 'appointments', ['status', 'reminder_sent', 'schedule_id'], unique=False, if_not_exists=True)
+    op.create_index('idx_appointments_payment_profile_id', 'appointments', ['payment_profile_id'], unique=False, if_not_exists=True)
+    op.create_index('idx_appointments_payment_instance_id', 'appointments', ['payment_miniapp_instance_id'], unique=False, if_not_exists=True)
     op.alter_column('appointments', 'updated_at',
                existing_type=postgresql.TIMESTAMP(),
                comment=None,
@@ -6425,10 +6425,10 @@ def downgrade() -> None:
     op.drop_constraint(None, 'admins', type_='unique', if_exists=True)
     op.drop_index(op.f('ix_admins_tenant_id'), table_name='admins', if_exists=True)
     op.create_unique_constraint('uq_admins_tenant_username', 'admins', ['tenant_id', 'username'], postgresql_nulls_not_distinct=False)
-    op.create_index('idx_admins_tenant_status', 'admins', ['tenant_id', 'status'], unique=False)
-    op.create_index('idx_admins_tenant_role', 'admins', ['tenant_id', 'role_id'], unique=False)
-    op.create_index('idx_admins_tenant_id', 'admins', ['tenant_id'], unique=False)
-    op.create_index('idx_admins_store_id', 'admins', ['current_store_id'], unique=False)
+    op.create_index('idx_admins_tenant_status', 'admins', ['tenant_id', 'status'], unique=False, if_not_exists=True)
+    op.create_index('idx_admins_tenant_role', 'admins', ['tenant_id', 'role_id'], unique=False, if_not_exists=True)
+    op.create_index('idx_admins_tenant_id', 'admins', ['tenant_id'], unique=False, if_not_exists=True)
+    op.create_index('idx_admins_store_id', 'admins', ['current_store_id'], unique=False, if_not_exists=True)
     op.alter_column('admins', 'updated_at',
                existing_type=postgresql.TIMESTAMP(),
                comment=None,
@@ -6449,10 +6449,10 @@ def downgrade() -> None:
                nullable=False,
                comment='租户ID',
                existing_comment='租户ID（NULL表示平台管理员）')
-    op.create_index('ix_admin_stores_store_id', 'admin_stores', ['store_id'], unique=False)
-    op.create_index('ix_admin_stores_admin_id', 'admin_stores', ['admin_id'], unique=False)
-    op.create_index('ix_admin_login_history_login_time', 'admin_login_history', ['login_time'], unique=False)
-    op.create_index('ix_admin_login_history_admin_id', 'admin_login_history', ['admin_id'], unique=False)
+    op.create_index('ix_admin_stores_store_id', 'admin_stores', ['store_id'], unique=False, if_not_exists=True)
+    op.create_index('ix_admin_stores_admin_id', 'admin_stores', ['admin_id'], unique=False, if_not_exists=True)
+    op.create_index('ix_admin_login_history_login_time', 'admin_login_history', ['login_time'], unique=False, if_not_exists=True)
+    op.create_index('ix_admin_login_history_admin_id', 'admin_login_history', ['admin_id'], unique=False, if_not_exists=True)
     op.alter_column('account_users', 'openid',
                existing_type=sa.VARCHAR(length=100),
                comment='微信openid',
