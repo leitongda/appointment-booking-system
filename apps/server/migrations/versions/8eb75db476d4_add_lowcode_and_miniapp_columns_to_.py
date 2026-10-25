@@ -734,7 +734,7 @@ def upgrade() -> None:
     op.drop_index('ix_consultation_fee_types_store_code', table_name='consultation_fee_types', if_exists=True)
     op.drop_index('ix_consultation_fee_types_store_id', table_name='consultation_fee_types', if_exists=True)
     op.create_index(op.f('ix_consultation_fee_types_code'), 'consultation_fee_types', ['code'], unique=False, if_not_exists=True)
-    op.execute('DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = ''uq_consultation_fee_types_store_code'') THEN ALTER TABLE consultation_fee_types ADD CONSTRAINT uq_consultation_fee_types_store_code UNIQUE (store_id, code); END IF; END $$')
+    op.execute("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_consultation_fee_types_store_code') THEN ALTER TABLE consultation_fee_types ADD CONSTRAINT uq_consultation_fee_types_store_code UNIQUE (store_id, code); END IF; END $$")
     op.alter_column('departments', 'tenant_id',
                existing_type=sa.VARCHAR(length=36),
                nullable=True,
@@ -859,7 +859,7 @@ def upgrade() -> None:
     op.drop_index('ix_doctor_booking_settings_doctor', table_name='doctor_booking_settings', if_exists=True)
     op.drop_index('ix_doctor_booking_settings_store', table_name='doctor_booking_settings', if_exists=True)
     op.drop_index('uix_store_doctor', table_name='doctor_booking_settings', if_exists=True)
-    op.execute('DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = ''uix_store_doctor'') THEN ALTER TABLE doctor_booking_settings ADD CONSTRAINT uix_store_doctor UNIQUE (store_id, doctor_id); END IF; END $$')
+    op.execute("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uix_store_doctor') THEN ALTER TABLE doctor_booking_settings ADD CONSTRAINT uix_store_doctor UNIQUE (store_id, doctor_id); END IF; END $$")
     op.alter_column('doctor_consultation_fees', 'created_at',
                existing_type=postgresql.TIMESTAMP(),
                comment='创建时间',
@@ -2678,7 +2678,7 @@ def upgrade() -> None:
     op.drop_index('ix_store_fee_templates_fee_type_id', table_name='store_fee_templates', if_exists=True)
     op.drop_index('ix_store_fee_templates_store_id', table_name='store_fee_templates', if_exists=True)
     op.drop_index('ix_store_fee_templates_unique', table_name='store_fee_templates', if_exists=True)
-    op.execute('DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = ''uq_store_fee_templates_store_type'') THEN ALTER TABLE store_fee_templates ADD CONSTRAINT uq_store_fee_templates_store_type UNIQUE (store_id, fee_type_id); END IF; END $$')
+    op.execute("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_store_fee_templates_store_type') THEN ALTER TABLE store_fee_templates ADD CONSTRAINT uq_store_fee_templates_store_type UNIQUE (store_id, fee_type_id); END IF; END $$")
     op.alter_column('store_visit_type_configs', 'created_at',
                existing_type=postgresql.TIMESTAMP(),
                comment='创建时间',
@@ -3287,7 +3287,7 @@ def downgrade() -> None:
         existing_comment='租户用量统计表',
         schema=None
     )
-    op.execute('DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = ''uq_tenant_usage_date'') THEN ALTER TABLE tenant_usage_logs ADD CONSTRAINT uq_tenant_usage_date UNIQUE (tenant_id, usage_date); END IF; END $$')
+    op.execute("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_tenant_usage_date') THEN ALTER TABLE tenant_usage_logs ADD CONSTRAINT uq_tenant_usage_date UNIQUE (tenant_id, usage_date); END IF; END $$")
     op.create_index('idx_tenant_usage_logs_tenant', 'tenant_usage_logs', ['tenant_id'], unique=False, if_not_exists=True)
     op.create_index('idx_tenant_usage_logs_date', 'tenant_usage_logs', ['usage_date'], unique=False, if_not_exists=True)
     op.alter_column('tenant_usage_logs', 'created_at',
@@ -3917,7 +3917,7 @@ def downgrade() -> None:
     )
     op.drop_index(op.f('ix_roles_tenant_id'), table_name='roles', if_exists=True)
     op.drop_index(op.f('ix_roles_code'), table_name='roles', if_exists=True)
-    op.execute('DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = ''uq_roles_tenant_code'') THEN ALTER TABLE roles ADD CONSTRAINT uq_roles_tenant_code UNIQUE (tenant_id, code); END IF; END $$')
+    op.execute("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_roles_tenant_code') THEN ALTER TABLE roles ADD CONSTRAINT uq_roles_tenant_code UNIQUE (tenant_id, code); END IF; END $$")
     op.create_index('idx_roles_tenant_id', 'roles', ['tenant_id'], unique=False, if_not_exists=True)
     op.alter_column('roles', 'updated_at',
                existing_type=postgresql.TIMESTAMP(),
@@ -6424,7 +6424,7 @@ def downgrade() -> None:
     op.create_foreign_key('admins_store_id_fkey', 'admins', 'stores', ['current_store_id'], ['id'], ondelete='SET NULL')
     op.drop_constraint(None, 'admins', type_='unique', if_exists=True)
     op.drop_index(op.f('ix_admins_tenant_id'), table_name='admins', if_exists=True)
-    op.execute('DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = ''uq_admins_tenant_username'') THEN ALTER TABLE admins ADD CONSTRAINT uq_admins_tenant_username UNIQUE (tenant_id, username); END IF; END $$')
+    op.execute("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_admins_tenant_username') THEN ALTER TABLE admins ADD CONSTRAINT uq_admins_tenant_username UNIQUE (tenant_id, username); END IF; END $$")
     op.create_index('idx_admins_tenant_status', 'admins', ['tenant_id', 'status'], unique=False, if_not_exists=True)
     op.create_index('idx_admins_tenant_role', 'admins', ['tenant_id', 'role_id'], unique=False, if_not_exists=True)
     op.create_index('idx_admins_tenant_id', 'admins', ['tenant_id'], unique=False, if_not_exists=True)
