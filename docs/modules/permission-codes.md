@@ -3,66 +3,13 @@
 > 由 `apps/server/scripts/gen_permission_matrix.py` 生成，请勿手改；
 > 权限目录的 source of truth 是 `apps/server/scripts/init_permissions.py`。
 
-- 目录权限码：130 个
+- 目录权限码：185 个
 - 后端守卫引用：148 个码
-- 前端（admin）引用：114 个码
-- 后端守卫使用但目录缺失（漂移，需修）：48 个
-- 目录内但前后端零引用（展示型）：0 个
+- 前端（admin）引用：140 个码
+- 后端守卫使用但目录缺失（漂移，需修）：0 个
+- 目录内但前后端零引用（展示型）：2 个
 
 后端列格式为 `模块路径:行号`（`require_permission` 族调用处）；前端列为 admin 源码引用文件数。
-
-## ⚠️ 目录外权限码（守卫在用、无法授权）
-
-| 权限码 | 后端调用处 |
-|---|---|
-| `approval-flow:create` | app/modules/approval_flows/router.py:208; app/modules/approval_flows/router.py:242; app/modules/approval_flows/router.py:339; app/modules/approval_flows/router.py:427 |
-| `approval-flow:delete` | app/modules/approval_flows/router.py:307; app/modules/approval_flows/router.py:408 |
-| `approval-flow:list` | app/modules/approval_flows/router.py:158; app/modules/approval_flows/router.py:221; app/modules/approval_flows/router.py:325; app/modules/approval_flows/router.py:443; app/modules/approval_flows/router.py:56; app/modules/approval_flows/router.py:80; app/modules/approval_flows/router.py:93 |
-| `approval-flow:manage` | app/modules/approval_flows/router.py:373; app/modules/approval_flows/router.py:392 |
-| `approval-flow:update` | app/modules/approval_flows/router.py:354 |
-| `approval-instance:manage` | app/modules/approval_flows/router_instances.py:236; app/modules/approval_flows/router_instances.py:257; app/modules/approval_flows/router_instances.py:278 |
-| `approval:approve` | app/modules/approval_flows/router_instances.py:146; app/modules/approval_flows/router_instances.py:169; app/modules/approval_flows/router_instances.py:192 |
-| `approval:read` | app/modules/approval_flows/router_instances.py:103; app/modules/approval_flows/router_instances.py:117; app/modules/approval_flows/router_instances.py:131; app/modules/approval_flows/router_instances.py:215; app/modules/approval_flows/router_instances.py:35; app/modules/approval_flows/router_instances.py:65; app/modules/approval_flows/router_instances.py:89 |
-| `attendance:record` | app/modules/attendance_records/router.py:155; app/modules/attendance_records/router.py:176; app/modules/attendance_records/router.py:217 |
-| `contact:create` | app/modules/contacts/router.py:211; app/modules/contacts/router.py:88; app/modules/contacts/router_channels.py:72; app/modules/contacts/router_groups.py:50; app/modules/contacts/router_tags.py:30 |
-| `contact:delete` | app/modules/contacts/router.py:126; app/modules/contacts/router.py:319; app/modules/contacts/router_channels.py:110; app/modules/contacts/router_groups.py:88; app/modules/contacts/router_tags.py:68 |
-| `contact:edit` | app/modules/contacts/router.py:106; app/modules/contacts/router.py:332; app/modules/contacts/router.py:345; app/modules/contacts/router.py:358; app/modules/contacts/router_channels.py:125; app/modules/contacts/router_channels.py:90; app/modules/contacts/router_groups.py:68; app/modules/contacts/router_tags.py:48 |
-| `contact:export` | app/modules/contacts/router.py:146 |
-| `contact:view` | app/modules/contacts/router.py:146; app/modules/contacts/router.py:47; app/modules/contacts/router.py:74; app/modules/contacts/router_channels.py:34; app/modules/contacts/router_channels.py:58; app/modules/contacts/router_groups.py:37; app/modules/contacts/router_tags.py:18 |
-| `doctor:review` | app/modules/doctor_reviews/router.py:103 |
-| `freelance:create` | app/modules/freelance_fees/router.py:108; app/modules/freelance_fees/router.py:208; app/modules/freelance_fees/router.py:251; app/modules/freelance_fees/router.py:618 |
-| `freelance:delete` | app/modules/freelance_fees/router.py:136 |
-| `freelance:list` | app/modules/freelance_fees/router.py:157; app/modules/freelance_fees/router.py:188; app/modules/freelance_fees/router.py:238; app/modules/freelance_fees/router.py:319; app/modules/freelance_fees/router.py:348; app/modules/freelance_fees/router.py:452; app/modules/freelance_fees/router.py:468; app/modules/freelance_fees/router.py:484; app/modules/freelance_fees/router.py:500; app/modules/freelance_fees/router.py:520; app/modules/freelance_fees/router.py:68; app/modules/freelance_fees/router.py:93 |
-| `freelance:settle` | app/modules/freelance_fees/router.py:373; app/modules/freelance_fees/router.py:393; app/modules/freelance_fees/router.py:413; app/modules/freelance_fees/router.py:432 |
-| `freelance:update` | app/modules/freelance_fees/router.py:122; app/modules/freelance_fees/router.py:222; app/modules/freelance_fees/router.py:268 |
-| `lowcode:page:codegen` | app/modules/lowcode/router.py:575; app/modules/lowcode/router.py:624 |
-| `lowcode:page:deploy` | app/modules/lowcode/router.py:855; app/modules/lowcode/router.py:932; app/modules/lowcode/router.py:972 |
-| `lowcode:page:read` | app/modules/lowcode/router.py:175; app/modules/lowcode/router.py:293; app/modules/lowcode/router.py:465; app/modules/lowcode/router.py:488; app/modules/lowcode/router.py:525; app/modules/lowcode/router.py:691; app/modules/lowcode/router.py:767; app/modules/lowcode/router.py:894 |
-| `lowcode:template` | app/modules/lowcode/router_template.py:257; app/modules/lowcode/router_template.py:327; app/modules/lowcode/router_template.py:387; app/modules/lowcode/router_template.py:416; app/modules/lowcode/router_template.py:459; app/modules/lowcode/router_template.py:505; app/modules/lowcode/router_template.py:560 |
-| `lowcode:template:create` | app/modules/lowcode/router_template.py:257 |
-| `lowcode:template:delete` | app/modules/lowcode/router_template.py:387 |
-| `lowcode:template:fork` | app/modules/lowcode/router_template.py:416 |
-| `lowcode:template:list` | app/modules/lowcode/router_template.py:560 |
-| `lowcode:template:read` | app/modules/lowcode/router_template.py:459 |
-| `lowcode:template:update` | app/modules/lowcode/router_template.py:327; app/modules/lowcode/router_template.py:505 |
-| `points:list` | app/modules/points/router.py:40; app/modules/points/router.py:70 |
-| `points:update` | app/modules/points/router.py:96 |
-| `record:export` | app/modules/attendance_records/router.py:217 |
-| `rule_set:create` | app/modules/import_export/router_import.py:290 |
-| `schedule:extra-quota` | app/modules/schedules/router_extra_quota.py:201; app/modules/schedules/router_extra_quota.py:40 |
-| `schedule:extra-quota:approve` | app/modules/schedules/router_extra_quota.py:112; app/modules/schedules/router_extra_quota.py:152 |
-| `schedule:read` | app/modules/import_export/router_export.py:598; app/modules/schedule_suspensions/router.py:195; app/modules/schedule_suspensions/router.py:45; app/modules/schedules/router.py:128; app/modules/schedules/router.py:225; app/modules/schedules/router.py:477; app/modules/schedules/router_custom.py:92; app/modules/schedules/router_statistics.py:231; app/modules/schedules/router_statistics.py:320; app/modules/schedules/router_statistics.py:440; app/modules/schedules/router_statistics.py:70 |
-| `schedule:room` | app/modules/schedule_rooms/router.py:150; app/modules/schedule_rooms/router.py:175; app/modules/schedule_rooms/router.py:203 |
-| `schedule:suspend` | app/modules/schedule_suspensions/router.py:115; app/modules/schedule_suspensions/router.py:161; app/modules/schedule_suspensions/router.py:231; app/modules/schedules/router.py:687; app/modules/schedules/router.py:730 |
-| `support_ticket:list` | app/modules/support_tickets/router.py:106; app/modules/support_tickets/router.py:48 |
-| `support_ticket:manage` | app/modules/support_tickets/router.py:169; app/modules/support_tickets/router.py:192; app/modules/support_tickets/router.py:216; app/modules/support_tickets/router.py:239 |
-| `support_ticket:update` | app/modules/support_tickets/router.py:146 |
-| `support_ticket:view` | app/modules/support_tickets/router.py:123 |
-| `system:config` | app/modules/notification_logs/router.py:139 |
-| `system:monitoring` | app/modules/notification_logs/router.py:108; app/modules/notification_logs/router.py:122; app/modules/notification_logs/router.py:191; app/modules/notification_logs/router.py:211; app/modules/notification_logs/router.py:63; app/modules/notification_logs/router.py:95 |
-| `waitlist:cancel` | app/modules/waitlist/router.py:426 |
-| `waitlist:promote` | app/modules/waitlist/router.py:384 |
-| `waitlist:read` | app/modules/waitlist/router.py:241; app/modules/waitlist/router.py:292 |
 
 ## 仪表盘（`dashboard`）
 
@@ -105,6 +52,7 @@
 | &nbsp;&nbsp;`doctor:update` | 编辑医生 | button | app/modules/consultation_fees/router.py:343; app/modules/consultation_fees/router.py:390; app/modules/consultation_fees/router.py:408; app/modules/consultation_fees/router.py:436; app/modules/doctor_booking_settings/router.py:114; app/modules/doctor_booking_settings/router.py:146; app/modules/doctor_booking_settings/router.py:200; app/modules/doctors/router.py:675; app/modules/doctors/router.py:780 | 4 |
 | &nbsp;&nbsp;`doctor:delete` | 删除医生 | button | app/modules/doctor_booking_settings/router.py:175; app/modules/doctors/router.py:820 | 4 |
 | &nbsp;&nbsp;`doctor:booking-setting` | 预约设置 | button | app/modules/doctor_booking_settings/router.py:46; app/modules/doctor_booking_settings/router.py:76; app/modules/doctor_booking_settings/router.py:91 | 1 |
+| &nbsp;&nbsp;`doctor:review` | 医生评价管理 | button | app/modules/doctor_reviews/router.py:103 | — |
 
 ## 排班管理（`schedule`）
 
@@ -123,6 +71,11 @@
 | &nbsp;&nbsp;`schedule:statistics` | 排班统计 | button | — | 1 |
 | &nbsp;&nbsp;`schedule_template:list` | 查看排班模板列表 | button | app/modules/import_export/router_export.py:318 | — |
 | &nbsp;&nbsp;`schedule_template:export` | 导出排班模板 | button | app/modules/import_export/router_export.py:318 | — |
+| &nbsp;&nbsp;`schedule:read` | 查看排班 | button | app/modules/import_export/router_export.py:598; app/modules/schedule_suspensions/router.py:195; app/modules/schedule_suspensions/router.py:45; app/modules/schedules/router.py:128; app/modules/schedules/router.py:225; app/modules/schedules/router.py:477; app/modules/schedules/router_custom.py:92; app/modules/schedules/router_statistics.py:231; app/modules/schedules/router_statistics.py:320; app/modules/schedules/router_statistics.py:440; app/modules/schedules/router_statistics.py:70 | — |
+| &nbsp;&nbsp;`schedule:suspend` | 停排管理 | button | app/modules/schedule_suspensions/router.py:115; app/modules/schedule_suspensions/router.py:161; app/modules/schedule_suspensions/router.py:231; app/modules/schedules/router.py:687; app/modules/schedules/router.py:730 | — |
+| &nbsp;&nbsp;`schedule:room` | 诊室管理 | button | app/modules/schedule_rooms/router.py:150; app/modules/schedule_rooms/router.py:175; app/modules/schedule_rooms/router.py:203 | — |
+| &nbsp;&nbsp;`schedule:extra-quota` | 排班加额管理 | button | app/modules/schedules/router_extra_quota.py:201; app/modules/schedules/router_extra_quota.py:40 | — |
+| &nbsp;&nbsp;`schedule:extra-quota:approve` | 加额审批 | button | app/modules/schedules/router_extra_quota.py:112; app/modules/schedules/router_extra_quota.py:152 | — |
 
 ## 预约管理（`appointment`）
 
@@ -213,9 +166,19 @@
 | &nbsp;&nbsp;`lowcode:page:update` | 编辑页面 | button | app/modules/lowcode/router.py:194; app/modules/lowcode/router.py:269; app/modules/lowcode/router.py:443; app/modules/lowcode/router.py:732 | 1 |
 | &nbsp;&nbsp;`lowcode:page:delete` | 删除页面 | button | app/modules/lowcode/router.py:233; app/modules/lowcode/router.py:251 | 1 |
 | &nbsp;&nbsp;`lowcode:page:publish` | 发布页面 | button | app/modules/lowcode/router.py:407; app/modules/lowcode/router.py:805 | 1 |
+| &nbsp;&nbsp;`lowcode:page:read` | 查看页面详情 | button | app/modules/lowcode/router.py:175; app/modules/lowcode/router.py:293; app/modules/lowcode/router.py:465; app/modules/lowcode/router.py:488; app/modules/lowcode/router.py:525; app/modules/lowcode/router.py:691; app/modules/lowcode/router.py:767; app/modules/lowcode/router.py:894 | — |
+| &nbsp;&nbsp;`lowcode:page:codegen` | 生成页面代码 | button | app/modules/lowcode/router.py:575; app/modules/lowcode/router.py:624 | — |
+| &nbsp;&nbsp;`lowcode:page:deploy` | 部署页面 | button | app/modules/lowcode/router.py:855; app/modules/lowcode/router.py:932; app/modules/lowcode/router.py:972 | — |
 | &nbsp;&nbsp;`lowcode:marketplace` | 模板市场 | button | — | 1 |
 | &nbsp;&nbsp;`lowcode:marketplace:view` | 查看模板市场 | button | — | 1 |
 | &nbsp;&nbsp;`lowcode:marketplace:publish` | 发布模板 | button | app/modules/lowcode/router.py:805 | 1 |
+| &nbsp;&nbsp;`lowcode:template` | 模板管理 | button | app/modules/lowcode/router_template.py:257; app/modules/lowcode/router_template.py:327; app/modules/lowcode/router_template.py:387; app/modules/lowcode/router_template.py:416; app/modules/lowcode/router_template.py:459; app/modules/lowcode/router_template.py:505; app/modules/lowcode/router_template.py:560 | — |
+| &nbsp;&nbsp;`lowcode:template:list` | 查看模板列表 | button | app/modules/lowcode/router_template.py:560 | — |
+| &nbsp;&nbsp;`lowcode:template:read` | 查看模板 | button | app/modules/lowcode/router_template.py:459 | — |
+| &nbsp;&nbsp;`lowcode:template:create` | 新增模板 | button | app/modules/lowcode/router_template.py:257 | — |
+| &nbsp;&nbsp;`lowcode:template:update` | 编辑模板 | button | app/modules/lowcode/router_template.py:327; app/modules/lowcode/router_template.py:505 | — |
+| &nbsp;&nbsp;`lowcode:template:delete` | 删除模板 | button | app/modules/lowcode/router_template.py:387 | — |
+| &nbsp;&nbsp;`lowcode:template:fork` | 复制模板 | button | app/modules/lowcode/router_template.py:416 | — |
 
 ## 系统设置（`system`）
 
@@ -250,6 +213,23 @@
 | &nbsp;&nbsp;`log:export` | 导出操作日志 | button | app/modules/import_export/router_export.py:479 | — |
 | &nbsp;&nbsp;`rule_set:list` | 查看规则组列表 | button | app/modules/import_export/router_export.py:738 | — |
 | &nbsp;&nbsp;`rule_set:export` | 导出规则组 | button | app/modules/import_export/router_export.py:738 | — |
+| &nbsp;&nbsp;`rule_set:create` | 导入规则组 | button | app/modules/import_export/router_import.py:290 | — |
+| &nbsp;&nbsp;`system:config` | 系统配置 | button | app/modules/notification_logs/router.py:139 | — |
+| &nbsp;&nbsp;`system:monitoring` | 在线监控 | button | app/modules/notification_logs/router.py:108; app/modules/notification_logs/router.py:122; app/modules/notification_logs/router.py:191; app/modules/notification_logs/router.py:211; app/modules/notification_logs/router.py:63; app/modules/notification_logs/router.py:95 | — |
+
+## 审批中心（`approval`）
+
+| 权限码 | 名称 | 类型 | 后端守卫 | 前端引用 |
+|---|---|---|---|---|
+| `approval` | 审批中心 | menu | — | 4 |
+| &nbsp;&nbsp;`approval:read` | 查看审批 | button | app/modules/approval_flows/router_instances.py:103; app/modules/approval_flows/router_instances.py:117; app/modules/approval_flows/router_instances.py:131; app/modules/approval_flows/router_instances.py:215; app/modules/approval_flows/router_instances.py:35; app/modules/approval_flows/router_instances.py:65; app/modules/approval_flows/router_instances.py:89 | 1 |
+| &nbsp;&nbsp;`approval:approve` | 审批操作 | button | app/modules/approval_flows/router_instances.py:146; app/modules/approval_flows/router_instances.py:169; app/modules/approval_flows/router_instances.py:192 | 1 |
+| &nbsp;&nbsp;`approval-instance:manage` | 处理审批实例 | button | app/modules/approval_flows/router_instances.py:236; app/modules/approval_flows/router_instances.py:257; app/modules/approval_flows/router_instances.py:278 | 2 |
+| &nbsp;&nbsp;`approval-flow:list` | 查看审批流程 | button | app/modules/approval_flows/router.py:158; app/modules/approval_flows/router.py:221; app/modules/approval_flows/router.py:325; app/modules/approval_flows/router.py:443; app/modules/approval_flows/router.py:56; app/modules/approval_flows/router.py:80; app/modules/approval_flows/router.py:93 | 1 |
+| &nbsp;&nbsp;`approval-flow:create` | 新增审批流程 | button | app/modules/approval_flows/router.py:208; app/modules/approval_flows/router.py:242; app/modules/approval_flows/router.py:339; app/modules/approval_flows/router.py:427 | 1 |
+| &nbsp;&nbsp;`approval-flow:update` | 编辑审批流程 | button | app/modules/approval_flows/router.py:354 | 1 |
+| &nbsp;&nbsp;`approval-flow:delete` | 删除审批流程 | button | app/modules/approval_flows/router.py:307; app/modules/approval_flows/router.py:408 | 1 |
+| &nbsp;&nbsp;`approval-flow:manage` | 发布/停用审批流程 | button | app/modules/approval_flows/router.py:373; app/modules/approval_flows/router.py:392 | 1 |
 
 ## 内容站点（`cms`）
 
@@ -268,3 +248,66 @@
 | &nbsp;&nbsp;`cms:article:create` | 新增文章 | button | app/modules/cms/router_articles.py:171; app/modules/cms/router_articles.py:50 | 2 |
 | &nbsp;&nbsp;`cms:article:update` | 编辑文章 | button | app/modules/cms/router_articles.py:188; app/modules/cms/router_articles.py:50 | 2 |
 | &nbsp;&nbsp;`cms:article:delete` | 删除文章 | button | app/modules/cms/router_articles.py:102; app/modules/cms/router_articles.py:207; app/modules/cms/router_articles.py:221; app/modules/cms/router_articles.py:235; app/modules/cms/router_articles.py:249; app/modules/cms/router_articles.py:50 | 2 |
+
+## 联系人管理（`contact`）
+
+| 权限码 | 名称 | 类型 | 后端守卫 | 前端引用 |
+|---|---|---|---|---|
+| `contact` | 联系人管理 | menu | — | 3 |
+| &nbsp;&nbsp;`contact:view` | 查看联系人 | button | app/modules/contacts/router.py:146; app/modules/contacts/router.py:47; app/modules/contacts/router.py:74; app/modules/contacts/router_channels.py:34; app/modules/contacts/router_channels.py:58; app/modules/contacts/router_groups.py:37; app/modules/contacts/router_tags.py:18 | 1 |
+| &nbsp;&nbsp;`contact:create` | 新增联系人 | button | app/modules/contacts/router.py:211; app/modules/contacts/router.py:88; app/modules/contacts/router_channels.py:72; app/modules/contacts/router_groups.py:50; app/modules/contacts/router_tags.py:30 | 1 |
+| &nbsp;&nbsp;`contact:edit` | 编辑联系人 | button | app/modules/contacts/router.py:106; app/modules/contacts/router.py:332; app/modules/contacts/router.py:345; app/modules/contacts/router.py:358; app/modules/contacts/router_channels.py:125; app/modules/contacts/router_channels.py:90; app/modules/contacts/router_groups.py:68; app/modules/contacts/router_tags.py:48 | 1 |
+| &nbsp;&nbsp;`contact:delete` | 删除联系人 | button | app/modules/contacts/router.py:126; app/modules/contacts/router.py:319; app/modules/contacts/router_channels.py:110; app/modules/contacts/router_groups.py:88; app/modules/contacts/router_tags.py:68 | 1 |
+| &nbsp;&nbsp;`contact:export` | 导出联系人 | button | app/modules/contacts/router.py:146 | — |
+
+## 兼职结算（`freelance`）
+
+| 权限码 | 名称 | 类型 | 后端守卫 | 前端引用 |
+|---|---|---|---|---|
+| `freelance` | 兼职结算 | menu | — | 1 |
+| &nbsp;&nbsp;`freelance:list` | 查看兼职数据 | button | app/modules/freelance_fees/router.py:157; app/modules/freelance_fees/router.py:188; app/modules/freelance_fees/router.py:238; app/modules/freelance_fees/router.py:319; app/modules/freelance_fees/router.py:348; app/modules/freelance_fees/router.py:452; app/modules/freelance_fees/router.py:468; app/modules/freelance_fees/router.py:484; app/modules/freelance_fees/router.py:500; app/modules/freelance_fees/router.py:520; app/modules/freelance_fees/router.py:68; app/modules/freelance_fees/router.py:93 | 4 |
+| &nbsp;&nbsp;`freelance:create` | 新增兼职数据 | button | app/modules/freelance_fees/router.py:108; app/modules/freelance_fees/router.py:208; app/modules/freelance_fees/router.py:251; app/modules/freelance_fees/router.py:618 | 2 |
+| &nbsp;&nbsp;`freelance:update` | 编辑兼职数据 | button | app/modules/freelance_fees/router.py:122; app/modules/freelance_fees/router.py:222; app/modules/freelance_fees/router.py:268 | 3 |
+| &nbsp;&nbsp;`freelance:delete` | 删除兼职数据 | button | app/modules/freelance_fees/router.py:136 | 2 |
+| &nbsp;&nbsp;`freelance:settle` | 结算操作 | button | app/modules/freelance_fees/router.py:373; app/modules/freelance_fees/router.py:393; app/modules/freelance_fees/router.py:413; app/modules/freelance_fees/router.py:432 | 2 |
+
+## 积分管理（`points`）
+
+| 权限码 | 名称 | 类型 | 后端守卫 | 前端引用 |
+|---|---|---|---|---|
+| `points` | 积分管理 | menu | — | 3 |
+| &nbsp;&nbsp;`points:list` | 查看积分 | button | app/modules/points/router.py:40; app/modules/points/router.py:70 | — |
+| &nbsp;&nbsp;`points:update` | 调整积分 | button | app/modules/points/router.py:96 | 1 |
+
+## 服务工单（`support_ticket`）
+
+| 权限码 | 名称 | 类型 | 后端守卫 | 前端引用 |
+|---|---|---|---|---|
+| `support_ticket` | 服务工单 | menu | — | — |
+| &nbsp;&nbsp;`support_ticket:view` | 查看工单 | button | app/modules/support_tickets/router.py:123 | 1 |
+| &nbsp;&nbsp;`support_ticket:list` | 查看工单列表 | button | app/modules/support_tickets/router.py:106; app/modules/support_tickets/router.py:48 | — |
+| &nbsp;&nbsp;`support_ticket:update` | 处理工单 | button | app/modules/support_tickets/router.py:146 | — |
+| &nbsp;&nbsp;`support_ticket:manage` | 工单管理 | button | app/modules/support_tickets/router.py:169; app/modules/support_tickets/router.py:192; app/modules/support_tickets/router.py:216; app/modules/support_tickets/router.py:239 | 1 |
+
+## 候补管理（`waitlist`）
+
+| 权限码 | 名称 | 类型 | 后端守卫 | 前端引用 |
+|---|---|---|---|---|
+| `waitlist` | 候补管理 | menu | — | — |
+| &nbsp;&nbsp;`waitlist:read` | 查看候补 | button | app/modules/waitlist/router.py:241; app/modules/waitlist/router.py:292 | — |
+| &nbsp;&nbsp;`waitlist:cancel` | 取消候补 | button | app/modules/waitlist/router.py:426 | — |
+| &nbsp;&nbsp;`waitlist:promote` | 候补递补 | button | app/modules/waitlist/router.py:384 | — |
+
+## 考勤管理（`attendance`）
+
+| 权限码 | 名称 | 类型 | 后端守卫 | 前端引用 |
+|---|---|---|---|---|
+| `attendance` | 考勤管理 | menu | — | 1 |
+| &nbsp;&nbsp;`attendance:record` | 考勤打卡记录 | button | app/modules/attendance_records/router.py:155; app/modules/attendance_records/router.py:176; app/modules/attendance_records/router.py:217 | 1 |
+| &nbsp;&nbsp;`record:export` | 导出考勤记录 | button | app/modules/attendance_records/router.py:217 | — |
+
+## 展示型权限码（前后端零引用，可评估下线或接线）
+
+```
+support_ticket; waitlist
+```

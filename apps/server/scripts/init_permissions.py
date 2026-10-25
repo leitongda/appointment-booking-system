@@ -176,6 +176,73 @@ PERMISSIONS = [
     {"code": "schedule_template:export", "name": "导出排班模板", "type": "button", "parent_code": "schedule", "sort": 11},
     {"code": "rule_set:list", "name": "查看规则组列表", "type": "button", "parent_code": "system", "sort": 6},
     {"code": "rule_set:export", "name": "导出规则组", "type": "button", "parent_code": "system", "sort": 7},
+    {"code": "rule_set:create", "name": "导入规则组", "type": "button", "parent_code": "system", "sort": 8},
+    {"code": "system:config", "name": "系统配置", "type": "button", "parent_code": "system", "sort": 9},
+    {"code": "system:monitoring", "name": "在线监控", "type": "button", "parent_code": "system", "sort": 10},
+
+    # ========== 2026-10-24 目录补齐：后端守卫既有码（48 个，此前无法授权） ==========
+    # 审批中心
+    {"code": "approval", "name": "审批中心", "type": "menu", "parent_code": None, "icon": "audit", "sort": 15},
+    {"code": "approval:read", "name": "查看审批", "type": "button", "parent_code": "approval", "sort": 1},
+    {"code": "approval:approve", "name": "审批操作", "type": "button", "parent_code": "approval", "sort": 2},
+    {"code": "approval-instance:manage", "name": "处理审批实例", "type": "button", "parent_code": "approval", "sort": 3},
+    {"code": "approval-flow:list", "name": "查看审批流程", "type": "button", "parent_code": "approval", "sort": 4},
+    {"code": "approval-flow:create", "name": "新增审批流程", "type": "button", "parent_code": "approval", "sort": 5},
+    {"code": "approval-flow:update", "name": "编辑审批流程", "type": "button", "parent_code": "approval", "sort": 6},
+    {"code": "approval-flow:delete", "name": "删除审批流程", "type": "button", "parent_code": "approval", "sort": 7},
+    {"code": "approval-flow:manage", "name": "发布/停用审批流程", "type": "button", "parent_code": "approval", "sort": 8},
+    # 联系人管理
+    {"code": "contact", "name": "联系人管理", "type": "menu", "parent_code": None, "icon": "team", "sort": 16},
+    {"code": "contact:view", "name": "查看联系人", "type": "button", "parent_code": "contact", "sort": 1},
+    {"code": "contact:create", "name": "新增联系人", "type": "button", "parent_code": "contact", "sort": 2},
+    {"code": "contact:edit", "name": "编辑联系人", "type": "button", "parent_code": "contact", "sort": 3},
+    {"code": "contact:delete", "name": "删除联系人", "type": "button", "parent_code": "contact", "sort": 4},
+    {"code": "contact:export", "name": "导出联系人", "type": "button", "parent_code": "contact", "sort": 5},
+    # 兼职结算
+    {"code": "freelance", "name": "兼职结算", "type": "menu", "parent_code": None, "icon": "money-collect", "sort": 17},
+    {"code": "freelance:list", "name": "查看兼职数据", "type": "button", "parent_code": "freelance", "sort": 1},
+    {"code": "freelance:create", "name": "新增兼职数据", "type": "button", "parent_code": "freelance", "sort": 2},
+    {"code": "freelance:update", "name": "编辑兼职数据", "type": "button", "parent_code": "freelance", "sort": 3},
+    {"code": "freelance:delete", "name": "删除兼职数据", "type": "button", "parent_code": "freelance", "sort": 4},
+    {"code": "freelance:settle", "name": "结算操作", "type": "button", "parent_code": "freelance", "sort": 5},
+    # 积分管理
+    {"code": "points", "name": "积分管理", "type": "menu", "parent_code": None, "icon": "gift", "sort": 18},
+    {"code": "points:list", "name": "查看积分", "type": "button", "parent_code": "points", "sort": 1},
+    {"code": "points:update", "name": "调整积分", "type": "button", "parent_code": "points", "sort": 2},
+    # 服务工单
+    {"code": "support_ticket", "name": "服务工单", "type": "menu", "parent_code": None, "icon": "customer-service", "sort": 19},
+    {"code": "support_ticket:view", "name": "查看工单", "type": "button", "parent_code": "support_ticket", "sort": 1},
+    {"code": "support_ticket:list", "name": "查看工单列表", "type": "button", "parent_code": "support_ticket", "sort": 2},
+    {"code": "support_ticket:update", "name": "处理工单", "type": "button", "parent_code": "support_ticket", "sort": 3},
+    {"code": "support_ticket:manage", "name": "工单管理", "type": "button", "parent_code": "support_ticket", "sort": 4},
+    # 候补管理
+    {"code": "waitlist", "name": "候补管理", "type": "menu", "parent_code": None, "icon": "clock-circle", "sort": 20},
+    {"code": "waitlist:read", "name": "查看候补", "type": "button", "parent_code": "waitlist", "sort": 1},
+    {"code": "waitlist:cancel", "name": "取消候补", "type": "button", "parent_code": "waitlist", "sort": 2},
+    {"code": "waitlist:promote", "name": "候补递补", "type": "button", "parent_code": "waitlist", "sort": 3},
+    # 考勤管理
+    {"code": "attendance", "name": "考勤管理", "type": "menu", "parent_code": None, "icon": "calendar", "sort": 21},
+    {"code": "attendance:record", "name": "考勤打卡记录", "type": "button", "parent_code": "attendance", "sort": 1},
+    {"code": "record:export", "name": "导出考勤记录", "type": "button", "parent_code": "attendance", "sort": 2},
+    # 医生评价（挂医生管理）
+    {"code": "doctor:review", "name": "医生评价管理", "type": "button", "parent_code": "doctor", "sort": 90},
+    # 排班补充（挂排班管理）
+    {"code": "schedule:read", "name": "查看排班", "type": "button", "parent_code": "schedule", "sort": 90},
+    {"code": "schedule:suspend", "name": "停排管理", "type": "button", "parent_code": "schedule", "sort": 91},
+    {"code": "schedule:room", "name": "诊室管理", "type": "button", "parent_code": "schedule", "sort": 92},
+    {"code": "schedule:extra-quota", "name": "排班加额管理", "type": "button", "parent_code": "schedule", "sort": 93},
+    {"code": "schedule:extra-quota:approve", "name": "加额审批", "type": "button", "parent_code": "schedule:extra-quota", "sort": 1},
+    # 低代码补充（挂既有 lowcode:page / lowcode 分组）
+    {"code": "lowcode:page:read", "name": "查看页面详情", "type": "button", "parent_code": "lowcode:page", "sort": 6},
+    {"code": "lowcode:page:codegen", "name": "生成页面代码", "type": "button", "parent_code": "lowcode:page", "sort": 7},
+    {"code": "lowcode:page:deploy", "name": "部署页面", "type": "button", "parent_code": "lowcode:page", "sort": 8},
+    {"code": "lowcode:template", "name": "模板管理", "type": "button", "parent_code": "lowcode", "sort": 3},
+    {"code": "lowcode:template:list", "name": "查看模板列表", "type": "button", "parent_code": "lowcode:template", "sort": 1},
+    {"code": "lowcode:template:read", "name": "查看模板", "type": "button", "parent_code": "lowcode:template", "sort": 2},
+    {"code": "lowcode:template:create", "name": "新增模板", "type": "button", "parent_code": "lowcode:template", "sort": 3},
+    {"code": "lowcode:template:update", "name": "编辑模板", "type": "button", "parent_code": "lowcode:template", "sort": 4},
+    {"code": "lowcode:template:delete", "name": "删除模板", "type": "button", "parent_code": "lowcode:template", "sort": 5},
+    {"code": "lowcode:template:fork", "name": "复制模板", "type": "button", "parent_code": "lowcode:template", "sort": 6},
 ]
 
 for permission in PERMISSIONS:

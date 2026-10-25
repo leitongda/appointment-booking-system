@@ -678,3 +678,12 @@ B0–B11 复盘时暴露的三个测试缺口在本批次收口：
 | admin lint 技术债 | 49 文件 104 错（修复后） | 构成：no-unused-vars×73、no-use-before-define×24、no-unescaped-entities×6、button-has-type×1；全部机械修复项，未在本批处理（避免大面积触碰 49 个业务页面），留作独立清理批 |
 
 **本批验证**：admin vitest 112 通过（+21）、admin tsc/build 全绿；后端无改动。
+
+### 10.11 漂移权限码补目录与 admin lint 清零（2026-10-24，第八批次）
+
+| 事项 | 落点 | 说明 |
+|---|---|---|
+| 48 个目录外权限码补齐 | `scripts/init_permissions.py`（130→185 条）+ 开发库 permissions 表（128→185 行，幂等插入） | 按「码已在后端守卫存在，仅补中文名与分组」原则：新增 7 个分组菜单（审批中心/联系人/兼职结算/积分/服务工单/候补/考勤）+ 既有分组挂载（doctor/schedule/lowcode/system）；命名遵循现有「查看/新增/编辑/删除/导出」惯例，产品可随时改名（name 可变，code 不动）。完整性校验：无重复、无孤儿父级；`gen_permission_matrix.py` 漂移 0，`--check` 退出码 0 可挂 CI。**staging/生产需重跑 init_permissions 或等价幂等插入后才可授权这些模块** |
+| admin lint 清零 | 49 文件 104→0 错 | no-unused-vars×73（未用 import 删除、局部改 `_` 前缀、解构属性删除/别名）；no-use-before-define×24（12 处小助手定义上移；SchemaRenderer/NodeDetailContent/sessionRecorder 三处互递归/环形引用以文件级 disable 注明原因）；no-unescaped-entities×6（引号改「」）；button-has-type×1。修复脚本两处自伤（import 双花括号、块提取越界）均当场发现并修复，最终 eslint/tsc/vitest/build 四绿 |
+
+**本批验证**：`eslint src` 0 error；`tsc --noEmit` 零错；vitest 112 通过；`max build` 成功；权限矩阵漂移 0。

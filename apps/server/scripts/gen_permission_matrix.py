@@ -85,7 +85,7 @@ def scan_frontend(codes: list[str]) -> dict[str, set[str]]:
     return usage
 
 
-def main() -> int:
+def main(check_only: bool = False) -> int:
     catalog = load_catalog()
     catalog_codes = [entry["code"] for entry in catalog]
     backend = scan_backend()
@@ -98,7 +98,7 @@ def main() -> int:
         code for code in catalog_codes if code not in backend and code not in frontend
     )
 
-    if "--check" in sys.argv:
+    if check_only:
         for code in drift:
             print(f"DRIFT: 后端守卫使用目录外权限码 {code} @ {sorted(backend[code])}")
         print(f"check 完成：漂移 {len(drift)} 个，展示型 {len(display_only)} 个")
@@ -156,9 +156,8 @@ def main() -> int:
         lines.append("")
 
     if display_only:
-        lines += ["## 展示型权限码（前后端零引用，可评估下线或接线）", ""]
-        lines += ["```"]
-        lines += ["; ".join(display_only[i : i + 6] for i in range(0, len(display_only), 6))]
+        lines += ["## 展示型权限码（前后端零引用，可评估下线或接线）", "", "```"]
+        lines += ["; ".join(display_only[i : i + 6]) for i in range(0, len(display_only), 6)]
         lines += ["```", ""]
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
@@ -169,5 +168,6 @@ def main() -> int:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.parse_args()
-    sys.exit(main())
+    parser.add_argument("--check", action="store_true", help="只做漂移检查（退出码 1=有漂移，可挂 CI）")
+    args = parser.parse_args()
+    sys.exit(main(check_only=args.check))
