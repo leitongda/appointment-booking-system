@@ -47,6 +47,7 @@ import { history, useParams } from '@umijs/max';
 import { adminApi } from '@hospital/api';
 import type { Role } from '@hospital/api';
 import {
+  codesByControlTypes,
   collectPermissionCodes,
   CONTROL_TYPE_LABELS,
   CONTROL_TYPE_ORDER,
@@ -509,6 +510,11 @@ const RolePermissionsPage: React.FC = () => {
     setCheckedKeys(checkedKeys.filter((key) => !visibleCodeSet.has(key)));
   };
 
+  // 1.5 一键「仅选页面级 / 仅选操作级」：重置为全树中该类型的全部权限码
+  const handleSelectOnlyByTypes = (types: PermissionControlType[]) => {
+    setCheckedKeys(codesByControlTypes(permissionsTree, types));
+  };
+
   return (
     <PageContainer
       title={`分配权限 - ${role?.name || ''}`}
@@ -593,6 +599,12 @@ const RolePermissionsPage: React.FC = () => {
                   <Button danger ghost onClick={() => handleCheckVisible(false, visiblePermissionCodes)}>
                     清空当前结果
                   </Button>
+                  <Button onClick={() => handleSelectOnlyByTypes(['page', 'tab'])} title="只保留页面与 Tab/视图权限（可见性授权），清除全部操作与接口权限">
+                    仅选页面级
+                  </Button>
+                  <Button onClick={() => handleSelectOnlyByTypes(['action'])} title="只保留按钮/操作权限，清除页面、Tab 与接口权限">
+                    仅选操作级
+                  </Button>
                 </Space>
               </div>
               <div className="permission-filter-tags">
@@ -653,9 +665,28 @@ const RolePermissionsPage: React.FC = () => {
                               </div>
                             </div>
                           </div>
-                          <span className="module-card-count">
-                            {selectedCount} / {visibleCount}
-                          </span>
+                          <Space size={4} className="module-card-actions">
+                            <Text type="secondary" className="module-card-count">
+                              {selectedCount} / {visibleCount}
+                            </Text>
+                            <Button
+                              size="small"
+                              type="link"
+                              className="module-card-action-btn"
+                              onClick={() => handleCheckVisible(true, module.descendantCodes)}
+                            >
+                              全选
+                            </Button>
+                            <Button
+                              size="small"
+                              type="link"
+                              danger
+                              className="module-card-action-btn"
+                              onClick={() => handleCheckVisible(false, module.descendantCodes)}
+                            >
+                              清空
+                            </Button>
+                          </Space>
                         </div>
                       }
                     >

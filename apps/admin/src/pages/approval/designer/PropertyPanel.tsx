@@ -117,6 +117,11 @@ const newCondId = () => `__cond_${++_condIdSeq}`;
 const PropertyPanel: React.FC<PropertyPanelProps> = memo(({ selectedNode, onUpdate, onDelete }) => {
   const [form] = Form.useForm();
   const condIdMapRef = useRef<Map<string, string>>(new Map());
+  // 监听器相关的 Hook 必须在下方 !selectedNode 早退之前调用，
+  // 否则「选中→取消选中」两次渲染的 Hook 数量不一致会直接崩溃
+  const [listenerModalOpen, setListenerModalOpen] = useState(false);
+  const [editingListener, setEditingListener] = useState<ListenerConfig | null>(null);
+  const [listenerForm] = Form.useForm();
 
   useEffect(() => {
     if (selectedNode) {
@@ -174,9 +179,6 @@ const PropertyPanel: React.FC<PropertyPanelProps> = memo(({ selectedNode, onUpda
 
   // ──── 监听器状态与处理 ────
   const listeners: ListenerConfig[] = (d.listeners as ListenerConfig[]) || [];
-  const [listenerModalOpen, setListenerModalOpen] = useState(false);
-  const [editingListener, setEditingListener] = useState<ListenerConfig | null>(null);
-  const [listenerForm] = Form.useForm();
 
   const showListenerEvents = nodeType === 'approval' ? [...EXECUTION_EVENTS, ...TASK_EVENTS] : EXECUTION_EVENTS;
 
