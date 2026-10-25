@@ -170,10 +170,10 @@ def upgrade() -> None:
     op.drop_index('idx_admins_tenant_id', table_name='admins', if_exists=True)
     op.drop_index('idx_admins_tenant_role', table_name='admins', if_exists=True)
     op.drop_index('idx_admins_tenant_status', table_name='admins', if_exists=True)
-    op.drop_constraint('uq_admins_tenant_username', 'admins', type_='unique', if_exists=True)
+    op.execute('ALTER TABLE admins DROP CONSTRAINT IF EXISTS uq_admins_tenant_username')
     op.create_index(op.f('ix_admins_tenant_id'), 'admins', ['tenant_id'], unique=False)
     op.create_unique_constraint(None, 'admins', ['username'])
-    op.drop_constraint('admins_store_id_fkey', 'admins', type_='foreignkey', if_exists=True)
+    op.execute('ALTER TABLE admins DROP CONSTRAINT IF EXISTS admins_store_id_fkey')
     op.create_foreign_key(None, 'admins', 'stores', ['current_store_id'], ['id'])
     op.alter_column('app_templates', 'status',
                existing_type=sa.INTEGER(),
@@ -541,7 +541,7 @@ def upgrade() -> None:
                comment='更新时间',
                existing_nullable=True)
     op.drop_index('idx_banners_store_id', table_name='banners', if_exists=True)
-    op.drop_constraint('banners_store_id_fkey', 'banners', type_='foreignkey', if_exists=True)
+    op.execute('ALTER TABLE banners DROP CONSTRAINT IF EXISTS banners_store_id_fkey')
     op.create_foreign_key(None, 'banners', 'stores', ['store_id'], ['id'])
     op.alter_column('blacklists', 'store_id',
                existing_type=sa.VARCHAR(length=36),
@@ -1779,7 +1779,7 @@ def upgrade() -> None:
                comment='更新时间',
                existing_nullable=True)
     op.drop_index('idx_messages_store_id', table_name='messages', if_exists=True)
-    op.drop_constraint('messages_store_id_fkey', 'messages', type_='foreignkey', if_exists=True)
+    op.execute('ALTER TABLE messages DROP CONSTRAINT IF EXISTS messages_store_id_fkey')
     op.create_foreign_key(None, 'messages', 'stores', ['store_id'], ['id'])
     op.alter_column('miniapp_instances', 'template_version_id',
                existing_type=sa.VARCHAR(length=36),
@@ -1839,7 +1839,7 @@ def upgrade() -> None:
                comment='更新时间',
                existing_nullable=True)
     op.drop_index('idx_news_store_id', table_name='news', if_exists=True)
-    op.drop_constraint('news_store_id_fkey', 'news', type_='foreignkey', if_exists=True)
+    op.execute('ALTER TABLE news DROP CONSTRAINT IF EXISTS news_store_id_fkey')
     op.create_foreign_key(None, 'news', 'stores', ['store_id'], ['id'])
     op.alter_column('notices', 'created_at',
                existing_type=postgresql.TIMESTAMP(),
@@ -1850,7 +1850,7 @@ def upgrade() -> None:
                comment='更新时间',
                existing_nullable=True)
     op.drop_index('idx_notices_store_id', table_name='notices', if_exists=True)
-    op.drop_constraint('notices_store_id_fkey', 'notices', type_='foreignkey', if_exists=True)
+    op.execute('ALTER TABLE notices DROP CONSTRAINT IF EXISTS notices_store_id_fkey')
     op.create_foreign_key(None, 'notices', 'stores', ['store_id'], ['id'])
     op.add_column('notification_deliveries', sa.Column('updated_at', sa.DateTime(), nullable=True, comment='更新时间'))
     op.alter_column('notification_deliveries', 'channel',
@@ -2050,7 +2050,7 @@ def upgrade() -> None:
     op.drop_index('ix_patients_card_no', table_name='patients', if_exists=True)
     op.create_index(op.f('ix_patients_card_no'), 'patients', ['card_no'], unique=False)
     op.create_index(op.f('ix_patients_tenant_id'), 'patients', ['tenant_id'], unique=False)
-    op.drop_constraint('patients_store_id_fkey', 'patients', type_='foreignkey', if_exists=True)
+    op.execute('ALTER TABLE patients DROP CONSTRAINT IF EXISTS patients_store_id_fkey')
     op.create_foreign_key(None, 'patients', 'stores', ['store_id'], ['id'])
     op.create_table_comment(
         'patients',
@@ -2341,7 +2341,7 @@ def upgrade() -> None:
                comment='更新时间',
                existing_nullable=True)
     op.drop_index('idx_roles_tenant_id', table_name='roles', if_exists=True)
-    op.drop_constraint('uq_roles_tenant_code', 'roles', type_='unique', if_exists=True)
+    op.execute('ALTER TABLE roles DROP CONSTRAINT IF EXISTS uq_roles_tenant_code')
     op.create_index(op.f('ix_roles_code'), 'roles', ['code'], unique=False)
     op.create_index(op.f('ix_roles_tenant_id'), 'roles', ['tenant_id'], unique=False)
     op.create_table_comment(
@@ -2914,7 +2914,7 @@ def upgrade() -> None:
                existing_server_default=sa.text('now()'))
     op.drop_index('idx_tenant_usage_logs_date', table_name='tenant_usage_logs', if_exists=True)
     op.drop_index('idx_tenant_usage_logs_tenant', table_name='tenant_usage_logs', if_exists=True)
-    op.drop_constraint('uq_tenant_usage_date', 'tenant_usage_logs', type_='unique', if_exists=True)
+    op.execute('ALTER TABLE tenant_usage_logs DROP CONSTRAINT IF EXISTS uq_tenant_usage_date')
     op.create_table_comment(
         'tenant_usage_logs',
         '租户用量统计表',
@@ -3546,7 +3546,7 @@ def downgrade() -> None:
                existing_comment='创建时间',
                existing_nullable=True,
                existing_server_default=sa.text('now()'))
-    op.drop_constraint('uq_store_fee_templates_store_type', 'store_fee_templates', type_='unique', if_exists=True)
+    op.execute('ALTER TABLE store_fee_templates DROP CONSTRAINT IF EXISTS uq_store_fee_templates_store_type')
     op.create_index('ix_store_fee_templates_unique', 'store_fee_templates', ['store_id', 'fee_type_id'], unique=True)
     op.create_index('ix_store_fee_templates_store_id', 'store_fee_templates', ['store_id'], unique=False)
     op.create_index('ix_store_fee_templates_fee_type_id', 'store_fee_templates', ['fee_type_id'], unique=False)
@@ -5629,7 +5629,7 @@ def downgrade() -> None:
                existing_comment='创建时间',
                existing_nullable=True,
                existing_server_default=sa.text('now()'))
-    op.drop_constraint('uix_store_doctor', 'doctor_booking_settings', type_='unique', if_exists=True)
+    op.execute('ALTER TABLE doctor_booking_settings DROP CONSTRAINT IF EXISTS uix_store_doctor')
     op.create_index('uix_store_doctor', 'doctor_booking_settings', ['store_id', 'doctor_id'], unique=True)
     op.create_index('ix_doctor_booking_settings_store', 'doctor_booking_settings', ['store_id'], unique=False)
     op.create_index('ix_doctor_booking_settings_doctor', 'doctor_booking_settings', ['doctor_id'], unique=False)
@@ -5774,7 +5774,7 @@ def downgrade() -> None:
                existing_type=sa.VARCHAR(length=36),
                nullable=False,
                existing_comment='租户ID')
-    op.drop_constraint('uq_consultation_fee_types_store_code', 'consultation_fee_types', type_='unique', if_exists=True)
+    op.execute('ALTER TABLE consultation_fee_types DROP CONSTRAINT IF EXISTS uq_consultation_fee_types_store_code')
     op.drop_index(op.f('ix_consultation_fee_types_code'), table_name='consultation_fee_types', if_exists=True)
     op.create_index('ix_consultation_fee_types_store_id', 'consultation_fee_types', ['store_id'], unique=False)
     op.create_index('ix_consultation_fee_types_store_code', 'consultation_fee_types', ['store_id', 'code'], unique=True)
