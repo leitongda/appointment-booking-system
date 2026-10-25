@@ -6,6 +6,7 @@ from sqlalchemy import and_, delete, select
 from sqlalchemy.orm import selectinload
 
 from app.models.consultation_fee import DoctorConsultationFee
+from app.models.doctor import Doctor
 from app.schemas.consultation_fee import (
     DoctorConsultationFeeBatchCreate,
     DoctorConsultationFeeCreate,
@@ -174,11 +175,19 @@ class ConsultationFeeDoctorMixin:
         return result.rowcount or 0
 
     async def get_doctor_fee_setting(self, doctor_id: str) -> dict:
+        # doctor_name/use_fee_template 为 router 契约键（此前缺失导致端点恒 500）
+        doctor = await self.db.get(Doctor, doctor_id)
         fees = await self.get_doctor_fees(doctor_id=doctor_id)
         use_template = 1
         if fees:
             use_template = fees[0].use_template
-        return {"doctor_id": doctor_id, "use_template": use_template, "fees": fees}
+        return {
+            "doctor_id": doctor_id,
+            "doctor_name": doctor.name if doctor else None,
+            "use_template": use_template,
+            "use_fee_template": use_template,
+            "fees": fees,
+        }
 
     async def update_doctor_use_template(self, doctor_id: str, use_template: int) -> bool:
         fees = await self.get_doctor_fees(doctor_id=doctor_id)

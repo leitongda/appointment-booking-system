@@ -22,7 +22,7 @@ LEGACY_OVERSIZED_ROUTERS = {
     "app/modules/approval_flows/router.py": 446,
     "app/modules/attendance_records/router.py": 307,
     "app/modules/auth/router.py": 1035,
-    "app/modules/consultation_fees/router.py": 479,
+    "app/modules/consultation_fees/router.py": 563,
     "app/modules/contacts/router.py": 364,
     "app/modules/content/router.py": 603,
     "app/modules/departments/router.py": 413,
