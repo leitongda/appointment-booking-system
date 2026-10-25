@@ -277,7 +277,7 @@ async def wechat_refund_callback(
         else:
             status = "failed"
 
-        # 更新退款记录
+        # 更新退款记录（R4-11：按回调租户上下文收敛，防伪造单号跨租户命中）
         service = RefundService(db)
         await service.process_refund_callback(
             refund_no=out_refund_no,
@@ -285,6 +285,7 @@ async def wechat_refund_callback(
             status=status,
             callback_raw=body.decode(),
             failed_reason=None if status == "success" else "退款异常",
+            tenant_id=tenant_id,
         )
         await db.commit()
 

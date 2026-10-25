@@ -84,18 +84,18 @@ def sync_session_maker(monkeypatch):
     return session_maker
 
 
-def _seed(session_maker, auto_renew: bool) -> Tenant:
-    """一个已到期（昨天）的正常租户 + 一条已支付订阅。"""
+def _seed(session_maker, auto_renew: bool, payment_status: str = "paid") -> Tenant:
+    """一个已到期（昨天）的正常租户 + 一条指定支付状态的订阅。"""
     with session_maker() as session:
         plan = SubscriptionPlan(
             id=str(uuid.uuid4()),
-            plan_code=f"basic-{auto_renew}",
+            plan_code=f"basic-{auto_renew}-{payment_status}",
             name="基础版",
             status=1,
         )
         tenant = Tenant(
             id=str(uuid.uuid4()),
-            tenant_code=f"ar-{auto_renew}",
+            tenant_code=f"ar-{auto_renew}-{payment_status[:3]}",
             name=f"自动续费={auto_renew}",
             status=1,
             subscription_end_at=NOW - timedelta(days=1),
@@ -112,7 +112,7 @@ def _seed(session_maker, auto_renew: bool) -> Tenant:
                 billing_cycle="monthly",
                 start_at=NOW - timedelta(days=31),
                 end_at=NOW - timedelta(days=1),
-                payment_status="paid",
+                payment_status=payment_status,
                 status=1,
                 auto_renew=auto_renew,
             )
@@ -137,6 +137,17 @@ def test_expiry_without_auto_renew_still_marks_overdue(sync_session_maker):
     reloaded = _reload(sync_session_maker, tenant.id)
     assert result["suspended_count"] == 1
     assert reloaded.status == 2
+
+
+def test_unpaid_subscription_with_auto_renew_still_marks_overdue(sync_session_maker):
+    """P4-5 负向：auto_renew=True 但本期订阅未支付（pending）→ 不续费，到期照常置欠费。"""
+    tenant = _seed(sync_session_maker, auto_renew=True, payment_status="pending")
+
+    result = check_subscription_expiry()
+
+    assert result["renewed_count"] == 0
+    assert result["suspended_count"] == 1
+    assert _reload(sync_session_maker, tenant.id).status == 2
 
 
 def test_expiry_with_auto_renew_keeps_tenant_active(sync_session_maker):
