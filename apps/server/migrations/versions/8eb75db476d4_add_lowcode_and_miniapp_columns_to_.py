@@ -144,10 +144,14 @@ def upgrade() -> None:
                comment='微信openid，租户内唯一',
                existing_comment='微信openid',
                existing_nullable=True)
-    op.execute("DROP INDEX IF EXISTS ix_admin_login_history_admin_id CASCADE")
-    op.execute("DROP INDEX IF EXISTS ix_admin_login_history_login_time CASCADE")
-    op.execute("DROP INDEX IF EXISTS ix_admin_stores_admin_id CASCADE")
-    op.execute("DROP INDEX IF EXISTS ix_admin_stores_store_id CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_admin_login_history_admin_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_admin_login_history_admin_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_admin_login_history_admin_id")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_admin_login_history_login_time' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_admin_login_history_login_time', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_admin_login_history_login_time")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_admin_stores_admin_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_admin_stores_admin_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_admin_stores_admin_id")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_admin_stores_store_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_admin_stores_store_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_admin_stores_store_id")
     op.alter_column('admins', 'tenant_id',
                existing_type=sa.VARCHAR(length=36),
                nullable=True,
@@ -166,10 +170,14 @@ def upgrade() -> None:
                existing_type=postgresql.TIMESTAMP(),
                comment='更新时间',
                existing_nullable=True)
-    op.execute("DROP INDEX IF EXISTS idx_admins_store_id CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_admins_tenant_id CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_admins_tenant_role CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_admins_tenant_status CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_admins_store_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_admins_store_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_admins_store_id")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_admins_tenant_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_admins_tenant_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_admins_tenant_id")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_admins_tenant_role' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_admins_tenant_role', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_admins_tenant_role")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_admins_tenant_status' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_admins_tenant_status', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_admins_tenant_status")
     op.execute('ALTER TABLE admins DROP CONSTRAINT IF EXISTS uq_admins_tenant_username')
     op.create_index(op.f('ix_admins_tenant_id'), 'admins', ['tenant_id'], unique=False, if_not_exists=True)
     op.execute('DO $$ BEGIN ALTER TABLE admins ADD UNIQUE (username); EXCEPTION WHEN duplicate_table THEN NULL; END $$')
@@ -275,17 +283,28 @@ def upgrade() -> None:
                existing_type=postgresql.TIMESTAMP(),
                comment='更新时间',
                existing_nullable=True)
-    op.execute("DROP INDEX IF EXISTS idx_appointments_payment_instance_id CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_appointments_payment_profile_id CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_appointments_reminder CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_appointments_tenant_doctor CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_appointments_tenant_id CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_appointments_tenant_schedule CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_appointments_tenant_status CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_appointments_tenant_user CASCADE")
-    op.execute("DROP INDEX IF EXISTS ix_appointments_reminder_24h CASCADE")
-    op.execute("DROP INDEX IF EXISTS ix_appointments_reminder_2h CASCADE")
-    op.execute("DROP INDEX IF EXISTS ix_appointments_reminder_30min CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_appointments_payment_instance_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_appointments_payment_instance_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_appointments_payment_instance_id")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_appointments_payment_profile_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_appointments_payment_profile_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_appointments_payment_profile_id")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_appointments_reminder' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_appointments_reminder', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_appointments_reminder")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_appointments_tenant_doctor' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_appointments_tenant_doctor', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_appointments_tenant_doctor")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_appointments_tenant_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_appointments_tenant_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_appointments_tenant_id")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_appointments_tenant_schedule' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_appointments_tenant_schedule', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_appointments_tenant_schedule")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_appointments_tenant_status' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_appointments_tenant_status', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_appointments_tenant_status")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_appointments_tenant_user' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_appointments_tenant_user', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_appointments_tenant_user")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_appointments_reminder_24h' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_appointments_reminder_24h', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_appointments_reminder_24h")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_appointments_reminder_2h' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_appointments_reminder_2h', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_appointments_reminder_2h")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_appointments_reminder_30min' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_appointments_reminder_30min', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_appointments_reminder_30min")
     op.create_index(op.f('ix_appointments_payment_miniapp_instance_id'), 'appointments', ['payment_miniapp_instance_id'], unique=False, if_not_exists=True)
     op.create_index(op.f('ix_appointments_payment_profile_id'), 'appointments', ['payment_profile_id'], unique=False, if_not_exists=True)
     op.create_index(op.f('ix_appointments_tenant_id'), 'appointments', ['tenant_id'], unique=False, if_not_exists=True)
@@ -540,7 +559,8 @@ def upgrade() -> None:
                existing_type=postgresql.TIMESTAMP(),
                comment='更新时间',
                existing_nullable=True)
-    op.execute("DROP INDEX IF EXISTS idx_banners_store_id CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_banners_store_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_banners_store_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_banners_store_id")
     op.execute('ALTER TABLE banners DROP CONSTRAINT IF EXISTS banners_store_id_fkey')
     op.create_foreign_key(None, 'banners', 'stores', ['store_id'], ['id'])
     op.alter_column('blacklists', 'store_id',
@@ -564,10 +584,14 @@ def upgrade() -> None:
                comment='更新时间',
                existing_nullable=True,
                existing_server_default=sa.text('now()'))
-    op.execute("DROP INDEX IF EXISTS ix_blacklists_keyword CASCADE")
-    op.execute("DROP INDEX IF EXISTS ix_blacklists_status CASCADE")
-    op.execute("DROP INDEX IF EXISTS ix_blacklists_store_id CASCADE")
-    op.execute("DROP INDEX IF EXISTS ix_blacklists_user_id CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_blacklists_keyword' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_blacklists_keyword', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_blacklists_keyword")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_blacklists_status' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_blacklists_status', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_blacklists_status")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_blacklists_store_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_blacklists_store_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_blacklists_store_id")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_blacklists_user_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_blacklists_user_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_blacklists_user_id")
     op.alter_column('booking_notices', 'created_by',
                existing_type=sa.VARCHAR(length=36),
                comment='创建人ID',
@@ -586,8 +610,10 @@ def upgrade() -> None:
                comment='更新时间',
                existing_nullable=True,
                existing_server_default=sa.text('now()'))
-    op.execute("DROP INDEX IF EXISTS ix_booking_notices_status CASCADE")
-    op.execute("DROP INDEX IF EXISTS ix_booking_notices_type CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_booking_notices_status' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_booking_notices_status', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_booking_notices_status")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_booking_notices_type' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_booking_notices_type', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_booking_notices_type")
     op.add_column('build_jobs', sa.Column('lowcode_page_id', sa.String(length=36), nullable=True, comment='关联低代码页面ID'))
     op.add_column('build_jobs', sa.Column('build_log', sa.Text(), nullable=True, comment='构建日志'))
     op.add_column('build_jobs', sa.Column('artifact_url', sa.String(length=500), nullable=True, comment='构建产物URL'))
@@ -625,9 +651,12 @@ def upgrade() -> None:
                comment='更新时间',
                existing_nullable=True,
                existing_server_default=sa.text('now()'))
-    op.execute("DROP INDEX IF EXISTS idx_build_jobs_instance_id CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_build_jobs_template_version_id CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_build_jobs_tenant_id CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_build_jobs_instance_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_build_jobs_instance_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_build_jobs_instance_id")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_build_jobs_template_version_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_build_jobs_template_version_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_build_jobs_template_version_id")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_build_jobs_tenant_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_build_jobs_tenant_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_build_jobs_tenant_id")
     op.create_index(op.f('ix_build_jobs_lowcode_page_id'), 'build_jobs', ['lowcode_page_id'], unique=False, if_not_exists=True)
     op.create_index(op.f('ix_build_jobs_miniapp_instance_id'), 'build_jobs', ['miniapp_instance_id'], unique=False, if_not_exists=True)
     op.create_index(op.f('ix_build_jobs_template_version_id'), 'build_jobs', ['template_version_id'], unique=False, if_not_exists=True)
@@ -701,7 +730,8 @@ def upgrade() -> None:
                comment='更新时间',
                existing_nullable=True,
                existing_server_default=sa.text('now()'))
-    op.execute("DROP INDEX IF EXISTS idx_companies_tenant_id CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_companies_tenant_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_companies_tenant_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_companies_tenant_id")
     op.create_index(op.f('ix_companies_tenant_id'), 'companies', ['tenant_id'], unique=False, if_not_exists=True)
     op.create_table_comment(
         'companies',
@@ -719,7 +749,8 @@ def upgrade() -> None:
                comment='更新时间',
                existing_nullable=True,
                existing_server_default=sa.text('now()'))
-    op.execute("DROP INDEX IF EXISTS ix_consultation_fee_templates_fee_type CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_consultation_fee_templates_fee_type' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_consultation_fee_templates_fee_type', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_consultation_fee_templates_fee_type")
     op.execute('DO $$ BEGIN ALTER TABLE consultation_fee_templates ADD UNIQUE (fee_type_id); EXCEPTION WHEN duplicate_table THEN NULL; END $$')
     op.alter_column('consultation_fee_types', 'created_at',
                existing_type=postgresql.TIMESTAMP(),
@@ -731,8 +762,10 @@ def upgrade() -> None:
                comment='更新时间',
                existing_nullable=True,
                existing_server_default=sa.text('now()'))
-    op.execute("DROP INDEX IF EXISTS ix_consultation_fee_types_store_code CASCADE")
-    op.execute("DROP INDEX IF EXISTS ix_consultation_fee_types_store_id CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_consultation_fee_types_store_code' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_consultation_fee_types_store_code', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_consultation_fee_types_store_code")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_consultation_fee_types_store_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_consultation_fee_types_store_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_consultation_fee_types_store_id")
     op.create_index(op.f('ix_consultation_fee_types_code'), 'consultation_fee_types', ['code'], unique=False, if_not_exists=True)
     op.execute("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_consultation_fee_types_store_code') THEN ALTER TABLE consultation_fee_types ADD CONSTRAINT uq_consultation_fee_types_store_code UNIQUE (store_id, code); END IF; END $$")
     op.alter_column('departments', 'tenant_id',
@@ -816,8 +849,10 @@ def upgrade() -> None:
                existing_type=postgresql.TIMESTAMP(),
                comment='更新时间',
                existing_nullable=True)
-    op.execute("DROP INDEX IF EXISTS idx_departments_tenant_id CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_departments_tenant_store CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_departments_tenant_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_departments_tenant_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_departments_tenant_id")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_departments_tenant_store' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_departments_tenant_store', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_departments_tenant_store")
     op.create_index(op.f('ix_departments_tenant_id'), 'departments', ['tenant_id'], unique=False, if_not_exists=True)
     op.create_table_comment(
         'departments',
@@ -856,9 +891,12 @@ def upgrade() -> None:
                comment='更新时间',
                existing_nullable=True,
                existing_server_default=sa.text('now()'))
-    op.execute("DROP INDEX IF EXISTS ix_doctor_booking_settings_doctor CASCADE")
-    op.execute("DROP INDEX IF EXISTS ix_doctor_booking_settings_store CASCADE")
-    op.execute("DROP INDEX IF EXISTS uix_store_doctor CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_doctor_booking_settings_doctor' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_doctor_booking_settings_doctor', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_doctor_booking_settings_doctor")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_doctor_booking_settings_store' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_doctor_booking_settings_store', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_doctor_booking_settings_store")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'uix_store_doctor' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS uix_store_doctor', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS uix_store_doctor")
     op.execute("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uix_store_doctor') THEN ALTER TABLE doctor_booking_settings ADD CONSTRAINT uix_store_doctor UNIQUE (store_id, doctor_id); END IF; END $$")
     op.alter_column('doctor_consultation_fees', 'created_at',
                existing_type=postgresql.TIMESTAMP(),
@@ -870,10 +908,14 @@ def upgrade() -> None:
                comment='更新时间',
                existing_nullable=True,
                existing_server_default=sa.text('now()'))
-    op.execute("DROP INDEX IF EXISTS ix_doctor_consultation_fees_department CASCADE")
-    op.execute("DROP INDEX IF EXISTS ix_doctor_consultation_fees_doctor CASCADE")
-    op.execute("DROP INDEX IF EXISTS ix_doctor_consultation_fees_store CASCADE")
-    op.execute("DROP INDEX IF EXISTS ix_doctor_consultation_fees_unique CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_doctor_consultation_fees_department' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_doctor_consultation_fees_department', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_doctor_consultation_fees_department")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_doctor_consultation_fees_doctor' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_doctor_consultation_fees_doctor', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_doctor_consultation_fees_doctor")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_doctor_consultation_fees_store' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_doctor_consultation_fees_store', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_doctor_consultation_fees_store")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_doctor_consultation_fees_unique' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_doctor_consultation_fees_unique', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_doctor_consultation_fees_unique")
     op.alter_column('doctors', 'tenant_id',
                existing_type=sa.VARCHAR(length=36),
                nullable=True,
@@ -1013,12 +1055,18 @@ def upgrade() -> None:
                existing_type=postgresql.TIMESTAMP(),
                comment='更新时间',
                existing_nullable=True)
-    op.execute("DROP INDEX IF EXISTS idx_doctors_tenant_department CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_doctors_tenant_id CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_doctors_tenant_status CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_doctors_tenant_store CASCADE")
-    op.execute("DROP INDEX IF EXISTS ix_doctors_store_id CASCADE")
-    op.execute("DROP INDEX IF EXISTS ix_doctors_username CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_doctors_tenant_department' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_doctors_tenant_department', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_doctors_tenant_department")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_doctors_tenant_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_doctors_tenant_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_doctors_tenant_id")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_doctors_tenant_status' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_doctors_tenant_status', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_doctors_tenant_status")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_doctors_tenant_store' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_doctors_tenant_store', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_doctors_tenant_store")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_doctors_store_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_doctors_store_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_doctors_store_id")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_doctors_username' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_doctors_username', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_doctors_username")
     op.create_index(op.f('ix_doctors_username'), 'doctors', ['username'], unique=False, if_not_exists=True)
     op.create_index(op.f('ix_doctors_phone'), 'doctors', ['phone'], unique=False, if_not_exists=True)
     op.create_index(op.f('ix_doctors_tenant_id'), 'doctors', ['tenant_id'], unique=False, if_not_exists=True)
@@ -1038,9 +1086,12 @@ def upgrade() -> None:
                comment='更新时间',
                existing_nullable=True,
                existing_server_default=sa.text('now()'))
-    op.execute("DROP INDEX IF EXISTS idx_email_templates_code CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_email_templates_status CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_email_templates_type CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_email_templates_code' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_email_templates_code', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_email_templates_code")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_email_templates_status' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_email_templates_status', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_email_templates_status")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_email_templates_type' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_email_templates_type', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_email_templates_type")
     op.alter_column('examination_reports', 'record_id',
                existing_type=sa.VARCHAR(length=36),
                comment='关联病历ID',
@@ -1164,7 +1215,8 @@ def upgrade() -> None:
                comment='更新时间',
                existing_nullable=True,
                existing_server_default=sa.text('now()'))
-    op.execute("DROP INDEX IF EXISTS ix_follow_up_plans_deleted_at CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_follow_up_plans_deleted_at' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_follow_up_plans_deleted_at', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_follow_up_plans_deleted_at")
     op.alter_column('follow_up_records', 'tenant_id',
                existing_type=sa.VARCHAR(length=36),
                comment='租户ID',
@@ -1235,7 +1287,8 @@ def upgrade() -> None:
                comment='更新时间',
                existing_nullable=True,
                existing_server_default=sa.text('now()'))
-    op.execute("DROP INDEX IF EXISTS ix_follow_up_records_deleted_at CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_follow_up_records_deleted_at' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_follow_up_records_deleted_at', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_follow_up_records_deleted_at")
     op.alter_column('follow_up_self_reports', 'tenant_id',
                existing_type=sa.VARCHAR(length=36),
                comment='租户ID',
@@ -1323,8 +1376,10 @@ def upgrade() -> None:
                comment='更新时间',
                existing_nullable=True,
                existing_server_default=sa.text('now()'))
-    op.execute("DROP INDEX IF EXISTS idx_self_reports_patient_date CASCADE")
-    op.execute("DROP INDEX IF EXISTS ix_follow_up_self_reports_deleted_at CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_self_reports_patient_date' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_self_reports_patient_date', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_self_reports_patient_date")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_follow_up_self_reports_deleted_at' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_follow_up_self_reports_deleted_at', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_follow_up_self_reports_deleted_at")
     op.alter_column('follow_up_tasks', 'tenant_id',
                existing_type=sa.VARCHAR(length=36),
                comment='租户ID',
@@ -1408,7 +1463,8 @@ def upgrade() -> None:
                comment='更新时间',
                existing_nullable=True,
                existing_server_default=sa.text('now()'))
-    op.execute("DROP INDEX IF EXISTS ix_follow_up_tasks_deleted_at CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_follow_up_tasks_deleted_at' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_follow_up_tasks_deleted_at', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_follow_up_tasks_deleted_at")
     op.alter_column('freelance_freelancers', 'tenant_id',
                existing_type=sa.VARCHAR(length=36),
                comment='租户ID',
@@ -1761,7 +1817,8 @@ def upgrade() -> None:
                existing_type=postgresql.TIMESTAMP(),
                comment='更新时间',
                existing_nullable=True)
-    op.execute("DROP INDEX IF EXISTS ix_medical_records_deleted_at CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_medical_records_deleted_at' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_medical_records_deleted_at', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_medical_records_deleted_at")
     op.alter_column('message_templates', 'created_at',
                existing_type=postgresql.TIMESTAMP(),
                comment='创建时间',
@@ -1778,7 +1835,8 @@ def upgrade() -> None:
                existing_type=postgresql.TIMESTAMP(),
                comment='更新时间',
                existing_nullable=True)
-    op.execute("DROP INDEX IF EXISTS idx_messages_store_id CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_messages_store_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_messages_store_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_messages_store_id")
     op.execute('ALTER TABLE messages DROP CONSTRAINT IF EXISTS messages_store_id_fkey')
     op.create_foreign_key(None, 'messages', 'stores', ['store_id'], ['id'])
     op.alter_column('miniapp_instances', 'template_version_id',
@@ -1814,11 +1872,16 @@ def upgrade() -> None:
                comment='更新时间',
                existing_nullable=True,
                existing_server_default=sa.text('now()'))
-    op.execute("DROP INDEX IF EXISTS idx_miniapp_instances_default_payment_profile_id CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_miniapp_instances_default_store_id CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_miniapp_instances_template_id CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_miniapp_instances_template_version_id CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_miniapp_instances_tenant_id CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_miniapp_instances_default_payment_profile_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_miniapp_instances_default_payment_profile_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_miniapp_instances_default_payment_profile_id")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_miniapp_instances_default_store_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_miniapp_instances_default_store_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_miniapp_instances_default_store_id")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_miniapp_instances_template_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_miniapp_instances_template_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_miniapp_instances_template_id")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_miniapp_instances_template_version_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_miniapp_instances_template_version_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_miniapp_instances_template_version_id")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_miniapp_instances_tenant_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_miniapp_instances_tenant_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_miniapp_instances_tenant_id")
     op.create_index(op.f('ix_miniapp_instances_default_payment_profile_id'), 'miniapp_instances', ['default_payment_profile_id'], unique=False, if_not_exists=True)
     op.create_index(op.f('ix_miniapp_instances_default_store_id'), 'miniapp_instances', ['default_store_id'], unique=False, if_not_exists=True)
     op.create_index(op.f('ix_miniapp_instances_template_id'), 'miniapp_instances', ['template_id'], unique=False, if_not_exists=True)
@@ -1838,7 +1901,8 @@ def upgrade() -> None:
                existing_type=postgresql.TIMESTAMP(),
                comment='更新时间',
                existing_nullable=True)
-    op.execute("DROP INDEX IF EXISTS idx_news_store_id CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_news_store_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_news_store_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_news_store_id")
     op.execute('ALTER TABLE news DROP CONSTRAINT IF EXISTS news_store_id_fkey')
     op.create_foreign_key(None, 'news', 'stores', ['store_id'], ['id'])
     op.alter_column('notices', 'created_at',
@@ -1849,7 +1913,8 @@ def upgrade() -> None:
                existing_type=postgresql.TIMESTAMP(),
                comment='更新时间',
                existing_nullable=True)
-    op.execute("DROP INDEX IF EXISTS idx_notices_store_id CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_notices_store_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_notices_store_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_notices_store_id")
     op.execute('ALTER TABLE notices DROP CONSTRAINT IF EXISTS notices_store_id_fkey')
     op.create_foreign_key(None, 'notices', 'stores', ['store_id'], ['id'])
     op.add_column('notification_deliveries', sa.Column('updated_at', sa.DateTime(), nullable=True, comment='更新时间'))
@@ -1926,9 +1991,12 @@ def upgrade() -> None:
                nullable=True,
                existing_comment='最大重试次数',
                existing_server_default=sa.text('3'))
-    op.execute("DROP INDEX IF EXISTS ix_notification_logs_primary_channel CASCADE")
-    op.execute("DROP INDEX IF EXISTS ix_notification_logs_tenant_channel_status_sent_at CASCADE")
-    op.execute("DROP INDEX IF EXISTS ix_notification_logs_tenant_created_at CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_notification_logs_primary_channel' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_notification_logs_primary_channel', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_notification_logs_primary_channel")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_notification_logs_tenant_channel_status_sent_at' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_notification_logs_tenant_channel_status_sent_at', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_notification_logs_tenant_channel_status_sent_at")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_notification_logs_tenant_created_at' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_notification_logs_tenant_created_at', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_notification_logs_tenant_created_at")
     op.alter_column('notification_preferences', 'consultation_enabled',
                existing_type=sa.BOOLEAN(),
                nullable=True,
@@ -1976,8 +2044,10 @@ def upgrade() -> None:
                comment='操作人姓名(兼容旧版)',
                existing_comment='操作人姓名',
                existing_nullable=True)
-    op.execute("DROP INDEX IF EXISTS ix_operation_logs_actor_id CASCADE")
-    op.execute("DROP INDEX IF EXISTS ix_operation_logs_actor_role CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_operation_logs_actor_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_operation_logs_actor_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_operation_logs_actor_id")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_operation_logs_actor_role' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_operation_logs_actor_role', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_operation_logs_actor_role")
     op.alter_column('patients', 'tenant_id',
                existing_type=sa.VARCHAR(length=36),
                nullable=True,
@@ -2044,10 +2114,14 @@ def upgrade() -> None:
                existing_type=postgresql.TIMESTAMP(),
                comment='更新时间',
                existing_nullable=True)
-    op.execute("DROP INDEX IF EXISTS idx_patients_store_id CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_patients_tenant_id CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_patients_tenant_user CASCADE")
-    op.execute("DROP INDEX IF EXISTS ix_patients_card_no CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_patients_store_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_patients_store_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_patients_store_id")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_patients_tenant_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_patients_tenant_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_patients_tenant_id")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_patients_tenant_user' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_patients_tenant_user', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_patients_tenant_user")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_patients_card_no' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_patients_card_no', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_patients_card_no")
     op.create_index(op.f('ix_patients_card_no'), 'patients', ['card_no'], unique=False, if_not_exists=True)
     op.create_index(op.f('ix_patients_tenant_id'), 'patients', ['tenant_id'], unique=False, if_not_exists=True)
     op.execute('ALTER TABLE patients DROP CONSTRAINT IF EXISTS patients_store_id_fkey')
@@ -2093,8 +2167,10 @@ def upgrade() -> None:
                comment='更新时间',
                existing_nullable=True,
                existing_server_default=sa.text('now()'))
-    op.execute("DROP INDEX IF EXISTS idx_payment_profiles_company_id CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_payment_profiles_tenant_id CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_payment_profiles_company_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_payment_profiles_company_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_payment_profiles_company_id")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_payment_profiles_tenant_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_payment_profiles_tenant_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_payment_profiles_tenant_id")
     op.create_index(op.f('ix_payment_profiles_company_id'), 'payment_profiles', ['company_id'], unique=False, if_not_exists=True)
     op.create_index(op.f('ix_payment_profiles_tenant_id'), 'payment_profiles', ['tenant_id'], unique=False, if_not_exists=True)
     op.create_table_comment(
@@ -2132,10 +2208,14 @@ def upgrade() -> None:
                comment='更新时间',
                existing_nullable=True,
                existing_server_default=sa.text('now()'))
-    op.execute("DROP INDEX IF EXISTS idx_payment_routes_miniapp_instance_id CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_payment_routes_payment_profile_id CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_payment_routes_store_id CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_payment_routes_tenant_id CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_payment_routes_miniapp_instance_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_payment_routes_miniapp_instance_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_payment_routes_miniapp_instance_id")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_payment_routes_payment_profile_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_payment_routes_payment_profile_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_payment_routes_payment_profile_id")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_payment_routes_store_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_payment_routes_store_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_payment_routes_store_id")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_payment_routes_tenant_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_payment_routes_tenant_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_payment_routes_tenant_id")
     op.create_index(op.f('ix_payment_routes_miniapp_instance_id'), 'payment_routes', ['miniapp_instance_id'], unique=False, if_not_exists=True)
     op.create_index(op.f('ix_payment_routes_payment_profile_id'), 'payment_routes', ['payment_profile_id'], unique=False, if_not_exists=True)
     op.create_index(op.f('ix_payment_routes_store_id'), 'payment_routes', ['store_id'], unique=False, if_not_exists=True)
@@ -2169,9 +2249,12 @@ def upgrade() -> None:
                existing_type=postgresql.TIMESTAMP(),
                comment='更新时间',
                existing_nullable=True)
-    op.execute("DROP INDEX IF EXISTS ix_permissions_code CASCADE")
-    op.execute("DROP INDEX IF EXISTS ix_permissions_control_type CASCADE")
-    op.execute("DROP INDEX IF EXISTS ix_permissions_parent_code CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_permissions_code' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_permissions_code', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_permissions_code")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_permissions_control_type' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_permissions_control_type', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_permissions_control_type")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_permissions_parent_code' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_permissions_parent_code', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_permissions_parent_code")
     op.alter_column('platform_announcements', 'priority',
                existing_type=sa.INTEGER(),
                comment='优先级',
@@ -2272,7 +2355,8 @@ def upgrade() -> None:
                comment='更新时间',
                existing_nullable=True,
                existing_server_default=sa.text('now()'))
-    op.execute("DROP INDEX IF EXISTS idx_release_artifacts_build_job_id CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_release_artifacts_build_job_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_release_artifacts_build_job_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_release_artifacts_build_job_id")
     op.create_index(op.f('ix_release_artifacts_build_job_id'), 'release_artifacts', ['build_job_id'], unique=False, if_not_exists=True)
     op.alter_column('release_jobs', 'miniapp_instance_id',
                existing_type=sa.VARCHAR(length=36),
@@ -2305,8 +2389,10 @@ def upgrade() -> None:
                comment='更新时间',
                existing_nullable=True,
                existing_server_default=sa.text('now()'))
-    op.execute("DROP INDEX IF EXISTS idx_release_jobs_artifact_id CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_release_jobs_instance_id CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_release_jobs_artifact_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_release_jobs_artifact_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_release_jobs_artifact_id")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_release_jobs_instance_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_release_jobs_instance_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_release_jobs_instance_id")
     op.create_index(op.f('ix_release_jobs_artifact_id'), 'release_jobs', ['artifact_id'], unique=False, if_not_exists=True)
     op.create_index(op.f('ix_release_jobs_miniapp_instance_id'), 'release_jobs', ['miniapp_instance_id'], unique=False, if_not_exists=True)
     op.alter_column('rest_days', 'doctor_ids',
@@ -2324,9 +2410,12 @@ def upgrade() -> None:
                comment='更新时间',
                existing_nullable=True,
                existing_server_default=sa.text('now()'))
-    op.execute("DROP INDEX IF EXISTS ix_rest_days_end_date CASCADE")
-    op.execute("DROP INDEX IF EXISTS ix_rest_days_start_date CASCADE")
-    op.execute("DROP INDEX IF EXISTS ix_rest_days_store_id CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_rest_days_end_date' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_rest_days_end_date', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_rest_days_end_date")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_rest_days_start_date' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_rest_days_start_date', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_rest_days_start_date")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_rest_days_store_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_rest_days_store_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_rest_days_store_id")
     op.alter_column('roles', 'code',
                existing_type=sa.VARCHAR(length=50),
                nullable=True,
@@ -2340,7 +2429,8 @@ def upgrade() -> None:
                existing_type=postgresql.TIMESTAMP(),
                comment='更新时间',
                existing_nullable=True)
-    op.execute("DROP INDEX IF EXISTS idx_roles_tenant_id CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_roles_tenant_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_roles_tenant_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_roles_tenant_id")
     op.execute('ALTER TABLE roles DROP CONSTRAINT IF EXISTS uq_roles_tenant_code')
     op.create_index(op.f('ix_roles_code'), 'roles', ['code'], unique=False, if_not_exists=True)
     op.create_index(op.f('ix_roles_tenant_id'), 'roles', ['tenant_id'], unique=False, if_not_exists=True)
@@ -2445,11 +2535,16 @@ def upgrade() -> None:
                nullable=True,
                comment='更新时间',
                existing_server_default=sa.text('now()'))
-    op.execute("DROP INDEX IF EXISTS idx_rule_sets_department_id CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_rule_sets_doctor_id CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_rule_sets_store_id CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_rule_sets_tenant_id CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_rule_sets_enabled_priority CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_rule_sets_department_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_rule_sets_department_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_rule_sets_department_id")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_rule_sets_doctor_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_rule_sets_doctor_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_rule_sets_doctor_id")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_rule_sets_store_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_rule_sets_store_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_rule_sets_store_id")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_rule_sets_tenant_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_rule_sets_tenant_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_rule_sets_tenant_id")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_rule_sets_enabled_priority' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_rule_sets_enabled_priority', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_rule_sets_enabled_priority")
     op.create_index('idx_rule_sets_enabled_priority', 'rule_sets', ['enabled', 'priority'], unique=False, if_not_exists=True)
     op.create_index(op.f('ix_rule_sets_department_id'), 'rule_sets', ['department_id'], unique=False, if_not_exists=True)
     op.create_index(op.f('ix_rule_sets_doctor_id'), 'rule_sets', ['doctor_id'], unique=False, if_not_exists=True)
@@ -2477,8 +2572,10 @@ def upgrade() -> None:
         existing_comment='时间窗配置表',
         schema=None
     )
-    op.execute("DROP INDEX IF EXISTS idx_schedule_generation_logs_created_at CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_schedule_generation_logs_template_id CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_schedule_generation_logs_created_at' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_schedule_generation_logs_created_at', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_schedule_generation_logs_created_at")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_schedule_generation_logs_template_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_schedule_generation_logs_template_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_schedule_generation_logs_template_id")
     op.alter_column('schedule_holidays', 'store_id',
                existing_type=sa.VARCHAR(length=36),
                comment='门店ID，NULL 表示全租户生效',
@@ -2501,7 +2598,8 @@ def upgrade() -> None:
                existing_comment='是否允许排班',
                existing_nullable=False,
                existing_server_default=sa.text('false'))
-    op.execute("DROP INDEX IF EXISTS ix_schedule_holidays_tenant_store_date CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_schedule_holidays_tenant_store_date' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_schedule_holidays_tenant_store_date', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_schedule_holidays_tenant_store_date")
     op.alter_column('schedule_suspensions', 'schedule_ids',
                existing_type=sa.TEXT(),
                comment='选中的排班ID,JSON数组',
@@ -2522,10 +2620,14 @@ def upgrade() -> None:
                comment='更新时间',
                existing_nullable=True,
                existing_server_default=sa.text('now()'))
-    op.execute("DROP INDEX IF EXISTS idx_schedule_suspensions_tenant_id CASCADE")
-    op.execute("DROP INDEX IF EXISTS ix_schedule_suspensions_doctor_id CASCADE")
-    op.execute("DROP INDEX IF EXISTS ix_schedule_suspensions_store_id CASCADE")
-    op.execute("DROP INDEX IF EXISTS ix_schedule_suspensions_suspension_date CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_schedule_suspensions_tenant_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_schedule_suspensions_tenant_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_schedule_suspensions_tenant_id")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_schedule_suspensions_doctor_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_schedule_suspensions_doctor_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_schedule_suspensions_doctor_id")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_schedule_suspensions_store_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_schedule_suspensions_store_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_schedule_suspensions_store_id")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_schedule_suspensions_suspension_date' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_schedule_suspensions_suspension_date', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_schedule_suspensions_suspension_date")
     op.create_index(op.f('ix_schedule_suspensions_tenant_id'), 'schedule_suspensions', ['tenant_id'], unique=False, if_not_exists=True)
     op.alter_column('schedule_templates', 'tenant_id',
                existing_type=sa.VARCHAR(length=36),
@@ -2552,12 +2654,18 @@ def upgrade() -> None:
                comment='更新时间',
                existing_nullable=True,
                existing_server_default=sa.text('now()'))
-    op.execute("DROP INDEX IF EXISTS idx_schedule_templates_rule_set_id CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_schedule_templates_tenant_id CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_schedule_templates_tenant_store CASCADE")
-    op.execute("DROP INDEX IF EXISTS ix_schedule_templates_department_id CASCADE")
-    op.execute("DROP INDEX IF EXISTS ix_schedule_templates_doctor_id CASCADE")
-    op.execute("DROP INDEX IF EXISTS ix_schedule_templates_store_id CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_schedule_templates_rule_set_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_schedule_templates_rule_set_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_schedule_templates_rule_set_id")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_schedule_templates_tenant_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_schedule_templates_tenant_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_schedule_templates_tenant_id")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_schedule_templates_tenant_store' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_schedule_templates_tenant_store', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_schedule_templates_tenant_store")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_schedule_templates_department_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_schedule_templates_department_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_schedule_templates_department_id")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_schedule_templates_doctor_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_schedule_templates_doctor_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_schedule_templates_doctor_id")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_schedule_templates_store_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_schedule_templates_store_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_schedule_templates_store_id")
     op.create_index(op.f('ix_schedule_templates_rule_set_id'), 'schedule_templates', ['rule_set_id'], unique=False, if_not_exists=True)
     op.create_index(op.f('ix_schedule_templates_tenant_id'), 'schedule_templates', ['tenant_id'], unique=False, if_not_exists=True)
     op.create_table_comment(
@@ -2608,19 +2716,32 @@ def upgrade() -> None:
                existing_type=postgresql.TIMESTAMP(),
                comment='更新时间',
                existing_nullable=True)
-    op.execute("DROP INDEX IF EXISTS idx_schedules_rule_set_id CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_schedules_shift_type CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_schedules_tenant_doctor_date CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_schedules_tenant_id CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_schedules_tenant_status CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_schedules_tenant_store_date CASCADE")
-    op.execute("DROP INDEX IF EXISTS ix_schedules_doctor_date CASCADE")
-    op.execute("DROP INDEX IF EXISTS ix_schedules_schedule_status CASCADE")
-    op.execute("DROP INDEX IF EXISTS ix_schedules_store_date CASCADE")
-    op.execute("DROP INDEX IF EXISTS ix_schedules_store_id CASCADE")
-    op.execute("DROP INDEX IF EXISTS ix_schedules_template_id CASCADE")
-    op.execute("DROP INDEX IF EXISTS ix_schedules_tenant_store_date CASCADE")
-    op.execute("DROP INDEX IF EXISTS uq_schedule_doctor_date_time CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_schedules_rule_set_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_schedules_rule_set_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_schedules_rule_set_id")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_schedules_shift_type' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_schedules_shift_type', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_schedules_shift_type")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_schedules_tenant_doctor_date' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_schedules_tenant_doctor_date', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_schedules_tenant_doctor_date")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_schedules_tenant_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_schedules_tenant_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_schedules_tenant_id")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_schedules_tenant_status' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_schedules_tenant_status', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_schedules_tenant_status")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_schedules_tenant_store_date' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_schedules_tenant_store_date', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_schedules_tenant_store_date")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_schedules_doctor_date' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_schedules_doctor_date', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_schedules_doctor_date")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_schedules_schedule_status' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_schedules_schedule_status', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_schedules_schedule_status")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_schedules_store_date' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_schedules_store_date', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_schedules_store_date")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_schedules_store_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_schedules_store_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_schedules_store_id")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_schedules_template_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_schedules_template_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_schedules_template_id")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_schedules_tenant_store_date' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_schedules_tenant_store_date', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_schedules_tenant_store_date")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'uq_schedule_doctor_date_time' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS uq_schedule_doctor_date_time', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS uq_schedule_doctor_date_time")
     op.create_index(op.f('ix_schedules_rule_set_id'), 'schedules', ['rule_set_id'], unique=False, if_not_exists=True)
     op.create_index(op.f('ix_schedules_tenant_id'), 'schedules', ['tenant_id'], unique=False, if_not_exists=True)
     op.alter_column('shift_types', 'code',
@@ -2640,7 +2761,8 @@ def upgrade() -> None:
                nullable=True,
                comment='更新时间',
                existing_server_default=sa.text('now()'))
-    op.execute("DROP INDEX IF EXISTS idx_shift_types_tenant_id CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_shift_types_tenant_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_shift_types_tenant_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_shift_types_tenant_id")
     op.create_index(op.f('ix_shift_types_tenant_id'), 'shift_types', ['tenant_id'], unique=False, if_not_exists=True)
     op.drop_table_comment(
         'shift_types',
@@ -2675,9 +2797,12 @@ def upgrade() -> None:
                comment='更新时间',
                existing_nullable=True,
                existing_server_default=sa.text('now()'))
-    op.execute("DROP INDEX IF EXISTS ix_store_fee_templates_fee_type_id CASCADE")
-    op.execute("DROP INDEX IF EXISTS ix_store_fee_templates_store_id CASCADE")
-    op.execute("DROP INDEX IF EXISTS ix_store_fee_templates_unique CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_store_fee_templates_fee_type_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_store_fee_templates_fee_type_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_store_fee_templates_fee_type_id")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_store_fee_templates_store_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_store_fee_templates_store_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_store_fee_templates_store_id")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_store_fee_templates_unique' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_store_fee_templates_unique', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_store_fee_templates_unique")
     op.execute("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_store_fee_templates_store_type') THEN ALTER TABLE store_fee_templates ADD CONSTRAINT uq_store_fee_templates_store_type UNIQUE (store_id, fee_type_id); END IF; END $$")
     op.alter_column('store_visit_type_configs', 'created_at',
                existing_type=postgresql.TIMESTAMP(),
@@ -2689,7 +2814,8 @@ def upgrade() -> None:
                comment='更新时间',
                existing_nullable=True,
                existing_server_default=sa.text('now()'))
-    op.execute("DROP INDEX IF EXISTS ix_store_visit_type_configs_store_id CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_store_visit_type_configs_store_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_store_visit_type_configs_store_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_store_visit_type_configs_store_id")
     op.alter_column('stores', 'tenant_id',
                existing_type=sa.VARCHAR(length=36),
                nullable=True,
@@ -2750,8 +2876,10 @@ def upgrade() -> None:
                existing_type=postgresql.TIMESTAMP(),
                comment='更新时间',
                existing_nullable=True)
-    op.execute("DROP INDEX IF EXISTS idx_stores_tenant_id CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_stores_tenant_status CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_stores_tenant_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_stores_tenant_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_stores_tenant_id")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_stores_tenant_status' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_stores_tenant_status', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_stores_tenant_status")
     op.create_index(op.f('ix_stores_code'), 'stores', ['code'], unique=False, if_not_exists=True)
     op.create_index(op.f('ix_stores_tenant_id'), 'stores', ['tenant_id'], unique=False, if_not_exists=True)
     op.create_table_comment(
@@ -2785,8 +2913,10 @@ def upgrade() -> None:
                comment='更新时间',
                existing_nullable=True,
                existing_server_default=sa.text('now()'))
-    op.execute("DROP INDEX IF EXISTS idx_subscription_plans_code CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_subscription_plans_status CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_subscription_plans_code' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_subscription_plans_code', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_subscription_plans_code")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_subscription_plans_status' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_subscription_plans_status', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_subscription_plans_status")
     op.alter_column('support_tickets', 'type',
                existing_type=sa.VARCHAR(length=20),
                nullable=True,
@@ -2859,7 +2989,8 @@ def upgrade() -> None:
                comment='更新时间',
                existing_nullable=True,
                existing_server_default=sa.text('now()'))
-    op.execute("DROP INDEX IF EXISTS idx_template_versions_template_id CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_template_versions_template_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_template_versions_template_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_template_versions_template_id")
     op.create_index(op.f('ix_template_versions_template_id'), 'template_versions', ['template_id'], unique=False, if_not_exists=True)
     op.create_table_comment(
         'template_versions',
@@ -2904,16 +3035,21 @@ def upgrade() -> None:
                comment='更新时间',
                existing_nullable=True,
                existing_server_default=sa.text('now()'))
-    op.execute("DROP INDEX IF EXISTS idx_tenant_subscriptions_plan CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_tenant_subscriptions_status CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_tenant_subscriptions_tenant CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_tenant_subscriptions_plan' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_tenant_subscriptions_plan', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_tenant_subscriptions_plan")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_tenant_subscriptions_status' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_tenant_subscriptions_status', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_tenant_subscriptions_status")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_tenant_subscriptions_tenant' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_tenant_subscriptions_tenant', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_tenant_subscriptions_tenant")
     op.alter_column('tenant_usage_logs', 'created_at',
                existing_type=postgresql.TIMESTAMP(),
                comment='创建时间',
                existing_nullable=True,
                existing_server_default=sa.text('now()'))
-    op.execute("DROP INDEX IF EXISTS idx_tenant_usage_logs_date CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_tenant_usage_logs_tenant CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_tenant_usage_logs_date' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_tenant_usage_logs_date', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_tenant_usage_logs_date")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_tenant_usage_logs_tenant' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_tenant_usage_logs_tenant', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_tenant_usage_logs_tenant")
     op.execute('ALTER TABLE tenant_usage_logs DROP CONSTRAINT IF EXISTS uq_tenant_usage_date')
     op.create_table_comment(
         'tenant_usage_logs',
@@ -2981,9 +3117,12 @@ def upgrade() -> None:
                comment='更新时间',
                existing_nullable=True,
                existing_server_default=sa.text('now()'))
-    op.execute("DROP INDEX IF EXISTS idx_tenants_code CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_tenants_status CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_tenants_subscription_plan CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_tenants_code' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_tenants_code', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_tenants_code")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_tenants_status' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_tenants_status', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_tenants_status")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_tenants_subscription_plan' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_tenants_subscription_plan', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_tenants_subscription_plan")
     op.alter_column('unified_templates', 'code',
                existing_type=sa.VARCHAR(length=50),
                comment='模板编码: appointment_success',
@@ -3020,14 +3159,22 @@ def upgrade() -> None:
                comment='更新时间',
                existing_nullable=True,
                existing_server_default=sa.text('now()'))
-    op.execute("DROP INDEX IF EXISTS idx_behavior_logs_created_at CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_behavior_logs_event_type CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_behavior_logs_page_path CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_behavior_logs_platform CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_behavior_logs_platform_created CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_behavior_logs_platform_event CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_behavior_logs_session_id CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_behavior_logs_user_id CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_behavior_logs_created_at' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_behavior_logs_created_at', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_behavior_logs_created_at")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_behavior_logs_event_type' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_behavior_logs_event_type', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_behavior_logs_event_type")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_behavior_logs_page_path' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_behavior_logs_page_path', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_behavior_logs_page_path")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_behavior_logs_platform' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_behavior_logs_platform', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_behavior_logs_platform")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_behavior_logs_platform_created' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_behavior_logs_platform_created', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_behavior_logs_platform_created")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_behavior_logs_platform_event' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_behavior_logs_platform_event', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_behavior_logs_platform_event")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_behavior_logs_session_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_behavior_logs_session_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_behavior_logs_session_id")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_behavior_logs_user_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_behavior_logs_user_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_behavior_logs_user_id")
     op.alter_column('user_favorites', 'created_by',
                existing_type=sa.VARCHAR(length=36),
                comment='创建人ID',
@@ -3046,8 +3193,10 @@ def upgrade() -> None:
                comment='更新时间',
                existing_nullable=True,
                existing_server_default=sa.text('now()'))
-    op.execute("DROP INDEX IF EXISTS ix_user_favorites_target CASCADE")
-    op.execute("DROP INDEX IF EXISTS ix_user_favorites_user_id CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_user_favorites_target' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_user_favorites_target', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_user_favorites_target")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_user_favorites_user_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_user_favorites_user_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_user_favorites_user_id")
     op.alter_column('users', 'tenant_id',
                existing_type=sa.VARCHAR(length=36),
                nullable=True,
@@ -3071,14 +3220,20 @@ def upgrade() -> None:
                existing_type=postgresql.TIMESTAMP(),
                comment='更新时间',
                existing_nullable=True)
-    op.execute("DROP INDEX IF EXISTS idx_users_tenant_id CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_users_tenant_phone CASCADE")
-    op.execute("DROP INDEX IF EXISTS idx_users_tenant_status CASCADE")
-    op.execute("DROP INDEX IF EXISTS ix_users_openid CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_users_tenant_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_users_tenant_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_users_tenant_id")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_users_tenant_phone' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_users_tenant_phone', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_users_tenant_phone")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_users_tenant_status' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_users_tenant_status', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_users_tenant_status")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_users_openid' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_users_openid', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_users_openid")
     op.create_index(op.f('ix_users_openid'), 'users', ['openid'], unique=False, if_not_exists=True)
-    op.execute("DROP INDEX IF EXISTS ix_users_phone CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_users_phone' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_users_phone', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_users_phone")
     op.create_index(op.f('ix_users_phone'), 'users', ['phone'], unique=False, if_not_exists=True)
-    op.execute("DROP INDEX IF EXISTS ix_users_unionid CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_users_unionid' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_users_unionid', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_users_unionid")
     op.create_index(op.f('ix_users_unionid'), 'users', ['unionid'], unique=False, if_not_exists=True)
     op.create_index(op.f('ix_users_tenant_id'), 'users', ['tenant_id'], unique=False, if_not_exists=True)
     op.create_table_comment(
@@ -3087,8 +3242,10 @@ def upgrade() -> None:
         existing_comment=None,
         schema=None
     )
-    op.execute("DROP INDEX IF EXISTS ix_waitlist_schedule_id CASCADE")
-    op.execute("DROP INDEX IF EXISTS ix_waitlist_user_id CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_waitlist_schedule_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_waitlist_schedule_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_waitlist_schedule_id")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_waitlist_user_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_waitlist_user_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_waitlist_user_id")
     op.create_index(op.f('ix_waitlist_entries_schedule_id'), 'waitlist_entries', ['schedule_id'], unique=False, if_not_exists=True)
     op.create_index(op.f('ix_waitlist_entries_user_id'), 'waitlist_entries', ['user_id'], unique=False, if_not_exists=True)
     op.drop_column('waitlist_entries', 'created_by', if_exists=True)
@@ -3793,7 +3950,8 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_rule_sets_store_id'), table_name='rule_sets', if_exists=True)
     op.drop_index(op.f('ix_rule_sets_doctor_id'), table_name='rule_sets', if_exists=True)
     op.drop_index(op.f('ix_rule_sets_department_id'), table_name='rule_sets', if_exists=True)
-    op.execute("DROP INDEX IF EXISTS idx_rule_sets_enabled_priority CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'idx_rule_sets_enabled_priority' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS idx_rule_sets_enabled_priority', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS idx_rule_sets_enabled_priority")
     op.create_index('idx_rule_sets_enabled_priority', 'rule_sets', ['enabled', 'priority', 'deleted_at'], unique=False, if_not_exists=True)
     op.create_index('idx_rule_sets_tenant_id', 'rule_sets', ['tenant_id'], unique=False, if_not_exists=True)
     op.create_index('idx_rule_sets_store_id', 'rule_sets', ['store_id'], unique=False, if_not_exists=True)
@@ -6474,7 +6632,8 @@ def downgrade() -> None:
                comment='角色ID（关联 roles 表）',
                existing_comment='角色ID（关联 roles 表，支持 RBAC 权限）',
                existing_nullable=True)
-    op.execute("DROP INDEX IF EXISTS ix_lowcode_template_versions_template_id CASCADE")
+    op.execute("DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS tbl FROM pg_constraint WHERE conname = 'ix_lowcode_template_versions_template_id' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS ix_lowcode_template_versions_template_id', r.tbl); END LOOP; END $$")
+    op.execute("DROP INDEX IF EXISTS ix_lowcode_template_versions_template_id")
     op.drop_table('lowcode_template_versions')
     op.drop_index(op.f('ix_lowcode_template_forks_original_template_id'), table_name='lowcode_template_forks', if_exists=True)
     op.drop_index(op.f('ix_lowcode_template_forks_forked_by_tenant_id'), table_name='lowcode_template_forks', if_exists=True)
