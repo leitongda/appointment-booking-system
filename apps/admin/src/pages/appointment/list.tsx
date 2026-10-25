@@ -1,7 +1,7 @@
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
 import { App, Space, Tag, Popconfirm, Divider, Modal, Input } from 'antd';
-import { EyeOutlined, CloseCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
+import { EyeOutlined, CloseCircleOutlined, ExclamationCircleOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { useRef, useMemo, useCallback, useState, useEffect } from 'react';
 import { history, useAccess, useModel } from '@umijs/max';
 import { appointmentApi, storeApi, dataApi, doctorApi, departmentApi } from '@hospital/api';
@@ -14,7 +14,7 @@ import {
   departmentNameColumn,
 } from '@/utils/columnPresets';
 import { PAGINATION_CONFIG } from '@/constants/pagination';
-import { REFUND_STATUS_MAP, REFUND_STATUS_COLOR, APPOINTMENT_STATUS_TAG, REFUNDABLE_APPOINTMENT_STATUSES } from '@hospital/shared';
+import { REFUND_STATUS_MAP, REFUND_STATUS_COLOR, APPOINTMENT_STATUS_TAG, ASSISTANT_CONFIRM_STATUS_TAG, REFUNDABLE_APPOINTMENT_STATUSES } from '@hospital/shared';
 import type { Appointment } from '@hospital/shared';
 import ImportExport from '@/components/ImportExport';
 import ListPageSkeleton from '@/components/ListPageSkeleton';
@@ -124,6 +124,16 @@ const AppointmentListPage: React.FC = () => {
     try {
       await appointmentApi.cancelSignIn(id);
       message.success('取消签到成功');
+      actionRef.current?.reload();
+    } catch (error: any) {
+      message.error(error.message || '操作失败');
+    }
+  }, [message, actionRef]);
+
+  const handleAssistantConfirm = useCallback(async (id: string) => {
+    try {
+      await appointmentApi.assistantConfirm(id);
+      message.success('已确认到店');
       actionRef.current?.reload();
     } catch (error: any) {
       message.error(error.message || '操作失败');
@@ -296,6 +306,23 @@ const AppointmentListPage: React.FC = () => {
       },
     },
     {
+      title: '医助确认',
+      dataIndex: 'assistantConfirmStatus',
+      width: 100,
+      valueType: 'select',
+      valueEnum: Object.fromEntries(
+        Object.entries(ASSISTANT_CONFIRM_STATUS_TAG).map(([k, v]) => [k, { text: v.text }])
+      ),
+      render: (_, record) => {
+        if (record.assistantConfirmStatus === undefined || record.assistantConfirmStatus === null) {
+          return '-';
+        }
+        const confirm = ASSISTANT_CONFIRM_STATUS_TAG[record.assistantConfirmStatus]
+          || { text: '未知', color: 'default' };
+        return <Tag color={confirm.color}>{confirm.text}</Tag>;
+      },
+    },
+    {
       title: '支付金额',
       dataIndex: 'paymentAmount',
       width: 100,
@@ -346,56 +373,70 @@ const AppointmentListPage: React.FC = () => {
     {
       title: '操作',
       valueType: 'option',
-      width: 200,
+      width: 240,
       fixed: 'right',
-      render: (_, record) => (
-        <Space size={4} separator={<Divider type="vertical" style={{ margin: 0 }} />}>
-          {access.hasPermission('appointment:detail') && (
-            <a onClick={() => history.push(`/medical-services/appointment/${record.id}`)} style={{ fontSize: 13 }}>
-              <EyeOutlined /> 详情
-            </a>
-          )}
-          {record.status === 0 && access.hasPermission('appointment:cancel') && (
-            <Popconfirm title="确定取消该预约吗？" onConfirm={() => handleCancel(record.id)}>
-              <a style={{ color: 'var(--color-error)', fontSize: 13 }}>
+      render: (_, record) => {
+        // 医助确认状态：缺失（旧数据）按待联系处理；仅待联系/已联系可确认到店
+        const assistantStatus = record.assistantConfirmStatus ?? 1;
+        const canAssistantConfirm =
+          (assistantStatus === 1 || assistantStatus === 2) &&
+          access.hasPermission('appointment:manage');
+        return (
+          <Space size={4} separator={<Divider type="vertical" style={{ margin: 0 }} />}>
+            {access.hasPermission('appointment:detail') && (
+              <a onClick={() => history.push(`/medical-services/appointment/${record.id}`)} style={{ fontSize: 13 }}>
+                <EyeOutlined /> 详情
+              </a>
+            )}
+            {record.status === 0 && access.hasPermission('appointment:cancel') && (
+              <Popconfirm title="确定取消该预约吗？" onConfirm={() => handleCancel(record.id)}>
+                <a style={{ color: 'var(--color-error)', fontSize: 13 }}>
+                  <CloseCircleOutlined /> 取消
+                </a>
+              </Popconfirm>
+            )}
+            {record.status === 1 && access.hasPermission('appointment:cancel') && (
+              <a style={{ color: 'var(--color-error)', fontSize: 13 }} onClick={() => handleCancelWithReason(record.id)}>
                 <CloseCircleOutlined /> 取消
               </a>
-            </Popconfirm>
-          )}
-          {record.status === 1 && access.hasPermission('appointment:cancel') && (
-            <a style={{ color: 'var(--color-error)', fontSize: 13 }} onClick={() => handleCancelWithReason(record.id)}>
-              <CloseCircleOutlined /> 取消
-            </a>
-          )}
-          {record.status === 1 && access.hasPermission('appointment:update') && (
-            <Popconfirm title="确定标记为爽约吗？" onConfirm={() => handleMarkNoShow(record.id)}>
-              <a style={{ color: 'var(--color-evening)', fontSize: 13 }}>
-                <ExclamationCircleOutlined /> 爽约
+            )}
+            {record.status === 1 && access.hasPermission('appointment:update') && (
+              <Popconfirm title="确定标记为爽约吗？" onConfirm={() => handleMarkNoShow(record.id)}>
+                <a style={{ color: 'var(--color-evening)', fontSize: 13 }}>
+                  <ExclamationCircleOutlined /> 爽约
+                </a>
+              </Popconfirm>
+            )}
+            {canAssistantConfirm && (
+              <Popconfirm title="确定该患者已确认到店吗？" onConfirm={() => handleAssistantConfirm(record.id)}>
+                <a style={{ color: 'var(--color-success)', fontSize: 13 }}>
+                  <CheckCircleOutlined /> 确认到店
+                </a>
+              </Popconfirm>
+            )}
+            {record.status === 2 && isSuperAdmin && (
+              <Popconfirm title="确定取消签到吗？状态将恢复为已预约" onConfirm={() => handleCancelSignIn(record.id)}>
+                <a style={{ color: 'var(--color-error)', fontSize: 13 }}>
+                  <CloseCircleOutlined /> 取消签到
+                </a>
+              </Popconfirm>
+            )}
+            {record.paymentAmount && record.paymentAmount > 0 &&
+             REFUNDABLE_APPOINTMENT_STATUSES.has(record.status) &&
+             record.refundStatus !== 'refunded' &&
+             access.hasPermission('appointment:refund') && (
+              <a
+                onClick={() => history.push(`/medical-services/appointment/${record.id}`)}
+                style={{ color: 'var(--color-primary)', fontSize: 13 }}
+              >
+                退款
               </a>
-            </Popconfirm>
-          )}
-          {record.status === 2 && isSuperAdmin && (
-            <Popconfirm title="确定取消签到吗？状态将恢复为已预约" onConfirm={() => handleCancelSignIn(record.id)}>
-              <a style={{ color: 'var(--color-error)', fontSize: 13 }}>
-                <CloseCircleOutlined /> 取消签到
-              </a>
-            </Popconfirm>
-          )}
-          {record.paymentAmount && record.paymentAmount > 0 &&
-           REFUNDABLE_APPOINTMENT_STATUSES.has(record.status) &&
-           record.refundStatus !== 'refunded' &&
-           access.hasPermission('appointment:refund') && (
-            <a
-              onClick={() => history.push(`/medical-services/appointment/${record.id}`)}
-              style={{ color: 'var(--color-primary)', fontSize: 13 }}
-            >
-              退款
-            </a>
-          )}
-        </Space>
-      ),
+            )}
+          </Space>
+        );
+      },
     },
-  ], [showStoreFilter, access, autoStoreId, autoDoctorId, handleCancel, handleCancelWithReason, handleMarkNoShow, handleCancelSignIn]);
+  ], [showStoreFilter, access, autoStoreId, autoDoctorId, handleCancel, handleCancelWithReason, handleMarkNoShow, handleCancelSignIn, handleAssistantConfirm]);
 
   return (
     <PageContainer>
@@ -406,7 +447,7 @@ const AppointmentListPage: React.FC = () => {
           actionRef={actionRef}
           rowKey="id"
           columns={columns}
-          scroll={{ x: 1200 }}
+          scroll={{ x: 1240 }}
           request={async (params) => {
             const {
               current,
@@ -420,6 +461,7 @@ const AppointmentListPage: React.FC = () => {
               createdStart,
               createdEnd,
               status,
+              assistantConfirmStatus,
             } = params;
             return toProTableResult(await appointmentApi.getList({
               keyword: keyword || undefined,
@@ -431,6 +473,10 @@ const AppointmentListPage: React.FC = () => {
               createdStart: createdStart || undefined,
               createdEnd: createdEnd || undefined,
               status: status !== undefined && status !== '' ? Number(status) : undefined,
+              assistantConfirmStatus:
+                assistantConfirmStatus !== undefined && assistantConfirmStatus !== ''
+                  ? Number(assistantConfirmStatus)
+                  : undefined,
               page: current,
               pageSize,
             }));

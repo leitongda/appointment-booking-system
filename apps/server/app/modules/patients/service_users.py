@@ -15,6 +15,9 @@ from app.utils.audit import set_create_audit, set_update_audit
 from app.utils.masking import is_masked_value
 from app.utils.patient_masking import mask_patient_data
 
+# 每个账号限绑定的就诊卡数量（对齐竞品「每个账号限绑定5位成员」）
+MAX_PATIENT_CARDS_PER_USER = 5
+
 
 class UserManageService(PatientsServiceBase):
     async def get_user_store_ids(self, user_id: str) -> list[str | None]:
@@ -329,6 +332,14 @@ class UserManageService(PatientsServiceBase):
         existing = await self.db.execute(existing_query)
         if existing.scalar_one_or_none():
             raise BusinessError(f"该用户下已存在名为 {data.name} 的就诊卡")
+
+        # 每个账号限绑定就诊卡数量（对齐竞品「每个账号限绑定5位成员」）
+        count_query = select(func.count(Patient.id)).where(Patient.user_id == user_id)
+        if tenant_id:
+            count_query = count_query.where(Patient.tenant_id == tenant_id)
+        count_result = await self.db.execute(count_query)
+        if (count_result.scalar() or 0) >= MAX_PATIENT_CARDS_PER_USER:
+            raise BusinessError(f"每个账号限绑定{MAX_PATIENT_CARDS_PER_USER}位成员", code=400)
 
         birthday = None
         if data.birthday:

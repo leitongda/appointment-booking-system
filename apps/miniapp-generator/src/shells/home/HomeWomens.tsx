@@ -15,6 +15,7 @@ import {
   HealthIcon,
   CardIcon,
   AddUserIcon,
+  SpeakerIcon,
 } from '../../components/Icons';
 import { PageContainer } from '../../components/PageContainer';
 import { useTemplate } from '../../contexts/TemplateContext';
@@ -281,6 +282,35 @@ export function HomeWomens() {
             </ScrollView>
           </View>
         );
+
+      case 'notice': {
+        // 公告栏：白底圆角横条，文本优先取模块配置，缺省回落到首条 Banner 标题
+        const noticeText: string = mod.config?.text || banners[0]?.title || '';
+        if (!noticeText) return null;
+        const handleNoticeClick = () => {
+          const linkUrl: string | undefined = mod.config?.linkUrl;
+          if (!linkUrl) return;
+          if (/^https?:\/\//.test(linkUrl)) {
+            Taro.navigateTo({ url: `/packageOther/pages/webview/index?url=${encodeURIComponent(linkUrl)}` });
+          } else {
+            navigateTo(linkUrl);
+          }
+        };
+        return (
+          <View
+            key={mod.id}
+            className="notice-bar"
+            onClick={handleNoticeClick}
+            aria-label={`公告：${noticeText}`}
+            role={mod.config?.linkUrl ? 'button' : undefined}
+          >
+            <View className="notice-bar-icon">
+              <SpeakerIcon size={28} color={primaryColor} />
+            </View>
+            <Text className="notice-bar-text">{noticeText}</Text>
+          </View>
+        );
+      }
 
       case 'quick_menu':
         return (

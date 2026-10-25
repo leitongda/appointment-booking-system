@@ -16,6 +16,8 @@ export interface AppointmentListParams {
   createdStart?: string;
   /** 创建时间结束 */
   createdEnd?: string;
+  /** 医助确认状态：0=无需 1=待联系 2=已联系 3=已确认到店 */
+  assistantConfirmStatus?: number;
   /** 页码，默认1 */
   page?: number;
   /**
@@ -215,6 +217,7 @@ export const appointmentApi = {
       department_id: params.departmentId,
       created_start: params.createdStart,
       created_end: params.createdEnd,
+      assistant_confirm_status: params.assistantConfirmStatus,
       page: params.page,
       page_size: params.pageSize,
     } : undefined;
@@ -287,6 +290,14 @@ export const appointmentApi = {
    */
   markNoShow: (id: string): Promise<void> => {
     return request.put(`/appointments/${id}/no-show`);
+  },
+
+  /**
+   * 医助确认到店
+   * 将医助确认状态更新为"已确认到店"（status=3）
+   */
+  assistantConfirm: (id: string): Promise<void> => {
+    return request.patch(`/appointments/${id}/assistant-confirm`, { status: 3 });
   },
 
   /**

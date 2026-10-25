@@ -57,6 +57,7 @@ def _ensure_can_view_appointment(appointment, current_user: dict) -> None:
 
     **支持筛选条件**：
     - status: 按状态筛选（0=待支付 1=已预约 2=已签到 4=就诊中 5=已完成 6=已取消 7=已过期/过号 8=已爽约；3 为历史遗留状态）
+    - assistant_confirm_status: 按医助确认状态筛选（0=无需 1=待联系 2=已联系 3=已确认到店时间）
     - doctor_id: 按医生筛选
     - department_id: 按科室筛选
     - patient_id: 按患者筛选
@@ -76,6 +77,7 @@ def _ensure_can_view_appointment(appointment, current_user: dict) -> None:
 )
 async def get_appointments(
     status: int | None = None,
+    assistant_confirm_status: int | None = None,
     patient_id: str | None = None,
     store_id: str | None = None,
     start_date: date | None = None,
@@ -138,6 +140,7 @@ async def get_appointments(
         user_id=user_id,
         store_id=store_id,
         status=status,
+        assistant_confirm_status=assistant_confirm_status,
         patient_id=patient_id,
         start_date=start_date,
         end_date=end_date,

@@ -7,6 +7,7 @@ import { PageContainer } from '../../components/PageContainer';
 import { useTemplate } from '../../contexts/TemplateContext';
 import { getImageUrl } from '../../utils/url';
 import { DoctorEmptyState, LoadFailedErrorState } from '../../components/EmptyState';
+import { DoctorIcon } from '../../components/Icons';
 
 /** 医生列表壳层 -- 大尺寸卡片
  * 卡片高度 240rpx，所有文字 >= 32rpx，操作按钮超大 100rpx 高
@@ -107,7 +108,7 @@ export function DoctorLargeCards() {
                     style={{ width: '120rpx', height: '120rpx', borderRadius: '60rpx' }}
                   />
                 ) : (
-                  <Text style={{ fontSize: '56rpx' }}>{'\ud83e\ude7a'}</Text>
+                  <DoctorIcon size={28} color={tokens.primary} />
                 )}
               </View>
               <View style={{ flex: 1, minWidth: 0 }}>

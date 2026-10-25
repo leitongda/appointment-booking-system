@@ -65,6 +65,35 @@
   height: 100%;
 }
 
+// ---- 公告栏 ----
+.notice-bar {
+  display: flex;
+  align-items: center;
+  gap: @spacing-2;
+  // 底部额外留白：抵消下方 .menu-card 的 -60rpx 上移叠盖（该上移原本用于压住 Banner）
+  margin: 24rpx 24rpx 84rpx;
+  padding: 20rpx 24rpx;
+  background: @bg-card;
+  border-radius: @radius-lg;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
+}
+
+.notice-bar-icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.notice-bar-text {
+  flex: 1;
+  min-width: 0;
+  font-size: @font-body-sm;
+  color: @text-secondary;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 // ---- 功能菜单 ----
 .menu-card {
   margin: -60rpx 24rpx @spacing-3;

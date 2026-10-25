@@ -247,6 +247,7 @@ class AppointmentBookingService(AppointmentServiceBase):
                     queue_number=queue_number,
                     status=appointment_status,
                     symptom_description=data.symptom_description,
+                    assistant_confirm_status=1,
                     patient_name=patient.name,
                     patient_phone=patient.phone,
                     doctor_name=doctor.name if doctor else None,
@@ -597,7 +598,7 @@ class AppointmentBookingService(AppointmentServiceBase):
             else:
                 settings_service_cls = self._compat("SettingsService", SettingsService)
                 settings_service = settings_service_cls(self.db)
-                cancel_hours = await settings_service.get_value("booking", "cancel_hours", 2)
+                cancel_hours = await settings_service.get_value("booking", "cancel_hours", 12)
                 schedule = appointment.schedule
                 if schedule and cancel_hours > 0:
                     if schedule.start_time:

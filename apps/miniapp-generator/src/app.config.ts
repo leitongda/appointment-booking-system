@@ -2,6 +2,7 @@ export default defineAppConfig({
   pages: [
     'pages/index/index',
     'pages/appointment/index',
+    'pages/org/index',
     'pages/profile/index',
     'pages/department/index',
     'pages/doctor/index',
@@ -92,6 +93,12 @@ export default defineAppConfig({
         text: '预约',
         iconPath: 'assets/tabbar/appointment.png',
         selectedIconPath: 'assets/tabbar/appointment-active.png',
+      },
+      {
+        pagePath: 'pages/org/index',
+        text: '机构中心',
+        iconPath: 'assets/tabbar/org.png',
+        selectedIconPath: 'assets/tabbar/org-active.png',
       },
       {
         pagePath: 'pages/profile/index',

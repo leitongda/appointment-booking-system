@@ -119,6 +119,11 @@ ROUTER_REGISTRATIONS = [
     RouterRegistration("app.modules.appointment_satisfactions.router", "", ["预约满意度"]),
 
     # --------------------------------------------------------------- #
+    #  营销物料 — 长期保留
+    # --------------------------------------------------------------- #
+    RouterRegistration("app.modules.marketing.router", "/marketing", ["营销物料"]),
+
+    # --------------------------------------------------------------- #
     #  基础设施 / 平台 — 长期保留
     # --------------------------------------------------------------- #
     RouterRegistration("app.modules.upload.router", "/upload", ["文件上传"]),

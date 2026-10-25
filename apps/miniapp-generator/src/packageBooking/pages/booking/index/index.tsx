@@ -19,14 +19,25 @@ import LoginPopup from '../../../../components/LoginPopup';
 import type { Doctor, Patient } from '@hospital/shared';
 import { DoctorIcon, UserIcon } from '../../../../components/Icons';
 import { getImageUrl } from '../../../../utils/url';
+import { useTemplate } from '../../../../contexts/TemplateContext';
 import './index.less';
 
 interface ConsultationFeeResponse {
   amount: number; // 分
 }
 
+const WEEKDAY_NAMES = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+
+/** 「预约注意事项」默认文案（对齐竞品确认页），可被模板 tone.custom（bookingNotice1~3）覆盖 */
+const DEFAULT_BOOKING_NOTICES = [
+  '由于医生接诊量较大，每天看诊量有限，请提前挂号；挂号后医助助理会与您联系，确认具体到店时间与就诊地点，避免排队等候或跑空；',
+  '就诊前12小时可在小程序内自行取消预约；就诊当日12小时内的预约无法自行取消，如遇特殊情况需取消，请联系在线客服；',
+  '如咨询代煎进度、现场排队情况，请添加医助微信咨询。',
+];
+
 const BookingPage = () => {
   const primaryColor = useThemePrimaryColor();
+  const { tone } = useTemplate();
   useApplyThemeNavigationBar();
   const router = useRouter();
   const { doctorId, scheduleId, date, timeSlot, storeId, departmentId } = router.params;
@@ -118,6 +129,28 @@ const BookingPage = () => {
   const selectedPatient = patients.find(p => p.id === selectedPatientId);
   const { requireWritable } = useTenantGuard();
   const { subscribeAppointment } = useSubscribeMessage();
+
+  // 病情主诉是否已填写（必填校验）
+  const hasSymptom = symptomDescription.trim().length > 0;
+
+  // 预约时间展示用星期（如 2026-10-23 周五）
+  const bookingWeekday = date && !Number.isNaN(new Date(date).getTime())
+    ? WEEKDAY_NAMES[new Date(date).getDay()]
+    : '';
+
+  // 预约注意事项：机构后台配置的须知优先，其次模板 tone.custom（bookingNotice1~3）覆盖，最后用默认三条
+  const noticeOverride = [1, 2, 3]
+    .map((i) => tone.custom?.[`bookingNotice${i}`])
+    .filter((text): text is string => Boolean(text && text.trim()));
+  const remoteNotices = bookingNotices
+    .map((notice) => ({ title: notice.title, content: notice.content || '' }))
+    .filter((notice) => notice.content.trim().length > 0);
+  const displayNotices: Array<{ title?: string; content: string }> =
+    remoteNotices.length > 0
+      ? remoteNotices
+      : noticeOverride.length > 0
+        ? noticeOverride.map((content) => ({ content }))
+        : DEFAULT_BOOKING_NOTICES.map((content) => ({ content }));
 
   const handleSubmit = async () => {
     // 租户状态守卫：暂停时阻断写操作
@@ -259,10 +292,6 @@ const BookingPage = () => {
     );
   }
 
-  const buttonText = consultationFee
-    ? `确认支付 ¥${(consultationFee / 100).toFixed(2)}`
-    : '确认预约';
-
   return (
     <View className="booking-page">
       {/* 顶部：就诊人信息卡片 */}
@@ -351,15 +380,31 @@ const BookingPage = () => {
         {/* 预约详情 */}
         <View className="info-list">
           <View className="info-row">
+            <Text className="label">就诊科室</Text>
+            <Text className="value">{doctor?.departmentName || '-'}</Text>
+          </View>
+          <View className="info-row">
             <Text className="label">预约时间</Text>
             <Text className="value">
-              {date} {startTime ? getPeriodNameFromTime(startTime, timePeriods) : TIME_SLOT_MAP[timeSlot || 'morning']}
-              {startTime && endTime && ` (${startTime}-${endTime})`}
+              {date}
+              {bookingWeekday ? ` ${bookingWeekday}` : ''}
+              {` ${startTime ? getPeriodNameFromTime(startTime, timePeriods) : TIME_SLOT_MAP[timeSlot || 'morning']}`}
+              {startTime && endTime && ` ${startTime}-${endTime}`}
             </Text>
           </View>
+          {/* 诊费展示（后端 /consultation-fees/amount 返回的是初诊金额） */}
+          {consultationFee && consultationFee > 0 && (
+            <View className="info-row">
+              <Text className="label">挂号费用</Text>
+              <Text className="value fee">
+                ¥{(consultationFee / 100).toFixed(2)}
+                <Text className="fee-tag">（初诊）</Text>
+              </Text>
+            </View>
+          )}
           {hospitalName && (
             <View className="info-row">
-              <Text className="label">就诊机构</Text>
+              <Text className="label">机构名称</Text>
               <Text className="value">{hospitalName}</Text>
             </View>
           )}
@@ -369,61 +414,40 @@ const BookingPage = () => {
               <Text className="value address">{hospitalAddress}</Text>
             </View>
           )}
-          {/* 诊费展示 */}
-          {consultationFee && (
-            <View className="info-row">
-              <Text className="label">诊费</Text>
-              <Text className="value fee">¥{(consultationFee / 100).toFixed(2)}</Text>
-            </View>
-          )}
         </View>
 
-        {/* 病情描述输入 */}
+        {/* 病情主诉输入（必填） */}
         <View className="symptom-section">
-          <Text className="symptom-label">病情描述（选填）</Text>
+          <Text className="symptom-label">
+            <Text className="symptom-required">*</Text>
+            病情主诉
+          </Text>
           <Textarea
             className="symptom-input"
-            placeholder="请简要描述您的症状，方便医生提前了解病情..."
+            placeholder="为了提供更好的诊疗效果，请填写病情主诉"
             maxlength={500}
             value={symptomDescription}
             onInput={(e) => setSymptomDescription(e.detail.value)}
           />
+          {!hasSymptom && (
+            <Text className="symptom-required-tip">病情主诉为必填项，请填写后再提交预约</Text>
+          )}
           <Text className="symptom-count">{symptomDescription.length}/500</Text>
         </View>
       </View>
 
       {/* 底部：预约注意事项 */}
-      {bookingNotices.length > 0 && (
-        <View className="notice-card">
-          <Text className="notice-title">预约注意事项</Text>
-          <View className="notice-list">
-            {bookingNotices.map((notice) => (
-              <View key={notice.id} className="notice-item">
-                {notice.title && <Text className="notice-item-title">{notice.title}</Text>}
-                <Text className="notice-content">{notice.content}</Text>
-              </View>
-            ))}
-          </View>
+      <View className="notice-card">
+        <Text className="notice-title">预约注意事项</Text>
+        <View className="notice-list">
+          {displayNotices.map((notice, index) => (
+            <View key={`${index}-${notice.content.slice(0, 12)}`} className="notice-item">
+              {notice.title && <Text className="notice-item-title">{notice.title}</Text>}
+              <Text className="notice-content">{`${index + 1}、${notice.content}`}</Text>
+            </View>
+          ))}
         </View>
-      )}
-
-      {/* 默认须知（如果没有配置的须知） */}
-      {bookingNotices.length === 0 && (
-        <View className="notice-card">
-          <Text className="notice-title">预约须知</Text>
-          <View className="notice-list">
-            <View className="notice-item">
-              <Text className="notice-content">请按预约时间提前15分钟到达医院</Text>
-            </View>
-            <View className="notice-item">
-              <Text className="notice-content">就诊时请携带有效身份证件</Text>
-            </View>
-            <View className="notice-item">
-              <Text className="notice-content">如需取消预约，请提前24小时操作</Text>
-            </View>
-          </View>
-        </View>
-      )}
+      </View>
 
       {/* 底部提交 */}
       <View className="footer">
@@ -431,10 +455,10 @@ const BookingPage = () => {
           className="submit-btn"
           type="primary"
           loading={submitting}
-          disabled={!selectedPatientId}
+          disabled={!selectedPatientId || !hasSymptom}
           onClick={handleSubmit}
         >
-          {buttonText}
+          确认预约
         </Button>
       </View>
 

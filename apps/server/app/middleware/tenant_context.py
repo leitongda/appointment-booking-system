@@ -42,6 +42,7 @@ PUBLIC_TENANT_REQUIRED_PATHS = [
     "/api/v1/doctors/recommended",
     "/api/v1/doctors/by-department",
     "/api/v1/doctors/public",
+    "/api/v1/doctor-reviews",
     "/api/v1/stores/by-code",
 ]
 

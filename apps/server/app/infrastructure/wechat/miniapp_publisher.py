@@ -375,3 +375,89 @@ class MiniappPublisher:
             "[MiniappPublisher] 获取体验版二维码成功: %d bytes", len(response.content)
         )
         return response.content
+
+    # ------------------------------------------------------------------
+    # 7. 获取无限制小程序码
+    # ------------------------------------------------------------------
+
+    # 微信 getwxacodeunlimit 对 scene 的长度限制（可见字符）
+    WXACODE_SCENE_MAX_LENGTH = 32
+
+    async def get_unlimited_wxacode(
+        self,
+        scene: str,
+        page: str | None = None,
+        access_token: str | None = None,
+    ) -> bytes:
+        """获取无限制小程序码
+
+        POST https://api.weixin.qq.com/wxa/getwxacodeunlimit
+
+        通过 scene 参数携带业务数据（如医生ID），条数不受限制，
+        适用于医生海报底部「长按识别查看医生详情」等场景。
+
+        Args:
+            scene: 场景值，最长 32 个可见字符
+            page: 扫码进入的页面路径（可选，缺省进入主页），必须为已发布页面
+            access_token: 微信 access_token（可选，不传则自动获取）
+
+        Returns:
+            bytes: 小程序码 PNG 图片二进制数据
+
+        Raises:
+            ValueError: scene 超过 32 字符时提前抛出
+            RuntimeError: 获取小程序码失败时抛出
+        """
+        if len(scene) > self.WXACODE_SCENE_MAX_LENGTH:
+            raise ValueError(
+                f"scene 最长 {self.WXACODE_SCENE_MAX_LENGTH} 字符，"
+                f"当前 {len(scene)} 字符"
+            )
+
+        token = access_token or await self._get_access_token()
+        url = f"{self.WECHAT_API_URL}/wxa/getwxacodeunlimit"
+
+        payload = {
+            "scene": scene,
+            "check_path": False,
+            "env_version": "release",
+            "width": 280,
+        }
+        if page:
+            payload["page"] = page
+
+        async with httpx.AsyncClient(timeout=30.0, trust_env=False) as client:
+            response = await client.post(
+                url,
+                params={"access_token": token},
+                json=payload,
+            )
+
+        # 正常情况下返回图片二进制，失败时返回 JSON 错误
+        content_type = response.headers.get("content-type", "")
+
+        if "application/json" in content_type or "text/plain" in content_type:
+            # 尝试解析为 JSON 错误
+            try:
+                error_data = response.json()
+                raise RuntimeError(
+                    f"获取小程序码失败: errcode={error_data.get('errcode')}, "
+                    f"errmsg={error_data.get('errmsg')}"
+                )
+            except (ValueError, KeyError):
+                raise RuntimeError(
+                    f"获取小程序码失败: HTTP {response.status_code}, "
+                    f"body={response.text[:500]}"
+                )
+
+        if response.status_code != 200:
+            raise RuntimeError(
+                f"获取小程序码失败: HTTP {response.status_code}"
+            )
+
+        logger.info(
+            "[MiniappPublisher] 获取小程序码成功: scene=%s, %d bytes",
+            scene[:16],
+            len(response.content),
+        )
+        return response.content

@@ -15,6 +15,8 @@ import pytest
 from app.models.leave_request import RequestStatus
 from app.modules.approval_flows.callback_registry import callback_registry
 
+_SERVER_ROOT = Path(__file__).resolve().parent.parent.parent
+
 # ============================================================
 # 1. 引擎包零业务依赖（拆环硬保证）
 # ============================================================
@@ -43,7 +45,7 @@ class TestApprovalFlowsPackagePurity:
             [_sys.executable, "-c", code],
             capture_output=True,
             text=True,
-            cwd=str(Path(__file__).resolve().parents[2]),
+            cwd=str(_SERVER_ROOT),
         )
         assert result.returncode == 0, (
             f"引擎包 import 泄漏了业务模块:\nSTDOUT={result.stdout}\nSTDERR={result.stderr}"

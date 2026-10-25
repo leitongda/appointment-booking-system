@@ -77,6 +77,15 @@ const BookingResultPage = () => {
         )}
       </View>
 
+      {/* 医助联系提示 */}
+      {isSuccess && (
+        <View className="assistant-notice">
+          <Text className="assistant-notice-text">
+            挂号成功！医助助理将尽快与您电话联系，确认到店时间，请保持手机畅通
+          </Text>
+        </View>
+      )}
+
       {/* 温馨提示 */}
       {isSuccess && (
         <View className="notice">

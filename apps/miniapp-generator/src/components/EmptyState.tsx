@@ -1,11 +1,14 @@
 import { View, Text, Button, Image } from '@tarojs/components';
+import type { ReactNode } from 'react';
 import { useTemplate } from '../contexts/TemplateContext';
 import { useThemePrimaryColor } from '../utils/theme';
+import { FileIcon, CloseCircleIcon, ClockIcon, CalendarIcon, HospitalIcon, DoctorIcon } from './Icons';
 import './EmptyState.less';
 
 interface EmptyStateProps {
   type?: 'empty' | 'error' | 'loading';
-  icon?: string;
+  /** 自定义图标节点；缺省按 type 使用内置线性图标 */
+  icon?: ReactNode;
   title?: string;
   description?: string;
   buttonText?: string;
@@ -29,24 +32,24 @@ export function EmptyState({
 
   // 默认配置
   const config: Record<NonNullable<EmptyStateProps['type']>, {
-    icon: string;
+    icon: ReactNode;
     title: string;
     description: string;
     buttonText?: string;
   }> = {
     empty: {
-      icon: icon || '📋',
+      icon: icon || <FileIcon size={56} color={primaryColor} />,
       title: title || '暂无数据',
       description: description || '',
     },
     error: {
-      icon: icon || '⚠️',
+      icon: icon || <CloseCircleIcon size={56} color={primaryColor} />,
       title: title || '加载失败',
       description: description || '请稍后重试',
       buttonText: buttonText || '点击重试',
     },
     loading: {
-      icon: icon || '⏳',
+      icon: icon || <ClockIcon size={56} color={primaryColor} />,
       title: title || '加载中...',
       description: description || '',
     },
@@ -84,7 +87,7 @@ export function AppointmentEmptyState({ onRetry }: { onRetry?: () => void }) {
   return (
     <EmptyState
       type="empty"
-      icon="📅"
+      icon={<CalendarIcon size={56} color={useThemePrimaryColor()} />}
       title={tone.emptyBookingText}
       description="点击下方按钮开始预约"
       buttonText="去预约"
@@ -100,11 +103,10 @@ export function AppointmentEmptyState({ onRetry }: { onRetry?: () => void }) {
  * 科室空态组件
  */
 export function DepartmentEmptyState() {
-  const { tone } = useTemplate();
   return (
     <EmptyState
       type="empty"
-      icon="🏥"
+      icon={<HospitalIcon size={56} color={useThemePrimaryColor()} />}
       title="暂无科室信息"
       description="当前医院暂未开设科室"
     />
@@ -118,7 +120,7 @@ export function DoctorEmptyState() {
   return (
     <EmptyState
       type="empty"
-      icon="👨‍⚕️"
+      icon={<DoctorIcon size={56} color={useThemePrimaryColor()} />}
       title="暂无医生信息"
       description="当前科室暂无医生出诊"
     />

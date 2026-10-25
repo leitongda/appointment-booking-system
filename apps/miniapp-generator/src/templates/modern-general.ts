@@ -23,9 +23,10 @@ export const modernGeneral: MiniappStyleTemplate = {
 
   homeSchema: [
     { id: 'banner', type: 'banner', visible: true, order: 1, config: {} },
-    { id: 'quick_menu', type: 'quick_menu', visible: true, order: 2, config: { columns: 4 } },
-    { id: 'patient_card', type: 'patient_card', visible: true, order: 3, config: {} },
-    { id: 'recommend_doctor', type: 'recommend_doctor', visible: true, order: 4, config: {} },
+    { id: 'notice', type: 'notice', visible: true, order: 2, config: {} },
+    { id: 'quick_menu', type: 'quick_menu', visible: true, order: 3, config: { columns: 4 } },
+    { id: 'patient_card', type: 'patient_card', visible: true, order: 4, config: {} },
+    { id: 'recommend_doctor', type: 'recommend_doctor', visible: true, order: 5, config: {} },
   ],
 
   pageShells: {

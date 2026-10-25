@@ -19,6 +19,11 @@ from app.core.websocket import (
 from app.db.session import get_db
 from app.enums.appointment import CheckinMethod
 from app.modules.appointments.service import AppointmentService
+from app.schemas.appointment import (
+    AppointmentResponse,
+    AssistantConfirmRequest,
+    AssistantConfirmResponse,
+)
 
 router = APIRouter()
 
@@ -405,3 +410,53 @@ async def mark_no_show(
             pass
 
     return {"message": "已标记爽约"}
+
+
+@router.patch(
+    "/{appointment_id}/assistant-confirm",
+    response_model=AssistantConfirmResponse,
+    summary="医助确认到店",
+    description="""
+    医助电话联系患者后，更新预约的到店确认状态。
+
+    **权限要求**：管理员权限（appointment:manage），受门店访问控制。
+
+    **业务规则**：
+    - status 仅允许 2已联系 / 3已确认到店时间，其余值返回 422
+    - note 为沟通备注：appointments 表无 note 列，仅在响应中回显，不落库
+    """,
+    responses={
+        404: {"description": "预约不存在"},
+        422: {"description": "status 取值非法（仅允许 2 或 3）"},
+    },
+)
+async def assistant_confirm_appointment(
+    appointment_id: str,
+    data: AssistantConfirmRequest,
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("appointment:manage")),
+):
+    """医助确认到店（需要管理员权限）"""
+    service = AppointmentService(db)
+
+    # 先获取预约信息，检查门店访问权限
+    appointment = await service.get_by_id(appointment_id)
+    if not appointment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="预约不存在，请检查后重试")
+
+    # 检查门店访问权限
+    if appointment.schedule and appointment.schedule.store_id:
+        if not check_store_access(current_admin, appointment.schedule.store_id):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权操作此门店的预约")
+
+    appointment = await service.set_assistant_confirm_status(
+        appointment_id=appointment_id,
+        status=data.status,
+        operator_id=current_admin.get("id"),
+    )
+
+    return AssistantConfirmResponse(
+        appointment=AppointmentResponse.from_appointment(appointment),
+        note=data.note,
+    )

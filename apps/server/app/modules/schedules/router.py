@@ -424,6 +424,8 @@ async def get_available_schedules(
 
         result.append(AvailableScheduleResponse(
             id=s.id,
+            doctor_id=s.doctor_id,
+            store_id=s.store_id,
             schedule_date=s.schedule_date,
             time_slot=s.time_slot,
             available_slots=available,

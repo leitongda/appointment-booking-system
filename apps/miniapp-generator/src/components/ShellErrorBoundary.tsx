@@ -2,6 +2,7 @@ import { Component, ComponentType, ReactNode } from 'react';
 import { View, Button, Text } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import { useTemplate } from '../contexts/TemplateContext';
+import { CloseCircleIcon } from './Icons';
 import './ShellErrorBoundary.less';
 
 interface Props {
@@ -59,7 +60,9 @@ function ErrorFallback({ error, onRetry, onBackToHome }: { error?: Error; onRetr
 
   return (
     <View className="shell-error-fallback">
-      <View className="shell-error-icon">⚠️</View>
+      <View className="shell-error-icon">
+        <CloseCircleIcon size={56} color={primaryColor} />
+      </View>
       <View className="shell-error-title" style={{ color: primaryColor }}>
         页面加载出现问题
       </View>

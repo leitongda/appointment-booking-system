@@ -78,6 +78,11 @@ const PatientListPage = () => {
   };
 
   const handleAdd = () => {
+    // 每个账号限绑定 5 位成员（与后端上限一致）
+    if (patients.length >= 5) {
+      Taro.showToast({ title: '每个账号限绑定5位成员', icon: 'none' });
+      return;
+    }
     Taro.navigateTo({ url: '/packageProfile/pages/patient/edit' });
   };
 

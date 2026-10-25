@@ -172,6 +172,59 @@
 }
 
 // -------------------------------------------
+// 医助确认
+// -------------------------------------------
+
+.assistant-confirm-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  .section-title {
+    flex: 1;
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+  }
+}
+
+.assistant-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4rpx 16rpx;
+  font-size: @font-size-xs;
+  font-weight: @font-weight-medium;
+  border-radius: @radius-sm;
+
+  &.default {
+    background: @color-bg-secondary;
+    color: @color-text-muted;
+  }
+
+  &.pending {
+    background: rgba(245, 158, 11, 0.1);
+    color: @color-warning;
+  }
+
+  &.contacted {
+    background: rgba(59, 130, 246, 0.1);
+    color: @color-info;
+  }
+
+  &.confirmed {
+    background: rgba(16, 185, 129, 0.1);
+    color: @color-success;
+  }
+}
+
+.assistant-confirm-desc {
+  display: block;
+  font-size: @font-size-sm;
+  color: @color-text-secondary;
+  line-height: @line-height-relaxed;
+}
+
+// -------------------------------------------
 // 底部操作栏
 // -------------------------------------------
 

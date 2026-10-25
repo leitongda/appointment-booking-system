@@ -88,6 +88,8 @@ const svgs = {
   addUser: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M15 12C17.21 12 19 10.21 19 8C19 5.79 17.21 4 15 4C12.79 4 11 5.79 11 8C11 10.21 12.79 12 15 12ZM6 10V7H4V10H1V12H4V15H6V12H9V10H6ZM15 14C12.33 14 7 15.34 7 18V20H23V18C23 15.34 17.67 14 15 14Z" fill="{color}"/></svg>`,
   phone: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6.62 10.79C8.06 13.62 10.38 15.94 13.21 17.38L15.41 15.18C15.69 14.9 16.08 14.82 16.43 14.93C17.55 15.3 18.75 15.5 20 15.5C20.55 15.5 21 15.95 21 16.5V20C21 20.55 20.55 21 20 21C10.61 21 3 13.39 3 4C3 3.45 3.45 3 4 3H7.5C8.05 3 8.5 3.45 8.5 4C8.5 5.25 8.7 6.45 9.07 7.57C9.18 7.92 9.1 8.31 8.82 8.59L6.62 10.79Z" fill="{color}"/></svg>`,
   star: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 17.27L18.18 21L16.54 13.97L22 9.24L14.81 8.62L12 2L9.19 8.62L2 9.24L7.45 13.97L5.82 21L12 17.27Z" fill="{color}"/></svg>`,
+  // 喇叭/公告图标
+  speaker: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 9V15H7L12 20V4L7 9H3ZM16.5 12C16.5 10.23 15.48 8.71 14 7.97V16.02C15.48 15.29 16.5 13.77 16.5 12ZM14 3.23V5.29C16.89 6.15 19 8.83 19 12C19 15.17 16.89 17.85 14 18.71V20.77C18.01 19.86 21 16.28 21 12C21 7.72 18.01 4.14 14 3.23Z" fill="{color}"/></svg>`,
   // TabBar 图标
   home: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M10 20V14H14V20H19V12H22L12 3L2 12H5V20H10Z" fill="{color}"/></svg>`,
   homeOutline: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 5.69L17 10.19V18H15V12H9V18H7V10.19L12 5.69ZM12 3L2 12H5V20H11V14H13V20H19V12H22L12 3Z" fill="{color}"/></svg>`,
@@ -95,6 +97,14 @@ const svgs = {
   appointmentOutline: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M19 3H18V1H16V3H8V1H6V3H5C3.89 3 3 3.9 3 5V19C3 20.1 3.89 21 5 21H19C20.1 21 21 20.1 21 19V5C21 3.9 20.1 3 19 3ZM19 19H5V8H19V19ZM19 6H5V5H19V6Z" fill="{color}"/></svg>`,
   profile: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 12C14.21 12 16 10.21 16 8C16 5.79 14.21 4 12 4C9.79 4 8 5.79 8 8C8 10.21 9.79 12 12 12ZM12 14C9.33 14 4 15.34 4 18V20H20V18C20 15.34 14.67 14 12 14Z" fill="{color}"/></svg>`,
   profileOutline: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 6C13.1 6 14 6.9 14 8C14 9.1 13.1 10 12 10C10.9 10 10 9.1 10 8C10 6.9 10.9 6 12 6ZM12 4C9.79 4 8 5.79 8 8C8 10.21 9.79 12 12 12C14.21 12 16 10.21 16 8C16 5.79 14.21 4 12 4ZM12 14C9.33 14 4 15.34 4 18V20H20V18C20 15.34 14.67 14 12 14ZM6 18C6.22 17.28 9.31 16 12 16C14.7 16 17.8 17.29 18 18H6Z" fill="{color}"/></svg>`,
+  // 客服耳机
+  headset: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 1C7.03 1 3 5.03 3 10V17C3 19.21 4.79 21 7 21H9V11H5V10C5 6.13 8.13 3 12 3C15.87 3 19 6.13 19 10V11H15V21H17C19.21 21 21 19.21 21 17V10C21 5.03 16.97 1 12 1Z" fill="{color}"/></svg>`,
+  // 门店/机构
+  store: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 4H4V2H20V4ZM21 6H3L2 12V14H4V22H20V14H22V12L21 6ZM18 20H6V12H18V20ZM9 16H15V18H9V16Z" fill="{color}"/></svg>`,
+  // 地图定位
+  locationPin: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C8.13 2 5 5.13 5 9C5 14.25 12 22 12 22C12 22 19 14.25 19 9C19 5.13 15.87 2 12 2ZM12 11.5C10.62 11.5 9.5 10.38 9.5 9C9.5 7.62 10.62 6.5 12 6.5C13.38 6.5 14.5 7.62 14.5 9C14.5 10.38 13.38 11.5 12 11.5Z" fill="{color}"/></svg>`,
+  // 分享
+  share: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 16.08C17.24 16.08 16.56 16.38 16.04 16.85L8.91 12.7C8.96 12.47 9 12.24 9 12C9 11.76 8.96 11.53 8.91 11.3L15.96 7.19C16.5 7.69 17.21 8 18 8C19.66 8 21 6.66 21 5C21 3.34 19.66 2 18 2C16.34 2 15 3.34 15 5C15 5.24 15.04 5.47 15.09 5.7L8.04 9.81C7.5 9.31 6.79 9 6 9C4.34 9 3 10.34 3 12C3 13.66 4.34 15 6 15C6.79 15 7.5 14.69 8.04 14.19L15.12 18.34C15.07 18.55 15.04 18.77 15.04 19C15.04 20.61 16.35 21.92 17.96 21.92C19.57 21.92 20.88 20.61 20.88 19C20.88 17.39 19.57 16.08 18 16.08Z" fill="{color}"/></svg>`,
 };
 
 // 医院图标
@@ -277,6 +287,11 @@ export const StarIcon = (props: IconProps) => (
   <SvgIcon {...props} svg={svgs.star} />
 );
 
+// 喇叭/公告图标
+export const SpeakerIcon = (props: IconProps) => (
+  <SvgIcon {...props} svg={svgs.speaker} />
+);
+
 // TabBar 图标 - 首页
 export const HomeIcon = (props: IconProps) => (
   <SvgIcon {...props} svg={svgs.home} />
@@ -322,6 +337,26 @@ export const HealthIcon = (props: IconProps) => (
 // 服务图标
 export const ServiceIcon = (props: IconProps) => (
   <SvgIcon {...props} svg={svgs.service} />
+);
+
+// 客服耳机图标
+export const HeadsetIcon = (props: IconProps) => (
+  <SvgIcon {...props} svg={svgs.headset} />
+);
+
+// 门店/机构图标
+export const StoreIcon = (props: IconProps) => (
+  <SvgIcon {...props} svg={svgs.store} />
+);
+
+// 地图定位图标
+export const LocationPinIcon = (props: IconProps) => (
+  <SvgIcon {...props} svg={svgs.locationPin} />
+);
+
+// 分享图标
+export const ShareIcon = (props: IconProps) => (
+  <SvgIcon {...props} svg={svgs.share} />
 );
 
 // 提示/信息图标
