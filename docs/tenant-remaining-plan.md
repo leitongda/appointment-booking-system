@@ -700,3 +700,21 @@ B0–B11 复盘时暴露的三个测试缺口在本批次收口：
 | fitness 基线 | consultation_fees/router.py 479→563 | 守卫改造增量，棘轮对齐 |
 
 **本批验证**：后端 461 通过 / 1 跳过 / 1 xfail；fitness 6/6；website lint 0 错 + build + 26 测试；`import app.main` 通过。
+
+### 10.13 生产环境执行记录（2026-10-25，E1 完成）
+
+按 §6.8 runbook 在生产（106.52.195.26，宝塔 PG18 + Redis，Docker 部署）全量执行：
+
+| 步骤 | 结果 |
+|---|---|
+| 1 备份 | 全量 941K + 内容四表/用量表单独 dump（PG18 容器客户端），restore-list 验证通过，存 /root/hospital_backups/ |
+| 2 pre 审计 | ERROR=0；D13 三类=0、D15=0、M6 孤儿=0；data_scopes 表不存在（不阻塞 D20） |
+| 3 分段迁移 Ⅰ | 8c3d04cbc758 → 20260630_merge_heads（5 个常规迁移 + 加密列）。**修复 3 类生产形态漂移**：8eb75db476d4（917 op 的 autogen diff）drop×260 无守卫、create_index×219 无守卫、约束背书索引需先 DROP CONSTRAINT——全部改目录驱动守卫式 SQL，共 4 个修复提交 |
+| 4 加密回填 | patients 1/1 加密+hash 落库、明文保留验证（enc/hash/idc 全 t） |
+| 5 分段迁移 Ⅱ | → p3a8 head（drop_plaintext 删明文列 + p3a1–p3a8 十表租户维度）+ TCM 链 127；三头以 20261025_merge_three_heads 合并，**逐叶子升级 + stamp** 规避 alembic 多父合并点 KeyError |
+| 6 post 审计 + M6 | ERROR=0、零孤儿、**21/21 外键 VALIDATE**；唯一 NULL 租户 message 归位 default |
+| 7 权限码 + features | permissions 81→185（幂等插入）；default 租户 features.online_payment=true 回填 |
+| 8 部署 | 新镜像构建（chromium 改 build-arg 可选）+ 容器重建。**修复 4 个容器化 bug**：codegen/template_service 硬编码 parents[5]（IndexError 崩溃循环）、只读根下日志目录 makedirs（/app/var tmpfs mode=1777）、beat 调度库写盘（/tmp）；ENCRYPTION_KEY 注入四服务 |
+| 9 验证 | 四容器存活、backend healthy、health=200、public-key=200、带租户头 dict-options=200、beat 每分钟正常派发、enc-key 加载确认 |
+
+**遗留**：flower 容器探针配置失效（unhealthy 但服务有响应，非本批引入）；admin 截图任务缺 chromium（build-arg 开关，需要时重建或容器内补装）；灰度开关翻转门禁（R4-3 两个周期日志观测）待启动。
