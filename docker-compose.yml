@@ -92,7 +92,8 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
-      test: ["CMD-SHELL", "PIDFILE=/tmp/celerybeat.pid; if [ ! -f \"$PIDFILE\" ]; then exit 1; fi; kill -0 \"$(cat \"$PIDFILE\")\" 2>/dev/null || exit 1"]
+      # PID1 信号语义在容器内不可靠（kill -0 1 恒失败），改查 /proc 存在性
+      test: ["CMD-SHELL", "test -d /proc/$(cat /tmp/celerybeat.pid)"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -125,7 +126,8 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5555/api/workers"]
+      # /api/workers 受 basic-auth 保护，未带凭据恒 401
+      test: ["CMD-SHELL", "curl -sf -u \"$FLOWER_BASIC_AUTH\" http://localhost:5555/api/workers -o /dev/null"]
       interval: 30s
       timeout: 10s
       retries: 3
