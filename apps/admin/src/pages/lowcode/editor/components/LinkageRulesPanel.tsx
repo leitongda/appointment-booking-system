@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Button, Input, Select, Space, Card, Switch, Popconfirm } from 'antd';
-import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
-import { useEditorStore } from '../store';
-import { findNodeById } from '../utils/tree';
+import {Button, Input, Select, Space, Card, Switch, Popconfirm} from 'antd';
+import {PlusOutlined, DeleteOutlined} from '@ant-design/icons';
+import {useEditorStore} from '../store';
+import {findNodeById} from '../utils/tree';
 import type { LinkageRule, LinkageCondition, LinkageAction } from '@hospital/shared';
 
 const OPERATORS = [
@@ -43,7 +43,7 @@ export const LinkageRulesPanel: React.FC = () => {
   const selectedNodeId = useEditorStore((s) => s.selectedNodeId);
   const schema = useEditorStore((s) => s.schema);
   const updateNodeLinkageRules = useEditorStore((s) => s.updateNodeLinkageRules);
-  const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
+  const [_editingRuleId, setEditingRuleId] = useState<string | null>(null);
 
   const selectedNode = findNodeById(schema?.children || [], selectedNodeId || '');
   const rules: LinkageRule[] = selectedNode?.linkageRules || [];

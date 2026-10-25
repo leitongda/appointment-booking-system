@@ -1,21 +1,12 @@
-import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
+import {PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined} from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
-import {
-  PageContainer,
-  ProTable,
-  ModalForm,
-  ProFormText,
-  ProFormTextArea,
-  ProFormSelect,
-  ProFormDigit,
-  ProFormList,
-} from '@ant-design/pro-components';
-import { App, Button, Drawer, Descriptions, Popconfirm, Space, Spin, Tag } from 'antd';
-import { useRef, useState, useCallback } from 'react';
-import { departmentApi, followUpApi } from '@hospital/api';
+import {PageContainer, ProTable, ModalForm, ProFormText, ProFormTextArea, ProFormSelect, ProFormDigit, ProFormList} from '@ant-design/pro-components';
+import {App, Button, Drawer, Descriptions, Popconfirm, Space, Spin, Tag} from 'antd';
+import {useRef, useState, useCallback} from 'react';
+import {departmentApi, followUpApi} from '@hospital/api';
 import type { FollowUpPlan, FollowUpPlanListItem } from '@hospital/api';
-import { createListRequest } from '@/utils/proTable';
-import { fetchAllData } from '@/utils/fetchAllData';
+import {createListRequest} from '@/utils/proTable';
+import {fetchAllData} from '@/utils/fetchAllData';
 
 const STATUS_MAP: Record<number, { text: string; color: string }> = {
   1: { text: '启用', color: 'success' },
@@ -316,7 +307,7 @@ const FollowUpPlansPage: React.FC = () => {
           min={1}
           copyIconProps={false}
           colProps={{ span: 24 }}
-          itemRender={({ listDom }, { index }) => (
+          itemRender={({ listDom }) => (
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>{listDom}</div>
           )}
         >

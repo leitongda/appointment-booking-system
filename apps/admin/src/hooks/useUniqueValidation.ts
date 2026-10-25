@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import {useState} from 'react';
 
 /**
  * useFieldUnique 配置选项
@@ -17,7 +17,7 @@ export interface UseFieldUniqueConfig<T = void> {
 /**
  * useFieldUnique 返回值
  */
-export interface UseFieldUniqueReturn<T = void> {
+export interface UseFieldUniqueReturn<_T = void> {
   /** Ant Design Form rule，可直接放入 rules 数组 */
   rule: Record<string, any>;
   /** 该字段是否正在校验 */

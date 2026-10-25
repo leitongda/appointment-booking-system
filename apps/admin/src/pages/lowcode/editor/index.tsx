@@ -1,25 +1,25 @@
 /** 低代码编辑器主页面 */
 
 import React, { useEffect, useCallback, useRef, useState } from 'react';
-import { useParams, history } from '@umijs/max';
-import { Drawer, message, Spin, Modal, Input } from 'antd';
+import {useParams, history} from '@umijs/max';
+import {message, Spin, Modal, Input} from 'antd';
 import CodePreviewModal from './components/CodePreviewModal';
 import DeployPanel from './components/DeployPanel';
 import ShareDialog from './components/ShareDialog';
 import VersionHistory from './components/VersionHistory';
-import { useEditorStore } from './store';
+import {useEditorStore} from './store';
 import type { LowCodeNode } from '@hospital/shared';
-import { Canvas, EditorDndProvider } from './components/Canvas';
+import {EditorDndProvider} from './components/Canvas';
 import EditorTour from './components/EditorTour';
 import EditorHeader from './components/layout/EditorHeader';
 import LeftSidebar from './components/layout/LeftSidebar';
 import CanvasArea from './components/layout/CanvasArea';
 import RightSidebar from './components/layout/RightSidebar';
 import BottomConsole from './components/layout/BottomConsole';
-import { lowcodeApi } from '@hospital/api';
-import { EDITOR_COLORS, EDITOR_LAYOUT } from './constants';
-import { findNodeById, findParentNode, regenerateIds } from './utils/tree';
-import { pinyin } from 'pinyin-pro';
+import {lowcodeApi} from '@hospital/api';
+import {EDITOR_COLORS, EDITOR_LAYOUT} from './constants';
+import {findNodeById, findParentNode, regenerateIds} from './utils/tree';
+import {pinyin} from 'pinyin-pro';
 
 /** 编辑器主页面 */
 const LowCodeEditor: React.FC = () => {

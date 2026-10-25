@@ -1,38 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
-import { PageContainer } from '@ant-design/pro-components';
-import {
-  Card,
-  Tabs,
-  Form,
-  Input,
-  Button,
-  Space,
-  Switch,
-  App,
-  Tag,
-  Table,
-  Popconfirm,
-  Descriptions,
-  Alert,
-  Typography,
-  Spin,
-} from 'antd';
-import {
-  ApiOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  DisconnectOutlined,
-  TeamOutlined,
-  ThunderboltOutlined,
-} from '@ant-design/icons';
-import {
-  integrationApi,
-  type IntegrationProvider,
-  type IntegrationConfig,
-  type IntegrationProviderInfo,
-  type IntegrationBinding,
-} from '@hospital/api';
-import { useAccess } from '@umijs/max';
+import {useState, useEffect, useCallback} from 'react';
+import {PageContainer} from '@ant-design/pro-components';
+import {Card, Tabs, Form, Input, Button, Space, Switch, App, Tag, Table, Popconfirm, Descriptions, Alert, Typography, Spin} from 'antd';
+import {ApiOutlined, CheckCircleOutlined, CloseCircleOutlined, DisconnectOutlined, TeamOutlined, ThunderboltOutlined} from '@ant-design/icons';
+import {integrationApi, type IntegrationProvider, type IntegrationConfig, type IntegrationProviderInfo, type IntegrationBinding} from '@hospital/api';
+import {useAccess} from '@umijs/max';
 
 const { Text } = Typography;
 
@@ -76,7 +47,6 @@ const PROVIDER_FORM_META: Record<
 
 function ProviderConfigTab({
   provider,
-  providerInfo,
   onSaved,
 }: {
   provider: IntegrationProvider;

@@ -1,17 +1,17 @@
 /** 低代码页面管理列表 */
 
 import React, { useRef, useCallback } from 'react';
-import { history } from '@umijs/max';
-import { PageContainer } from '@ant-design/pro-components';
-import { ProTable } from '@ant-design/pro-components';
+import {history} from '@umijs/max';
+import {PageContainer} from '@ant-design/pro-components';
+import {ProTable} from '@ant-design/pro-components';
 import type { ProColumns, ActionType } from '@ant-design/pro-components';
-import { Button, Tag, Popconfirm, message, Space } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, SendOutlined, CopyOutlined } from '@ant-design/icons';
-import { lowcodeApi } from '@hospital/api';
+import {Button, Popconfirm, message, Space} from 'antd';
+import {PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, SendOutlined, CopyOutlined} from '@ant-design/icons';
+import {lowcodeApi} from '@hospital/api';
 import type { LowCodePage } from '@hospital/api';
 
 /** 状态标签 */
-const statusMap: Record<number, { text: string; color: string }> = {
+const _statusMap: Record<number, { text: string; color: string }> = {
   0: { text: '草稿', color: 'default' },
   1: { text: '已发布', color: 'success' },
   2: { text: '已归档', color: 'warning' },

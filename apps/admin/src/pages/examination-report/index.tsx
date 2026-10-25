@@ -1,14 +1,14 @@
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
-import { PageContainer, ProTable } from '@ant-design/pro-components';
-import { App, Space, Tag, Popconfirm, Descriptions, Drawer, Spin, Modal, Form, Input, Select, Upload, Button } from 'antd';
-import { EyeOutlined, DeleteOutlined, DownloadOutlined, FileOutlined, UploadOutlined, PlusOutlined } from '@ant-design/icons';
-import { useRef, useState, useCallback, useMemo, useEffect } from 'react';
-import { useAccess, useModel } from '@umijs/max';
-import { examinationReportApi, storeApi, doctorApi, appointmentApi } from '@hospital/api';
+import {PageContainer, ProTable} from '@ant-design/pro-components';
+import {App, Space, Tag, Popconfirm, Descriptions, Drawer, Spin, Modal, Form, Input, Select, Upload, Button} from 'antd';
+import {EyeOutlined, DeleteOutlined, DownloadOutlined, FileOutlined, UploadOutlined, PlusOutlined} from '@ant-design/icons';
+import {useRef, useState, useCallback, useMemo, useEffect} from 'react';
+import {useAccess, useModel} from '@umijs/max';
+import {examinationReportApi, storeApi, doctorApi} from '@hospital/api';
 import type { ExaminationReportListItem } from '@hospital/api';
-import { createListRequest } from '@/utils/proTable';
-import { fetchAllData } from '@/utils/fetchAllData';
-import { PAGINATION_CONFIG } from '@/constants/pagination';
+import {createListRequest} from '@/utils/proTable';
+import {fetchAllData} from '@/utils/fetchAllData';
+import {PAGINATION_CONFIG} from '@/constants/pagination';
 import ListPageSkeleton from '@/components/ListPageSkeleton';
 import dayjs from 'dayjs';
 

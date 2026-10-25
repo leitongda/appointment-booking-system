@@ -1,6 +1,6 @@
-import { Card, Form, Input, Select, InputNumber, Button, Space, Divider, Tooltip, Collapse, Modal, Tag } from 'antd';
-import { DeleteOutlined, PlusOutlined, ThunderboltOutlined } from '@ant-design/icons';
-import { memo, useEffect, useRef, useState } from 'react';
+import {Card, Form, Input, Select, InputNumber, Button, Space, Divider, Tooltip, Collapse, Modal, Tag} from 'antd';
+import {DeleteOutlined, PlusOutlined, ThunderboltOutlined} from '@ant-design/icons';
+import {memo, useEffect, useRef, useState} from 'react';
 import type { Node } from '@xyflow/react';
 import type { ListenerConfig, ListenerEvent, ListenerActionType } from '@hospital/shared';
 
@@ -172,7 +172,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = memo(({ selectedNode, onUpda
     onUpdate(selectedNode.id, nextData);
   };
 
-  const getCondId = (path: string): string => {
+  const _getCondId = (path: string): string => {
     if (!condIdMapRef.current.has(path)) condIdMapRef.current.set(path, newCondId());
     return condIdMapRef.current.get(path)!;
   };
@@ -332,7 +332,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = memo(({ selectedNode, onUpda
                       style={{ marginBottom: 8, border: '1px solid var(--color-border)' }}
                     >
                       <Form.List name={[targetName, 'groups']}>
-                        {(groupFields, { add: addGroup, remove: removeGroup }) => (
+                        {(groupFields, { add: addGroup, remove: _removeGroup }) => (
                           <>
                             {groupFields.map(({ key: groupKey, name: groupName }, groupIdx) => (
                               <div key={groupKey}>

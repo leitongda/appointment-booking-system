@@ -12,6 +12,13 @@
 import React, { useEffect, useState } from 'react';
 import { EDITOR_COLORS } from '../../constants';
 
+function formatNow(): string {
+  const d = new Date();
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return `${hh}:${mm}`;
+}
+
 const DeviceStatusBar: React.FC = () => {
   // 时间每分钟更新（对齐线框图 08:08 风格，但用真实时间更自然）
   const [time, setTime] = useState(() => formatNow());
@@ -66,11 +73,5 @@ const DeviceStatusBar: React.FC = () => {
   );
 };
 
-function formatNow(): string {
-  const d = new Date();
-  const hh = String(d.getHours()).padStart(2, '0');
-  const mm = String(d.getMinutes()).padStart(2, '0');
-  return `${hh}:${mm}`;
-}
 
 export default DeviceStatusBar;

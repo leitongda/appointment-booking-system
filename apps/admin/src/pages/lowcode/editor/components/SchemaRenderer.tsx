@@ -1,4 +1,5 @@
 /** Schema 渲染器 — 将 Schema 节点树渲染为 React 组件 */
+/* eslint-disable @typescript-eslint/no-use-before-define -- NodeRenderer 与 NodeRendererInner 相互递归渲染，声明顺序无法先定义后使用 */
 
 import React, { useState, Component, type ReactNode, type ErrorInfo } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/react';
@@ -276,7 +277,6 @@ const NutTabsRenderer = React.memo(function NutTabsRenderer({
           >
             {child.children?.map((grandChild) => (
               <NodeRenderer
-                // eslint-disable-next-line @typescript-eslint/no-use-before-define
                 key={grandChild.id}
                 node={grandChild}
                 depth={depth + 1}

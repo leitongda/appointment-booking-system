@@ -61,44 +61,6 @@ const IntegrationLogin: React.FC<IntegrationLoginProps> = ({
     }
   }, [provider, label, buildRedirectUri, message]);
 
-  // 监听 localStorage 事件：回调页拿到 code 后会写入并触发本组件完成登录
-  useEffect(() => {
-    const storageKey = `integration_login_code_${provider}`;
-    const handleStorage = (e: StorageEvent) => {
-      if (doneRef.current) return;
-      if (e.key === storageKey && e.newValue) {
-        const payload = JSON.parse(e.newValue);
-        localStorage.removeItem(storageKey);
-        handleCode(payload.code, payload.state);
-      }
-    };
-    window.addEventListener('storage', handleStorage);
-    return () => window.removeEventListener('storage', handleStorage);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [provider]);
-
-  // 同时轮询检测同一 tab 内的回调（storage 事件不在同 tab 触发）
-  useEffect(() => {
-    const storageKey = `integration_login_code_${provider}`;
-    pollingRef.current = setInterval(() => {
-      if (doneRef.current) return;
-      const raw = localStorage.getItem(storageKey);
-      if (raw) {
-        try {
-          const payload = JSON.parse(raw);
-          localStorage.removeItem(storageKey);
-          handleCode(payload.code, payload.state);
-        } catch {
-          /* ignore */
-        }
-      }
-    }, 1000);
-    return () => {
-      if (pollingRef.current) clearInterval(pollingRef.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [provider]);
-
   const handleCode = useCallback(
     async (code: string, state?: string) => {
       if (doneRef.current) return; // 已处理过，避免重复调用
@@ -138,6 +100,45 @@ const IntegrationLogin: React.FC<IntegrationLoginProps> = ({
     fetchQrcode();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // 监听 localStorage 事件：回调页拿到 code 后会写入并触发本组件完成登录
+  useEffect(() => {
+    const storageKey = `integration_login_code_${provider}`;
+    const handleStorage = (e: StorageEvent) => {
+      if (doneRef.current) return;
+      if (e.key === storageKey && e.newValue) {
+        const payload = JSON.parse(e.newValue);
+        localStorage.removeItem(storageKey);
+        handleCode(payload.code, payload.state);
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [provider]);
+
+  // 同时轮询检测同一 tab 内的回调（storage 事件不在同 tab 触发）
+  useEffect(() => {
+    const storageKey = `integration_login_code_${provider}`;
+    pollingRef.current = setInterval(() => {
+      if (doneRef.current) return;
+      const raw = localStorage.getItem(storageKey);
+      if (raw) {
+        try {
+          const payload = JSON.parse(raw);
+          localStorage.removeItem(storageKey);
+          handleCode(payload.code, payload.state);
+        } catch {
+          /* ignore */
+        }
+      }
+    }, 1000);
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [provider]);
+
 
   return (
     <div className={styles.wechatLogin}>

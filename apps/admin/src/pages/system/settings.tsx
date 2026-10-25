@@ -103,7 +103,7 @@ const SettingsPage: React.FC = () => {
   const [blacklist, setBlacklist] = useState<BlacklistItem[]>([]);
   const [blacklistTotal, setBlacklistTotal] = useState(0);
   const [blacklistPage, setBlacklistPage] = useState(1);
-  const [blacklistKeyword, setBlacklistKeyword] = useState('');
+  const [blacklistKeyword, _setBlacklistKeyword] = useState('');
   const [blacklistLoading, setBlacklistLoading] = useState(false);
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [stores, setStores] = useState<any[]>([]);
@@ -208,6 +208,12 @@ const SettingsPage: React.FC = () => {
     setActiveTab(TAB_PATH_TO_KEY[location.pathname] || 'booking');
   }, [location.pathname]);
 
+  const loadStoreWechatConfig = async (storeId: string) => {
+    if (!storeId) { setStoreWechatConfig(null); return; }
+    setWechatLoading(true);
+    try { setStoreWechatConfig(await storeApi.getWechatConfig(storeId)); } catch { setStoreWechatConfig(null); } finally { setWechatLoading(false); }
+  };
+
   useEffect(() => {
     if (stores.length > 0 && !selectedStoreId && activeTab === 'wechat') {
       const firstStore = stores[0];
@@ -298,11 +304,6 @@ const SettingsPage: React.FC = () => {
     try { await settingsApi.updateSourceReleaseConfig({ lockTimeoutMinutes: values.lockTimeoutMinutes, batchReleaseEnabled: values.batchReleaseEnabled, batchReleaseDays: values.batchReleaseDays, batchReleaseTime: values.batchReleaseTime, autoCancelUnpaidMinutes: values.autoCancelUnpaidMinutes, noShowAutoMarkHours: values.noShowAutoMarkHours, allowOverbooking: values.allowOverbooking, overbookingLimit: values.overbookingLimit }); message.success('保存成功'); setSourceReleaseConfig(await settingsApi.getSourceReleaseConfig()); } catch (error: any) { message.error(error.message || '保存失败'); }
   };
 
-  const loadStoreWechatConfig = async (storeId: string) => {
-    if (!storeId) { setStoreWechatConfig(null); return; }
-    setWechatLoading(true);
-    try { setStoreWechatConfig(await storeApi.getWechatConfig(storeId)); } catch { setStoreWechatConfig(null); } finally { setWechatLoading(false); }
-  };
 
   const handleStoreChange = (storeId: string) => { setSelectedStoreId(storeId); loadStoreWechatConfig(storeId); };
 

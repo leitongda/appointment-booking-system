@@ -1,25 +1,16 @@
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
-import {
-  PageContainer,
-  ProTable,
-  ModalForm,
-  ProFormText,
-  ProFormSelect,
-  ProFormDatePicker,
-  ProFormTextArea,
-  ProForm,
-} from '@ant-design/pro-components';
-import { App, Popconfirm, Space, Tag, Button, Divider, Dropdown, Modal } from 'antd';
+import {PageContainer, ProTable, ModalForm, ProFormText, ProFormSelect, ProFormDatePicker, ProFormTextArea, ProForm} from '@ant-design/pro-components';
+import {App, Popconfirm, Space, Tag, Button, Divider, Dropdown, Modal} from 'antd';
 import type { MenuProps } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, MoreOutlined, EyeOutlined, StopOutlined } from '@ant-design/icons';
-import { useRef, useState, useMemo } from 'react';
-import { history, useAccess } from '@umijs/max';
-import { patientApi, dataApi } from '@hospital/api';
-import { GENDER_MAP, GENDER_OPTIONS } from '@/constants';
-import { useDict } from '@/hooks/useDict';
-import { createListRequest } from '@/utils/proTable';
-import { phoneRules, idCardRules } from '@/utils/formValidators';
-import { rrwebMaskTextCell } from '@/utils/tableCellProps';
+import {PlusOutlined, EditOutlined, DeleteOutlined, MoreOutlined, EyeOutlined, StopOutlined} from '@ant-design/icons';
+import {useRef, useState} from 'react';
+import {history, useAccess} from '@umijs/max';
+import {patientApi, dataApi} from '@hospital/api';
+import {GENDER_MAP, GENDER_OPTIONS} from '@/constants';
+import {useDict} from '@/hooks/useDict';
+import {createListRequest} from '@/utils/proTable';
+import {phoneRules, idCardRules} from '@/utils/formValidators';
+import {rrwebMaskTextCell} from '@/utils/tableCellProps';
 import type { PatientListItem, PatientUpdateData } from '@hospital/api';
 import type { PatientCreateData } from '@hospital/api/src/modules/patient';
 import ImportExport from '@/components/ImportExport';

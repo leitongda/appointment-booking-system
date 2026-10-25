@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { useEditorStore } from '../store';
+import {describe, it, expect, beforeEach} from 'vitest';
+import {useEditorStore} from '../store';
 import type { ApiDataSource, EventHandler, LinkageRule, LowCodeSchema, LowCodeNode } from '@hospital/shared';
 
 /** 测试用 Schema 树 */
@@ -20,7 +20,7 @@ const testSchema: LowCodeSchema = {
 };
 
 /** 含多个同级子节点的 Schema */
-const multiChildSchema: LowCodeSchema = {
+const _multiChildSchema: LowCodeSchema = {
   componentName: 'Page',
   props: {},
   children: [

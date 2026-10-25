@@ -1,29 +1,16 @@
 /** 属性面板 — 右侧配置区域，支持数据绑定 */
 
 import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
-import {
-  Form,
-  Input,
-  Select,
-  Switch,
-  ColorPicker,
-  InputNumber,
-  Empty,
-  Typography,
-  Tooltip,
-  Dropdown,
-  Button,
-  Collapse,
-} from 'antd';
-import { LinkOutlined, DisconnectOutlined, TranslationOutlined } from '@ant-design/icons';
-import { useEditorStore } from '../store';
-import { findMaterial } from '../materials';
-import { findNodeById } from '../utils/tree';
+import {Form, Input, Select, Switch, ColorPicker, InputNumber, Empty, Typography, Tooltip, Dropdown, Button, Collapse} from 'antd';
+import {LinkOutlined, DisconnectOutlined, TranslationOutlined} from '@ant-design/icons';
+import {useEditorStore} from '../store';
+import {findMaterial} from '../materials';
+import {findNodeById} from '../utils/tree';
 import type { PropertyConfig, LowCodeNode, ApiDataSource, ValidationRules } from '@hospital/shared';
 import ImageUpload from '@/components/ImageUpload';
-import { EventConfig } from './EventConfig';
-import { LinkageRulesPanel } from './LinkageRulesPanel';
-import { EDITOR_COLORS, EDITOR_LAYOUT, EDITOR_SPACING } from '../constants';
+import {EventConfig} from './EventConfig';
+import {LinkageRulesPanel} from './LinkageRulesPanel';
+import {EDITOR_COLORS, EDITOR_SPACING} from '../constants';
 
 const { Text } = Typography;
 const { TextArea } = Input;

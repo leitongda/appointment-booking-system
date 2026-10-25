@@ -1,25 +1,14 @@
-import { EyeOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import {EyeOutlined, EditOutlined, DeleteOutlined} from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
-import {
-  PageContainer,
-  ProTable,
-  ModalForm,
-  ProFormText,
-  ProFormTextArea,
-  ProFormSelect,
-  ProFormDatePicker,
-} from '@ant-design/pro-components';
-import { App, Drawer, Descriptions, Popconfirm, Space, Spin, Tag } from 'antd';
-import { useRef, useState, useCallback } from 'react';
-import { departmentApi, doctorApi, followUpApi } from '@hospital/api';
+import {PageContainer, ProTable, ModalForm, ProFormTextArea, ProFormSelect, ProFormDatePicker} from '@ant-design/pro-components';
+import {App, Drawer, Descriptions, Popconfirm, Space, Spin, Tag} from 'antd';
+import {useRef, useState, useCallback} from 'react';
+import {doctorApi, followUpApi} from '@hospital/api';
 import type { FollowUpRecord, FollowUpRecordListItem } from '@hospital/api';
-import { createListRequest } from '@/utils/proTable';
-import { fetchAllData } from '@/utils/fetchAllData';
-import { rrwebMaskTextCell } from '@/utils/tableCellProps';
-import {
-  patientNameColumn,
-  doctorNameColumn,
-} from '@/utils/columnPresets';
+import {createListRequest} from '@/utils/proTable';
+import {fetchAllData} from '@/utils/fetchAllData';
+import {rrwebMaskTextCell} from '@/utils/tableCellProps';
+import {patientNameColumn, doctorNameColumn} from '@/utils/columnPresets';
 import dayjs from 'dayjs';
 
 const CONDITION_MAP: Record<string, { text: string; color: string }> = {

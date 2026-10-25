@@ -1,15 +1,11 @@
 import type { ProColumns } from '@ant-design/pro-components';
-import { PageContainer, ProTable } from '@ant-design/pro-components';
-import { Tag, Button, Space, Modal, message, Descriptions, Upload, Progress, Alert, List } from 'antd';
-import {
-  PlusOutlined, CopyOutlined, PlayCircleOutlined, PauseCircleOutlined,
-  DeleteOutlined, EyeOutlined, DownloadOutlined, UploadOutlined, FileOutlined,
-  CheckCircleOutlined, CloseCircleOutlined, FileTextOutlined, ExclamationCircleOutlined,
-} from '@ant-design/icons';
-import { useState, useRef } from 'react';
+import {PageContainer, ProTable} from '@ant-design/pro-components';
+import {Tag, Button, Space, Modal, message, Descriptions, Upload, Progress, Alert, List} from 'antd';
+import {PlusOutlined, CopyOutlined, PlayCircleOutlined, PauseCircleOutlined, DeleteOutlined, EyeOutlined, DownloadOutlined, UploadOutlined, FileOutlined, CheckCircleOutlined, CloseCircleOutlined, FileTextOutlined, ExclamationCircleOutlined} from '@ant-design/icons';
+import {useState, useRef} from 'react';
 import type { ActionType } from '@ant-design/pro-components';
-import { history } from '@umijs/max';
-import { approvalFlowApi } from '@hospital/api';
+import {history} from '@umijs/max';
+import {approvalFlowApi} from '@hospital/api';
 import type { FlowDefinitionListItem, FlowDefinition } from '@hospital/shared';
 import FlowChartViewer from '@/components/ApprovalFlowChart';
 
@@ -224,6 +220,12 @@ const FlowDefinitionsPage: React.FC = () => {
     }
   };
 
+  const resetImportState = () => {
+    setImportProgress(0);
+    setImportStatusText('');
+    setImportResults([]);
+    setImportDone(false);
+  };
   const handleBpmnImport = async (files: File[]) => {
     setBpmnImporting(true);
     setImportDone(false);
@@ -264,7 +266,7 @@ const FlowDefinitionsPage: React.FC = () => {
 
     // 仅在全部成功且单文件时跳转设计器
     if (successCount === 1 && results.length === 1) {
-      const ok = results[0];
+      const _ok = results[0];
       // 通过返回结果拿到 id 需要接口配合，这里只刷新列表
       actionRef.current?.reload();
       setTimeout(() => {
@@ -277,12 +279,6 @@ const FlowDefinitionsPage: React.FC = () => {
     actionRef.current?.reload();
   };
 
-  const resetImportState = () => {
-    setImportProgress(0);
-    setImportStatusText('');
-    setImportResults([]);
-    setImportDone(false);
-  };
 
   const columns: ProColumns<FlowDefinitionListItem>[] = [
     {

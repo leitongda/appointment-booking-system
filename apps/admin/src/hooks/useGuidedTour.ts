@@ -9,11 +9,11 @@
  * 5. 路由变化时自动恢复步骤
  * 6. 跨路由引导：步骤 route !== 当前路由时自动 navigate
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { history, useLocation } from '@umijs/max';
-import { guideToursApi, type GuideTourItem, type TourStep } from '@hospital/api';
+import {useCallback, useEffect, useRef, useState} from 'react';
+import {history, useLocation} from '@umijs/max';
+import {guideToursApi, type GuideTourItem} from '@hospital/api';
 import type { TourProps } from 'antd';
-import { t } from '@/utils/locale';
+import {t} from '@/utils/locale';
 
 export interface UseGuidedTourOptions {
   /** 指定指引 code，不传则加载全部 */

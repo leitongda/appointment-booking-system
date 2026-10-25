@@ -38,6 +38,8 @@ interface RouteNode {
 type AccessMap = Record<string, unknown>;
 
 /** 派生结果项 */
+import ALL_ROUTES from '@config/routes';
+
 export interface SafeRouteEntry {
   path: string;
   accessKey: string;
@@ -147,6 +149,5 @@ export function __resetSafeRouteCacheForTests(): void {
 
 // 真实路由树：从配置聚合入口导入（运行时可用的普通 TS 模块）。
 // 单元测试通过 `vi.mock('@config/routes', ...)` 替换该模块的默认导出来注入桩数据。
-import ALL_ROUTES from '@config/routes';
 
 export type { AccessMap };

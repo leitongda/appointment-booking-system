@@ -12,13 +12,67 @@ import { history, useAccess } from '@umijs/max';
 import { categoryApi, siteApi } from '@hospital/api';
 import type { CmsCategory, CmsCategoryTreeNode, CmsSite } from '@hospital/api';
 
+function collectKeys(nodes: CmsCategoryTreeNode[]): React.Key[] {
+  const keys: React.Key[] = [];
+  const walk = (list: CmsCategoryTreeNode[]) => {
+    list.forEach((n) => {
+      keys.push(n.id);
+      if (n.children?.length) walk(n.children);
+    });
+  };
+  walk(nodes);
+  return keys;
+}
+
+/** 递归把栏目子节点转为 DataNode */
+function toDataNodes(
+  nodes: CmsCategoryTreeNode[],
+  access: ReturnType<typeof useAccess>,
+  handleDelete: (r: CmsCategory) => void,
+): DataNode[] {
+  return nodes.map((node) => ({
+    key: node.id,
+    title: (
+      <Space>
+        <span>{node.name}</span>
+        <span style={{ color: 'var(--color-text-tertiary)', fontSize: 12 }}>/ {node.slug}</span>
+        {access.hasPermission('cms:category:update') && (
+          <Button
+            type="link"
+            size="small"
+            icon={<EditOutlined />}
+            onClick={(e) => {
+              e.stopPropagation();
+              history.push(`/cms/categories/${node.id}/edit`);
+            }}
+          />
+        )}
+        {access.hasPermission('cms:category:delete') && (
+          <Button
+            type="link"
+            size="small"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDelete(node);
+            }}
+          />
+        )}
+      </Space>
+    ),
+    children: node.children?.length ? toDataNodes(node.children, access, handleDelete) : undefined,
+  })) as DataNode[];
+}
+
+
 const CategoryListPage: React.FC = () => {
   const { message, modal } = App.useApp();
   const access = useAccess();
   const [sites, setSites] = useState<CmsSite[]>([]);
   const [siteId, setSiteId] = useState<string | undefined>();
   const [tree, setTree] = useState<CmsCategoryTreeNode[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [_loading, setLoading] = useState(false);
   const [expandedKeys, setExpandedKeys] = useState<React.Key[]>([]);
 
   // 加载站点列表（用于切换）
@@ -170,57 +224,4 @@ const CategoryListPage: React.FC = () => {
 };
 
 /** 递归收集树的所有 key（用于默认展开） */
-function collectKeys(nodes: CmsCategoryTreeNode[]): React.Key[] {
-  const keys: React.Key[] = [];
-  const walk = (list: CmsCategoryTreeNode[]) => {
-    list.forEach((n) => {
-      keys.push(n.id);
-      if (n.children?.length) walk(n.children);
-    });
-  };
-  walk(nodes);
-  return keys;
-}
-
-/** 递归把栏目子节点转为 DataNode */
-function toDataNodes(
-  nodes: CmsCategoryTreeNode[],
-  access: ReturnType<typeof useAccess>,
-  handleDelete: (r: CmsCategory) => void,
-): DataNode[] {
-  return nodes.map((node) => ({
-    key: node.id,
-    title: (
-      <Space>
-        <span>{node.name}</span>
-        <span style={{ color: 'var(--color-text-tertiary)', fontSize: 12 }}>/ {node.slug}</span>
-        {access.hasPermission('cms:category:update') && (
-          <Button
-            type="link"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={(e) => {
-              e.stopPropagation();
-              history.push(`/cms/categories/${node.id}/edit`);
-            }}
-          />
-        )}
-        {access.hasPermission('cms:category:delete') && (
-          <Button
-            type="link"
-            size="small"
-            danger
-            icon={<DeleteOutlined />}
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDelete(node);
-            }}
-          />
-        )}
-      </Space>
-    ),
-    children: node.children?.length ? toDataNodes(node.children, access, handleDelete) : undefined,
-  })) as DataNode[];
-}
-
 export default CategoryListPage;

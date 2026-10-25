@@ -1,6 +1,17 @@
 import type { Node, Edge } from '@xyflow/react';
 
 /** 后端 flowDef → React Flow nodes + edges */
+function _nodeTypeMap(nodeType: string): string {
+  const map: Record<string, string> = {
+    start: 'startNode',
+    approval: 'approvalNode',
+    condition: 'conditionNode',
+    cc: 'ccNode',
+    end: 'endNode',
+  };
+  return map[nodeType] || 'approvalNode';
+}
+
 export function fromFlowSchema(flowDef: any): { nodes: Node[]; edges: Edge[]; globalListeners: any[] } {
   const nodes: Node[] = (flowDef.nodes || []).map((n: any) => ({
     id: n.nodeKey,
@@ -100,13 +111,3 @@ export function toFlowSchema(nodes: Node[], edges: Edge[], globalListeners: any[
   return { nodes: apiNodes, edges: apiEdges, global_listeners: globalListeners || [] };
 }
 
-function _nodeTypeMap(nodeType: string): string {
-  const map: Record<string, string> = {
-    start: 'startNode',
-    approval: 'approvalNode',
-    condition: 'conditionNode',
-    cc: 'ccNode',
-    end: 'endNode',
-  };
-  return map[nodeType] || 'approvalNode';
-}

@@ -1,29 +1,10 @@
-import { useState, useEffect } from 'react';
-import { PageContainer } from '@ant-design/pro-components';
-import {
-  Card,
-  Row,
-  Col,
-  Button,
-  Select,
-  Upload,
-  Modal,
-  Alert,
-  Typography,
-  Space,
-  Divider,
-  Spin,
-  Result,
-} from 'antd';
-import {
-  DownloadOutlined,
-  UploadOutlined,
-  ExclamationCircleOutlined,
-  CheckCircleOutlined,
-} from '@ant-design/icons';
-import { backupApi, tenantApi } from '@hospital/api';
+import {useState, useEffect} from 'react';
+import {PageContainer} from '@ant-design/pro-components';
+import {Card, Row, Col, Button, Select, Upload, Modal, Alert, Typography, Space, Divider, Spin} from 'antd';
+import {DownloadOutlined, UploadOutlined} from '@ant-design/icons';
+import {backupApi, tenantApi} from '@hospital/api';
 import type { BackupPrecheckResult } from '@hospital/api';
-import { useListPage } from '@/hooks/useListPage';
+import {useListPage} from '@/hooks/useListPage';
 
 const { Text } = Typography;
 
@@ -180,7 +161,7 @@ const DataBackupPage: React.FC = () => {
             <div style={{ lineHeight: 2 }}>
               <p><strong>导出：</strong></p>
               <ul>
-                <li>选择目标租户，点击"导出数据"</li>
+                <li>选择目标租户，点击「导出数据」</li>
                 <li>系统将生成 JSON 格式的备份文件</li>
                 <li>备份包含该租户的所有业务数据</li>
               </ul>
@@ -189,7 +170,7 @@ const DataBackupPage: React.FC = () => {
               <ul>
                 <li>选择目标租户和备份文件</li>
                 <li>系统将先进行预检，展示备份内容概要</li>
-                <li>确认后可选择"覆盖模式"或"合并模式"导入</li>
+                <li>确认后可选择「覆盖模式」或「合并模式」导入</li>
                 <li><Text type="danger">覆盖模式将清空现有数据，请谨慎操作</Text></li>
               </ul>
             </div>

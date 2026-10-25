@@ -1,19 +1,13 @@
-import { PageContainer, ProCard, StatisticCard } from '@ant-design/pro-components';
-import { Row, Col, Table, Empty, Spin, DatePicker, Select, Button, message } from 'antd';
-import { DownloadOutlined, ReloadOutlined } from '@ant-design/icons';
-import { Suspense, lazy, useEffect, useState, type ComponentType } from 'react';
+import {PageContainer, ProCard, StatisticCard} from '@ant-design/pro-components';
+import {Row, Col, Table, Empty, Spin, DatePicker, Select, Button, message} from 'antd';
+import {DownloadOutlined, ReloadOutlined} from '@ant-design/icons';
+import {Suspense, lazy, useEffect, useState, type ComponentType} from 'react';
 import dayjs from 'dayjs';
-import {
-  platformMetricsApi,
-  type PlatformOverviewData,
-  type TenantCompareItem,
-  type StoreCompareItem,
-  type PlatformTrendPoint,
-} from '@hospital/api';
-import { downloadBlob } from '@/utils/download';
+import {platformMetricsApi, type PlatformOverviewData, type TenantCompareItem, type StoreCompareItem, type PlatformTrendPoint} from '@hospital/api';
+import {downloadBlob} from '@/utils/download';
 import './index.less';
 
-const { Statistic } = StatisticCard;
+// Statistic 子组件未使用
 const { RangePicker } = DatePicker;
 
 // @ant-design/charts v2 体积大，按需懒加载

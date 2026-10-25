@@ -11,47 +11,11 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Button,
-  Card,
-  Drawer,
-  Empty,
-  List,
-  Popconfirm,
-  QRCode,
-  Select,
-  Skeleton,
-  Space,
-  Spin,
-  Tag,
-  Timeline,
-  Tooltip,
-  Typography,
-  message,
-} from 'antd';
-import {
-  CloudUploadOutlined,
-  HistoryOutlined,
-  QrcodeOutlined,
-  ReloadOutlined,
-  RollbackOutlined,
-  RocketOutlined,
-  CheckCircleFilled,
-  CloseCircleFilled,
-  ClockCircleOutlined,
-  SyncOutlined,
-  WarningOutlined,
-  FileTextOutlined,
-} from '@ant-design/icons';
+import {Button, Card, Drawer, Empty, List, Popconfirm, QRCode, Select, Skeleton, Space, Spin, Tag, Timeline, Tooltip, Typography, message} from 'antd';
+import {CloudUploadOutlined, HistoryOutlined, QrcodeOutlined, ReloadOutlined, RollbackOutlined, RocketOutlined, CheckCircleFilled, CloseCircleFilled, ClockCircleOutlined, SyncOutlined, WarningOutlined, FileTextOutlined} from '@ant-design/icons';
 import dayjs from 'dayjs';
-import {
-  lowcodeApi,
-  type DeployStatus,
-  type DeployStatusResponse,
-  type DeployHistoryItem,
-  type PreviewQrResponse,
-} from '@hospital/api';
-import { useEditorStore } from '../store';
+import {lowcodeApi, type DeployStatus, type DeployStatusResponse, type DeployHistoryItem, type PreviewQrResponse} from '@hospital/api';
+import {useEditorStore} from '../store';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -131,7 +95,7 @@ const DeployPanel: React.FC<DeployPanelProps> = ({ open, onClose }) => {
   // --- Local state ---
   const [deployStatus, setDeployStatus] = useState<DeployStatusResponse | null>(null);
   const [history, setHistory] = useState<DeployHistoryItem[]>([]);
-  const [statusLoading, setStatusLoading] = useState(false);
+  const [statusLoading, _setStatusLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [deploying, setDeploying] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
