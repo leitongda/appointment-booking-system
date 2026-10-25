@@ -73,6 +73,14 @@ jobs:
           pytest tests/security tests/tenants -m multi_tenant -q
         continue-on-error: false
 
+      - name: Permission catalog drift check
+        working-directory: apps/server
+        run: |
+          # 权限目录漂移门禁：后端守卫新增权限码而未登记 init_permissions.py
+          # 会导致该码无法授权（非 * 角色永远拿不到），漂移即失败
+          python scripts/gen_permission_matrix.py --check
+        continue-on-error: false
+
       - name: Run integration tests on PostgreSQL
         working-directory: apps/server
         env:

@@ -20,10 +20,13 @@ export function Header() {
     return location.pathname.startsWith(to);
   }
 
-  // 路由变化时关闭移动端菜单
-  useEffect(() => {
+  // 路由变化时关闭移动端菜单（渲染期比较上一个 pathname 并调整 state，
+  // 避免 effect 内同步 setState 的级联渲染；不使用 ref，规避渲染期访问 ref）
+  const [prevPathname, setPrevPathname] = useState(location.pathname);
+  if (prevPathname !== location.pathname) {
+    setPrevPathname(location.pathname);
     setMobileOpen(false);
-  }, [location.pathname]);
+  }
 
   // 打开菜单时禁止背景滚动
   useEffect(() => {

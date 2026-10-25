@@ -687,3 +687,16 @@ B0–B11 复盘时暴露的三个测试缺口在本批次收口：
 | admin lint 清零 | 49 文件 104→0 错 | no-unused-vars×73（未用 import 删除、局部改 `_` 前缀、解构属性删除/别名）；no-use-before-define×24（12 处小助手定义上移；SchemaRenderer/NodeDetailContent/sessionRecorder 三处互递归/环形引用以文件级 disable 注明原因）；no-unescaped-entities×6（引号改「」）；button-has-type×1。修复脚本两处自伤（import 双花括号、块提取越界）均当场发现并修复，最终 eslint/tsc/vitest/build 四绿 |
 
 **本批验证**：`eslint src` 0 error；`tsc --noEmit` 零错；vitest 112 通过；`max build` 成功；权限矩阵漂移 0。
+
+### 10.12 p3a8 查询侧收口、CI 漂移门禁与杂项清零（2026-10-25，第九批次）
+
+| 事项 | 落点 | 说明 |
+|---|---|---|
+| p3a8 查询侧锚点收口 | `consultation_fees/router.py`（15 端点）+ `store_email_recipients/router.py`（6 端点） | 语义：传入 store/doctor/行必须属于锚点租户，平台管理员（无显式锚点）不受限；平台级行（tenant_id=NULL）对租户管理员共享。**同时补上此前完全无鉴权的读端点**（types/store-templates/doctors 系列 GET 原先匿名可访问，患者端只用 /amount，已确认无其他消费方）。`get_doctor_fee_setting` 顺手修复既有 500：service 返回 dict 缺 `doctor_name`/`use_fee_template` 契约键，该端点此前对任何医生都 KeyError |
+| 矩阵测试 | 新增 `tests/tenants/test_p3a8_fee_email_tenant.py`（12 用例） | 他租户 store/doctor/行 403（列表/详情/写/删）、本租户正控 200、平台管理员跨租户 200、匿名访问原开放读端点 401 |
+| CI 漂移门禁 | `.github/workflows/test.yml` 新增 Permission catalog drift check 步骤 | `gen_permission_matrix.py --check`，后端新增守卫码未登记目录即 CI 失败 |
+| 审计 SQL D9 扩表 | `scripts/tenant_null_tenant_id_audit.sql` | 业务表清单 16→21（p3a8 五表，NULL=平台级语义）；开发库实跑 ERROR=0 |
+| website lint 清零 | `apps/website/src/components/layout/Header.tsx` | 唯一错误 setState-in-effect 重写为渲染期 prev-pathname state 调整（不用 ref，规避 react-hooks/refs）；lint/build/test 26 全绿 |
+| fitness 基线 | consultation_fees/router.py 479→563 | 守卫改造增量，棘轮对齐 |
+
+**本批验证**：后端 461 通过 / 1 跳过 / 1 xfail；fitness 6/6；website lint 0 错 + build + 26 测试；`import app.main` 通过。
