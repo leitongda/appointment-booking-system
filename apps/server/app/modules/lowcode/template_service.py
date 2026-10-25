@@ -24,7 +24,8 @@ logger = logging.getLogger(__name__)
 # codegen subprocess 配置 (与 codegen_service.py 保持一致)
 # ---------------------------------------------------------------------------
 
-_PROJECT_ROOT = Path(__file__).resolve().parents[5]  # monorepo root
+from app.modules.lowcode.codegen_service import _resolve_project_root  # 容器布局兼容的 monorepo 根解析
+_PROJECT_ROOT = _resolve_project_root()
 _DEFAULT_CODEGEN_BIN = str(_PROJECT_ROOT / "packages" / "codegen" / "dist" / "index.js")
 
 
