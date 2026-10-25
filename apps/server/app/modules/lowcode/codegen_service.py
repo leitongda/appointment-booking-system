@@ -25,7 +25,26 @@ logger = logging.getLogger(__name__)
 # 项目根目录 & 默认配置
 # ---------------------------------------------------------------------------
 
-_PROJECT_ROOT = Path(__file__).resolve().parents[5]  # monorepo root
+def _resolve_project_root() -> Path:
+    """monorepo 根目录。
+
+    - 优先 CODEGEN_PROJECT_ROOT 环境变量；
+    - 仓库布局（repo/apps/server/app/modules/lowcode/）按 packages/codegen
+      标记逐级向上探测；
+    - 容器内（/app/app/...，无 monorepo 上层）探测不到标记时回退到服务根，
+      codegen 二进制不存在由运行期按缺 bin 报错，不再阻塞整个应用导入。
+    """
+    env_root = os.getenv("CODEGEN_PROJECT_ROOT")
+    if env_root:
+        return Path(env_root)
+    here = Path(__file__).resolve()
+    for parent in here.parents:
+        if (parent / "packages" / "codegen").exists():
+            return parent
+    return here.parents[3] if len(here.parents) > 3 else here.parent
+
+
+_PROJECT_ROOT = _resolve_project_root()
 
 _DEFAULT_CODEGEN_BIN = str(_PROJECT_ROOT / "packages" / "codegen" / "dist" / "index.js")
 _DEFAULT_NODE_CMD = "node"
