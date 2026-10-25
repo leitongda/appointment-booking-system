@@ -1,8 +1,8 @@
-import { ProForm, ProFormText, ProFormDigit, ProFormSwitch, ProFormSelect } from '@ant-design/pro-components';
-import { Card, Space, Row, Col, Select } from 'antd';
-import { CalendarOutlined, CloseCircleOutlined, CheckCircleOutlined, NumberOutlined, StopOutlined } from '@ant-design/icons';
+import {ProForm, ProFormDigit, ProFormSwitch, ProFormSelect} from '@ant-design/pro-components';
+import {Card, Space, Row, Col, Select} from 'antd';
+import {CalendarOutlined, CloseCircleOutlined, CheckCircleOutlined, NumberOutlined, StopOutlined} from '@ant-design/icons';
 import type { BookingTabProps } from './types';
-import { DEFAULT_BOOKING_SETTINGS } from './defaults';
+import {DEFAULT_BOOKING_SETTINGS} from './defaults';
 
 const BookingTab: React.FC<BookingTabProps> = ({
   bookingSettings,

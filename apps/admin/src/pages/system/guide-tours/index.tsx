@@ -3,15 +3,15 @@
  *
  * 平台管理员可创建、编辑、发布/下线、删除操作指引。
  */
-import { PlusOutlined, EditOutlined, DeleteOutlined, PlayCircleOutlined, PauseCircleOutlined } from '@ant-design/icons';
+import {PlusOutlined, EditOutlined, DeleteOutlined, PlayCircleOutlined, PauseCircleOutlined} from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
-import { PageContainer, ProTable } from '@ant-design/pro-components';
-import { App, Tag, Popconfirm, Button, Space, Typography } from 'antd';
-import { useRef, useState, useCallback, useMemo } from 'react';
-import { history } from '@umijs/max';
-import { adminGuideToursApi } from '@hospital/api';
+import {PageContainer, ProTable} from '@ant-design/pro-components';
+import {App, Tag, Popconfirm, Button, Space, Typography} from 'antd';
+import {useRef, useCallback, useMemo} from 'react';
+import {history} from '@umijs/max';
+import {adminGuideToursApi} from '@hospital/api';
 import type { GuideTourListItem } from '@hospital/api';
-import { t } from '@/utils/locale';
+import {t} from '@/utils/locale';
 
 const STATUS_MAP: Record<number, { text: string; color: string }> = {
   0: { text: '草稿', color: 'default' },

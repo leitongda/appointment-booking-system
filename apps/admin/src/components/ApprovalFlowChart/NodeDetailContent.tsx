@@ -8,6 +8,12 @@ import React from 'react';
 import { Descriptions, Tag, Divider } from 'antd';
 import type { NodeStatus } from './index';
 
+// 小工具
+const SpaceTag: React.FC<{ children: React.ReactNode; color?: string }> = ({ children, color }) => (
+  <Tag color={color} style={{ marginBottom: 4 }}>{children}</Tag>
+);
+
+
 // ─── 常量 ──────────────────────────────────────────────
 
 const TYPE_LABEL_MAP: Record<string, string> = {
@@ -197,9 +203,5 @@ const NodeDetailContent: React.FC<NodeDetailContentProps> = ({ data, mode = 'def
   );
 };
 
-// 小工具
-const SpaceTag: React.FC<{ children: React.ReactNode; color?: string }> = ({ children, color }) => (
-  <Tag color={color} style={{ marginBottom: 4 }}>{children}</Tag>
-);
 
 export default NodeDetailContent;

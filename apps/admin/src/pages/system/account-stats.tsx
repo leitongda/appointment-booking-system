@@ -1,24 +1,14 @@
 import type { ProColumns } from '@ant-design/pro-components';
-import { PageContainer, ProTable } from '@ant-design/pro-components';
-import { Card, Row, Col, Statistic, DatePicker, Select, Button, Space, Tag, Spin, App } from 'antd';
-import {
-  LoginOutlined,
-  UserOutlined,
-  ClockCircleOutlined,
-  FieldTimeOutlined,
-  DesktopOutlined,
-  MobileOutlined,
-  TabletOutlined,
-  ReloadOutlined,
-} from '@ant-design/icons';
-import { useState, useEffect, lazy, Suspense, ComponentType, useCallback } from 'react';
-import { useRequest } from '@umijs/max';
-import { adminApi } from '@hospital/api';
-import { createListRequest } from '@/utils/proTable';
-import { useListPage } from '@/hooks/useListPage';
+import {PageContainer, ProTable} from '@ant-design/pro-components';
+import {Card, Row, Col, Statistic, DatePicker, Select, Button, Space, Tag, Spin, App} from 'antd';
+import {LoginOutlined, UserOutlined, ClockCircleOutlined, FieldTimeOutlined, DesktopOutlined, MobileOutlined, TabletOutlined, ReloadOutlined} from '@ant-design/icons';
+import {useState, lazy, Suspense, ComponentType, useCallback} from 'react';
+import {useRequest} from '@umijs/max';
+import {adminApi} from '@hospital/api';
+import {createListRequest} from '@/utils/proTable';
+import {useListPage} from '@/hooks/useListPage';
 import dayjs from 'dayjs';
 import type {
-  AccountStatsResponse,
   AccountStatsDetail,
   AccountStatsQueryParams,
   DeviceDistribution,
@@ -108,7 +98,7 @@ const AccountStatsPage: React.FC = () => {
   const [queryParams, setQueryParams] = useState<AccountStatsQueryParams>({});
 
   // 概览数据
-  const { data: statsData, loading: statsLoading, run: fetchStats } = useRequest(
+  const { data: statsData, loading: statsLoading, run: _fetchStats } = useRequest(
     () => adminApi.getAccountStats(queryParams),
     {
       refreshDeps: [queryParams],

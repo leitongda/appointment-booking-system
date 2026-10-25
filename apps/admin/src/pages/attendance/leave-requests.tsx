@@ -1,10 +1,10 @@
-import { PageContainer, ProTable, ProColumns } from '@ant-design/pro-components';
-import { Tag, Modal, Input } from 'antd';
-import { attendanceApi } from '@hospital/api';
-import { createListRequest } from '@/utils/proTable';
-import { useListPage } from '@/hooks/useListPage';
-import { OperationButton, OperationGroup } from '@/components/ListOperations';
-import { useState } from 'react';
+import {PageContainer, ProTable, ProColumns} from '@ant-design/pro-components';
+import {Tag, Modal, Input} from 'antd';
+import {attendanceApi} from '@hospital/api';
+import {createListRequest} from '@/utils/proTable';
+import {useListPage} from '@/hooks/useListPage';
+import {OperationButton, OperationGroup} from '@/components/ListOperations';
+import {useState} from 'react';
 
 interface LeaveRequest {
   id: string;
@@ -35,7 +35,7 @@ const STATUS_MAP: Record<string, { text: string; color: string }> = {
  * 后端：apps/server/app/modules/attendance_leave/router.py
  */
 const LeaveRequestListPage: React.FC = () => {
-  const { actionRef, handleAction, message } = useListPage();
+  const { actionRef, handleAction } = useListPage();
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
   const [reviewTarget, setReviewTarget] = useState<{ id: string; action: 'approve' | 'reject' } | null>(null);
   const [reviewComment, setReviewComment] = useState('');

@@ -1,23 +1,15 @@
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
-import { PageContainer, ProTable } from '@ant-design/pro-components';
-import { Button, Tag, App } from 'antd';
-import {
-  ClockCircleOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  DownloadOutlined,
-  ExclamationCircleOutlined,
-  LoginOutlined,
-  LogoutOutlined,
-} from '@ant-design/icons';
-import { useRef, useState } from 'react';
+import {PageContainer, ProTable} from '@ant-design/pro-components';
+import {Button, Tag, App} from 'antd';
+import {ClockCircleOutlined, CheckCircleOutlined, CloseCircleOutlined, DownloadOutlined, ExclamationCircleOutlined, LoginOutlined, LogoutOutlined} from '@ant-design/icons';
+import {useRef, useState} from 'react';
 import axios from 'axios';
-import { attendanceApi } from '@hospital/api';
-import { getBaseURL } from '@hospital/api';
-import { getToken } from '@hospital/shared';
+import {attendanceApi} from '@hospital/api';
+import {getBaseURL} from '@hospital/api';
+import {getToken} from '@hospital/shared';
 import type { AttendanceRecord } from '@hospital/api';
-import { createListRequest } from '@/utils/proTable';
-import { downloadBlob } from '@/utils/download';
+import {createListRequest} from '@/utils/proTable';
+import {downloadBlob} from '@/utils/download';
 
 /** 考勤状态颜色映射 */
 const STATUS_MAP: Record<string, { text: string; color: string }> = {
@@ -71,7 +63,7 @@ const AttendanceRecordsPage: React.FC = () => {
   /** 导出考勤报表 */
   const handleExport = async () => {
     // 从 ProTable 的搜索表单获取当前筛选条件
-    const searchForm = (actionRef.current as any)?.pageInfo;
+    const _searchForm = (actionRef.current as any)?.pageInfo;
     const params: Record<string, any> = (actionRef.current as any)?.params || {};
 
     const startDate = params.startDate;

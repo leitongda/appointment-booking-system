@@ -1,13 +1,13 @@
 import type { ProColumns } from '@ant-design/pro-components';
-import { PageContainer, ProTable, ModalForm, ProFormText, ProFormSelect, ProFormTextArea, ProFormDigit } from '@ant-design/pro-components';
-import { Tag, Button, Popconfirm, message, Tooltip, Upload } from 'antd';
-import { PlusOutlined, CopyOutlined, UploadOutlined, DownloadOutlined } from '@ant-design/icons';
-import { useRef, useState } from 'react';
-import { freelancerApi } from '@hospital/api';
+import {PageContainer, ProTable, ModalForm, ProFormText, ProFormSelect, ProFormTextArea} from '@ant-design/pro-components';
+import {Tag, Button, Popconfirm, message, Tooltip, Upload} from 'antd';
+import {PlusOutlined, CopyOutlined, UploadOutlined, DownloadOutlined} from '@ant-design/icons';
+import {useState} from 'react';
+import {freelancerApi} from '@hospital/api';
 import type { Freelancer } from '@hospital/api';
-import { createListRequest } from '@/utils/proTable';
-import { useListPage } from '@/hooks/useListPage';
-import { OperationButton, OperationGroup } from '@/components/ListOperations';
+import {createListRequest} from '@/utils/proTable';
+import {useListPage} from '@/hooks/useListPage';
+import {OperationButton, OperationGroup} from '@/components/ListOperations';
 
 const PLATFORM_MAP: Record<string, string> = {
   xiaohongshu: '小红书',

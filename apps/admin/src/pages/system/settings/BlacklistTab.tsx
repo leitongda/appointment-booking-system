@@ -1,5 +1,5 @@
-import { Table, Input, Button, Space, Popconfirm, Tag, Typography } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
+import {Table, Input, Button, Space, Popconfirm, Tag, Typography} from 'antd';
+import {PlusOutlined} from '@ant-design/icons';
 import type { BlacklistItem } from '@hospital/api';
 import type { BlacklistTabProps } from './types';
 
@@ -12,12 +12,9 @@ const BlacklistTab: React.FC<BlacklistTabProps> = ({
   blacklistKeyword,
   blacklistLoading,
   onLoadBlacklist,
-  onAddBlacklist,
   onRemoveBlacklist,
   canAdd,
   canDelete,
-  stores,
-  addModalVisible,
   onAddModalChange,
 }) => {
   const columns = [

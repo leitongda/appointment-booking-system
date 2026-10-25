@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.constants.appointment import APPOINTMENT_STATUS
@@ -372,9 +372,19 @@ class RefundService:
         status: str,
         callback_raw: str | None = None,
         failed_reason: str | None = None,
+        tenant_id: str | None = None,
     ) -> RefundRecord:
-        """处理微信退款回调。"""
-        stmt = select(RefundRecord).where(RefundRecord.refund_no == refund_no)
+        """处理微信退款回调。
+
+        Args:
+            tenant_id: 回调解析出的租户上下文。提供时按 (tenant_id, refund_no)
+                收敛查询——A 租户上下文的回调不能更新 B 租户的退款记录
+                （refund_no 虽全局唯一，但不加租户条件时伪造单号可跨租户命中）。
+        """
+        conditions = [RefundRecord.refund_no == refund_no]
+        if tenant_id:
+            conditions.append(RefundRecord.tenant_id == tenant_id)
+        stmt = select(RefundRecord).where(and_(*conditions))
         result = await self.db.execute(stmt)
         refund_record = result.scalar_one_or_none()
 

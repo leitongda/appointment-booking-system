@@ -1,6 +1,6 @@
-import { Button, Card, Input, message, Modal, Space, Tag, Tree } from 'antd';
-import { FolderOutlined, PlusOutlined } from '@ant-design/icons';
-import { useState, useEffect, useCallback } from 'react';
+import {Button, Card, Input, message, Modal, Space, Tag, Tree} from 'antd';
+import {FolderOutlined, PlusOutlined} from '@ant-design/icons';
+import {useState, useEffect, useCallback} from 'react';
 import type { DataNode } from 'antd/es/tree';
 
 /** 分组类型 */
@@ -89,7 +89,7 @@ const GroupPanel: React.FC<GroupPanelProps> = ({ selectedGroupId, onGroupSelect 
   };
 
   /** 删除分组 */
-  const handleDelete = async (id: string) => {
+  const _handleDelete = async (id: string) => {
     try {
       await fetch(`/api/v1/contact-groups/${id}`, {
         method: 'DELETE',

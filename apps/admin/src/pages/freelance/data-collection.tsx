@@ -1,10 +1,10 @@
-import { PageContainer } from '@ant-design/pro-components';
-import { Card, Table, InputNumber, Button, Switch, Space, message, Upload, Tooltip } from 'antd';
-import { UploadOutlined, SaveOutlined } from '@ant-design/icons';
-import { useState, useEffect, useCallback } from 'react';
-import { freelanceTaskApi, freelanceSettlementApi } from '@hospital/api';
+import {PageContainer} from '@ant-design/pro-components';
+import {Card, Table, InputNumber, Button, Switch, Upload, Tooltip} from 'antd';
+import {UploadOutlined, SaveOutlined} from '@ant-design/icons';
+import {useState, useEffect, useCallback} from 'react';
+import {freelanceTaskApi, freelanceSettlementApi} from '@hospital/api';
 import type { FreelanceTask } from '@hospital/api';
-import { App } from 'antd';
+import {App} from 'antd';
 
 interface EditableTask extends FreelanceTask {
   editLikes?: number;

@@ -7,12 +7,21 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import selectinload
 
 from app.models.consultation_fee import ConsultationFeeTemplate, ConsultationFeeType
+from app.models.store import Store
 from app.schemas.consultation_fee import (
     ConsultationFeeTemplateCreate,
     ConsultationFeeTypeCreate,
     ConsultationFeeTypeUpdate,
 )
 from app.utils.audit import set_create_audit, set_update_audit
+
+
+async def store_tenant_id(db, store_id: str | None) -> str | None:
+    """解析门店所属租户（p3a8 落锚用）；store_id 为 None 表示平台级，返回 None。"""
+    if not store_id:
+        return None
+    store = await db.get(Store, store_id)
+    return store.tenant_id if store else None
 
 
 class ConsultationFeeTypeMixin:
@@ -73,6 +82,7 @@ class ConsultationFeeTypeMixin:
         fee_type = ConsultationFeeType(
             id=str(uuid.uuid4()),
             store_id=data.store_id,
+            tenant_id=await store_tenant_id(self.db, data.store_id),
             name=data.name,
             code=data.code,
             description=data.description,
@@ -164,9 +174,12 @@ class ConsultationFeeTypeMixin:
             template.status = data.status
             set_update_audit(template, operator_id)
         else:
+            # 模板租户随 fee_type（fee_type 平台级时保持 NULL）
+            fee_type = await self.get_fee_type_by_id(data.fee_type_id)
             template = ConsultationFeeTemplate(
                 id=str(uuid.uuid4()),
                 fee_type_id=data.fee_type_id,
+                tenant_id=fee_type.tenant_id if fee_type else None,
                 initial_fee=data.initial_fee,
                 follow_up_fee=data.follow_up_fee,
                 status=data.status,

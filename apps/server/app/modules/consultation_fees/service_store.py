@@ -10,6 +10,8 @@ from app.models.consultation_fee import DoctorConsultationFee, StoreFeeTemplate
 from app.schemas.consultation_fee import StoreFeeTemplateBatchCreate
 from app.utils.audit import set_create_audit, set_update_audit
 
+from .service_types import store_tenant_id
+
 
 class ConsultationFeeStoreMixin:
     async def get_store_fee_templates(self, store_id: str) -> list[StoreFeeTemplate]:
@@ -80,6 +82,7 @@ class ConsultationFeeStoreMixin:
             template = StoreFeeTemplate(
                 id=str(uuid.uuid4()),
                 store_id=store_id,
+                tenant_id=await store_tenant_id(self.db, store_id),
                 fee_type_id=fee_type_id,
                 initial_fee=initial_fee,
                 follow_up_fee=follow_up_fee,
@@ -149,6 +152,7 @@ class ConsultationFeeStoreMixin:
         """
         # 取该门店可用的所有启用的诊费类型
         fee_types = await self.get_store_available_fee_types(store_id, status=1)
+        tenant_id = await store_tenant_id(self.db, store_id)
 
         result: list[DoctorConsultationFee] = []
         for ft in fee_types:
@@ -168,6 +172,7 @@ class ConsultationFeeStoreMixin:
                     id=str(uuid.uuid4()),
                     doctor_id=doctor_id,
                     store_id=store_id,
+                    tenant_id=tenant_id,
                     department_id=department_id,
                     fee_type_id=ft.id,
                     initial_fee=effective["initial_fee"],

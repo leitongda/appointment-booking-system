@@ -1,14 +1,14 @@
 /** 画布区域 — 拖拽容器 */
 
 import React, { useState, useRef } from 'react';
-import { DragDropProvider, DragOverlay } from '@dnd-kit/react';
-import { Segmented, InputNumber, Slider, Switch, Tooltip, Space, Select, Button, message, Dropdown } from 'antd';
-import { SwapOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
-import { history } from '@umijs/max';
-import { useEditorStore } from '../store';
-import { SchemaRenderer } from './SchemaRenderer';
+import {DragDropProvider, DragOverlay} from '@dnd-kit/react';
+import {InputNumber, Tooltip, Select, Button, message, Dropdown} from 'antd';
+import {SwapOutlined} from '@ant-design/icons';
+
+import {useEditorStore} from '../store';
+import {SchemaRenderer} from './SchemaRenderer';
 import DeviceStatusBar from './layout/DeviceStatusBar';
-import { EDITOR_COLORS, EDITOR_LAYOUT, ROOT_DROP_ID } from '../constants';
+import {EDITOR_COLORS, EDITOR_LAYOUT, ROOT_DROP_ID} from '../constants';
 import type { LowCodeNode, MaterialComponent } from '@hospital/shared';
 
 /** 生成唯一 ID (使用 crypto.randomUUID 如果可用) */
@@ -120,7 +120,7 @@ const DEVICE_OPTIONS = VENDOR_ORDER
 /** 缩放级别（用于快捷按钮） */
 const ZOOM_LEVELS = [25, 50, 75, 100, 125, 150, 200];
 /** 常见 DPR 候选 */
-const DPR_OPTIONS = [1, 2, 3];
+const _DPR_OPTIONS = [1, 2, 3];
 
 /** Canvas 组件 */
 export const EditorDndProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -350,9 +350,9 @@ export const Canvas: React.FC = () => {
   /** 横屏切换 */
   const [landscape, setLandscape] = useState(false);
   /** 设备像素比 */
-  const [dpr, setDpr] = useState(DEVICE_PRESETS[0].dpr ?? 2);
+  const [_dpr, setDpr] = useState(DEVICE_PRESETS[0].dpr ?? 2);
   /** 自定义尺寸输入展开 */
-  const [customSizeOpen, setCustomSizeOpen] = useState(false);
+  const [customSizeOpen, _setCustomSizeOpen] = useState(false);
   const scale = zoom / 100;
 
   /** 应用预设设备 */

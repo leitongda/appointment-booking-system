@@ -6,12 +6,15 @@ from sqlalchemy import and_, delete, select
 from sqlalchemy.orm import selectinload
 
 from app.models.consultation_fee import DoctorConsultationFee
+from app.models.doctor import Doctor
 from app.schemas.consultation_fee import (
     DoctorConsultationFeeBatchCreate,
     DoctorConsultationFeeCreate,
     DoctorConsultationFeeUpdate,
 )
 from app.utils.audit import set_create_audit, set_update_audit
+
+from .service_types import store_tenant_id
 
 
 class ConsultationFeeDoctorMixin:
@@ -80,6 +83,7 @@ class ConsultationFeeDoctorMixin:
             id=str(uuid.uuid4()),
             doctor_id=data.doctor_id,
             store_id=data.store_id,
+            tenant_id=await store_tenant_id(self.db, data.store_id),
             department_id=data.department_id,
             fee_type_id=data.fee_type_id,
             initial_fee=data.initial_fee,
@@ -114,6 +118,7 @@ class ConsultationFeeDoctorMixin:
         self, data: DoctorConsultationFeeBatchCreate, operator_id: str | None = None
     ) -> list[DoctorConsultationFee]:
         result = []
+        tenant_id = await store_tenant_id(self.db, data.store_id)
         for item in data.fees:
             existing = await self.get_doctor_fee_unique(
                 data.doctor_id, data.store_id, data.department_id, item.fee_type_id
@@ -130,6 +135,7 @@ class ConsultationFeeDoctorMixin:
                     id=str(uuid.uuid4()),
                     doctor_id=data.doctor_id,
                     store_id=data.store_id,
+                    tenant_id=tenant_id,
                     department_id=data.department_id,
                     fee_type_id=item.fee_type_id,
                     initial_fee=item.initial_fee,
@@ -169,11 +175,19 @@ class ConsultationFeeDoctorMixin:
         return result.rowcount or 0
 
     async def get_doctor_fee_setting(self, doctor_id: str) -> dict:
+        # doctor_name/use_fee_template 为 router 契约键（此前缺失导致端点恒 500）
+        doctor = await self.db.get(Doctor, doctor_id)
         fees = await self.get_doctor_fees(doctor_id=doctor_id)
         use_template = 1
         if fees:
             use_template = fees[0].use_template
-        return {"doctor_id": doctor_id, "use_template": use_template, "fees": fees}
+        return {
+            "doctor_id": doctor_id,
+            "doctor_name": doctor.name if doctor else None,
+            "use_template": use_template,
+            "use_fee_template": use_template,
+            "fees": fees,
+        }
 
     async def update_doctor_use_template(self, doctor_id: str, use_template: int) -> bool:
         fees = await self.get_doctor_fees(doctor_id=doctor_id)

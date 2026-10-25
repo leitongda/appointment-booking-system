@@ -163,7 +163,11 @@ WITH candidates(t) AS (
       ('appointments'), ('medical_records'), ('examination_reports'),
       ('follow_up_tasks'), ('follow_up_plans'), ('follow_up_records'),
       ('follow_up_self_reports'), ('doctor_reviews'), ('feedbacks'),
-      ('waitlist_entries'), ('messages')
+      ('waitlist_entries'), ('messages'),
+      -- p3a8 新增（诊费/邮件接收人，2026-10-24；NULL=平台级语义，与内容表同口径看待）
+      ('consultation_fee_types'), ('consultation_fee_templates'),
+      ('store_fee_templates'), ('doctor_consultation_fees'),
+      ('store_email_recipients')
 )
 SELECT format(
          'SELECT %L AS table_name, '

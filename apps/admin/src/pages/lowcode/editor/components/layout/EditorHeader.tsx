@@ -3,26 +3,9 @@
  */
 
 import React from 'react';
-import { Button, Dropdown, Space, Tooltip } from 'antd';
-import {
-  SaveOutlined,
-  UndoOutlined,
-  RedoOutlined,
-  EyeOutlined,
-  SendOutlined,
-  ArrowLeftOutlined,
-  CodeOutlined,
-  HistoryOutlined,
-  ShareAltOutlined,
-  CloudUploadOutlined,
-  MoreOutlined,
-  ApartmentOutlined,
-  ApiOutlined,
-  AppstoreOutlined,
-  RobotOutlined,
-  UserOutlined,
-} from '@ant-design/icons';
-import { EDITOR_COLORS, EDITOR_LAYOUT } from '../../constants';
+import {Button, Dropdown, Space, Tooltip} from 'antd';
+import {UndoOutlined, RedoOutlined, ArrowLeftOutlined, CodeOutlined, ShareAltOutlined, CloudUploadOutlined, MoreOutlined, RobotOutlined, UserOutlined} from '@ant-design/icons';
+import {EDITOR_COLORS, EDITOR_LAYOUT} from '../../constants';
 
 export interface EditorHeaderProps {
   onBack: () => void;

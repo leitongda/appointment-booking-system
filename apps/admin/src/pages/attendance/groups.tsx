@@ -1,13 +1,13 @@
-import { PageContainer, ProTable, ProColumns } from '@ant-design/pro-components';
-import { Tag, Drawer, App, Select, Button, Space, Popconfirm } from 'antd';
-import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
-import { useState, useRef } from 'react';
+import {PageContainer, ProTable, ProColumns} from '@ant-design/pro-components';
+import {Tag, Drawer, Select, Button, Space, Popconfirm} from 'antd';
+import {PlusOutlined, DeleteOutlined} from '@ant-design/icons';
+import {useState, useRef} from 'react';
 import type { ActionType } from '@ant-design/pro-components';
-import { attendanceApi, userManageApi } from '@hospital/api';
+import {attendanceApi, userManageApi} from '@hospital/api';
 import type { AttendanceGroup, GroupMember } from '@hospital/api';
-import { createListRequest } from '@/utils/proTable';
-import { useListPage } from '@/hooks/useListPage';
-import { CreateButton, OperationButton, OperationGroup } from '@/components/ListOperations';
+import {createListRequest} from '@/utils/proTable';
+import {useListPage} from '@/hooks/useListPage';
+import {CreateButton, OperationButton, OperationGroup} from '@/components/ListOperations';
 
 /** 签到方式映射 */
 const CHECK_METHOD_MAP: Record<string, { text: string; color: string }> = {

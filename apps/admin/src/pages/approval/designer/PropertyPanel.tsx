@@ -1,6 +1,6 @@
-import { Card, Form, Input, Select, InputNumber, Button, Space, Divider, Tooltip, Collapse, Modal, Tag } from 'antd';
-import { DeleteOutlined, PlusOutlined, ThunderboltOutlined } from '@ant-design/icons';
-import { memo, useEffect, useRef, useState } from 'react';
+import {Card, Form, Input, Select, InputNumber, Button, Space, Divider, Tooltip, Collapse, Modal, Tag} from 'antd';
+import {DeleteOutlined, PlusOutlined, ThunderboltOutlined} from '@ant-design/icons';
+import {memo, useEffect, useRef, useState} from 'react';
 import type { Node } from '@xyflow/react';
 import type { ListenerConfig, ListenerEvent, ListenerActionType } from '@hospital/shared';
 
@@ -117,6 +117,11 @@ const newCondId = () => `__cond_${++_condIdSeq}`;
 const PropertyPanel: React.FC<PropertyPanelProps> = memo(({ selectedNode, onUpdate, onDelete }) => {
   const [form] = Form.useForm();
   const condIdMapRef = useRef<Map<string, string>>(new Map());
+  // 监听器相关的 Hook 必须在下方 !selectedNode 早退之前调用，
+  // 否则「选中→取消选中」两次渲染的 Hook 数量不一致会直接崩溃
+  const [listenerModalOpen, setListenerModalOpen] = useState(false);
+  const [editingListener, setEditingListener] = useState<ListenerConfig | null>(null);
+  const [listenerForm] = Form.useForm();
 
   useEffect(() => {
     if (selectedNode) {
@@ -167,16 +172,13 @@ const PropertyPanel: React.FC<PropertyPanelProps> = memo(({ selectedNode, onUpda
     onUpdate(selectedNode.id, nextData);
   };
 
-  const getCondId = (path: string): string => {
+  const _getCondId = (path: string): string => {
     if (!condIdMapRef.current.has(path)) condIdMapRef.current.set(path, newCondId());
     return condIdMapRef.current.get(path)!;
   };
 
   // ──── 监听器状态与处理 ────
   const listeners: ListenerConfig[] = (d.listeners as ListenerConfig[]) || [];
-  const [listenerModalOpen, setListenerModalOpen] = useState(false);
-  const [editingListener, setEditingListener] = useState<ListenerConfig | null>(null);
-  const [listenerForm] = Form.useForm();
 
   const showListenerEvents = nodeType === 'approval' ? [...EXECUTION_EVENTS, ...TASK_EVENTS] : EXECUTION_EVENTS;
 
@@ -330,7 +332,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = memo(({ selectedNode, onUpda
                       style={{ marginBottom: 8, border: '1px solid var(--color-border)' }}
                     >
                       <Form.List name={[targetName, 'groups']}>
-                        {(groupFields, { add: addGroup, remove: removeGroup }) => (
+                        {(groupFields, { add: addGroup, remove: _removeGroup }) => (
                           <>
                             {groupFields.map(({ key: groupKey, name: groupName }, groupIdx) => (
                               <div key={groupKey}>

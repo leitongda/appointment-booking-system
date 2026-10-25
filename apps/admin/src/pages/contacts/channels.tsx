@@ -1,16 +1,8 @@
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
-import { PageContainer, ProTable } from '@ant-design/pro-components';
-import { Button, message, Modal, Popconfirm, Space, Tag } from 'antd';
-import {
-  DeleteOutlined,
-  EditOutlined,
-  ExperimentOutlined,
-  MailOutlined,
-  MobileOutlined,
-  PlusOutlined,
-  WechatOutlined,
-} from '@ant-design/icons';
-import { useState, useRef } from 'react';
+import {PageContainer, ProTable} from '@ant-design/pro-components';
+import {Button, message, Popconfirm, Space, Tag} from 'antd';
+import {DeleteOutlined, EditOutlined, ExperimentOutlined, MailOutlined, MobileOutlined, PlusOutlined, WechatOutlined} from '@ant-design/icons';
+import {useState, useRef} from 'react';
 import ChannelForm from './components/ChannelForm';
 
 /** 渠道类型映射 */

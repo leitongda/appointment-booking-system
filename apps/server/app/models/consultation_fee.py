@@ -16,6 +16,9 @@ class ConsultationFeeType(Base, AuditMixin):
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     store_id = Column(String(36), ForeignKey("stores.id", ondelete="CASCADE"), nullable=True, 
                       comment="门店ID，NULL表示全局类型")
+    # 租户维度（p3a8）：store_id 回填，NULL 保留平台级语义（与 store_id NULL 对齐）
+    tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=True, index=True,
+                       comment="租户ID（NULL表示平台级诊费类型）")
     name = Column(String(50), nullable=False, comment="诊费类型名称")
     code = Column(String(50), index=True, comment="类型编码")
     description = Column(String(255), comment="描述")
@@ -35,10 +38,13 @@ class ConsultationFeeTemplate(Base, AuditMixin):
     
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     fee_type_id = Column(String(36), ForeignKey("consultation_fee_types.id"), nullable=False, unique=True, comment="诊费类型ID")
+    # 租户维度（p3a8）：经 fee_type.store_id 回填，fee_type 为平台级时保持 NULL
+    tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=True, index=True,
+                       comment="租户ID（NULL表示平台级模板）")
     initial_fee = Column(Numeric(10, 2), default=0, comment="初诊金额")
     follow_up_fee = Column(Numeric(10, 2), default=0, comment="复诊金额")
     status = Column(Integer, default=1, comment="状态: 0禁用 1启用")
-    
+
     # 关联关系
     fee_type = relationship("ConsultationFeeType", back_populates="templates")
 
@@ -53,10 +59,13 @@ class StoreFeeTemplate(Base, AuditMixin):
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     store_id = Column(String(36), ForeignKey("stores.id", ondelete="CASCADE"), nullable=False, comment="门店ID")
     fee_type_id = Column(String(36), ForeignKey("consultation_fee_types.id", ondelete="CASCADE"), nullable=False, comment="诊费类型ID")
+    # 租户维度（p3a8）：经 store_id 回填
+    tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=True, index=True,
+                       comment="租户ID")
     initial_fee = Column(Numeric(10, 2), default=0, comment="初诊金额")
     follow_up_fee = Column(Numeric(10, 2), default=0, comment="复诊金额")
     status = Column(Integer, default=1, comment="状态: 0禁用 1启用")
-    
+
     # 关联关系
     store = relationship("Store", backref="fee_templates")
     fee_type = relationship("ConsultationFeeType", back_populates="store_templates")
@@ -78,6 +87,9 @@ class DoctorConsultationFee(Base, AuditMixin):
     store_id = Column(String(36), ForeignKey("stores.id"), nullable=False, comment="门店ID")
     department_id = Column(String(36), ForeignKey("departments.id"), nullable=False, comment="科室ID")
     fee_type_id = Column(String(36), ForeignKey("consultation_fee_types.id"), nullable=False, comment="诊费类型ID")
+    # 租户维度（p3a8）：经 store_id 回填
+    tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=True, index=True,
+                       comment="租户ID")
     initial_fee = Column(Numeric(10, 2), default=0, comment="初诊金额")
     follow_up_fee = Column(Numeric(10, 2), default=0, comment="复诊金额")
     use_template = Column(Integer, default=1, comment="是否使用诊费模板: 0否 1是")

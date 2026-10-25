@@ -1,16 +1,10 @@
-import { PageContainer } from '@ant-design/pro-components';
-import { Card, Col, Row, Statistic, Table, DatePicker, Space, Spin, Tag } from 'antd';
-import {
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  CloseCircleOutlined,
-  ExclamationCircleOutlined,
-} from '@ant-design/icons';
-import { useState, useEffect, useCallback } from 'react';
-import { followUpApi } from '@hospital/api';
+import {PageContainer} from '@ant-design/pro-components';
+import {Card, Col, Row, Statistic, Table, DatePicker, Space, Spin, Tag} from 'antd';
+import {CheckCircleOutlined, ClockCircleOutlined, CloseCircleOutlined, ExclamationCircleOutlined} from '@ant-design/icons';
+import {useState, useEffect, useCallback} from 'react';
+import {followUpApi} from '@hospital/api';
 import type { FollowUpStatistics } from '@hospital/api';
-import { App } from 'antd';
-import dayjs from 'dayjs';
+import {App} from 'antd';
 
 const { RangePicker } = DatePicker;
 

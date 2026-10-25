@@ -1,20 +1,13 @@
-import { useState, useEffect, useCallback } from 'react';
-import { MedicineBoxOutlined } from '@ant-design/icons';
-import { App, Modal, Tabs } from 'antd';
-import { history } from '@umijs/max';
-import { setToken, STORAGE_KEYS, setStorage, getStorage, removeStorage, resetTokenExpiredState } from '@hospital/shared';
-import { APP_TITLE } from '@config/appConfig';
+import {useState, useEffect, useCallback} from 'react';
+import {MedicineBoxOutlined} from '@ant-design/icons';
+import {App, Modal, Tabs} from 'antd';
+
+import {setToken, STORAGE_KEYS, setStorage, getStorage, removeStorage, resetTokenExpiredState} from '@hospital/shared';
+import {APP_TITLE} from '@config/appConfig';
 import access from '@/access';
-import { getDefaultRoute, isSafeReturnPath } from '@/utils/getDefaultRoute';
-import { getSafeRouteMap } from '@/utils/deriveSafeRoutes';
-import {
-  AccountLogin, UserOutlined,
-  PhoneLogin, MobileOutlined,
-  WechatLogin, WechatOutlined,
-  IntegrationLogin,
-  IntegrationBindPhoneModal,
-  type BindPhoneInfo,
-} from './components';
+import {getDefaultRoute, isSafeReturnPath} from '@/utils/getDefaultRoute';
+import {getSafeRouteMap} from '@/utils/deriveSafeRoutes';
+import {AccountLogin, UserOutlined, PhoneLogin, MobileOutlined, WechatLogin, WechatOutlined, IntegrationLogin, IntegrationBindPhoneModal, type BindPhoneInfo} from './components';
 import styles from './index.less';
 
 type LoginType = 'wechat' | 'phone' | 'account' | 'dingtalk' | 'wecom' | 'feishu';

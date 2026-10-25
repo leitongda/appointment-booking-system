@@ -13,8 +13,10 @@
  * 与 behavior_log / tracker 共用同一个 session_id（通过 getTracker().getSessionId()），
  * 拿不到则用 sessionStorage 自行生成一份，保证 rrweb 数据可被同一会话串联。
  */
+/* eslint-disable @typescript-eslint/no-use-before-define -- flush/shouldFlush/trimQueue 相互调用形成环形引用，运行时按调用期解析，无法调整声明顺序 */
 import { record } from 'rrweb';
 import { getTracker } from '@hospital/shared';
+
 
 /**
  * rrweb 单个事件类型。
@@ -151,6 +153,47 @@ function toISO(ms: number | undefined): string | null {
  * flush 当前队列到后端。
  * @param sync true 表示由 beforeunload/visibilitychange 触发，优先 sendBeacon
  */
+function trimQueue(): void {
+  if (eventQueue.length > MAX_QUEUE_SIZE) {
+    eventQueue = eventQueue.slice(-MAX_QUEUE_SIZE);
+  }
+}
+
+/** 启动定时 flush */
+function startFlushTimer(): void {
+  if (flushTimer) return;
+  flushTimer = setInterval(() => {
+    flush().catch(() => {
+      /* 错误已在 flush 内部处理 */
+    });
+  }, BATCH_INTERVAL);
+}
+
+/** 停止定时 flush */
+function stopFlushTimer(): void {
+  if (flushTimer) {
+    clearInterval(flushTimer);
+    flushTimer = null;
+  }
+}
+
+/** 判断当前是否应 flush 上报。
+ *
+ * - always 模式：始终 flush
+ * - error-triggered 模式：仅在被错误激活且窗口未过期时 flush
+ */
+function shouldFlush(): boolean {
+  if (recordingMode === 'always') return true;
+  if (recordingMode === 'error-triggered') {
+    // 窗口过期：回到待机，清除激活态
+    if (errorTriggered && Date.now() > errorWindowEnd) {
+      errorTriggered = false;
+    }
+    return errorTriggered;
+  }
+  return false;
+}
+
 async function flush(sync = false): Promise<void> {
   if (!sync && flushing) return;
   if (eventQueue.length === 0) return;
@@ -245,46 +288,6 @@ async function flush(sync = false): Promise<void> {
 }
 
 /** 裁剪队列到上限（保留最新事件：rrweb 回放场景下新事件价值更高） */
-function trimQueue(): void {
-  if (eventQueue.length > MAX_QUEUE_SIZE) {
-    eventQueue = eventQueue.slice(-MAX_QUEUE_SIZE);
-  }
-}
-
-/** 启动定时 flush */
-function startFlushTimer(): void {
-  if (flushTimer) return;
-  flushTimer = setInterval(() => {
-    flush().catch(() => {
-      /* 错误已在 flush 内部处理 */
-    });
-  }, BATCH_INTERVAL);
-}
-
-/** 停止定时 flush */
-function stopFlushTimer(): void {
-  if (flushTimer) {
-    clearInterval(flushTimer);
-    flushTimer = null;
-  }
-}
-
-/** 判断当前是否应 flush 上报。
- *
- * - always 模式：始终 flush
- * - error-triggered 模式：仅在被错误激活且窗口未过期时 flush
- */
-function shouldFlush(): boolean {
-  if (recordingMode === 'always') return true;
-  if (recordingMode === 'error-triggered') {
-    // 窗口过期：回到待机，清除激活态
-    if (errorTriggered && Date.now() > errorWindowEnd) {
-      errorTriggered = false;
-    }
-    return errorTriggered;
-  }
-  return false;
-}
 
 /** 错误触发：激活 error-triggered 模式的上报窗口。
  *
@@ -391,7 +394,7 @@ export function initSessionRecorder(
     if (event.target && (event.target as HTMLElement).tagName) return;
     triggerOnError();
   };
-  const onRejection = (event: PromiseRejectionEvent): void => {
+  const onRejection = (_event: PromiseRejectionEvent): void => {
     triggerOnError();
   };
   if (recordingMode === 'error-triggered') {

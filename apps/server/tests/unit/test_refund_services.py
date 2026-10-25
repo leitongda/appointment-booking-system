@@ -625,3 +625,80 @@ class TestGenerateRefundNo:
     def test_unique_per_call(self):
         nos = {_generate_refund_no() for _ in range(50)}
         assert len(nos) == 50, "退款单号应唯一"
+
+
+# ---------------------------------------------------------------------------
+# R4-11: 退款回查租户收敛（process_refund_callback 的 tenant_id 参数）
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+@pytest.mark.security
+class TestRefundCallbackTenantScope:
+    """A 租户上下文的回调不能命中/更新 B 租户的退款记录。"""
+
+    @pytest_asyncio.fixture
+    async def other_tenant(self, db_session: AsyncSession, test_tenant):
+        """第二个租户：退款记录属于它，回调上下文属于 test_tenant。"""
+        from app.models.tenant import Tenant
+
+        tenant = Tenant(
+            id=str(uuid4()),
+            tenant_code=f"refund_b_{uuid4().hex[:8]}",
+            name="退款租户B",
+            status=1,
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+        )
+        db_session.add(tenant)
+        await db_session.commit()
+        await db_session.refresh(tenant)
+        return tenant
+
+    @pytest_asyncio.fixture
+    async def tenant_b_refund(self, db_session, other_tenant):
+        """属于租户 B 的 pending 退款记录。"""
+        apt = _make_paid_appointment(db_session, other_tenant.id)
+        record = _make_refund_record(db_session, other_tenant.id, apt.id, status="pending")
+        await db_session.commit()
+        await db_session.refresh(record)
+        return record
+
+    async def test_callback_with_wrong_tenant_raises(
+        self, db_session, test_tenant, tenant_b_refund
+    ):
+        """A 租户上下文 + B 租户的退款单号 → 查不到，视为不存在。"""
+        service = RefundService(db_session)
+        with pytest.raises(ValueError, match="退款记录不存在"):
+            await service.process_refund_callback(
+                refund_no=tenant_b_refund.refund_no,
+                wx_refund_id="wx_refund_1",
+                status="success",
+                tenant_id=test_tenant.id,
+            )
+        await db_session.refresh(tenant_b_refund)
+        assert tenant_b_refund.status == "pending"  # 未被误更新
+
+    async def test_callback_with_matching_tenant_updates(
+        self, db_session, other_tenant, tenant_b_refund
+    ):
+        service = RefundService(db_session)
+        result = await service.process_refund_callback(
+            refund_no=tenant_b_refund.refund_no,
+            wx_refund_id="wx_refund_1",
+            status="success",
+            tenant_id=other_tenant.id,
+        )
+        assert result.status == "success"
+        assert result.wx_refund_id == "wx_refund_1"
+
+    async def test_callback_without_tenant_keeps_legacy_lookup(
+        self, db_session, tenant_b_refund
+    ):
+        """不传 tenant_id（非回调路径）保持全局幂等键查找。"""
+        service = RefundService(db_session)
+        result = await service.process_refund_callback(
+            refund_no=tenant_b_refund.refund_no,
+            wx_refund_id="wx_refund_2",
+            status="success",
+        )
+        assert result.status == "success"

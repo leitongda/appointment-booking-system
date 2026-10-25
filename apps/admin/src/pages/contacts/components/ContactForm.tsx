@@ -1,6 +1,6 @@
-import { ModalForm, ProFormSelect, ProFormText, ProFormTextArea, ProFormDigit } from '@ant-design/pro-components';
-import { Form } from 'antd';
-import { useEffect } from 'react';
+import {ModalForm, ProFormSelect, ProFormText, ProFormTextArea} from '@ant-design/pro-components';
+import {Form} from 'antd';
+import {useEffect} from 'react';
 
 /** 联系人类型选项 */
 const CONTACT_TYPE_OPTIONS = [

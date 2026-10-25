@@ -9,17 +9,11 @@
  * 5. 加载态 & 错误态
  */
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Button, Image, Modal, Result, Space, Spin, Typography } from 'antd';
-import {
-  QrcodeOutlined,
-  ReloadOutlined,
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  InfoCircleOutlined,
-} from '@ant-design/icons';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {Button, Image, Modal, Result, Space, Spin, Typography} from 'antd';
+import {QrcodeOutlined, ReloadOutlined, ClockCircleOutlined, InfoCircleOutlined} from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { lowcodeApi, type PreviewQrResponse } from '@hospital/api';
+import {lowcodeApi, type PreviewQrResponse} from '@hospital/api';
 
 // ---------------------------------------------------------------------------
 // Types

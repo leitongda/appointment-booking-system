@@ -174,6 +174,10 @@ def _renew_subscription(db: Session, tenant: Tenant, now: datetime) -> bool:
     ).scalar_one_or_none()
     if subscription is None or not subscription.auto_renew:
         return False
+    # P4-5/D17：仅当本期订阅已支付才自动续费；未付费（pending）或未开
+    # auto_renew 的租户维持到期置欠费，防止挂账无限续费不停服
+    if subscription.payment_status != "paid":
+        return False
 
     cycle_days = 365 if subscription.billing_cycle == "yearly" else 30
     old_end = tenant.subscription_end_at or now

@@ -253,6 +253,29 @@ export const countCoveredModules = (
   return permissions.filter((module) => module.descendantCodes.some((code) => checkedKeys.has(code))).length;
 };
 
+/** 收集树中控制类型命中给定集合的全部权限码（1.5 一键「仅选页面级 / 仅选操作级」用）。 */
+export const codesByControlTypes = (
+  permissions: PermissionViewNode[],
+  types: PermissionControlType[],
+): string[] => {
+  const typeSet = new Set(types);
+  const codes: string[] = [];
+
+  const traverse = (nodes: PermissionViewNode[]) => {
+    nodes.forEach((node) => {
+      if (typeSet.has(node.controlType)) {
+        codes.push(node.code);
+      }
+      if (node.children?.length) {
+        traverse(node.children);
+      }
+    });
+  };
+
+  traverse(permissions);
+  return codes;
+};
+
 export const isHighRiskPermission = (permission: PermissionViewNode): boolean => {
   return HIGH_RISK_SEGMENTS.has(getLastCodeSegment(permission.code));
 };

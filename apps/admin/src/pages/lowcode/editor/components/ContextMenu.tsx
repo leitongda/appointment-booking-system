@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Input, Modal, message } from 'antd';
-import { useEditorStore } from '../store';
-import { saveCustomSnippet } from '../utils/customSnippets';
-import { findNodeById } from '../utils/tree';
+import {Input, Modal, message} from 'antd';
+import {useEditorStore} from '../store';
+import {saveCustomSnippet} from '../utils/customSnippets';
+import {findNodeById} from '../utils/tree';
 
 interface ContextMenuProps {
   nodeId: string;
@@ -16,7 +16,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ nodeId, x, y, onClose 
   const {
     removeNode,
     duplicateNode,
-    selectNode,
+    selectNode: _selectNode,
     moveNodeUp,
     moveNodeDown,
     schema,

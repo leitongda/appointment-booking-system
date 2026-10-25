@@ -410,7 +410,7 @@ const Screen: React.FC = () => {
         {/* 头部区域 */}
         <header className="screen-header">
           <div className="header-left">
-            <button className="back-btn" onClick={() => history.push('/dashboard')}>
+            <button type="button" className="back-btn" onClick={() => history.push('/dashboard')}>
               <ArrowLeftOutlined /> 返回后台
             </button>
             <Button

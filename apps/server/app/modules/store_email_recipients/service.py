@@ -5,6 +5,7 @@ import uuid
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.store import Store
 from app.models.store_email_recipient import StoreEmailRecipient
 from app.schemas.store_email_recipient import (
     StoreEmailRecipientCreate,
@@ -64,9 +65,12 @@ class StoreEmailRecipientService:
         operator_id: str | None = None,
     ) -> StoreEmailRecipient:
         """创建接收人"""
+        # p3a8：写入时落租户维度（经 store 继承）
+        store = await self.db.get(Store, data.store_id)
         recipient = StoreEmailRecipient(
             id=str(uuid.uuid4()),
             store_id=data.store_id,
+            tenant_id=store.tenant_id if store else None,
             name=data.name,
             email=data.email,
             event_types=json.dumps(data.event_types, ensure_ascii=False),

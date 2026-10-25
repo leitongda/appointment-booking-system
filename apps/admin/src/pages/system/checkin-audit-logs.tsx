@@ -1,12 +1,10 @@
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
-import { PageContainer, ProTable } from '@ant-design/pro-components';
-import { useRef } from 'react';
-import { App } from 'antd';
-import { auditLogApi } from '@hospital/api';
-import { createListRequest } from '@/utils/proTable';
+import {PageContainer, ProTable} from '@ant-design/pro-components';
+import {useRef} from 'react';
+import {auditLogApi} from '@hospital/api';
+import {createListRequest} from '@/utils/proTable';
 
 const CheckinAuditLogsPage: React.FC = () => {
-  const { message } = App.useApp();
   const actionRef = useRef<ActionType>();
 
   const columns: ProColumns[] = [
