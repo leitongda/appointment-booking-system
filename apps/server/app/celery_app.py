@@ -2,6 +2,8 @@
 Celery 应用配置
 用于定时任务调度和异步任务处理
 """
+import os
+
 from celery import Celery
 from celery.schedules import crontab
 from kombu import Queue
@@ -19,6 +21,9 @@ celery_app = Celery(
 celery_app.conf.update(
     # 时区配置
     timezone="Asia/Shanghai",
+    # 只读根容器下 PersistentScheduler 的调度库必须放可写路径
+    # （可用 CELERYBEAT_DB 环境变量覆盖）
+    beat_schedule_filename=os.environ.get("CELERYBEAT_DB", "/tmp/celerybeat-schedule"),
     enable_utc=False,
     
     # 任务序列化
