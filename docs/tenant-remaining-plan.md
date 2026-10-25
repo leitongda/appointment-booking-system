@@ -665,3 +665,16 @@ B0–B11 复盘时暴露的三个测试缺口在本批次收口：
 | 51 项主计划交叉核对 | `tenant-refactor-plan.md` 附2 | 结论 51/51 完成或按决策搁置；**抓出并修复 P4-5 语义缺口：续费须 `payment_status='paid'` 才触发**（未付费订阅挂账不得无限续费不停服），补负向单测 |
 | p3a8 数据模型项 | 迁移 `p3a8_fee_tenant` + 5 个模型列 + service 落锚 + `test_tenant_fk_models` 参数化 5 表 | consultation_fee_types/templates、store_fee_templates、doctor_consultation_fees、store_email_recipients 补 tenant_id（nullable+FK NOT VALID）；经 store/fee_type 回填；写入路径落锚（平台级类型/模板保持 NULL 语义）；M6 清洗脚本 A 类清单纳入（10+5 张）。开发库实跑：doctor_fees 15/15 回填、21/21 外键 VALIDATE。**查询侧锚点收口留待后续模块批次** |
 | 环境与构建验证 | `.venv` 重建（3.11.15 + 全依赖）；website/admin/patient-h5/miniapp 四端 build 全绿 | admin lint 存量 107 错（15+ 历史业务页面，与本轮改动无关，`access.ts` 干净），单列为技术债 |
+
+### 10.10 权限页余项收口与权限码清单（2026-10-24，第七批次）
+
+| 事项 | 落点 | 说明 |
+|---|---|---|
+| openspec 4.3 | `apps/admin/src/pages/system/__tests__/role-permissions.utils.test.ts`（21 用例） | 分类推断（显式 controlType 优先/深度/子节点/action-api 段）、模块传播、三维过滤（关键词/类型/仅看已选 + 祖先保留）、计数与高风险判定全部覆盖；tsc 零错 |
+| openspec 1.5 | `role-permissions.tsx` + `utils.codesByControlTypes` | 模块卡片标题补模块级「全选/清空」（随当前筛选生效）；工具栏补「仅选页面级 / 仅选操作级」一键（重置为全树 page+tab / action 权限码） |
+| openspec 0.1 | 新增 `apps/server/scripts/gen_permission_matrix.py` + `docs/modules/permission-codes.md` | 静态生成权限码 ↔ 后端守卫（文件:行）↔ 前端引用清单；`--check` 可挂 CI 做漂移门禁。**盘点发现 48 个目录外守卫码**（approval-flow/contact/freelance/lowcode/points/schedule:extra-quota 等）——后端守卫在用但种子目录与开发库 permissions 表均无，非 `*` 角色永远无法获得这些模块授权；补目录需产品定名与分组，已在 permission.md「已知缺口」登记 |
+| permission.md 重写 | `docs/modules/permission.md` | 从早期 PRD 更新为现行模型：Role.permissions JSON 授权、平台级权限目录、检查依赖族与通配、租户/门店/功能三层控制、读端点收口、分配页能力与已知缺口 |
+| admin lint 真 bug | `apps/admin/src/pages/approval/designer/PropertyPanel.tsx` | 修复 rules-of-hooks×3：三个监听器 Hook 位于 `!selectedNode` 早退之后，「选中→取消选中」会触发 React Hook 数量不一致崩溃；已移到早退前 |
+| admin lint 技术债 | 49 文件 104 错（修复后） | 构成：no-unused-vars×73、no-use-before-define×24、no-unescaped-entities×6、button-has-type×1；全部机械修复项，未在本批处理（避免大面积触碰 49 个业务页面），留作独立清理批 |
+
+**本批验证**：admin vitest 112 通过（+21）、admin tsc/build 全绿；后端无改动。
