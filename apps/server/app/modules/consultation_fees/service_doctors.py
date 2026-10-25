@@ -13,6 +13,8 @@ from app.schemas.consultation_fee import (
 )
 from app.utils.audit import set_create_audit, set_update_audit
 
+from .service_types import store_tenant_id
+
 
 class ConsultationFeeDoctorMixin:
     async def get_doctor_fees(
@@ -80,6 +82,7 @@ class ConsultationFeeDoctorMixin:
             id=str(uuid.uuid4()),
             doctor_id=data.doctor_id,
             store_id=data.store_id,
+            tenant_id=await store_tenant_id(self.db, data.store_id),
             department_id=data.department_id,
             fee_type_id=data.fee_type_id,
             initial_fee=data.initial_fee,
@@ -114,6 +117,7 @@ class ConsultationFeeDoctorMixin:
         self, data: DoctorConsultationFeeBatchCreate, operator_id: str | None = None
     ) -> list[DoctorConsultationFee]:
         result = []
+        tenant_id = await store_tenant_id(self.db, data.store_id)
         for item in data.fees:
             existing = await self.get_doctor_fee_unique(
                 data.doctor_id, data.store_id, data.department_id, item.fee_type_id
@@ -130,6 +134,7 @@ class ConsultationFeeDoctorMixin:
                     id=str(uuid.uuid4()),
                     doctor_id=data.doctor_id,
                     store_id=data.store_id,
+                    tenant_id=tenant_id,
                     department_id=data.department_id,
                     fee_type_id=item.fee_type_id,
                     initial_fee=item.initial_fee,

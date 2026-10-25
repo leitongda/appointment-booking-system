@@ -40,6 +40,16 @@ NEWLY_DECLARED_FK_TABLES = (
 )
 
 
+# p3a8_fee_tenant.py 的 TABLES 全量（诊费 + 门店邮件接收人，2026-10-24 新增）
+P3A8_TABLES = (
+    "consultation_fee_types",
+    "consultation_fee_templates",
+    "store_fee_templates",
+    "doctor_consultation_fees",
+    "store_email_recipients",
+)
+
+
 @pytest.mark.parametrize("table_name", M6_TABLES)
 def test_m6_table_declares_tenant_fk(table_name: str) -> None:
     """每张 M6 表的 tenant_id 都必须指向 tenants.id。"""
@@ -49,6 +59,18 @@ def test_m6_table_declares_tenant_fk(table_name: str) -> None:
     assert column is not None, f"{table_name} 缺少 tenant_id 列"
     targets = {fk.target_fullname for fk in column.foreign_keys}
     assert targets == {"tenants.id"}, f"{table_name}.tenant_id 外键指向为 {targets}"
+
+
+@pytest.mark.parametrize("table_name", P3A8_TABLES)
+def test_p3a8_table_declares_tenant_fk(table_name: str) -> None:
+    """p3a8 的 5 张表模型层必须声明 tenant_id -> tenants.id 外键。"""
+    table = Base.metadata.tables.get(table_name)
+    assert table is not None, f"模型未注册表 {table_name}"
+    column = table.columns.get("tenant_id")
+    assert column is not None, f"{table_name} 缺少 tenant_id 列"
+    targets = {fk.target_fullname for fk in column.foreign_keys}
+    assert targets == {"tenants.id"}, f"{table_name}.tenant_id 外键指向为 {targets}"
+    assert column.nullable, f"{table_name}.tenant_id 应可空（存量回填前不做 NOT NULL）"
 
 
 def test_newly_declared_fk_tables_are_covered() -> None:

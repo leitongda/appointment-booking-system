@@ -1,8 +1,8 @@
 -- ============================================================================
 -- M6 上线后：外键孤儿清洗 + 约束 VALIDATE（PostgreSQL / psql）
 --
--- 适用：p3a1–p3a7 已 upgrade；p3a6 已为 16 张表创建 NOT VALID 外键
---       fk_<table>_tenant；生产/预发已 pg_dump 备份。
+-- 适用：p3a1–p3a8 已 upgrade；p3a6 为 16 张表、p3a8 为 5 张诊费/邮件表
+--       创建 NOT VALID 外键 fk_<table>_tenant；生产/预发已 pg_dump 备份。
 --
 -- 用法（默认 dry-run，只读统计与孤儿清单，不写数据）：
 --   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
@@ -43,7 +43,7 @@ SET statement_timeout = '0';
 -- 0. 前置：16 张表 / 外键是否存在
 -- ----------------------------------------------------------------------------
 \echo ''
-\echo '=== 0. 前置检查: 16 张表与 fk_<table>_tenant 约束是否存在 ==='
+\echo '=== 0. 前置检查: 21 张表（p3a6 16 + p3a8 5）与 fk_<table>_tenant 约束是否存在 ==='
 SELECT format(
          'SELECT %L AS table_name, %L AS tenant_id_column, %L AS fk_constraint',
          v.t, 'tenant_id', 'fk_' || v.t || '_tenant')
@@ -52,7 +52,10 @@ FROM (VALUES
       ('notification_preferences'), ('rule_set_audit_logs'), ('schedule_audit_logs'),
       ('unified_templates'), ('notification_groups'), ('notification_recipients'),
       ('notification_deliveries'), ('channel_strategies'), ('recipient_rules'),
-      ('news'), ('notices'), ('banners'), ('content_versions')
+      ('news'), ('notices'), ('banners'), ('content_versions'),
+      ('consultation_fee_types'), ('consultation_fee_templates'),
+      ('store_fee_templates'), ('doctor_consultation_fees'),
+      ('store_email_recipients')
 ) AS v(t)
 WHERE to_regclass('public.' || v.t) IS NOT NULL
   AND EXISTS (
@@ -70,7 +73,10 @@ FROM (VALUES
       ('notification_preferences'), ('rule_set_audit_logs'), ('schedule_audit_logs'),
       ('unified_templates'), ('notification_groups'), ('notification_recipients'),
       ('notification_deliveries'), ('channel_strategies'), ('recipient_rules'),
-      ('news'), ('notices'), ('banners'), ('content_versions')
+      ('news'), ('notices'), ('banners'), ('content_versions'),
+      ('consultation_fee_types'), ('consultation_fee_templates'),
+      ('store_fee_templates'), ('doctor_consultation_fees'),
+      ('store_email_recipients')
 ) AS v(t)
 WHERE to_regclass('public.' || v.t) IS NULL
    OR NOT EXISTS (
@@ -92,7 +98,10 @@ WITH candidates(t) AS (
       ('notification_preferences'), ('rule_set_audit_logs'), ('schedule_audit_logs'),
       ('unified_templates'), ('notification_groups'), ('notification_recipients'),
       ('notification_deliveries'), ('channel_strategies'), ('recipient_rules'),
-      ('news'), ('notices'), ('banners'), ('content_versions')
+      ('news'), ('notices'), ('banners'), ('content_versions'),
+      ('consultation_fee_types'), ('consultation_fee_templates'),
+      ('store_fee_templates'), ('doctor_consultation_fees'),
+      ('store_email_recipients')
 )
 SELECT format(
          'SELECT %L AS table_name, count(*) AS orphans_before '
@@ -110,16 +119,19 @@ ORDER BY v.t
 \gexec
 
 -- ----------------------------------------------------------------------------
--- 2. A 类：可空表（10 张）孤儿置 NULL —— 仅 apply=1 执行
+-- 2. A 类：可空表孤儿置 NULL —— 仅 apply=1 执行（p3a8 的 5 张表列均可空，归入本类）
 -- ----------------------------------------------------------------------------
 \echo ''
-\echo '=== 2. A 类（可空表）: SET tenant_id = NULL WHERE 孤儿（apply=1 才执行）==='
+\echo '=== 2. A 类（可空表，10+5 张）: SET tenant_id = NULL WHERE 孤儿（apply=1 才执行）==='
 \if :apply
 WITH nullable(t) AS (
     VALUES
       ('email_templates'), ('message_templates'), ('notification_logs'),
       ('notification_preferences'), ('rule_set_audit_logs'), ('schedule_audit_logs'),
-      ('news'), ('notices'), ('banners'), ('content_versions')
+      ('news'), ('notices'), ('banners'), ('content_versions'),
+      ('consultation_fee_types'), ('consultation_fee_templates'),
+      ('store_fee_templates'), ('doctor_consultation_fees'),
+      ('store_email_recipients')
 )
 SELECT format(
          'UPDATE public.%I e SET tenant_id = NULL '
@@ -186,7 +198,10 @@ WITH candidates(t) AS (
       ('notification_preferences'), ('rule_set_audit_logs'), ('schedule_audit_logs'),
       ('unified_templates'), ('notification_groups'), ('notification_recipients'),
       ('notification_deliveries'), ('channel_strategies'), ('recipient_rules'),
-      ('news'), ('notices'), ('banners'), ('content_versions')
+      ('news'), ('notices'), ('banners'), ('content_versions'),
+      ('consultation_fee_types'), ('consultation_fee_templates'),
+      ('store_fee_templates'), ('doctor_consultation_fees'),
+      ('store_email_recipients')
 )
 SELECT format('ALTER TABLE public.%I VALIDATE CONSTRAINT %I', v.t, 'fk_' || v.t || '_tenant')
 FROM candidates v
@@ -214,7 +229,10 @@ WITH candidates(t) AS (
       ('notification_preferences'), ('rule_set_audit_logs'), ('schedule_audit_logs'),
       ('unified_templates'), ('notification_groups'), ('notification_recipients'),
       ('notification_deliveries'), ('channel_strategies'), ('recipient_rules'),
-      ('news'), ('notices'), ('banners'), ('content_versions')
+      ('news'), ('notices'), ('banners'), ('content_versions'),
+      ('consultation_fee_types'), ('consultation_fee_templates'),
+      ('store_fee_templates'), ('doctor_consultation_fees'),
+      ('store_email_recipients')
 )
 SELECT format(
          'SELECT %L AS table_name, count(*) AS orphans_after '

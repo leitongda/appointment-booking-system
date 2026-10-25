@@ -17,6 +17,9 @@ class StoreEmailRecipient(Base, AuditMixin):
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     store_id = Column(String(36), ForeignKey("stores.id"), nullable=False, index=True, comment="门店ID")
+    # 租户维度（p3a8）：经 store_id 回填
+    tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=True, index=True,
+                       comment="租户ID")
     name = Column(String(50), nullable=False, comment="接收人姓名")
     email = Column(String(100), nullable=False, comment="邮箱地址")
     event_types = Column(Text, comment="订阅事件类型(JSON数组)")
