@@ -21,7 +21,8 @@ export function DeptLargeGrid() {
 
   const loadDepartments = async () => {
     try {
-      const data = await departmentApi.getAll();
+      // 患者端走公开热门科室接口（/departments/all 为管理端接口，游客 401）；后端 limit 上限 20
+      const data = await departmentApi.getHot(20);
       setDepartments(data);
     } catch {
       Taro.showToast({ title: '加载科室失败', icon: 'none' });

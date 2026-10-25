@@ -94,9 +94,12 @@ async def main() -> None:
             dept = (await db.execute(select(Department).where(Department.tenant_id == tenant.id, Department.name == name))).scalar_one_or_none()
             if dept is None:
                 dept = Department(id=str(uuid4()), name=name, store_id=store.id, tenant_id=tenant.id, status=1,
+                                  is_hot=1,
                                   created_at=datetime.now(), updated_at=datetime.now())
                 db.add(dept)
                 await db.flush()
+            elif not dept.is_hot:
+                dept.is_hot = 1  # 患者端科室列表走公开 /departments/hot（is_hot 过滤）
             depts[name] = dept
             print(f"department: {name}")
 

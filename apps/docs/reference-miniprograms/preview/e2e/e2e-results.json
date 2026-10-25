@@ -1,0 +1,17 @@
+[
+  {
+    "step": "连接模拟器",
+    "ok": true,
+    "detail": "SDKVersion=3.17.5"
+  },
+  {
+    "step": "首页-常看医生数据",
+    "ok": false,
+    "detail": "recentDoctors=undefined"
+  },
+  {
+    "step": "首页-公告栏数据",
+    "ok": false,
+    "detail": "notice 为空"
+  }
+]

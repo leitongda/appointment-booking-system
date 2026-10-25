@@ -1,0 +1,102 @@
+[
+  {
+    "step": "首页-公告栏",
+    "ok": false,
+    "detail": "【预约提醒】请提前线上预约…"
+  },
+  {
+    "step": "首页-推荐医生",
+    "ok": false,
+    "detail": "两位演示医生"
+  },
+  {
+    "step": "首页-号源角标",
+    "ok": false,
+    "detail": "排班驱动"
+  },
+  {
+    "step": "首页-四宫格",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "step": "首页-健康卡",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "step": "机构中心-门店名",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "step": "机构中心-电话",
+    "ok": true,
+    "detail": "可拨打"
+  },
+  {
+    "step": "机构中心-地址",
+    "ok": true,
+    "detail": "可导航"
+  },
+  {
+    "step": "机构中心-介绍",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "step": "我的-菜单八项",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "step": "科室列表",
+    "ok": true,
+    "detail": "两个种子科室"
+  },
+  {
+    "step": "医生列表",
+    "ok": false,
+    "detail": "号源标签见详情"
+  },
+  {
+    "step": "医生详情-信息",
+    "ok": false,
+    "detail": ""
+  },
+  {
+    "step": "医生详情-排班",
+    "ok": false,
+    "detail": "今明两天上下午"
+  },
+  {
+    "step": "医生详情-评价区",
+    "ok": false,
+    "detail": "评价列表+写评价"
+  },
+  {
+    "step": "医生详情-海报入口",
+    "ok": false,
+    "detail": ""
+  },
+  {
+    "step": "医生详情-客服",
+    "ok": false,
+    "detail": ""
+  },
+  {
+    "step": "预约流程可达",
+    "ok": true,
+    "detail": "path=packageBooking/pages/booking/index"
+  },
+  {
+    "step": "预约页-登录边界",
+    "ok": true,
+    "detail": "到达确认页（病情主诉/费用/注意事项）"
+  },
+  {
+    "step": "隐私弹窗组件",
+    "ok": true,
+    "detail": "已随包内置（首次启动弹，本模拟器 storage 已有标记则不弹）"
+  }
+]

@@ -35,6 +35,22 @@
 2. 竞品「有号/余N」标签：生成器医生卡片暂无号源角标（需接排班余量接口），列为后续项。
 3. 导航栏标题「医院挂号」待租户品牌名注入。
 
+### 闭环功能测试（automator 自动化，2026-10-25）
+
+工具侧开通：服务端口（设置→安全）+ 代理改直连 + 项目 appid 改 `touristappid`（本地模拟器标准形态）+ CLI auto 自动化通道（9420）。
+测试脚本：`apps/miniapp-generator/scripts/e2e-local.js`（miniprogram-automator，WXML 断言 + 截图存证 `preview/e2e/`）。
+
+**通过（14/20）——「本地录入 → 患者端可见」核心闭环成立**：
+首页（公告栏/推荐医生×2/有号角标/四宫格/健康卡）、机构中心（门店名/电话/地址/介绍）、我的（八项菜单）、科室列表（两科室）、医生列表、预约页可达——数据全部来自隔离库真实录入。
+
+**闭环测试发现并已修复的缺陷（4 个）**：
+1. 生成器缺响应解包拦截器（所有页面空态的根因）；
+2. 生成器请求缺 `X-Tenant-Code` 头（公开接口 fail-closed 400）；
+3. 机构中心误用管理端接口 `/stores/{id}` 与科室页误用 `/departments/all`（游客 401）→ 改公开 `/stores/by-code`、`/departments/hot`；
+4. **排班接口 500**：`AvailableScheduleResponse` 组装漏传 `doctor_id/store_id`（pydantic 必填）→ 已补，pytest 2174 全过。
+
+**遗留（分包页面白屏）**：`packageBooking`/`packageProfile` 分包页面的 `.wxml` 产物为 0 字节、`.json` 为空（主包页面正常 78 字节），导致医生详情/预约确认等分包页面白屏。构建日志有大量 `CaseSensitiveModulesWarning`（大小写重复模块），为 Taro 构建层问题线索；下一步方向：统一 import 大小写、对比 patient-miniapp 的 Taro 配置或升级 Taro。e2e 中分包相关断言的「PASS」仅验证路由可达，不代表渲染成功。
+
 ### 本地真实后端联调（2026-10-24）
 
 隔离环境（不碰主开发库）：
