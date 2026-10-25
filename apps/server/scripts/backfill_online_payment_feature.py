@@ -28,6 +28,10 @@ import argparse
 import json
 import logging
 import sys
+from pathlib import Path
+
+# apps/server 加入 sys.path，支持在项目目录直接 python scripts/... 运行
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from sqlalchemy import select
 
