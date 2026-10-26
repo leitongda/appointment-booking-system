@@ -87,9 +87,8 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 8
+        # 版本从根 package.json 的 packageManager（pnpm@10.x）读取；lockfile 为 v9，pnpm 8 无法解析
+        uses: pnpm/action-setup@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v6

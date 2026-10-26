@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "NODE_OPTIONS='--require ./scripts/fix-network.js' HOST=127.0.0.1 PORT=${PORT:-9103} umi dev",
     "build": "umi build",
-    "desktop:dev": "TAURI_DESKTOP=1 tauri dev",
-    "desktop:build": "TAURI_DESKTOP=1 tauri build",
+    "desktop:dev": "cross-env TAURI_DESKTOP=1 tauri dev",
+    "desktop:build": "cross-env TAURI_DESKTOP=1 tauri build",
     "postinstall": "umi setup",
     "lint": "umi lint",
     "clean": "rm -rf dist .umi .umi-production"
@@ -29,6 +29,7 @@
     "@types/react": "^18.2.47",
     "@types/react-dom": "^18.2.18",
     "@umijs/plugins": "^4.1.0",
+    "cross-env": "^7.0.3",
     "typescript": "^5.3.3"
   }
 }
