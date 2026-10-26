@@ -43,4 +43,14 @@
 - [x] 6.4 上报组件打包态修复（admin+doctor）：tracker/perf/sessionRecorder 裸 fetch 固化相对 URL 绕过 setBaseURL——改为等桌面 baseURL 覆盖后用 getBaseURL() 绝对地址初始化；实测资产协议回退清零
 - [x] 6.5 顺手修 doctor 既有缺陷：`/logo.svg` 引用但 public/ 无文件（web 端 404 静默，Tauri 日志暴露），从 admin 复制
 - [ ] 6.6 共享包 tracker page_path 的 hash 感知统一（可选）
-- [ ] 6.7 人工 GUI 冒烟（admin + doctor）：需先启动后端 9000，用屏幕上的 .app 登录/列表/上传
+- [x] 6.7 人工 GUI 冒烟（admin）：登录 → 仪表盘（真实数据）→ 医生列表（5/5 姓名）全通过；过程中修复 CORS 白名单（服务端）
+- [~] 6.8 GUI 冒烟（doctor）：web 层通过（落地 /dashboard、姓名、菜单、token）；桌面 GUI 因本机内存压力（swap 10.7/12 GB，WebKit 渲染进程被回收）未完成，换机或释放内存后重跑
+- [x] 6.9 修复 doctor 登录既有缺陷（web 与桌面均受影响）：服务端 `/doctors/login` snake_case → camelCase 对齐；登录页 refresh() 早退 → 改整页跳转
+- [x] 6.10 Windows 脚本兼容：desktop:dev/build 改 cross-env；CI pnpm 由 packageManager 决定（lockfile v9）
+- [~] 6.11 CI 实跑：推 tag `desktop-v0.1.0-rc1`，workflow 已通过解析并创建作业；但作业无法启动——GitHub 账户 Actions 计费/支出限额问题（账户级，需在 Billing & plans 处理后重推 tag）
+
+## 已知待办（桌面端特有，不阻塞）
+
+- 后端返回的上传文件为相对路径 `/uploads/...`，打包态 `<img src>` 打向资产协议，头像/上传图片不显示；需在前端加统一 `resolveMediaUrl`（桌面壳下拼后端 origin）或后端返回绝对 URL
+- 本地开发库 schema 漂移：`appointments.assistant_confirm_status` 列缺失（alembic 已在 head），`/statistics/overview` 与 `/statistics/revenue/trend` 500——与桌面壳无关，web 同样复现
+- 拉取本批改动后，各端 umi dev 需清一次 MFSU 缓存（`rm -rf node_modules/.cache src/.umi`），否则报 `isTauriDesktop is not a function`
