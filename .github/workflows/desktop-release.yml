@@ -87,6 +87,8 @@ jobs:
         run: |
           tag="${GITHUB_REF_NAME}"
           version="${tag#desktop-v}"
+          # 允许 -rcN 后缀：desktop-v1.1.0-rc1 对应 package.json 的 1.1.0
+          case "$version" in *-rc[0-9]*) version="${version%%-*}" ;; esac
           fail=0
           for app in admin doctor; do
             pkg_version="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])' "apps/${app}/package.json")"
@@ -102,6 +104,7 @@ jobs:
         if: ${{ github.event_name == 'push' }}
         run: |
           version="${GITHUB_REF_NAME#desktop-v}"
+          case "$version" in *-rc[0-9]*) version="${version%%-*}" ;; esac
           desktop-release/extract-notes.sh "$version" > "$RUNNER_TEMP/notes.md"
           {
             echo "notes<<__DESKTOP_NOTES__"
