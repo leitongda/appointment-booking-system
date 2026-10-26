@@ -1,5 +1,7 @@
-"""智谱 AI embedding 提供方（embedding-3，OpenAI 兼容接口）
+"""OpenAI 兼容 /embeddings 提供方（智谱 / 硅基流动 / 阿里百炼 / 任意兼容网关）
 
+请求：POST {base_url}/embeddings  {"model", "input": [...], ("dimensions")}，Bearer 鉴权；
+响应：{"data": [{"index", "embedding"}], "usage": {...}}。
 日志只记录调用次数 / token 数 / 错误类别，不记录任何文本内容。
 """
 import httpx
@@ -12,7 +14,7 @@ from app.infrastructure.embedding.base import (
 )
 
 
-class ZhipuEmbeddingProvider(BaseEmbeddingProvider):
+class OpenAICompatibleEmbeddingProvider(BaseEmbeddingProvider):
     def __init__(
         self,
         api_key: str,
@@ -21,6 +23,8 @@ class ZhipuEmbeddingProvider(BaseEmbeddingProvider):
         base_url: str,
         batch_size: int = 32,
         timeout: float = 30.0,
+        send_dimensions: bool = True,
+        transport: httpx.AsyncBaseTransport | None = None,
     ):
         self.api_key = api_key
         self.model_name = model
@@ -28,22 +32,27 @@ class ZhipuEmbeddingProvider(BaseEmbeddingProvider):
         self.base_url = base_url.rstrip("/")
         self.batch_size = max(1, batch_size)
         self.timeout = timeout
+        self.send_dimensions = send_dimensions
+        self._transport = transport
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
         if not texts:
             return []
         vectors: list[list[float]] = []
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
+        async with httpx.AsyncClient(timeout=self.timeout, transport=self._transport) as client:
             for start in range(0, len(texts), self.batch_size):
                 batch = texts[start:start + self.batch_size]
                 vectors.extend(await self._embed_batch(client, batch))
         return vectors
 
     async def _embed_batch(self, client: httpx.AsyncClient, batch: list[str]) -> list[list[float]]:
+        payload: dict = {"model": self.model_name, "input": batch}
+        if self.send_dimensions:
+            payload["dimensions"] = self.dims
         try:
             response = await client.post(
                 f"{self.base_url}/embeddings",
-                json={"model": self.model_name, "input": batch, "dimensions": self.dims},
+                json=payload,
                 headers={"Authorization": f"Bearer {self.api_key}"},
             )
         except httpx.HTTPError as exc:
@@ -58,16 +67,17 @@ class ZhipuEmbeddingProvider(BaseEmbeddingProvider):
             raise EmbeddingError(f"embedding 提供方 HTTP {response.status_code}")
 
         try:
-            payload = response.json()
-            items = payload["data"]
+            body = response.json()
+            items = body["data"]
         except (ValueError, KeyError, TypeError) as exc:
             raise EmbeddingError("embedding 提供方响应格式异常") from exc
         if len(items) != len(batch):
             raise EmbeddingError(f"embedding 返回数量不匹配: 期望 {len(batch)} 实际 {len(items)}")
 
         items = sorted(items, key=lambda item: item.get("index", 0))
-        usage = payload.get("usage") or {}
+        usage = body.get("usage") or {}
         logger.info(
-            f"[knowledge] embedding 调用成功 batch={len(batch)} tokens={usage.get('total_tokens', '-')}"
+            f"[knowledge] embedding 调用成功 model={self.model_name} batch={len(batch)} "
+            f"tokens={usage.get('total_tokens', '-')}"
         )
         return [list(map(float, item["embedding"])) for item in items]

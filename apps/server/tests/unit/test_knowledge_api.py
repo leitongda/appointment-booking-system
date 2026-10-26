@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import app.modules.knowledge.service_search as search_module
 from app.core.config import settings
 from app.enums.knowledge import KnowledgeDocStatus
-from app.infrastructure.embedding import EmbeddingError
+from app.infrastructure.embedding import EmbeddingError, get_embedding_config
 from app.models.knowledge import KnowledgeBase, KnowledgeDocument
 from tests.fixtures.knowledge import KnowledgeEnv
 
@@ -63,7 +63,7 @@ async def test_create_base_defaults_to_private_owner(async_client, kb_env: Knowl
     assert kb["visibility"] == "private"
     assert kb["ownerAdminId"] == kb_env.owner.id
     assert kb["myPermission"] == "owner"
-    assert kb["embeddingModel"] == settings.KB_EMBEDDING_MODEL
+    assert kb["embeddingModel"] == get_embedding_config().model
     assert kb["embeddingDims"] == settings.KB_EMBEDDING_DIMS
 
     listed = await async_client.get(BASES, headers=kb_env.h(kb_env.owner))

@@ -22,7 +22,7 @@
 ## 阶段 2：基础设施（embedding / 解析 / 存储）
 
 - [x] 2.1 `app/infrastructure/embedding/base.py`：`BaseEmbeddingProvider.embed(texts) -> list[list[float]]`、`model_name`、`dims`；`get_embedding_provider()` 按 `KB_EMBEDDING_PROVIDER` 装配
-- [x] 2.2 `app/infrastructure/embedding/zhipu.py`：智谱 `embedding-3`，`dimensions=1024`，批量 ≤ 64，httpx 超时 30s，429/5xx 抛 `EmbeddingRetryableError`，其余抛 `EmbeddingError`；日志只记次数/类别
+- [x] 2.2 `app/infrastructure/embedding/openai_compatible.py`：OpenAI 兼容 `/embeddings` 客户端（预设 siliconflow/zhipu/dashscope + 自定义网关，`get_embedding_config()` 解析），批量 ≤ 32，httpx 超时 30s，429/5xx/网络抛 `EmbeddingRetryableError`，其余抛 `EmbeddingError`；日志只记次数/类别；14 个 MockTransport 单元测试
 - [x] 2.3 `app/infrastructure/document_parser/`：`base.py`（`Block(text, page_no, section)`）、`pdf.py`（pypdf 逐页；全文为空 → `ParseError("PDF 无文本层（疑似扫描件），暂不支持 OCR")`）、`docx.py`、`xlsx.py`、`text.py`；`get_parser(mime_type)`
 - [x] 2.4 `app/modules/knowledge/chunker.py`：按段落聚合至 `KB_CHUNK_CHARS=800`、重叠 `KB_CHUNK_OVERLAP=80`，保留 `page_no/section/seq`
 - [x] 2.5 存储 key 规范 `knowledge/{tenant_id}/{kb_id}/{doc_id}/{file_name}`，复用 `get_storage()`；临时文件统一写 `KB_TMP_DIR` 并 `finally` 清理

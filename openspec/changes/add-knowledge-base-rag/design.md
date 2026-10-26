@@ -45,8 +45,9 @@
   - 检索会话 `SET LOCAL hnsw.ef_search = 100`（默认 40，召回优先）。
   - pgvector 版本钉 0.8.7；PG 大版本升级时需按 `docs/deployment-baota-docker.md` 新增章节重编。
 
-### D3. Embedding：国内厂商 API，抽象可替换
-- 决策：`app/infrastructure/embedding/{base.py, zhipu.py}`，`BaseEmbeddingProvider.embed(texts: list[str]) -> list[list[float]]`，首个实现智谱 `embedding-3`（`dimensions=1024`）。配置：`KB_EMBEDDING_PROVIDER=zhipu`、`KB_EMBEDDING_MODEL=embedding-3`、`KB_EMBEDDING_DIMS=1024`、`ZHIPU_API_KEY`。
+### D3. Embedding：国内厂商 OpenAI 兼容 API，预设可切换
+- 决策：`app/infrastructure/embedding/{base.py, openai_compatible.py, __init__.py}`，`BaseEmbeddingProvider.embed(texts) -> list[list[float]]`；唯一实现 `OpenAICompatibleEmbeddingProvider`（POST `{base_url}/embeddings`，Bearer 鉴权，可选 `dimensions` 参数）。`KB_EMBEDDING_PROVIDER` 预设：`siliconflow`（硅基流动 `BAAI/bge-m3`，免费，不接受 dimensions；**推荐**）/ `zhipu`（`embedding-3`，¥0.5/百万 token）/ `dashscope`（阿里百炼 `text-embedding-v3`）/ `openai_compatible`（自定义 `KB_EMBEDDING_BASE_URL` + `KB_EMBEDDING_MODEL`）。三预设默认模型均 1024 维，与 `vector(1024)` 一致；`KB_EMBEDDING_API_KEY` 通用，zhipu 预设兼容旧的 `ZHIPU_API_KEY`。建库时记录 `get_embedding_config().model/dims` 为模型指纹。
+- 验证过不可用的：用户提供的 SenseNova 网关（`token.sensenova.cn/v1`）只有 7 个对话模型、`/embeddings` 对所有模型名 404——对话模型留给后续问答生成 change。
 - 理由：生产 3.6G 内存已用 swap，bge-small-zh 也要 300–500M，bge-m3 2G+，TEI/ollama 容器不可行；国内厂商数据不出境，成本可忽略（千万 token 量级几十元）。
 - 工程约束：批量 ≤ 64 文本/次；指数退避重试 3 次；429/5xx 归类为可重试错误，任务进入 `retry`，超过上限置 `failed(stage=embedding)`；**只记录调用次数与 token 数，不记录文本内容**到日志。
 - 备选：OpenAI text-embedding-3——数据出境，医疗场景否决；自托管——待升配 8G+ 后另评估（抽象层已留）。

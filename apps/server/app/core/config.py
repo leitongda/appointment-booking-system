@@ -196,9 +196,15 @@ class Settings(BaseSettings):
 
     # 知识库（RAG）配置 —— openspec add-knowledge-base-rag
     KB_ENABLED: bool = False  # 灰度开关：false 时 /knowledge 路由整体 404
-    KB_EMBEDDING_PROVIDER: str = "zhipu"  # 目前仅 zhipu；生产机内存不足以自托管模型
-    KB_EMBEDDING_MODEL: str = "embedding-3"
+    # embedding 走 OpenAI 兼容的 /embeddings 接口（生产机内存不足以自托管模型）。
+    # 预设：zhipu（embedding-3，¥0.5/百万 token）/ siliconflow（BAAI/bge-m3，免费）/ dashscope（text-embedding-v3）
+    # 或 openai_compatible（自定义 KB_EMBEDDING_BASE_URL）。三者默认模型都是 1024 维。
+    KB_EMBEDDING_PROVIDER: str = "zhipu"
+    KB_EMBEDDING_BASE_URL: str | None = None  # 留空用预设地址；openai_compatible 必填
+    KB_EMBEDDING_API_KEY: str | None = None  # 通用 key；zhipu 预设未设时回落 ZHIPU_API_KEY
+    KB_EMBEDDING_MODEL: str | None = None  # 留空用预设模型；切换模型 = 整库重建，禁止同库混维
     KB_EMBEDDING_DIMS: int = 1024  # 必须与 knowledge_chunks.embedding vector(1024) 一致
+    KB_EMBEDDING_SEND_DIMENSIONS: str = ""  # "true"/"false" 显式指定请求是否带 dimensions 参数；空 = 按预设（bge 系列不支持）
     KB_EMBED_BATCH_SIZE: int = 32
     ZHIPU_API_KEY: str | None = None
     ZHIPU_BASE_URL: str = "https://open.bigmodel.cn/api/paas/v4"

@@ -9,7 +9,7 @@
 
 - 知识库本体在服务端，admin 页面同时服务 web 与 Tauri 桌面壳（桌面壳零改动）。
 - 向量存储：PostgreSQL + pgvector（`vector(1024)` + HNSW 余弦索引），不引入额外中间件。
-- embedding：国内厂商 API（智谱 `embedding-3`，1024 维），生产机内存不足以自托管模型。
+- embedding：国内厂商 OpenAI 兼容 API，预设可切换——硅基流动 `BAAI/bge-m3`（免费，推荐）/ 智谱 `embedding-3` / 阿里百炼 `text-embedding-v3`，均 1024 维；生产机内存不足以自托管模型。
 - 处理管线：Celery 独立队列 `knowledge`，单并发 worker，与核心业务 worker 隔离。
 
 ## 二、功能清单（机构端 admin）
@@ -86,9 +86,11 @@ upload (API) ──► status=pending ──► Celery knowledge 队列
 | 变量 | 默认 | 说明 |
 |------|------|------|
 | `KB_ENABLED` | `false` | 灰度开关；false 时 `/knowledge/*` 整体 404，前端页面提示未启用 |
-| `KB_EMBEDDING_PROVIDER` | `zhipu` | 目前仅智谱；替换需实现 `BaseEmbeddingProvider` |
-| `KB_EMBEDDING_MODEL` / `KB_EMBEDDING_DIMS` | `embedding-3` / `1024` | 维度必须与 `vector(1024)` 一致；切换 = 整库重建 |
-| `ZHIPU_API_KEY` / `ZHIPU_BASE_URL` | — | 智谱开放平台 |
+| `KB_EMBEDDING_PROVIDER` | `zhipu` | 预设 `siliconflow`（免费 bge-m3，推荐）/ `zhipu` / `dashscope` / `openai_compatible`（自定义网关） |
+| `KB_EMBEDDING_API_KEY` | — | 提供方 key（zhipu 预设兼容 `ZHIPU_API_KEY`） |
+| `KB_EMBEDDING_BASE_URL` / `KB_EMBEDDING_MODEL` | 预设值 | 留空用预设；`openai_compatible` 必填。维度必须与 `vector(1024)` 一致；切换模型 = 整库重建 |
+| `KB_EMBEDDING_SEND_DIMENSIONS` | 按预设 | `true`/`false` 控制请求是否带 `dimensions` 参数（bge 系列不支持） |
+| `KB_EMBEDDING_DIMS` | `1024` | 与 `knowledge_chunks.embedding vector(1024)` 一致 |
 | `KB_EMBED_BATCH_SIZE` | `32` | 每次请求的文本数 |
 | `KB_MAX_FILE_MB` | `50` | 单文件上限；nginx `client_max_body_size` 需同步放宽 |
 | `KB_TMP_DIR` | `var/server/kb-tmp` | 非 local 存储时下载原件的临时目录，**必须是磁盘卷**（容器 `/tmp` 是 tmpfs） |
@@ -98,7 +100,8 @@ upload (API) ──► status=pending ──► Celery knowledge 队列
 ## 八、部署与运维
 
 - compose 新增 `celery_knowledge_worker`：`-Q knowledge -c 1 --max-tasks-per-child=20 --max-memory-per-child=400000`，挂 `./apps/server/uploads:ro` 与 `./apps/server/var/kb-tmp`（宿主机需 `mkdir -p && chmod 1777`）。
-- `backend` 服务也需要 `KB_*` / `ZHIPU_API_KEY` 环境变量（检索时向量化查询）。
+- `backend` 服务也需要 `KB_*` / `KB_EMBEDDING_API_KEY` 环境变量（检索时向量化查询）。
+- 推荐生产 `.env`：`KB_EMBEDDING_PROVIDER=siliconflow` + `KB_EMBEDDING_API_KEY=<硅基流动 key>`（bge-m3 免费、1024 维、中文检索质量好；注册即送额度，无需绑卡）。
 - 上线顺序：`alembic upgrade head` → 权限 seed（`scripts/init_permissions.py`，新增 7 个码）→ `docker compose up -d --build` → `KB_ENABLED=false` 先上 → 灰度打开。
 - 观测：Flower 看 `knowledge` 队列；日志关键字 `[knowledge]`；`knowledge_documents.failed_stage` 分布决定是否立 OCR change。
 - 合规：分块文本会发往 embedding 厂商，上传入口固定提示"请勿上传含患者个人信息的文件"；敏感资料需升配后切自托管 provider。

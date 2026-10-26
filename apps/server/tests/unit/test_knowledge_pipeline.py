@@ -16,7 +16,7 @@ from app.core.config import settings
 from app.enums.knowledge import KnowledgeDocStatus, KnowledgeFailedStage
 from app.infrastructure.document_parser import file_extension
 from app.infrastructure.document_parser.pdf import SCANNED_PDF_MESSAGE
-from app.infrastructure.embedding import EmbeddingError, EmbeddingRetryableError
+from app.infrastructure.embedding import EmbeddingError, EmbeddingRetryableError, get_embedding_config
 from app.models.knowledge import KnowledgeBase, KnowledgeChunk, KnowledgeDocument
 from app.modules.knowledge.pipeline import run_document_pipeline
 from tests.fixtures.knowledge import KnowledgeEnv
@@ -28,7 +28,7 @@ TXT = "第一条 本制度适用于全院各科室。\n\n第二条 手术前 8 �
 class FakeProvider:
     def __init__(self, dims: int = DIMS, model: str | None = None, error: Exception | None = None):
         self.dims = dims
-        self.model_name = model or settings.KB_EMBEDDING_MODEL
+        self.model_name = model or get_embedding_config().model
         self.error = error
         self.calls = 0
 
@@ -52,7 +52,7 @@ async def seed_doc(
         name="管线测试库",
         owner_admin_id=env.owner.id,
         visibility="private",
-        embedding_model=settings.KB_EMBEDDING_MODEL,
+        embedding_model=get_embedding_config().model,
         embedding_dims=DIMS,
     )
     key = f"tenants/{env.tenant.id}/knowledge/{kb.id}/doc/{uuid.uuid4().hex}.{file_extension(file_name)}"

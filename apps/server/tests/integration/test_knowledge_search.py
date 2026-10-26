@@ -8,8 +8,8 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import app.modules.knowledge.service_search as search_module
-from app.core.config import settings
 from app.enums.knowledge import KnowledgeDocStatus
+from app.infrastructure.embedding import get_embedding_config
 from app.models.knowledge import KnowledgeBase, KnowledgeChunk, KnowledgeDocument
 from tests.fixtures.knowledge import KnowledgeEnv
 
@@ -28,7 +28,7 @@ def one_hot(index: int) -> list[float]:
 
 
 class QueryProvider:
-    model_name = settings.KB_EMBEDDING_MODEL
+    model_name = get_embedding_config().model
     dims = DIMS
 
     def __init__(self, vector: list[float]):
@@ -45,7 +45,7 @@ async def seed(db: AsyncSession, env: KnowledgeEnv):
         name="检索库",
         owner_admin_id=env.owner.id,
         visibility="private",
-        embedding_model=settings.KB_EMBEDDING_MODEL,
+        embedding_model=get_embedding_config().model,
         embedding_dims=DIMS,
     )
     ready = KnowledgeDocument(

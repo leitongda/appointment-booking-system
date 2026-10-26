@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.logging import logger
 from app.enums.knowledge import KnowledgeDocStatus
-from app.infrastructure.embedding import EmbeddingError, get_embedding_provider
+from app.infrastructure.embedding import EmbeddingError, get_embedding_config, get_embedding_provider
 from app.middleware.tenant_context import get_current_tenant_id
 from app.models.knowledge import KnowledgeBase, KnowledgeChunk, KnowledgeDocument
 from app.modules.knowledge.exceptions import (
@@ -54,9 +54,10 @@ class KnowledgeSearchService:
         return sorted(visible)
 
     async def _assert_embedding_consistent(self, kb_ids: list[str]) -> None:
+        current = get_embedding_config()
         stmt = select(KnowledgeBase.embedding_model, KnowledgeBase.embedding_dims).where(KnowledgeBase.id.in_(kb_ids))
         for model, dims in (await self.db.execute(stmt)).all():
-            if model != settings.KB_EMBEDDING_MODEL or dims != settings.KB_EMBEDDING_DIMS:
+            if model != current.model or dims != current.dims:
                 raise KnowledgeEmbeddingMismatch("该知识库的向量模型与当前配置不一致，需重建索引后方可检索")
 
     async def search(self, query: str, kb_ids: list[str] | None, top_k: int) -> KnowledgeSearchResponse:
@@ -75,7 +76,7 @@ class KnowledgeSearchService:
         except EmbeddingError as exc:
             logger.warning(f"[knowledge] 查询向量化失败: {type(exc).__name__}")
             raise KnowledgeEmbeddingUnavailable("检索服务暂不可用，请稍后重试") from exc
-        if len(query_vector) != settings.KB_EMBEDDING_DIMS:
+        if len(query_vector) != provider.dims:
             raise KnowledgeEmbeddingUnavailable("检索服务返回的向量维度异常")
 
         if self.db.bind is not None and self.db.bind.dialect.name == "postgresql":

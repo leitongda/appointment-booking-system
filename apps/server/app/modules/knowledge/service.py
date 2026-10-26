@@ -3,9 +3,9 @@ import uuid
 
 from sqlalchemy import delete, func, select
 
-from app.core.config import settings
 from app.core.logging import logger
 from app.enums.knowledge import KnowledgeVisibility
+from app.infrastructure.embedding import get_embedding_config
 from app.infrastructure.storage import get_storage
 from app.models.knowledge import (
     KnowledgeBase,
@@ -70,6 +70,7 @@ class KnowledgeService(KnowledgeServiceBase):
         return list(rows), total
 
     async def create_base(self, data: KnowledgeBaseCreate) -> KnowledgeBase:
+        embedding = get_embedding_config()
         kb = KnowledgeBase(
             id=str(uuid.uuid4()),
             tenant_id=self.tenant_id,
@@ -77,8 +78,8 @@ class KnowledgeService(KnowledgeServiceBase):
             description=data.description,
             owner_admin_id=self.admin_id,
             visibility=data.visibility.value,
-            embedding_model=settings.KB_EMBEDDING_MODEL,
-            embedding_dims=settings.KB_EMBEDDING_DIMS,
+            embedding_model=embedding.model,
+            embedding_dims=embedding.dims,
             created_by=self.admin_id,
         )
         self.db.add(kb)
