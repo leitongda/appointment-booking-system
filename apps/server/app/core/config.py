@@ -117,9 +117,13 @@ class Settings(BaseSettings):
     
     # CORS
     # 同时支持 localhost 和 127.0.0.1，因为浏览器将它们视为不同的域
+    # Tauri 桌面客户端（admin/doctor 打包态）运行在自定义协议上，是唯一真正跨域的客户端：
+    # macOS/Linux 为 tauri://localhost，Windows 为 http(s)://tauri.localhost。
+    # 不加入白名单则所有预检被拒（400 Disallowed CORS origin），桌面端无法访问后端。
     BACKEND_CORS_ORIGINS: list[str] = [
         "http://localhost:8002", "http://localhost:8003", "http://localhost:8005", "http://localhost:9102",
-        "http://127.0.0.1:8002", "http://127.0.0.1:8003", "http://127.0.0.1:8005", "http://127.0.0.1:9102"
+        "http://127.0.0.1:8002", "http://127.0.0.1:8003", "http://127.0.0.1:8005", "http://127.0.0.1:9102",
+        "tauri://localhost", "http://tauri.localhost", "https://tauri.localhost",
     ]
     
     # 限流配置
