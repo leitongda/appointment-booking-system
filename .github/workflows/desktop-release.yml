@@ -123,17 +123,31 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build desktop app
-        uses: tauri-apps/tauri-action@v0
+      - name: Configure macOS signing (only when secrets are set)
+        # Tauri 只要看到 APPLE_CERTIFICATE 变量存在（即使为空）就会尝试 security import，
+        # 空值会让打包在 codesign 阶段失败；因此仅在 secret 非空时才写入环境，缺省出未签名包。
+        if: ${{ runner.os == 'macOS' }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # macOS 签名与公证（secrets 缺失时为空，tauri 跳过签名）
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [ -n "$APPLE_CERTIFICATE" ]; then
+            for v in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
+              printf '%s=%s\n' "$v" "${!v}" >> "$GITHUB_ENV"
+            done
+            echo "macOS 签名/公证已启用"
+          else
+            echo "未配置 APPLE_CERTIFICATE，产出未签名包"
+          fi
+
+      - name: Build desktop app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           projectPath: apps/${{ matrix.app }}
           # 仓库没有名为 tauri 的 npm script；显式用 pnpm 调用 @tauri-apps/cli（默认 npm run tauri 会 Missing script）
