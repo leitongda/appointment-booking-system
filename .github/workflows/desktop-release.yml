@@ -136,6 +136,8 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
           projectPath: apps/${{ matrix.app }}
+          # 仓库没有名为 tauri 的 npm script；显式用 pnpm 调用 @tauri-apps/cli（默认 npm run tauri 会 Missing script）
+          tauriScript: pnpm tauri
           # 推 tag 时上传到 create-release 预建的草稿；手动触发（分支）不碰 Release，产物走 artifact
           releaseId: ${{ needs.prepare.outputs.release_id }}
           args: ${{ matrix.platform.args }}
