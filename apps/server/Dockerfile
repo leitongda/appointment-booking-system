@@ -2,6 +2,13 @@ FROM python:3.12-slim AS base
 
 WORKDIR /app
 
+# 国内服务器直连 Debian 官方源不稳定（apt 退出码 100 / 下载停滞）：在首层就把 apt 切到阿里源，
+# 后续所有 apt-get 都复用。此前只在 playwright 层切源，首层 apt-get install curl 仍走 deb.debian.org，
+# 一旦 requirements.txt 变化导致该层重建就会卡死。
+RUN sed -i 's|deb.debian.org|mirrors.aliyun.com|g; s|security.debian.org|mirrors.aliyun.com|g' \
+        /etc/apt/sources.list.d/debian.sources 2>/dev/null \
+    || sed -i 's|deb.debian.org|mirrors.aliyun.com|g; s|security.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list
+
 # 安装系统依赖 + Python 依赖（这一层会被 Docker 缓存）
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple \
@@ -9,15 +16,11 @@ RUN pip install --no-cache-dir -r requirements.txt -i https://pypi.tuna.tsinghua
     && rm -rf /var/lib/apt/lists/*
 
 # 安装 Playwright Chromium 及其系统依赖（供定期 admin 网页截图任务使用）
-# 国内服务器直连 Debian 官方源不稳定（apt 退出码 100）：apt 换阿里源。
 # 浏览器二进制（167MB）在国内构建机上经常龟速/失败：默认跳过（INSTALL_CHROMIUM=false），
 # 需要 screenshot 能力时用 --build-arg INSTALL_CHROMIUM=true 重建，
 # 或在运行中的容器内手动 `playwright install chromium`。
 ARG INSTALL_CHROMIUM=false
-RUN sed -i 's|deb.debian.org|mirrors.aliyun.com|g; s|security.debian.org|mirrors.aliyun.com|g' \
-        /etc/apt/sources.list.d/debian.sources 2>/dev/null \
-    || sed -i 's|deb.debian.org|mirrors.aliyun.com|g; s|security.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list \
-    && playwright install-deps chromium \
+RUN playwright install-deps chromium \
     && if [ "$INSTALL_CHROMIUM" = "true" ]; then \
            playwright install chromium || echo "WARN: chromium 下载失败，admin 截图任务不可用"; \
        else \
