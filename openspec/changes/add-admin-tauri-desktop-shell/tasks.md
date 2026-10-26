@@ -44,7 +44,7 @@
 - [x] 6.5 顺手修 doctor 既有缺陷：`/logo.svg` 引用但 public/ 无文件（web 端 404 静默，Tauri 日志暴露），从 admin 复制
 - [ ] 6.6 共享包 tracker page_path 的 hash 感知统一（可选）
 - [x] 6.7 人工 GUI 冒烟（admin）：登录 → 仪表盘（真实数据）→ 医生列表（5/5 姓名）全通过；过程中修复 CORS 白名单（服务端）
-- [~] 6.8 GUI 冒烟（doctor）：web 层通过（落地 /dashboard、姓名、菜单、token）；桌面 GUI 因本机内存压力（swap 10.7/12 GB，WebKit 渲染进程被回收）未完成，换机或释放内存后重跑
+- [x] 6.8 GUI 冒烟（doctor，真机 .app）：登录 → 工作台（姓名/职称、全部菜单、三组卡片）通过；登录态跨重启持久化；过程中修复桌面端 WebSocket 基址（原按页面 origin 推断得到 ws://localhost，现随机构 baseURL 派生），右上角「实时」绿标 + 服务端握手日志确认
 - [x] 6.9 修复 doctor 登录既有缺陷（web 与桌面均受影响）：服务端 `/doctors/login` snake_case → camelCase 对齐；登录页 refresh() 早退 → 改整页跳转
 - [x] 6.10 Windows 脚本兼容：desktop:dev/build 改 cross-env；CI pnpm 由 packageManager 决定（lockfile v9）
 - [~] 6.11 CI 实跑：推 tag `desktop-v0.1.0-rc1`，workflow 已通过解析并创建作业；但作业无法启动——GitHub 账户 Actions 计费/支出限额问题（账户级，需在 Billing & plans 处理后重推 tag）
