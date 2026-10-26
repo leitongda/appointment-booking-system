@@ -1,0 +1,140 @@
+name: Desktop Release (Tauri)
+
+# 桌面客户端打包：admin / doctor × macOS(arm64+x64) / Windows(x64)。
+# 触发：推 tag `desktop-v*`（如 desktop-v1.0.0）或手动触发。
+# 产物：挂到同名 GitHub Release（草稿，人工审核后发布）。
+#
+# 签名/公证（可选，缺 secrets 时照常出未签名包）：
+#   macOS：APPLE_CERTIFICATE / APPLE_CERTIFICATE_PASSWORD / APPLE_SIGNING_IDENTITY /
+#          APPLE_ID / APPLE_PASSWORD / APPLE_TEAM_ID（Developer ID + 公证）
+#   自动更新签名：TAURI_SIGNING_PRIVATE_KEY / TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+#          （启用 updater 插件后才需要；目前未启用）
+#
+# Windows runner 不需额外依赖（WebView2 由安装包引导）；macOS 不需额外依赖。
+
+on:
+  push:
+    tags:
+      - 'desktop-v*'
+  workflow_dispatch:
+    inputs:
+      app:
+        description: '要打包的端（all / admin / doctor）'
+        required: false
+        default: 'all'
+
+env:
+  TAURI_DESKTOP: '1'
+
+jobs:
+  # 推 tag 时先建一次 Release 草稿，避免 6 个矩阵作业并发各自建 Release 产生竞争
+  create-release:
+    if: ${{ github.event_name == 'push' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      release_id: ${{ steps.create.outputs.result }}
+    steps:
+      - name: Create draft release
+        id: create
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const tag = context.ref.replace('refs/tags/', '');
+            const { data } = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: tag,
+              name: `Desktop ${tag}`,
+              body: [
+                '桌面客户端（Tauri 2）。',
+                '- HospitalAdmin：机构管理端',
+                '- HospitalDoctor：医生端',
+                '',
+                '安装后在应用数据目录创建 desktop-config.json 指向机构后端：',
+                '`{"desktop.baseUrl": "http://<server>:9000/api/v1"}`',
+              ].join('\n'),
+              draft: true,
+              prerelease: false,
+            });
+            return data.id;
+
+  build:
+    needs: [create-release]
+    # workflow_dispatch 时 create-release 被跳过，needs 仍需放行
+    if: ${{ always() && (needs.create-release.result == 'success' || needs.create-release.result == 'skipped') && (github.event_name == 'push' || github.event.inputs.app == 'all' || github.event.inputs.app == matrix.app) }}
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [admin, doctor]
+        platform:
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            args: '--target aarch64-apple-darwin'
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            args: '--target x86_64-apple-darwin'
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            args: ''
+    runs-on: ${{ matrix.platform.os }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform.target }}
+
+      - name: Cache Rust build
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: apps/${{ matrix.app }}/src-tauri -> target
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build desktop app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # macOS 签名与公证（secrets 缺失时为空，tauri 跳过签名）
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        with:
+          projectPath: apps/${{ matrix.app }}
+          # 推 tag 时上传到 create-release 预建的草稿；手动触发（分支）不碰 Release，产物走 artifact
+          releaseId: ${{ needs.create-release.outputs.release_id }}
+          args: ${{ matrix.platform.args }}
+
+      - name: Upload bundles as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.app }}-${{ matrix.platform.target }}
+          path: |
+            apps/${{ matrix.app }}/src-tauri/target/**/release/bundle/dmg/*.dmg
+            apps/${{ matrix.app }}/src-tauri/target/**/release/bundle/macos/*.app
+            apps/${{ matrix.app }}/src-tauri/target/**/release/bundle/nsis/*.exe
+            apps/${{ matrix.app }}/src-tauri/target/**/release/bundle/msi/*.msi
+          if-no-files-found: warn
+          retention-days: 14
