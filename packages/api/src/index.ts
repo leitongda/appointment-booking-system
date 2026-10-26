@@ -11,6 +11,10 @@ export {
 } from './request';
 export type { HttpClient } from './request';
 
+// 导出 Tauri 桌面壳分支（仅 window.__TAURI__ 存在时生效，web 端零变化）
+export { isTauriDesktop, isTauriPackaged, applyDesktopBaseUrl } from './desktop';
+export type { DesktopConfig } from './desktop';
+
 // 导出共享错误处理工具
 export {
   ERROR_MESSAGES,

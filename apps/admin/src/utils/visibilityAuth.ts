@@ -1,7 +1,9 @@
 import { adminApi } from '@hospital/api';
 import { isTokenExpired, markAuthExpired, handleTokenExpired, getToken, isPublicEntryRoute, rememberReturnPath } from '@hospital/shared';
 import { Modal } from 'antd';
+import { history } from '@umijs/max';
 import { LOGIN_PATH } from '@/constants/paths';
+import { hardNavigate } from './hardNavigate';
 
 const VISIBILITY_AUTH_CHECK_INTERVAL = 30 * 1000;
 
@@ -18,7 +20,9 @@ const showTokenExpiredModal = (content = '您的登录已过期，请重新登�
     }
     // 记忆当前业务页，供重新登录后回跳（与 onPageChange 写 LAST_PATH 的条件互补：
     // 此时 token 已被 handleTokenExpired 清除，onPageChange 不会写）。
-    rememberReturnPath();
+    // 显式传 umi 路由 location（hash 路由下 window.location.pathname 恒为 '/'）。
+    const { pathname, search, hash } = history.location;
+    rememberReturnPath(pathname, search || undefined, hash || undefined);
     Modal.confirm({
       title: '登录已过期',
       content,
@@ -28,7 +32,7 @@ const showTokenExpiredModal = (content = '您的登录已过期，请重新登�
       maskClosable: false,
       onOk: () => {
         Modal.destroyAll();
-        window.location.href = LOGIN_PATH;
+        hardNavigate(LOGIN_PATH);
       },
     });
   });
