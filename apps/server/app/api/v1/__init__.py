@@ -140,6 +140,7 @@ ROUTER_REGISTRATIONS = [
     RouterRegistration("app.modules.common_services.router", "/common-services", ["常见服务"]),
     RouterRegistration("app.modules.common_services.router", "/content", ["常见服务"]),
     RouterRegistration("app.modules.feedbacks.router", "/feedbacks", ["用户反馈"]),
+    RouterRegistration("app.modules.knowledge.router", "/knowledge", ["知识库"]),
     RouterRegistration("app.modules.guide_tours.router", "/guide-tours", ["操作指引"]),
     RouterRegistration("app.modules.guide_tours.router_admin", "/admin/guide-tours", ["操作指引管理"]),
     RouterRegistration("app.modules.integration.router", "/integration", ["第三方集成"]),

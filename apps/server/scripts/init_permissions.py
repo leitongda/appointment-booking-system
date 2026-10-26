@@ -243,6 +243,14 @@ PERMISSIONS = [
     {"code": "lowcode:template:update", "name": "编辑模板", "type": "button", "parent_code": "lowcode:template", "sort": 4},
     {"code": "lowcode:template:delete", "name": "删除模板", "type": "button", "parent_code": "lowcode:template", "sort": 5},
     {"code": "lowcode:template:fork", "name": "复制模板", "type": "button", "parent_code": "lowcode:template", "sort": 6},
+    # ========== 知识库（openspec add-knowledge-base-rag） ==========
+    {"code": "knowledge", "name": "知识库", "type": "menu", "parent_code": None, "icon": "book", "sort": 22},
+    {"code": "knowledge:read", "name": "查看/检索知识库", "type": "button", "parent_code": "knowledge", "sort": 1},
+    {"code": "knowledge:create", "name": "创建知识库/上传文档", "type": "button", "parent_code": "knowledge", "sort": 2},
+    {"code": "knowledge:update", "name": "整理目录/重新处理", "type": "button", "parent_code": "knowledge", "sort": 3},
+    {"code": "knowledge:delete", "name": "删除文档/知识库", "type": "button", "parent_code": "knowledge", "sort": 4},
+    {"code": "knowledge:share", "name": "共享知识库", "type": "button", "parent_code": "knowledge", "sort": 5},
+    {"code": "knowledge:manage", "name": "治理全部知识库", "type": "button", "parent_code": "knowledge", "sort": 6},
 ]
 
 for permission in PERMISSIONS:

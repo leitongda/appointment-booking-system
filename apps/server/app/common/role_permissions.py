@@ -37,6 +37,20 @@ ADMIN_APPROVAL_PERMISSIONS: set[str] = {
 }
 
 # ============================================================
+# 知识库权限定义（openspec add-knowledge-base-rag）
+# 权限码只决定"能否使用该类功能"；对具体知识库的 owner/edit/read 级别
+# 由 modules/knowledge/service_access.py 按 owner / 共享 / 可见性二次判定
+# ============================================================
+ADMIN_KNOWLEDGE_PERMISSIONS: set[str] = {
+    "knowledge:read",              # 查看/检索/预览可见的知识库
+    "knowledge:create",            # 创建知识库、上传文档
+    "knowledge:update",            # 目录整理、重命名、重新处理失败文档
+    "knowledge:delete",            # 删除文档/知识库（级别仍受 owner/edit 约束）
+    "knowledge:share",             # 共享给同事/角色（仅 owner 或 manage）
+    "knowledge:manage",            # 治理租户内全部知识库（含他人私有库）
+}
+
+# ============================================================
 # 医生权限定义
 # ============================================================
 DOCTOR_PERMISSIONS: set[str] = {
@@ -120,7 +134,9 @@ SYSTEM_ROLES: dict[str, dict] = {
         "name": "租户管理员",
         "role_type": "admin",
         "is_default": False,
-        "permissions": sorted(ADMIN_SCHEDULE_PERMISSIONS | ADMIN_APPROVAL_PERMISSIONS),
+        "permissions": sorted(
+            ADMIN_SCHEDULE_PERMISSIONS | ADMIN_APPROVAL_PERMISSIONS | ADMIN_KNOWLEDGE_PERMISSIONS
+        ),
     },
     "STORE_ADMIN": {
         "name": "门店管理员",

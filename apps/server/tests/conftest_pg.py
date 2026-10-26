@@ -42,6 +42,10 @@ async def pg_session(pg_engine):
 
     # 创建所有表
     async with pg_engine.begin() as conn:
+        # 知识库 knowledge_chunks.embedding 依赖 pgvector 扩展
+        from sqlalchemy import text as _sa_text
+
+        await conn.execute(_sa_text("CREATE EXTENSION IF NOT EXISTS vector"))
         await conn.run_sync(Base.metadata.create_all)
 
     session_factory = async_sessionmaker(

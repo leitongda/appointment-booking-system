@@ -52,12 +52,15 @@ celery_app.conf.update(
         Queue("default", routing_key="default"),
         Queue("scheduled", routing_key="scheduled"),
         Queue("notification", routing_key="notification"),
+        # 知识库文档解析/向量化：独立 worker 单并发消费，坏文档不拖累核心业务队列
+        Queue("knowledge", routing_key="knowledge"),
     ),
     task_default_queue="default",
     task_default_routing_key="default",
     
     # 任务路由
     task_routes={
+        "app.tasks.knowledge_task.*": {"queue": "knowledge"},
         "app.tasks.blacklist_task.*": {"queue": "scheduled"},
         "app.tasks.schedule_task.*": {"queue": "scheduled"},
         "app.tasks.notification_task.*": {"queue": "notification"},
@@ -384,6 +387,7 @@ celery_app.autodiscover_tasks([
     "app.tasks.store_metric_task",
     "app.tasks.integration_sync_task",
     "app.tasks.tenant_lifecycle_task",
+    "app.tasks.knowledge_task",
 ])
 
 # Flower 监控配置

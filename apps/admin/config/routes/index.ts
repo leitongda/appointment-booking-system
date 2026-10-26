@@ -23,6 +23,7 @@ import finance from './finance';
 import organization from './organization';
 import operations from './operations';
 import cms from './cms';
+import knowledge from './knowledge';
 import contacts from './contacts';
 import attendance from './attendance';
 import approval from './approval';
@@ -47,6 +48,7 @@ const routes = [
   ...attendance,
   ...operations,
   ...cms,
+  ...knowledge,
   ...approval,
   ...system,
   ...sessionReplay,

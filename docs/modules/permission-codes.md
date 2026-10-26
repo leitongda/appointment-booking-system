@@ -3,9 +3,9 @@
 > 由 `apps/server/scripts/gen_permission_matrix.py` 生成，请勿手改；
 > 权限目录的 source of truth 是 `apps/server/scripts/init_permissions.py`。
 
-- 目录权限码：185 个
-- 后端守卫引用：148 个码
-- 前端（admin）引用：140 个码
+- 目录权限码：192 个
+- 后端守卫引用：153 个码
+- 前端（admin）引用：148 个码
 - 后端守卫使用但目录缺失（漂移，需修）：0 个
 - 目录内但前后端零引用（展示型）：2 个
 
@@ -47,12 +47,12 @@
 | `doctor` | 医生管理 | menu | — | 14 |
 | &nbsp;&nbsp;`doctor:list` | 查看医生列表 | button | app/modules/import_export/router_export.py:74 | 2 |
 | &nbsp;&nbsp;`doctor:detail` | 查看医生详情 | button | — | 2 |
-| &nbsp;&nbsp;`doctor:create` | 新增医生 | button | app/modules/doctors/router.py:738; app/modules/import_export/router_import.py:55 | 4 |
+| &nbsp;&nbsp;`doctor:create` | 新增医生 | button | app/modules/doctors/router.py:740; app/modules/import_export/router_import.py:55 | 4 |
 | &nbsp;&nbsp;`doctor:export` | 导出医生 | button | app/modules/import_export/router_export.py:74 | — |
-| &nbsp;&nbsp;`doctor:update` | 编辑医生 | button | app/modules/consultation_fees/router.py:343; app/modules/consultation_fees/router.py:390; app/modules/consultation_fees/router.py:408; app/modules/consultation_fees/router.py:436; app/modules/doctor_booking_settings/router.py:114; app/modules/doctor_booking_settings/router.py:146; app/modules/doctor_booking_settings/router.py:200; app/modules/doctors/router.py:675; app/modules/doctors/router.py:780 | 4 |
-| &nbsp;&nbsp;`doctor:delete` | 删除医生 | button | app/modules/doctor_booking_settings/router.py:175; app/modules/doctors/router.py:820 | 4 |
+| &nbsp;&nbsp;`doctor:update` | 编辑医生 | button | app/modules/consultation_fees/router.py:413; app/modules/consultation_fees/router.py:466; app/modules/consultation_fees/router.py:487; app/modules/consultation_fees/router.py:518; app/modules/doctor_booking_settings/router.py:114; app/modules/doctor_booking_settings/router.py:146; app/modules/doctor_booking_settings/router.py:200; app/modules/doctors/router.py:677; app/modules/doctors/router.py:782 | 4 |
+| &nbsp;&nbsp;`doctor:delete` | 删除医生 | button | app/modules/doctor_booking_settings/router.py:175; app/modules/doctors/router.py:822 | 4 |
 | &nbsp;&nbsp;`doctor:booking-setting` | 预约设置 | button | app/modules/doctor_booking_settings/router.py:46; app/modules/doctor_booking_settings/router.py:76; app/modules/doctor_booking_settings/router.py:91 | 1 |
-| &nbsp;&nbsp;`doctor:review` | 医生评价管理 | button | app/modules/doctor_reviews/router.py:103 | — |
+| &nbsp;&nbsp;`doctor:review` | 医生评价管理 | button | app/modules/doctor_reviews/router.py:116 | — |
 
 ## 排班管理（`schedule`）
 
@@ -60,10 +60,10 @@
 |---|---|---|---|---|
 | `schedule` | 排班管理 | menu | — | 7 |
 | &nbsp;&nbsp;`schedule:list` | 查看排班列表 | button | app/modules/export/router.py:102 | 1 |
-| &nbsp;&nbsp;`schedule:create` | 新增排班 | button | app/modules/import_export/router_import.py:364; app/modules/rest_days/router.py:103; app/modules/schedule_templates/router.py:219; app/modules/schedule_templates/router.py:351; app/modules/schedule_templates/router.py:594; app/modules/schedule_templates/router.py:650; app/modules/schedule_templates/router.py:694; app/modules/schedule_templates/router.py:857; app/modules/schedule_templates/router.py:912; app/modules/schedules/router.py:530; app/modules/schedules/router.py:582; app/modules/schedules/router.py:940; app/modules/schedules/router_custom.py:287 | 2 |
+| &nbsp;&nbsp;`schedule:create` | 新增排班 | button | app/modules/import_export/router_import.py:364; app/modules/rest_days/router.py:103; app/modules/schedule_templates/router.py:219; app/modules/schedule_templates/router.py:351; app/modules/schedule_templates/router.py:594; app/modules/schedule_templates/router.py:650; app/modules/schedule_templates/router.py:694; app/modules/schedule_templates/router.py:857; app/modules/schedule_templates/router.py:912; app/modules/schedules/router.py:532; app/modules/schedules/router.py:584; app/modules/schedules/router.py:942; app/modules/schedules/router_custom.py:287 | 2 |
 | &nbsp;&nbsp;`schedule:export` | 导出排班 | button | app/modules/export/router.py:102 | — |
-| &nbsp;&nbsp;`schedule:update` | 编辑排班 | button | app/modules/rest_days/router.py:164; app/modules/schedule_templates/router.py:277; app/modules/schedule_templates/router.py:776; app/modules/schedules/router.py:280; app/modules/schedules/router.py:618; app/modules/schedules/router.py:813; app/modules/schedules/router.py:859; app/modules/schedules/router.py:896 | 2 |
-| &nbsp;&nbsp;`schedule:delete` | 删除排班 | button | app/modules/rest_days/router.py:146; app/modules/schedule_suspensions/router.py:213; app/modules/schedule_templates/router.py:323; app/modules/schedule_templates/router.py:732; app/modules/schedules/router.py:771; app/modules/schedules/router_custom.py:437 | 2 |
+| &nbsp;&nbsp;`schedule:update` | 编辑排班 | button | app/modules/rest_days/router.py:164; app/modules/schedule_templates/router.py:277; app/modules/schedule_templates/router.py:776; app/modules/schedules/router.py:280; app/modules/schedules/router.py:620; app/modules/schedules/router.py:815; app/modules/schedules/router.py:861; app/modules/schedules/router.py:898 | 2 |
+| &nbsp;&nbsp;`schedule:delete` | 删除排班 | button | app/modules/rest_days/router.py:146; app/modules/schedule_suspensions/router.py:213; app/modules/schedule_templates/router.py:323; app/modules/schedule_templates/router.py:732; app/modules/schedules/router.py:773; app/modules/schedules/router_custom.py:437 | 2 |
 | &nbsp;&nbsp;`schedule:template` | 排班模板 | button | — | 3 |
 | &nbsp;&nbsp;`schedule:custom` | 自定义排班 | button | — | 2 |
 | &nbsp;&nbsp;`schedule:rest-day` | 休息日设置 | button | — | 1 |
@@ -71,8 +71,8 @@
 | &nbsp;&nbsp;`schedule:statistics` | 排班统计 | button | — | 1 |
 | &nbsp;&nbsp;`schedule_template:list` | 查看排班模板列表 | button | app/modules/import_export/router_export.py:318 | — |
 | &nbsp;&nbsp;`schedule_template:export` | 导出排班模板 | button | app/modules/import_export/router_export.py:318 | — |
-| &nbsp;&nbsp;`schedule:read` | 查看排班 | button | app/modules/import_export/router_export.py:598; app/modules/schedule_suspensions/router.py:195; app/modules/schedule_suspensions/router.py:45; app/modules/schedules/router.py:128; app/modules/schedules/router.py:225; app/modules/schedules/router.py:477; app/modules/schedules/router_custom.py:92; app/modules/schedules/router_statistics.py:231; app/modules/schedules/router_statistics.py:320; app/modules/schedules/router_statistics.py:440; app/modules/schedules/router_statistics.py:70 | — |
-| &nbsp;&nbsp;`schedule:suspend` | 停排管理 | button | app/modules/schedule_suspensions/router.py:115; app/modules/schedule_suspensions/router.py:161; app/modules/schedule_suspensions/router.py:231; app/modules/schedules/router.py:687; app/modules/schedules/router.py:730 | — |
+| &nbsp;&nbsp;`schedule:read` | 查看排班 | button | app/modules/import_export/router_export.py:598; app/modules/schedule_suspensions/router.py:195; app/modules/schedule_suspensions/router.py:45; app/modules/schedules/router.py:128; app/modules/schedules/router.py:225; app/modules/schedules/router.py:479; app/modules/schedules/router_custom.py:92; app/modules/schedules/router_statistics.py:231; app/modules/schedules/router_statistics.py:320; app/modules/schedules/router_statistics.py:440; app/modules/schedules/router_statistics.py:70 | — |
+| &nbsp;&nbsp;`schedule:suspend` | 停排管理 | button | app/modules/schedule_suspensions/router.py:115; app/modules/schedule_suspensions/router.py:161; app/modules/schedule_suspensions/router.py:231; app/modules/schedules/router.py:689; app/modules/schedules/router.py:732 | — |
 | &nbsp;&nbsp;`schedule:room` | 诊室管理 | button | app/modules/schedule_rooms/router.py:150; app/modules/schedule_rooms/router.py:175; app/modules/schedule_rooms/router.py:203 | — |
 | &nbsp;&nbsp;`schedule:extra-quota` | 排班加额管理 | button | app/modules/schedules/router_extra_quota.py:201; app/modules/schedules/router_extra_quota.py:40 | — |
 | &nbsp;&nbsp;`schedule:extra-quota:approve` | 加额审批 | button | app/modules/schedules/router_extra_quota.py:112; app/modules/schedules/router_extra_quota.py:152 | — |
@@ -88,7 +88,7 @@
 | &nbsp;&nbsp;`appointment:update` | 更新预约状态 | button | — | 3 |
 | &nbsp;&nbsp;`appointment:cancel` | 取消预约 | button | — | 3 |
 | &nbsp;&nbsp;`appointment:refund` | 预约退款 | button | app/modules/refunds/router.py:166; app/modules/refunds/router.py:194; app/modules/refunds/router.py:81; app/modules/refunds/router.py:97 | 3 |
-| &nbsp;&nbsp;`appointment:manage` | 预约流转操作 | button | app/modules/appointments/router_flow.py:152; app/modules/appointments/router_flow.py:208; app/modules/appointments/router_flow.py:261; app/modules/appointments/router_flow.py:316; app/modules/appointments/router_flow.py:372 | — |
+| &nbsp;&nbsp;`appointment:manage` | 预约流转操作 | button | app/modules/appointments/router_flow.py:157; app/modules/appointments/router_flow.py:213; app/modules/appointments/router_flow.py:266; app/modules/appointments/router_flow.py:321; app/modules/appointments/router_flow.py:377; app/modules/appointments/router_flow.py:438 | 1 |
 | &nbsp;&nbsp;`appointment:statistics` | 预约统计 | button | — | 1 |
 
 ## 患者管理（`patient`）
@@ -207,7 +207,7 @@
 | &nbsp;&nbsp;`blacklist:list` | 查看黑名单列表 | button | app/modules/blacklists/router.py:39 | 2 |
 | &nbsp;&nbsp;`blacklist:create` | 新增黑名单 | button | app/modules/blacklists/router.py:64 | 3 |
 | &nbsp;&nbsp;`blacklist:delete` | 移除黑名单 | button | app/modules/blacklists/router.py:88 | 2 |
-| &nbsp;&nbsp;`system:consultation-fee` | 诊费管理 | button | app/modules/consultation_fees/router.py:129; app/modules/consultation_fees/router.py:168; app/modules/consultation_fees/router.py:197; app/modules/consultation_fees/router.py:210; app/modules/consultation_fees/router.py:257; app/modules/consultation_fees/router.py:275; app/modules/consultation_fees/router.py:91 | 3 |
+| &nbsp;&nbsp;`system:consultation-fee` | 诊费管理 | button | app/modules/consultation_fees/router.py:136; app/modules/consultation_fees/router.py:176; app/modules/consultation_fees/router.py:220; app/modules/consultation_fees/router.py:253; app/modules/consultation_fees/router.py:266; app/modules/consultation_fees/router.py:317; app/modules/consultation_fees/router.py:337 | 3 |
 | &nbsp;&nbsp;`system:log` | 操作日志 | button | app/modules/admin/router_monitoring.py:105; app/modules/admin/router_monitoring.py:155; app/modules/admin/router_monitoring.py:217; app/modules/admin/router_monitoring.py:294; app/modules/admin/router_monitoring.py:424; app/modules/admin/router_monitoring.py:54; app/modules/admin/router_monitoring.py:79 | 1 |
 | &nbsp;&nbsp;`log:list` | 查看操作日志明细 | button | app/modules/admin/router_monitoring.py:105; app/modules/admin/router_monitoring.py:155; app/modules/admin/router_monitoring.py:217; app/modules/admin/router_monitoring.py:294; app/modules/admin/router_monitoring.py:424; app/modules/admin/router_monitoring.py:54; app/modules/admin/router_monitoring.py:79; app/modules/import_export/router_export.py:479 | — |
 | &nbsp;&nbsp;`log:export` | 导出操作日志 | button | app/modules/import_export/router_export.py:479 | — |
@@ -305,6 +305,18 @@
 | `attendance` | 考勤管理 | menu | — | 1 |
 | &nbsp;&nbsp;`attendance:record` | 考勤打卡记录 | button | app/modules/attendance_records/router.py:155; app/modules/attendance_records/router.py:176; app/modules/attendance_records/router.py:217 | 1 |
 | &nbsp;&nbsp;`record:export` | 导出考勤记录 | button | app/modules/attendance_records/router.py:217 | — |
+
+## 知识库（`knowledge`）
+
+| 权限码 | 名称 | 类型 | 后端守卫 | 前端引用 |
+|---|---|---|---|---|
+| `knowledge` | 知识库 | menu | — | 1 |
+| &nbsp;&nbsp;`knowledge:read` | 查看/检索知识库 | button | app/modules/knowledge/router.py:133; app/modules/knowledge/router.py:191; app/modules/knowledge/router.py:60; app/modules/knowledge/router.py:91; app/modules/knowledge/router_documents.py:151; app/modules/knowledge/router_documents.py:169; app/modules/knowledge/router_documents.py:51; app/modules/knowledge/router_documents.py:97 | 1 |
+| &nbsp;&nbsp;`knowledge:create` | 创建知识库/上传文档 | button | app/modules/knowledge/router.py:78; app/modules/knowledge/router_documents.py:84 | 3 |
+| &nbsp;&nbsp;`knowledge:update` | 整理目录/重新处理 | button | app/modules/knowledge/router.py:105; app/modules/knowledge/router.py:151; app/modules/knowledge/router.py:164; app/modules/knowledge/router.py:176; app/modules/knowledge/router_documents.py:110; app/modules/knowledge/router_documents.py:133 | 2 |
+| &nbsp;&nbsp;`knowledge:delete` | 删除文档/知识库 | button | app/modules/knowledge/router.py:118; app/modules/knowledge/router_documents.py:122 | 3 |
+| &nbsp;&nbsp;`knowledge:share` | 共享知识库 | button | app/modules/knowledge/router_documents.py:193; app/modules/knowledge/router_documents.py:211; app/modules/knowledge/router_documents.py:223 | 3 |
+| &nbsp;&nbsp;`knowledge:manage` | 治理全部知识库 | button | — | 1 |
 
 ## 展示型权限码（前后端零引用，可评估下线或接线）
 

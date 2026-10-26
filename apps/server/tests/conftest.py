@@ -85,6 +85,12 @@ async def test_engine():
         )
 
     async with engine.begin() as conn:
+        if not _IS_SQLITE:
+            # 知识库 knowledge_chunks.embedding 是 pgvector 类型；CI 的 PG service 用 pgvector/pgvector 镜像
+            from sqlalchemy import text as _sa_text
+
+            await conn.execute(_sa_text("CREATE EXTENSION IF NOT EXISTS vector"))
+
         # 低代码模型有重复索引定义 (column index=True + explicit Index 同名),
         # SQLite 会报 "index already exists", 需要去重后再 create_all
         def _create_all_safe(connection):
