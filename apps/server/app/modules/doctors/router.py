@@ -212,12 +212,14 @@ async def doctor_login(
         doctor_resp.email = account.email
 
     from fastapi.responses import JSONResponse
+    # by_alias=True：输出 camelCase（accessToken/refreshToken 及嵌套 doctor 字段），
+    # 与 response_model 序列化及 /doctors/me 保持一致；直接 JSONResponse 不经 FastAPI 的 by_alias 默认
     resp = JSONResponse(content=DoctorLoginResponse(
         access_token=access_token,
         refresh_token=refresh_token,
         expires_in=expires_seconds,
         doctor=doctor_resp,
-    ).model_dump(mode="json"))
+    ).model_dump(mode="json", by_alias=True))
     if getattr(doctor, 'must_change_password', False):
         resp.headers["X-Password-Change-Required"] = "true"
     return resp

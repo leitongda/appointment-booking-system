@@ -80,8 +80,8 @@ async def test_doctor_login_success(async_client, db_session, test_doctor):
 
     assert response.status_code == 200
     data = response.json()["data"]
-    assert "access_token" in data
-    assert "refresh_token" in data
+    assert "accessToken" in data
+    assert "refreshToken" in data
     assert data["doctor"]["id"] == test_doctor.id
 
 
