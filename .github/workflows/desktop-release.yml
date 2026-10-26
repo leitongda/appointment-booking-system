@@ -1,8 +1,14 @@
 name: Desktop Release (Tauri)
 
-# 桌面客户端打包：admin / doctor × macOS(arm64+x64) / Windows(x64)。
+# 桌面客户端打包：admin / doctor × macOS(universal: arm64+x64) / Windows(x64)。
 # 触发：推 tag `desktop-v*`（如 desktop-v1.0.0）或手动触发。
 # 产物：挂到同名 GitHub Release（草稿，人工审核后发布）。
+#
+# Runner 策略（账户为 GitHub Free，私有仓库 macOS 托管 runner 按 10 倍计分且需预算）：
+#   - prepare 与 macOS 打包跑在自托管 Mac（labels: self-hosted, macOS, desktop-mac），
+#     不占额度不计费；该机需装好 rustup（含 aarch64/x86_64-apple-darwin 两个 target）与 Xcode CLT
+#   - Windows 打包仍用 GitHub 托管 windows-latest（2 倍计分），免费额度耗尽时该作业会被拒，
+#     fail-fast=false 保证不影响 macOS 产物；额度每月 1 日重置
 #
 # 签名/公证（可选，缺 secrets 时照常出未签名包）：
 #   macOS：APPLE_CERTIFICATE / APPLE_CERTIFICATE_PASSWORD / APPLE_SIGNING_IDENTITY /
@@ -10,7 +16,7 @@ name: Desktop Release (Tauri)
 #   自动更新签名：TAURI_SIGNING_PRIVATE_KEY / TAURI_SIGNING_PRIVATE_KEY_PASSWORD
 #          （启用 updater 插件后才需要；目前未启用）
 #
-# Windows runner 不需额外依赖（WebView2 由安装包引导）；macOS 不需额外依赖。
+# Windows runner 不需额外依赖（WebView2 由安装包引导）。
 
 on:
   push:
@@ -30,7 +36,7 @@ jobs:
   # 前置：① 按触发方式算出要打包的端（动态矩阵）；② 推 tag 时建一次 Release 草稿，
   # 避免 6 个矩阵作业并发各自建 Release 产生竞争。手动触发不建 Release，产物走 artifact。
   prepare:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, macOS, desktop-mac]
     permissions:
       contents: write
     outputs:
@@ -80,14 +86,13 @@ jobs:
       matrix:
         app: ${{ fromJSON(needs.prepare.outputs.apps) }}
         platform:
-          - os: macos-latest
-            target: aarch64-apple-darwin
-            args: '--target aarch64-apple-darwin'
-          - os: macos-latest
-            target: x86_64-apple-darwin
-            args: '--target x86_64-apple-darwin'
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
+          - name: macos-universal
+            os: [self-hosted, macOS, desktop-mac]
+            rust_targets: aarch64-apple-darwin,x86_64-apple-darwin
+            args: '--target universal-apple-darwin'
+          - name: windows-x64
+            os: windows-latest
+            rust_targets: x86_64-pc-windows-msvc
             args: ''
     runs-on: ${{ matrix.platform.os }}
 
@@ -108,7 +113,7 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.platform.target }}
+          targets: ${{ matrix.platform.rust_targets }}
 
       - name: Cache Rust build
         uses: swatinem/rust-cache@v2
@@ -138,7 +143,7 @@ jobs:
       - name: Upload bundles as workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.app }}-${{ matrix.platform.target }}
+          name: ${{ matrix.app }}-${{ matrix.platform.name }}
           path: |
             apps/${{ matrix.app }}/src-tauri/target/**/release/bundle/dmg/*.dmg
             apps/${{ matrix.app }}/src-tauri/target/**/release/bundle/macos/*.app
