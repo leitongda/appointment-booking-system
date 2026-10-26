@@ -7,7 +7,7 @@
 - [x] 0.3 pgvector 0.8.7 源码由本地 scp 上传，`make PG_CONFIG=/www/server/pgsql/bin/pg_config && make install`（PG 18.0），`hospital_booking` 执行 `CREATE EXTENSION vector`
 - [x] 0.4 冒烟验证：HNSW 余弦索引建立、最近邻查询正确、halfvec/sparsevec 类型存在、业务用户 `hospital` 可用 vector 类型
 - [x] 0.5 compose 新增 `celery_knowledge_worker`（`-Q knowledge -c 1 --max-tasks-per-child=20 --max-memory-per-child=400000`，挂 `./apps/server/var/kb-tmp:/app/kb-tmp`，与现有四容器同样的 `read_only`/`security_opt`/`extra_hosts`）
-- [ ] 0.6 nginx：知识库上传路径 `client_max_body_size 60m`（宝塔站点配置；随 6.3 生产部署执行）
+- [x] 0.6 nginx：两站点（yy / appointment.aicm.online）`location /api/` 加 `client_max_body_size 60m`，`nginx -t` 通过后 reload（2026-10-26 15:29）
 - [x] 0.7 `.env.example` 与生产 `.env`：`KB_ENABLED=false`、`KB_EMBEDDING_PROVIDER=zhipu`、`KB_EMBEDDING_MODEL=embedding-3`、`KB_EMBEDDING_DIMS=1024`、`ZHIPU_API_KEY`、`KB_MAX_FILE_MB=50`、`KB_TMP_DIR=/app/kb-tmp`
 - [x] 0.8 `.github/workflows/test.yml`：PostgreSQL service 镜像切换为 `pgvector/pgvector:pg18`，确保迁移在 CI 可执行
 
@@ -57,6 +57,6 @@
 
 - [x] 6.1 `docs/deployment-baota-docker.md`：新增「pgvector 安装（PG 18，源码编译步骤与 PG 升级后重编说明）」章节；`docs/{deployment-baota-docker,architecture,tech-stack,PRD,deployment}.md` 与 `openspec/project.md` 中 PostgreSQL 版本由 16 更正为 18
 - [x] 6.2 `docs/modules/knowledge.md`：数据模型、状态机、权限矩阵、配置项、运维（队列/内存/失败率观测）
-- [ ] 6.3 生产部署：迁移 → 权限 seed → compose `up -d --build` 拉起 knowledge worker → `KB_ENABLED=false` 先上 → 单租户灰度开启
-- [ ] 6.4 生产冒烟（proposal Verification）：PDF 上传→ready→检索→引用定位；扫描件 failed + 原因 + 重试；无权限账号检索不含他人私有库；`EXPLAIN` 确认走 HNSW
+- [x] 6.3 生产部署（2026-10-26 15:12–15:56）：git pull → kb-tmp(1777) → 根 `.env` 派生并与运行容器逐键比对后写入（含 KB_* + 硅基流动 key）→ 宿主机 pip/alembic 升到 kb01（5 表 + HNSW）→ init_permissions +7 → **先 build 后 up**（Dockerfile apt 源首层修复 PR #55，否则 deb.debian.org 卡死）→ 5 容器 healthy → admin 前端手动构建上传切换（CI 计费故障、deploy-admin.yml 路径过期；需 PR #54 补回被 gitignore 吞的页面才能构建）→ `KB_ENABLED=false` 验 404 → 打开后验 401
+- [ ] 6.4 生产冒烟：**技术冒烟已过**（路由 404→401、公网经 nginx 401、容器内真实调用硅基流动 bge-m3 OK 1024 维 317ms、knowledge worker 消费队列、无错误日志）；**UI 端到端待执行**（需管理员账号）：PDF 上传→ready→检索→引用定位；扫描件 failed + 原因 + 重试；无权限账号检索不含他人私有库；`EXPLAIN` 确认走 HNSW
 - [ ] 6.5 观测一周：knowledge worker 内存峰值、`failed_stage` 分布、embedding 调用量/费用；据此决定 OCR / 配额 / 升配
