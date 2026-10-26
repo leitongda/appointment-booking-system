@@ -4,18 +4,50 @@ import { history } from 'umi';
 import { useState, useCallback } from 'react';
 import { getToken, removeToken, initCrossTabSync, initTracker, getTracker, initPerformanceMonitoring } from '@hospital/shared';
 import type { CrossTabEvent } from '@hospital/shared';
-import { doctorApi, setBaseURL } from '@hospital/api';
+import { doctorApi, setBaseURL, getBaseURL, isTauriDesktop, applyDesktopBaseUrl } from '@hospital/api';
 import {
   UserOutlined, LogoutOutlined, SettingOutlined, LockOutlined, MailOutlined,
 } from '@ant-design/icons';
 import { initApiConfig } from '@/utils/request';
+import { hardNavigate } from '@/utils/hardNavigate';
 
 // 设置 API 基础路径（从环境变量读取，支持动态配置）
 const apiBaseUrl = process.env.API_BASE_URL || '/api/v1';
 setBaseURL(apiBaseUrl);
 
+/**
+ * 初始化上报类组件（tracker / 性能监控）。
+ *
+ * 它们用裸 fetch / sendBeacon 按初始化时固化的 URL 字符串上报，不走 axios 实例、
+ * 不受 setBaseURL 覆盖影响——桌面壳下必须等 baseURL 覆盖完成后、用 getBaseURL()
+ * 返回的绝对地址初始化（同 apps/admin/src/utils/initApp.ts 的处理）。
+ */
+const initMonitoring = (base: string) => {
+  initTracker({
+    apiBaseUrl: base,
+    apiPath: '/analytics/batch',
+    platform: 'h5',
+    enabled: true,
+    enableInDev: true,
+    batchSize: 10,
+    batchInterval: 5000,
+    debug: process.env.NODE_ENV === 'development',
+  });
+
+  initPerformanceMonitoring({
+    report: {
+      enabled: true,
+      endpoint: `${base}/performance/report`,
+      flushInterval: 30000,
+      batchSize: 20,
+      getSessionId: () => getTracker()?.getSessionId() ?? '',
+    },
+  });
+};
+
 // PWA Service Worker 注册
-if ('serviceWorker' in navigator) {
+// 桌面壳（Tauri webview 自定义协议）内禁用：SW 在该环境注册会拦截/缓存请求产生干扰
+if ('serviceWorker' in navigator && !isTauriDesktop()) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
   });
@@ -24,26 +56,13 @@ if ('serviceWorker' in navigator) {
 // 初始化 API 请求配置（拦截器）
 initApiConfig();
 
-// 初始化行为追踪
-initTracker({
-  apiBaseUrl: '',
-  apiPath: `${apiBaseUrl}/analytics/batch`,
-  platform: 'h5',
-  enabled: true,
-  enableInDev: true,
-  batchSize: 10,
-  batchInterval: 5000,
-  debug: process.env.NODE_ENV === 'development',
-});
-
-initPerformanceMonitoring({
-  report: {
-    enabled: true,
-    flushInterval: 30000,
-    batchSize: 20,
-    getSessionId: () => getTracker()?.getSessionId() ?? '',
-  },
-});
+if (isTauriDesktop()) {
+  // 桌面壳：等桌面配置覆盖 baseURL 后再初始化上报（见 initMonitoring 注释）。
+  // 业务请求由 getInitialState 把关，这里延迟的只是 analytics/perf 首个批次。
+  void applyDesktopBaseUrl().then(() => initMonitoring(getBaseURL()));
+} else {
+  initMonitoring(apiBaseUrl);
+}
 
 // 初始化跨 Tab 状态同步（医生端只关心认证变更）
 initCrossTabSync((event: CrossTabEvent) => {
@@ -60,7 +79,7 @@ initCrossTabSync((event: CrossTabEvent) => {
       cancelButtonProps: { style: { display: 'none' } },
       closable: false,
       maskClosable: false,
-      onOk: () => { window.location.href = '/login'; },
+      onOk: () => { hardNavigate('/login'); },
     });
   } else if (event.action === 'switch-user') {
     Modal.confirm({
@@ -92,6 +111,12 @@ interface CurrentDoctor {
 }
 
 export async function getInitialState(): Promise<{ currentDoctor?: CurrentDoctor }> {
+  // Tauri 桌面壳把关：首个业务请求（getMe）前等待桌面 baseURL 覆盖完成。
+  // web 端 applyDesktopBaseUrl() 立即返回 null，零影响。
+  if (isTauriDesktop()) {
+    await applyDesktopBaseUrl();
+  }
+
   const token = getToken();
   if (!token) {
     return {};

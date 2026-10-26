@@ -21,6 +21,7 @@ import {
 } from '@hospital/shared';
 import { history } from 'umi';
 import { message, Modal } from 'antd';
+import { hardNavigate } from './hardNavigate';
 
 /**
  * 不需要自动添加 token 的接口路径
@@ -77,12 +78,12 @@ const onUnauthorized = ({ message: errorMessage }: { requestUrl: string; message
 };
 
 /**
- * 403 租户暂停（医生端）：markTenantSuspended + window.location.href 跳 /tenant-suspended
+ * 403 租户暂停（医生端）：markTenantSuspended + hardNavigate 整页跳 /tenant-suspended
  */
 const onTenantSuspended = ({ reason }: { reason: ReturnType<typeof parseTenantError>; message: string }) => {
   if (reason) {
     markTenantSuspended(reason);
-    window.location.href = '/tenant-suspended';
+    hardNavigate('/tenant-suspended');
   }
 };
 
