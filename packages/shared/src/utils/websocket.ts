@@ -65,9 +65,28 @@ export interface UseWebSocketConnectionReturn {
 // ─── 默认 URL 构建 ─────────────────────────────────────────────────
 
 /**
- * 从环境变量或当前页面推断 WebSocket 基础 URL
+ * 运行时注入的 WebSocket 基址解析器（优先级最高）。
+ *
+ * 场景：Tauri 桌面壳打包态页面运行在 tauri://localhost，按页面 origin 推断会得到
+ * ws://localhost 连不到后端；桌面分支在拿到机构后端绝对地址后，经本函数注册
+ * 由该地址派生的 ws(s)://host（见 packages/api/src/desktop.ts）。web 端不注册，
+ * 行为不变。返回空值时回落到环境变量 / 页面 origin。
+ */
+let webSocketBaseUrlResolver: (() => string | undefined) | undefined;
+
+export const setWebSocketBaseUrlResolver = (
+  resolver: (() => string | undefined) | undefined,
+): void => {
+  webSocketBaseUrlResolver = resolver;
+};
+
+/**
+ * 推断 WebSocket 基础 URL：注入的解析器 → 环境变量 → 当前页面 origin
  */
 export const getWebSocketBaseUrl = (): string => {
+  const resolved = webSocketBaseUrlResolver?.();
+  if (resolved) return resolved;
+
   // @ts-ignore
   const wsUrl = process.env.WS_URL || process.env.WEBSOCKET_URL;
   if (wsUrl) return wsUrl;

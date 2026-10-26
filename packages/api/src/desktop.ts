@@ -22,7 +22,22 @@
  * 返回 null，调用方回落到现有逻辑（构建期 API_BASE_URL），并 console.warn 说明
  * 原因（文件未建 / 已建但键不对）。
  */
+import { setWebSocketBaseUrlResolver } from '@hospital/shared';
 import { setBaseURL } from './request';
+
+/**
+ * 由 HTTP(S) 绝对地址派生 WebSocket 基址（仅 origin，不含 /api/v1 路径）。
+ * 各端的 WS 路径构建器会自行追加 `/api/v1/ws/...`。解析失败返回 undefined。
+ */
+const toWebSocketOrigin = (httpUrl: string): string | undefined => {
+  try {
+    const url = new URL(httpUrl);
+    const protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${protocol}//${url.host}`;
+  } catch {
+    return undefined;
+  }
+};
 
 /** window.__TAURI__（app.withGlobalTauri = true 注入）的最小类型描述 */
 interface TauriDesktopGlobal {
@@ -97,6 +112,10 @@ export const applyDesktopBaseUrl = (): Promise<string | null> => {
       const baseUrl = config?.baseUrl;
       if (typeof baseUrl === 'string' && baseUrl.trim() !== '') {
         setBaseURL(baseUrl);
+        // WebSocket 基址随 HTTP 基址一起切到机构后端：桌面壳页面 origin 是
+        // tauri://localhost，按页面推断会得到连不上的 ws://localhost
+        const wsOrigin = toWebSocketOrigin(baseUrl);
+        if (wsOrigin) setWebSocketBaseUrlResolver(() => wsOrigin);
         return baseUrl;
       }
       // 配置缺失不是静默场景：打包态下相对路径 baseURL 无法访问后端，
