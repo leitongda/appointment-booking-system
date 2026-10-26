@@ -24,7 +24,8 @@ jobs:
 
     services:
       postgres:
-        image: postgres:16-alpine
+        # 知识库向量列依赖 pgvector；镜像版本对齐生产 PG 18（宝塔源码编译 18.0 + pgvector 0.8.7）
+        image: pgvector/pgvector:pg18
         env:
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test

@@ -27,6 +27,13 @@ services:
       - ENVIRONMENT=production
       - STORAGE_TYPE=local
       - LOCAL_UPLOAD_DIR=/app/uploads
+      # 知识库（RAG）：API 侧需要开关与 embedding 配置（检索时向量化查询）
+      - KB_ENABLED=${KB_ENABLED:-false}
+      - KB_EMBEDDING_PROVIDER=${KB_EMBEDDING_PROVIDER:-zhipu}
+      - KB_EMBEDDING_MODEL=${KB_EMBEDDING_MODEL:-embedding-3}
+      - KB_EMBEDDING_DIMS=${KB_EMBEDDING_DIMS:-1024}
+      - ZHIPU_API_KEY=${ZHIPU_API_KEY:-}
+      - KB_MAX_FILE_MB=${KB_MAX_FILE_MB:-50}
       # 微信小程序配置
       - WECHAT_APP_ID=${WECHAT_APP_ID:-}
       - WECHAT_APP_SECRET=${WECHAT_APP_SECRET:-}
@@ -60,6 +67,52 @@ services:
     command: celery -A app.celery_app worker -l info -c 4 -Q default,scheduled,notification
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.celery_app inspect ping --timeout 5 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Celery Worker（知识库）- 文档解析/向量化，独立 knowledge 队列、单并发
+  # 与核心业务 worker 隔离：一份坏文档只拖慢知识库自己；--max-memory-per-child 兜底解析器内存泄漏（生产机 3.6G）
+  celery_knowledge_worker:
+    build:
+      context: ./apps/server
+      dockerfile: Dockerfile
+    image: hospital_backend:latest
+    container_name: hospital_celery_knowledge_worker
+    restart: always
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/var:rw,size=64m,mode=1777
+    environment:
+      - DATABASE_URL=${DATABASE_URL:?请设置 DATABASE_URL 环境变量}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-}
+      - REDIS_URL=${REDIS_URL:?请设置 REDIS_URL 环境变量}
+      - SECRET_KEY=${SECRET_KEY:?请设置 SECRET_KEY 环境变量}
+      - STORAGE_TYPE=local
+      - LOCAL_UPLOAD_DIR=/app/uploads
+      - KB_ENABLED=${KB_ENABLED:-false}
+      - KB_EMBEDDING_PROVIDER=${KB_EMBEDDING_PROVIDER:-zhipu}
+      - KB_EMBEDDING_MODEL=${KB_EMBEDDING_MODEL:-embedding-3}
+      - KB_EMBEDDING_DIMS=${KB_EMBEDDING_DIMS:-1024}
+      - ZHIPU_API_KEY=${ZHIPU_API_KEY:-}
+      - KB_MAX_FILE_MB=${KB_MAX_FILE_MB:-50}
+      # 解析临时目录必须是磁盘卷（容器 /tmp 是 tmpfs，占内存）
+      - KB_TMP_DIR=/app/kb-tmp
+    command: >
+      celery -A app.celery_app worker -l info -Q knowledge -c 1
+      --max-tasks-per-child=20 --max-memory-per-child=400000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      # 原件只读；kb-tmp 宿主机目录需预先 mkdir -p && chmod 1777（容器以 appuser 运行）
+      - ./apps/server/uploads:/app/uploads:ro
+      - ./apps/server/var/kb-tmp:/app/kb-tmp
     healthcheck:
       test: ["CMD-SHELL", "celery -A app.celery_app inspect ping --timeout 5 || exit 1"]
       interval: 30s

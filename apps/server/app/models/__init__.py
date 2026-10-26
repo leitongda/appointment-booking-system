@@ -65,6 +65,13 @@ from app.models.freelance import (
     FreelanceTask,
 )
 from app.models.integration import Integration, IntegrationBinding
+from app.models.knowledge import (
+    KnowledgeBase,
+    KnowledgeChunk,
+    KnowledgeDocument,
+    KnowledgeFolder,
+    KnowledgeShare,
+)
 from app.models.leave_request import LeaveRequest
 from app.models.lowcode_audit_log import LowCodePageAuditLog
 from app.models.lowcode_page import LowCodePage

@@ -34,7 +34,7 @@
 - **框架**: FastAPI 0.109+
 - **ORM**: SQLAlchemy 2.x (async)
 - **数据校验**: Pydantic 2.x
-- **数据库**: PostgreSQL 16
+- **数据库**: PostgreSQL 18（生产为宝塔源码编译 18.0 + pgvector 0.8.7；本地开发 16+ 亦可）
 - **缓存/会话**: Redis 7.x
 - **异步任务**: Celery 5.x
 - **数据库迁移**: Alembic

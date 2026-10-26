@@ -57,7 +57,7 @@
 │  ┌─────────────────────────────────────────────────────────────────┐    │
 │  │                      宝塔安装的服务                                │    │
 │  │  ┌──────────────────────┐     ┌──────────────────────┐          │    │
-│  │  │     PostgreSQL 16     │     │       Redis 7        │          │    │
+│  │  │     PostgreSQL 18     │     │       Redis 7        │          │    │
 │  │  │      (端口 5432)      │     │     (端口 6379)       │          │    │
 │  │  └──────────────────────┘     └──────────────────────┘          │    │
 │  └─────────────────────────────────────────────────────────────────┘    │
@@ -90,7 +90,7 @@ ssh root@你的服务器IP
 登录宝塔面板（通常是 `http://服务器IP:8888`），在 **软件商店** 中安装：
 
 1. **Docker管理器** - 用于运行后端容器
-2. **PostgreSQL 16** - 主数据库
+2. **PostgreSQL 18** - 主数据库（生产实际为宝塔源码编译的 18.0；知识库功能还需手工编译 pgvector 扩展，见 3.4）
 3. **Redis** - 缓存和消息队列
 4. **Nginx** - Web 服务器（通常已预装）
 
@@ -230,6 +230,40 @@ bind 0.0.0.0
 ```bash
 systemctl restart redis
 ```
+
+### 3.4 安装 pgvector 扩展（知识库 RAG 必需）
+
+知识库模块（`openspec/changes/add-knowledge-base-rag`）的 `knowledge_chunks.embedding` 列是 pgvector 的 `vector(1024)` 类型。
+宝塔安装的 PostgreSQL 是源码编译版、**不带 contrib 与 pgvector**，需要自己编译。生产服务器已于 2026-10-26 完成（pgvector 0.8.7 / PG 18.0），以下是可复现步骤：
+
+```bash
+# 1) 前提：PG 服务端头文件与编译工具链（宝塔源码版自带 include/server；缺 gcc/make 用 yum/apt 装）
+/www/server/pgsql/bin/pg_config --includedir-server   # 应输出 /www/server/pgsql/include/server
+which gcc make
+
+# 2) 取源码：服务器上 git clone GitHub 常卡死（smart-HTTP），改为本地下载后 scp 上传
+#    https://github.com/pgvector/pgvector/archive/refs/tags/v0.8.7.tar.gz  → /usr/local/src/
+cd /usr/local/src && tar xzf pgvector-0.8.7.tar.gz && cd pgvector-0.8.7
+
+# 3) 编译安装（必须指向宝塔的 pg_config，否则会装到系统 PG）
+make -j2 PG_CONFIG=/www/server/pgsql/bin/pg_config
+make install PG_CONFIG=/www/server/pgsql/bin/pg_config
+
+# 4) 在业务库建扩展（需要超级用户；应用账号 hospital 无权执行）
+sudo -u postgres /www/server/pgsql/bin/psql -d hospital_booking -c "CREATE EXTENSION IF NOT EXISTS vector;"
+
+# 5) 验证
+sudo -u postgres /www/server/pgsql/bin/psql -d hospital_booking -tAc \
+  "select extversion from pg_extension where extname='vector';"
+```
+
+注意事项：
+
+- **PG 大版本升级后必须重新编译安装 pgvector**（扩展 .so 与服务端 ABI 绑定），否则 `knowledge_chunks` 相关查询报错。
+- Alembic 迁移 `kb01_knowledge_base` 会先检查 `pg_extension`：扩展已存在则跳过；不存在且当前账号无权创建时，会报出上面第 4 步的指引。
+- HNSW 索引构建受 `maintenance_work_mem` 限制（宝塔默认 64MB），迁移内已用 `SET LOCAL` 临时提到 256MB，无需改全局配置。
+- 本地开发（Homebrew PG）同样方式编译：`make PG_CONFIG=/opt/homebrew/opt/postgresql@16/bin/pg_config && make install ...`，再以本机超级用户建扩展。
+- CI 使用 `pgvector/pgvector:pg18` 镜像，自带扩展。
 
 ---
 

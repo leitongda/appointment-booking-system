@@ -193,6 +193,20 @@ class Settings(BaseSettings):
     # 本地存储配置
     LOCAL_UPLOAD_DIR: str = "var/server/uploads"  # 上传文件目录
     LOCAL_PUBLIC_URL: str | None = None  # 公网访问URL（可选，如CDN域名）
+
+    # 知识库（RAG）配置 —— openspec add-knowledge-base-rag
+    KB_ENABLED: bool = False  # 灰度开关：false 时 /knowledge 路由整体 404
+    KB_EMBEDDING_PROVIDER: str = "zhipu"  # 目前仅 zhipu；生产机内存不足以自托管模型
+    KB_EMBEDDING_MODEL: str = "embedding-3"
+    KB_EMBEDDING_DIMS: int = 1024  # 必须与 knowledge_chunks.embedding vector(1024) 一致
+    KB_EMBED_BATCH_SIZE: int = 32
+    ZHIPU_API_KEY: str | None = None
+    ZHIPU_BASE_URL: str = "https://open.bigmodel.cn/api/paas/v4"
+    KB_MAX_FILE_MB: int = 50
+    KB_TMP_DIR: str = "var/server/kb-tmp"  # 解析临时目录：必须是磁盘卷，不能是容器 tmpfs
+    KB_SEARCH_TOP_K_MAX: int = 20
+    KB_CHUNK_CHARS: int = 800
+    KB_CHUNK_OVERLAP: int = 80
     
     # MinIO 配置
     MINIO_ENDPOINT: str = "localhost:9000"

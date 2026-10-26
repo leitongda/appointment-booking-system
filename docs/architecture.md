@@ -82,7 +82,7 @@
 | 框架 | FastAPI | 0.109+ | Web框架 |
 | ORM | SQLAlchemy | 2.x | 数据库ORM |
 | 校验 | Pydantic | 2.x | 数据校验 |
-| 数据库 | PostgreSQL | 16.x | 主数据库 |
+| 数据库 | PostgreSQL | 18.x（生产 18.0 + pgvector 0.8.7） | 主数据库 + 向量检索 |
 | 缓存 | Redis | 7.x | 缓存/队列 |
 | 任务 | Celery | 5.x | 异步任务 |
 | 存储 | MinIO/OSS | - | 文件存储 |

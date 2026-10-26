@@ -76,7 +76,7 @@
 | Python | 3.12+ | 运行环境 |
 | FastAPI | 0.109+ | 后端框架 |
 | SQLAlchemy | 2.x | ORM |
-| PostgreSQL | 16.x | 数据库 |
+| PostgreSQL | 18.x（生产 18.0 + pgvector） | 数据库 |
 | Redis | 7.x | 缓存/队列 |
 | Celery | 5.x | 异步任务 |
 

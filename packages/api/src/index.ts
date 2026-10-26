@@ -134,6 +134,7 @@ export { storeApi } from './modules/store';
 export { messageApi } from './modules/message';
 export { leaveRequestApi } from './modules/leave-request';
 export { feedbackApi } from './modules/feedback';
+export { knowledgeApi } from './modules/knowledge';
 export {
   consultationFeeTypeApi,
   consultationFeeTemplateApi,
@@ -378,6 +379,32 @@ export type {
 
 // Admin Operation Log type
 export type { OperationLog } from './modules/admin';
+
+// Knowledge base (RAG) types
+export type {
+  KnowledgeBase,
+  KnowledgeBaseCreateData,
+  KnowledgeBaseListParams,
+  KnowledgeBaseScope,
+  KnowledgeChunk,
+  KnowledgeDocStatus,
+  KnowledgeDocument,
+  KnowledgeDocumentListParams,
+  KnowledgeDocumentUpdateData,
+  KnowledgeFailedStage,
+  KnowledgeFolder,
+  KnowledgeFolderCreateData,
+  KnowledgeFolderUpdateData,
+  KnowledgePermission,
+  KnowledgeSearchHit,
+  KnowledgeSearchParams,
+  KnowledgeSearchResult,
+  KnowledgeShare,
+  KnowledgeShareCreateData,
+  KnowledgeShareGrantee,
+  KnowledgeSharePermission,
+  KnowledgeVisibility,
+} from './modules/knowledge';
 
 // Consultation Fee types
 export type {

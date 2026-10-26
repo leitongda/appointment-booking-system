@@ -70,6 +70,14 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
   const canMedicalRecord = canPatient;
   const canLeaveRequest = hasModuleAccess('leave-request', ['leave-request:list', 'leave-request:approve']);
   const canFeedback = hasModuleAccess('feedback', ['feedback:list', 'feedback:reply', 'feedback:delete']);
+  const canKnowledge = hasModuleAccess('knowledge', [
+    'knowledge:read',
+    'knowledge:create',
+    'knowledge:update',
+    'knowledge:delete',
+    'knowledge:share',
+    'knowledge:manage',
+  ]);
   const canMessage = hasModuleAccess('message', ['message:list', 'message:send', 'message:delete']);
   const canContent = hasPermission('content') || hasAnyPermission([
     'content:news',
@@ -269,6 +277,7 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
     canMedicalRecord,
     canLeaveRequest,
     canFeedback,
+    canKnowledge,
     canMessage,
     canContent,
     canCms,
