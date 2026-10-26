@@ -12,6 +12,9 @@ build/
 out/
 !apps/admin/config/build/
 !apps/admin/config/build/**
+# 源码页面目录恰好名为 build，需排除在构建产物规则之外（路由 ./miniapp-platform/build/index 引用）
+!apps/admin/src/pages/miniapp-platform/build/
+!apps/admin/src/pages/miniapp-platform/build/**
 
 # Umi
 .umi/
