@@ -187,3 +187,7 @@ reasonix.toml
 # Local review artifacts & personal scripts
 /reviews/
 scripts/gen_referral_code.py
+
+# Desktop release: CI-generated updater endpoint overlay & local publish env
+apps/*/src-tauri/tauri.ci.conf.json
+desktop-release/.env.local

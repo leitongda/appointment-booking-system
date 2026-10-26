@@ -10,6 +10,7 @@ import {
 } from '@ant-design/icons';
 import { initApiConfig } from '@/utils/request';
 import { hardNavigate } from '@/utils/hardNavigate';
+import { scheduleDesktopUpdateCheck } from '@/utils/desktopUpdater';
 
 // 设置 API 基础路径（从环境变量读取，支持动态配置）
 const apiBaseUrl = process.env.API_BASE_URL || '/api/v1';
@@ -115,6 +116,8 @@ export async function getInitialState(): Promise<{ currentDoctor?: CurrentDoctor
   // web 端 applyDesktopBaseUrl() 立即返回 null，零影响。
   if (isTauriDesktop()) {
     await applyDesktopBaseUrl();
+    // 自动更新检查放在 baseURL 把关之后、延迟触发且不 await：不阻塞首屏，失败静默
+    scheduleDesktopUpdateCheck();
   }
 
   const token = getToken();

@@ -1,7 +1,7 @@
 [package]
 name = "hospital-doctor-desktop"
 version = "1.0.0"
-description = "医院挂号系统 · 管理端桌面壳（Tauri 2 PoC）"
+description = "医院挂号系统 · 医生端桌面壳（Tauri 2 PoC）"
 authors = ["Lei TongDa"]
 edition = "2021"
 
@@ -19,3 +19,5 @@ tauri = { version = "2", features = [] }
 tauri-plugin-log = "2"
 tauri-plugin-single-instance = "2"
 tauri-plugin-store = "2"
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"

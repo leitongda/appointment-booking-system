@@ -64,6 +64,11 @@ pub fn run() {
                 .build(),
         )
         .plugin(tauri_plugin_store::Builder::new().build())
+        // 自动更新：updater 校验 minisign 签名后下载安装，process 供前端在安装完成后 relaunch。
+        // 公钥/更新源在 tauri.conf.json plugins.updater；真实域名不入库，由 CI 用 --config
+        // 合并注入（见 desktop-release.yml），仓库内留 .invalid 占位，本地构建检查更新只会静默失败。
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .invoke_handler(tauri::generate_handler![get_desktop_config])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -19,6 +19,7 @@ import { processMenuData, computeParentOpenKeys } from '@/utils/menu';
 import { handleCrossTabEvent } from '@/utils/crossTab';
 import { initVisibilityAuthCheck } from '@/utils/visibilityAuth';
 import { hardNavigate, currentRoutePath } from '@/utils/hardNavigate';
+import { scheduleDesktopUpdateCheck } from '@/utils/desktopUpdater';
 import { initApp } from '@/utils/initApp';
 import { applySpacingCSSVariables, getSpacingMode } from '@/utils/spacing';
 import { getDefaultRoute } from '@/utils/getDefaultRoute';
@@ -118,6 +119,8 @@ export async function getInitialState(): Promise<{
         okText: '知道了',
       });
     }
+    // 自动更新检查放在 baseURL 把关之后、延迟触发且不 await：不阻塞首屏，失败静默
+    scheduleDesktopUpdateCheck();
   }
 
   const fetchUserInfo = async () => {
