@@ -82,6 +82,11 @@ pub fn run() {
         // 合并注入（见 desktop-release.yml），仓库内留 .invalid 占位，本地构建检查更新只会静默失败。
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
+        // 系统通知：医生端窗口隐藏到托盘 / 失焦时，WebSocket 消息（患者签到、新预约、
+        // 停诊等）转系统通知兜底提醒。前端经 window.__TAURI__.notification 调用（零 npm
+        // 依赖，见 apps/doctor/src/utils/desktopNotify.ts），需 capabilities 的
+        // notification:default 授权。
+        .plugin(tauri_plugin_notification::init())
         .invoke_handler(tauri::generate_handler![get_desktop_config])
         .setup(|app| {
             // 托盘常驻：应用图标 + 两项菜单；左键单击托盘唤起主窗口，右键弹菜单。

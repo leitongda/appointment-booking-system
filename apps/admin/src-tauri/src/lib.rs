@@ -82,6 +82,10 @@ pub fn run() {
         // 合并注入（见 desktop-release.yml），仓库内留 .invalid 占位，本地构建检查更新只会静默失败。
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
+        // 系统通知：本期管理端前端未接（页面内已有通知铃），与医生端保持壳能力一致，
+        // 仅注册插件备用；前端经 window.__TAURI__.notification 即可调用（零 npm 依赖），
+        // 需 capabilities 的 notification:default 授权。
+        .plugin(tauri_plugin_notification::init())
         .invoke_handler(tauri::generate_handler![get_desktop_config])
         .setup(|app| {
             // 托盘常驻：应用图标 + 两项菜单；左键单击托盘唤起主窗口，右键弹菜单。

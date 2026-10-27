@@ -10,6 +10,7 @@ import {
 } from '@hospital/shared';
 import type { WSMessage, UseWebSocketConnectionReturn } from '@hospital/shared';
 import { notification } from 'antd';
+import { isWindowInactive, sendDesktopNotification } from '../utils/desktopNotify';
 
 // 医生端消息类型
 export enum WSMessageType {
@@ -76,6 +77,9 @@ export const useWebSocket = (options: UseWebSocketOptions) => {
       onMessage?.(msg);
 
       switch (msg.type) {
+        // 系统通知兜底（桌面打包态）：窗口隐藏到托盘 / 失焦时，应用内 antd 通知看不到，
+        // 对适合推送的类型补发系统通知（同一 showNotifications 总开关；正文与应用内一致）。
+        // 高频「刷新数据」类（PATIENT_CALLED/QUEUE_UPDATED 等）不推送，避免噪音。
         case WSMessageType.PATIENT_SIGNED_IN:
           onPatientSignedIn?.(msg.data);
           if (showNotifications) {
@@ -85,6 +89,12 @@ export const useWebSocket = (options: UseWebSocketOptions) => {
               placement: 'topRight',
               duration: 5,
             });
+            if (isWindowInactive()) {
+              void sendDesktopNotification({
+                title: '患者签到',
+                body: `${msg.data.patient_name}（第${msg.data.queue_number}号）已签到`,
+              });
+            }
           }
           break;
 
@@ -106,6 +116,12 @@ export const useWebSocket = (options: UseWebSocketOptions) => {
               placement: 'topRight',
               duration: 5,
             });
+            if (isWindowInactive()) {
+              void sendDesktopNotification({
+                title: '新预约',
+                body: `收到新的预约：${msg.data.patient_name}`,
+              });
+            }
           }
           break;
 
@@ -119,6 +135,12 @@ export const useWebSocket = (options: UseWebSocketOptions) => {
               placement: 'topRight',
               duration: 5,
             });
+            if (isWindowInactive()) {
+              void sendDesktopNotification({
+                title: '请假审核结果',
+                body: `您的请假申请${statusText}`,
+              });
+            }
           }
           break;
 
@@ -130,6 +152,24 @@ export const useWebSocket = (options: UseWebSocketOptions) => {
               description: msg.data.message,
               placement: 'topRight',
               duration: 10,
+            });
+            if (isWindowInactive()) {
+              void sendDesktopNotification({
+                title: msg.data.title || '系统通知',
+                body: msg.data.message,
+              });
+            }
+          }
+          break;
+
+        case WSMessageType.SCHEDULE_SUSPENDED:
+          // 停诊/排班暂停（通知渠道映射 schedule/stop_clinic → SCHEDULE_SUSPENDED，
+          // data={title,content,...}）：此前无任何处理，对托盘常驻场景是关键遗漏，
+          // 这里仅补系统通知兜底，不新增应用内通知（保持页面行为不变）。
+          if (showNotifications && isWindowInactive()) {
+            void sendDesktopNotification({
+              title: msg.data?.title || '停诊通知',
+              body: msg.data?.content || '',
             });
           }
           break;
