@@ -1,0 +1,169 @@
+name: Prod Ops (self-hosted)
+
+# 生产运维（自托管 Mac runner 执行；托管 runner 受账户额度限制时的替代通道）。
+# 凭据只存在仓库 secrets（CVM_HOST / CVM_USERNAME / CVM_SSH_KEY / CVM_PORT），不落本地。
+# 与 build-server.yml 的差异：不用 Docker 版 ssh-action（macOS runner 跑不了），用原生 ssh/scp；
+# deploy-server 只重建 backend 服务，不做全栈 down（避免 15 分钟停机）。
+#
+# action：
+#   inspect          只读巡检：代码版本、容器状态、compose 挂载、nginx 站点配置路径、磁盘内存
+#   deploy-server    服务器拉 origin/main（fetch 超时则 scp 同步 apps/server/app）→ compose build+up backend
+#   deploy-frontend  在 runner 构建 admin/doctor web 产物 → scp 到服务器静态目录
+#   publish-updates  跑 desktop-release/publish-updates.sh 把桌面端更新产物发布到生产 nginx
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: '要执行的动作'
+        required: true
+        type: choice
+        options: [inspect, deploy-server, deploy-frontend, publish-updates]
+        default: inspect
+      tag:
+        description: 'publish-updates 用：Release tag（如 desktop-v1.1.0-rc1）'
+        required: false
+        default: ''
+      frontend_target_dir:
+        description: 'deploy-frontend 用：服务器静态根（为空则用 PROJECT_DIR/apps/<app>/dist）'
+        required: false
+        default: ''
+      updates_remote_dir:
+        description: 'publish-updates 用：服务器更新源目录（默认 /www/wwwroot/hospital-web/desktop/updates）'
+        required: false
+        default: ''
+
+env:
+  PROJECT_DIR: /www/hospital-booking
+
+jobs:
+  ops:
+    runs-on: [self-hosted, macOS, desktop-mac]
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Prepare SSH
+        env:
+          CVM_SSH_KEY: ${{ secrets.CVM_SSH_KEY }}
+          CVM_HOST: ${{ secrets.CVM_HOST }}
+          CVM_USERNAME: ${{ secrets.CVM_USERNAME }}
+          CVM_PORT: ${{ secrets.CVM_PORT }}
+        run: |
+          set -euo pipefail
+          key="$RUNNER_TEMP/cvm_key"
+          printf '%s\n' "$CVM_SSH_KEY" > "$key"
+          chmod 600 "$key"
+          port="${CVM_PORT:-22}"
+          {
+            echo "SSH_KEY=$key"
+            echo "SSH_PORT=$port"
+            echo "SSH_DEST=${CVM_USERNAME}@${CVM_HOST}"
+            echo "SSH_OPTS=-i $key -p $port -o BatchMode=yes -o ConnectTimeout=20 -o StrictHostKeyChecking=accept-new"
+          } >> "$GITHUB_ENV"
+          echo "SSH 目标: ${CVM_USERNAME}@${CVM_HOST}:${port}"
+
+      - name: Inspect (read-only)
+        if: ${{ inputs.action == 'inspect' }}
+        run: |
+          set -uo pipefail
+          ssh $SSH_OPTS "$SSH_DEST" bash -s <<'REMOTE'
+            set -u
+            echo "===== 主机 ====="; hostname; uname -m; uptime
+            echo "===== 磁盘/内存 ====="; df -h / /www 2>/dev/null | tail -n +1; free -m 2>/dev/null | head -2
+            echo "===== 项目目录 ====="; cd /www/hospital-booking 2>/dev/null || { echo "PROJECT_DIR 不存在"; exit 0; }
+            git log -1 --oneline 2>/dev/null; git status --porcelain 2>/dev/null | head -5; git remote -v 2>/dev/null | head -2
+            echo "===== compose 服务与挂载 ====="; docker compose ps 2>/dev/null
+            docker compose config 2>/dev/null | grep -nE "^\s+(backend|celery_worker|celery_beat|celery_flower|knowledge[a-z_]*):|^\s+volumes:|^\s+- (\.|/)[^:]*:/app" | head -30
+            echo "===== 后端代码里 CORS/医生登录当前版本 ====="; grep -n "tauri://localhost" apps/server/app/core/config.py 2>/dev/null || echo "config.py 无 tauri origin（未部署桌面修复）"
+            grep -n "by_alias=True" apps/server/app/modules/doctors/router.py 2>/dev/null || echo "doctors/router.py 无 by_alias（未部署）"
+            echo "===== nginx 站点配置 ====="; ls /www/server/panel/vhost/nginx/ 2>/dev/null | head -10
+            grep -lR "yy.aicm.online" /www/server/panel/vhost/nginx/ 2>/dev/null | head -3
+            f=$(grep -lR "yy.aicm.online" /www/server/panel/vhost/nginx/ 2>/dev/null | head -1); [ -n "$f" ] && grep -nE "root |location |proxy_pass" "$f" | head -20
+            echo "===== 静态目录 ====="; ls -d /www/wwwroot/*/ 2>/dev/null | head -8; ls /www/wwwroot/hospital-web/ 2>/dev/null | head; ls -la /www/hospital-booking/apps/admin/dist/index.html /www/hospital-booking/apps/doctor/dist/index.html 2>/dev/null
+            echo "===== desktop/updates 是否已存在 ====="; ls -R /www/wwwroot/hospital-web/desktop 2>/dev/null | head -5 || echo "无"
+          REMOTE
+
+      - name: Deploy server (backend only)
+        if: ${{ inputs.action == 'deploy-server' }}
+        run: |
+          set -euo pipefail
+          # 服务器上 git 走 GitHub 常卡死（历史经验），fetch 加超时；失败则从 runner 的 main 检出直接 scp 同步代码
+          if ssh $SSH_OPTS "$SSH_DEST" "cd $PROJECT_DIR && timeout 180 git fetch origin main && git reset --hard origin/main && git log -1 --oneline"; then
+            echo "服务器已同步到 origin/main"
+          else
+            echo "git fetch 失败/超时，改为 scp 同步 apps/server/app"
+            ssh $SSH_OPTS "$SSH_DEST" "mkdir -p $PROJECT_DIR/apps/server"
+            scp -i "$SSH_KEY" -P "$SSH_PORT" -o StrictHostKeyChecking=accept-new -rq apps/server/app "$SSH_DEST:$PROJECT_DIR/apps/server/"
+          fi
+          ssh $SSH_OPTS "$SSH_DEST" bash -s <<'REMOTE'
+            set -euo pipefail
+            cd /www/hospital-booking
+            echo "--- 构建并重建 backend（其余服务不动）---"
+            docker compose build backend
+            docker compose up -d --no-deps backend
+            sleep 8
+            docker compose ps backend
+            echo "--- 健康探测 ---"
+            curl -s -o /dev/null -w "public-key -> HTTP %{http_code}\n" --max-time 10 http://127.0.0.1:8000/api/v1/admin/public-key || true
+            curl -s -i -X OPTIONS http://127.0.0.1:8000/api/v1/admin/public-key -H "Origin: tauri://localhost" -H "Access-Control-Request-Method: GET" --max-time 10 | grep -iE "^HTTP|allow-origin" || true
+            docker image prune -f >/dev/null 2>&1 || true
+          REMOTE
+
+      - name: Setup pnpm
+        if: ${{ inputs.action == 'deploy-frontend' || inputs.action == 'publish-updates' }}
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        if: ${{ inputs.action == 'deploy-frontend' }}
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Deploy frontend (admin + doctor web)
+        if: ${{ inputs.action == 'deploy-frontend' }}
+        env:
+          TARGET_DIR: ${{ inputs.frontend_target_dir }}
+        run: |
+          set -euo pipefail
+          pnpm install --frozen-lockfile
+          pnpm --filter @hospital/admin run build
+          pnpm --filter @hospital/doctor run build
+          for app in admin doctor; do
+            if [ -n "$TARGET_DIR" ]; then dest="$TARGET_DIR/$app"; else dest="$PROJECT_DIR/apps/$app/dist"; fi
+            echo "--- 上传 $app → $dest ---"
+            ssh $SSH_OPTS "$SSH_DEST" "mkdir -p '$dest.new' && rm -rf '$dest.new'/*"
+            scp -i "$SSH_KEY" -P "$SSH_PORT" -o StrictHostKeyChecking=accept-new -rq apps/$app/dist/. "$SSH_DEST:$dest.new/"
+            # 原子切换：保留上一版为 .bak 便于回滚
+            ssh $SSH_OPTS "$SSH_DEST" "rm -rf '$dest.bak'; [ -d '$dest' ] && mv '$dest' '$dest.bak'; mv '$dest.new' '$dest'; ls '$dest' | head -3"
+          done
+
+      - name: Publish desktop updates
+        if: ${{ inputs.action == 'publish-updates' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DESKTOP_UPDATE_BASE_URL: ${{ secrets.DESKTOP_UPDATE_BASE_URL }}
+          TAG: ${{ inputs.tag }}
+          REMOTE_DIR: ${{ inputs.updates_remote_dir }}
+        run: |
+          set -euo pipefail
+          [ -n "$TAG" ] || { echo "::error::publish-updates 需要 tag 输入"; exit 1; }
+          # publish-updates.sh 按名字直接调 ssh/scp，不接受密钥参数；用作业内 PATH 前置的包装器注入密钥与端口
+          mkdir -p "$RUNNER_TEMP/bin"
+          cat > "$RUNNER_TEMP/bin/ssh" <<WRAP
+          #!/bin/bash
+          exec /usr/bin/ssh -i "$SSH_KEY" -p "$SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=accept-new "\$@"
+          WRAP
+          cat > "$RUNNER_TEMP/bin/scp" <<WRAP
+          #!/bin/bash
+          exec /usr/bin/scp -i "$SSH_KEY" -P "$SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=accept-new "\$@"
+          WRAP
+          chmod +x "$RUNNER_TEMP/bin/ssh" "$RUNNER_TEMP/bin/scp"
+          export PATH="$RUNNER_TEMP/bin:$PATH"
+          export DESKTOP_UPDATE_SSH="$SSH_DEST"
+          export DESKTOP_UPDATE_REMOTE_DIR="${REMOTE_DIR:-/www/wwwroot/hospital-web/desktop/updates}"
+          chmod +x desktop-release/*.sh
+          desktop-release/publish-updates.sh "$TAG"
