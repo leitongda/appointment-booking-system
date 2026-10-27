@@ -2,7 +2,7 @@
  * API 请求配置（机构端）
  *
  * 本文件仅保留「机构端专有差异」：EXCLUDE_TOKEN_PATHS、UI 反馈依赖（antd
- * message/notification/Modal）、401 登录过期流程（Modal + window.location.href 跳转 +
+ * message/notification/Modal）、401 登录过期流程（Modal + hardNavigate 整页跳转 +
  * isPublicEntryRoute/shouldSilenceAuthExpiredFeedback 静默判定 + rememberReturnPath 记忆回跳）、
  * 403 租户暂停跳 /tenant-suspended。其余共享骨架（token/X-Tenant-ID 注入、错误状态码分类分发、
  * ApiError vs 原始 Axios 双路径、结构化错误码、RSA 静默重试、网络错误兜底）由
@@ -27,6 +27,7 @@ import {
   rememberReturnPath,
 } from '@hospital/shared';
 import { message, Modal, notification } from 'antd';
+import { hardNavigate } from './hardNavigate';
 
 /**
  * 不需要自动添加 token 的接口路径
@@ -55,7 +56,7 @@ const errorDeps = {
 };
 
 /**
- * 401 登录过期 Modal（机构端专用：window.location.href 跳 /login）
+ * 401 登录过期 Modal（机构端专用：hardNavigate 整页跳 /login）
  */
 const showLoginExpiredModal = (content: string) => {
   Modal.confirm({
@@ -67,7 +68,7 @@ const showLoginExpiredModal = (content: string) => {
     maskClosable: false,
     onOk: () => {
       Modal.destroyAll();
-      window.location.href = '/login';
+      hardNavigate('/login');
     },
   });
 };
@@ -98,12 +99,12 @@ const onUnauthorized = ({ message: errorMessage }: { requestUrl: string; message
 };
 
 /**
- * 403 租户暂停（机构端）：markTenantSuspended + window.location.href 跳 /tenant-suspended
+ * 403 租户暂停（机构端）：markTenantSuspended + hardNavigate 整页跳 /tenant-suspended
  */
 const onTenantSuspended = ({ reason }: { reason: ReturnType<typeof parseTenantError>; message: string }) => {
   if (reason) {
     markTenantSuspended(reason);
-    window.location.href = '/tenant-suspended';
+    hardNavigate('/tenant-suspended');
   }
 };
 

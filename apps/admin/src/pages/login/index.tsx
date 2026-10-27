@@ -7,6 +7,7 @@ import {APP_TITLE} from '@config/appConfig';
 import access from '@/access';
 import {getDefaultRoute, isSafeReturnPath} from '@/utils/getDefaultRoute';
 import {getSafeRouteMap} from '@/utils/deriveSafeRoutes';
+import {hardNavigate} from '@/utils/hardNavigate';
 import {AccountLogin, UserOutlined, PhoneLogin, MobileOutlined, WechatLogin, WechatOutlined, IntegrationLogin, IntegrationBindPhoneModal, type BindPhoneInfo} from './components';
 import styles from './index.less';
 
@@ -136,7 +137,7 @@ const Login: React.FC = () => {
     // 整页跳转会让 getInitialState 重新执行并加载完整用户信息，access 基于
     // 完整权限计算，彻底消除竞态。登录是一次性操作，整页刷新体验可接受。
     setTimeout(() => {
-      window.location.href = safeLastPath;
+      hardNavigate(safeLastPath);
     }, 0);
   }, [message]);
 

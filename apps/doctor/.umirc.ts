@@ -26,12 +26,19 @@ const {
   WS_URL = '',  // WebSocket URL，为空时自动从当前页面推断
 } = process.env;
 
+// Tauri 桌面壳分支：desktop:dev / desktop:build 脚本注入 TAURI_DESKTOP=1 时切 hash 路由
+// （与 apps/admin/config/config.ts 同一策略：整页跳转经 utils/hardNavigate 适配）。
+// web 构建不注入该变量，路由模式不变。
+const TAURI_DESKTOP = process.env.TAURI_DESKTOP === '1';
+
 export default defineConfig({
   // 定义全局环境变量
   define: {
     'process.env.API_BASE_URL': API_BASE_URL,
     'process.env.WS_URL': WS_URL,
   },
+  // 路由 history 模式：web 默认 browser；Tauri 桌面壳用 hash
+  history: TAURI_DESKTOP ? { type: 'hash' } : { type: 'browser' },
   npmClient: 'pnpm',
   plugins: [
     '@umijs/plugins/dist/antd',

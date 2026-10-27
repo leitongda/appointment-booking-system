@@ -1,6 +1,6 @@
 {
   "name": "@hospital/admin",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "description": "医院挂号系统 - 机构端后台管理系统",
   "scripts": {
@@ -8,6 +8,8 @@
     "dev:local": "NODE_OPTIONS='--require ./scripts/fix-network.js' HOST=127.0.0.1 PORT=${PORT:-9105} max dev",
     "dev:remote": "bash scripts/dev-remote.sh",
     "build": "max build && node scripts/inject-preload.js",
+    "desktop:dev": "cross-env TAURI_DESKTOP=1 tauri dev",
+    "desktop:build": "cross-env TAURI_DESKTOP=1 tauri build",
     "postinstall": "max setup",
     "lint": "max lint",
     "test": "vitest",
@@ -44,11 +46,13 @@
     "zustand": "^4.5.7"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^2",
     "@types/dagre": "^0.7.54",
     "@types/lodash-es": "^4.17.12",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
     "compression-webpack-plugin": "^11.1.0",
+    "cross-env": "^7.0.3",
     "typescript": "^5.6.0",
     "vitest": "^1.2.0"
   }

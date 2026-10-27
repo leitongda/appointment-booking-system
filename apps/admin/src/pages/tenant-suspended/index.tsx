@@ -3,6 +3,7 @@ import { Button, Result, Space, Typography } from 'antd';
 import { history, useModel } from '@umijs/max';
 import { removeToken, removeStorage, STORAGE_KEYS } from '@hospital/shared';
 import type { TenantStatusInfo } from '@hospital/shared';
+import { hardNavigate } from '@/utils/hardNavigate';
 
 const { Text, Paragraph } = Typography;
 
@@ -23,7 +24,7 @@ const TenantSuspendedPage: React.FC = () => {
   const handleLogout = () => {
     removeToken();
     removeStorage(STORAGE_KEYS.TENANT_SUSPENDED);
-    window.location.href = '/login';
+    hardNavigate('/login');
   };
 
   return (

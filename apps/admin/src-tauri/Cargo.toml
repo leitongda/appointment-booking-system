@@ -1,0 +1,23 @@
+[package]
+name = "hospital-admin-desktop"
+version = "1.0.0"
+description = "医院挂号系统 · 管理端桌面壳（Tauri 2 PoC）"
+authors = ["Lei TongDa"]
+edition = "2021"
+
+[lib]
+name = "hospital_admin_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri = { version = "2", features = [] }
+tauri-plugin-log = "2"
+tauri-plugin-single-instance = "2"
+tauri-plugin-store = "2"
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"

@@ -3,6 +3,7 @@ import type { CrossTabEvent } from '@hospital/shared';
 import { history } from '@umijs/max';
 import { Button, Modal, notification } from 'antd';
 import { LOGIN_PATH } from '@/constants/paths';
+import { hardNavigate } from './hardNavigate';
 
 export function handleCrossTabEvent(event: CrossTabEvent) {
   if (isPublicEntryRoute()) return;
@@ -12,8 +13,10 @@ export function handleCrossTabEvent(event: CrossTabEvent) {
       if (event.action === 'logout') {
         // 记忆当前标签页的业务页，供本标签页重新登录后回跳。
         // token 是在「另一个标签页」被清除的，本标签页的 onPageChange 不会触发写入，
-        // 因此需在此主动记忆。
-        rememberReturnPath();
+        // 因此需在此主动记忆。显式传 umi 路由 location（hash 路由下
+        // window.location.pathname 恒为 '/'，不能走默认值）。
+        const { pathname, search, hash } = history.location;
+        rememberReturnPath(pathname, search || undefined, hash || undefined);
         Modal.confirm({
           title: '登录状态变更',
           content: '您已在其他页面退出登录，请重新登录。',
@@ -23,7 +26,7 @@ export function handleCrossTabEvent(event: CrossTabEvent) {
           maskClosable: false,
           onOk: () => {
             Modal.destroyAll();
-            window.location.href = LOGIN_PATH;
+            hardNavigate(LOGIN_PATH);
           },
         });
       } else if (event.action === 'switch-user') {

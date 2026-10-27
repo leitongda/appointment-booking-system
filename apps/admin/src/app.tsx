@@ -6,7 +6,7 @@ import PageTransitionWrapper from '@/components/PageTransitionWrapper';
 import GuidedTour from '@/components/GuidedTour';
 import { getToken, removeToken, setStorage, getStorage, removeStorage, STORAGE_KEYS, initCrossTabSync, isPublicEntryRoute, subscribeTenantSuspended, getTracker, recordRouteChange, rememberReturnPath } from '@hospital/shared';
 import type { MiniappStoreThemeValue } from '@hospital/shared';
-import { adminApi } from '@hospital/api';
+import { adminApi, isTauriDesktop, isTauriPackaged, applyDesktopBaseUrl } from '@hospital/api';
 import type { Settings as LayoutSettings } from '@ant-design/pro-components';
 import type { RunTimeLayoutConfig } from '@umijs/max';
 import { history, useLocation } from '@umijs/max';
@@ -18,6 +18,8 @@ import { getThemeConfig } from '@/themes';
 import { processMenuData, computeParentOpenKeys } from '@/utils/menu';
 import { handleCrossTabEvent } from '@/utils/crossTab';
 import { initVisibilityAuthCheck } from '@/utils/visibilityAuth';
+import { hardNavigate, currentRoutePath } from '@/utils/hardNavigate';
+import { scheduleDesktopUpdateCheck } from '@/utils/desktopUpdater';
 import { initApp } from '@/utils/initApp';
 import { applySpacingCSSVariables, getSpacingMode } from '@/utils/spacing';
 import { getDefaultRoute } from '@/utils/getDefaultRoute';
@@ -25,7 +27,8 @@ import access from '@/access';
 import { LOGIN_PATH } from '@/constants/paths';
 
 // PWA Service Worker 注册
-if ('serviceWorker' in navigator) {
+// 桌面壳（Tauri webview 自定义协议）内禁用：SW 在该环境注册会拦截/缓存请求产生干扰
+if ('serviceWorker' in navigator && !isTauriDesktop()) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
   });
@@ -55,9 +58,9 @@ export function rootContainer(container: any) {
   initCrossTabSync(handleCrossTabEvent);
   initVisibilityAuthCheck();
 
-  // 记录初始路由性能
+  // 记录初始路由性能（桌面壳 hash 路由下 pathname 恒为 '/'，需从 location.hash 归一化）
   let routeStartTime = performance.now();
-  let lastPathname = window.location.pathname;
+  let lastPathname = currentRoutePath();
 
   const _unlisten = history.listen(({ location }: any) => {
     const routeEndTime = performance.now();
@@ -99,6 +102,27 @@ export async function getInitialState(): Promise<{
   loading?: boolean;
   fetchUserInfo?: () => Promise<API.CurrentUser | undefined>;
 }> {
+  // Tauri 桌面壳把关：getInitialState 是首个业务请求（fetchUserInfo）前的最后一道
+  // 异步关口，在此等待桌面 baseURL 覆盖完成，避免与 initApp 的同步 setBaseURL 竞态。
+  // web 端 applyDesktopBaseUrl() 立即返回 null，零影响。
+  if (isTauriDesktop()) {
+    const desktopBaseUrl = await applyDesktopBaseUrl();
+    // 打包态（自定义协议）下相对路径无同源后端可打，未配置机构地址时所有请求都会
+    // 失败——给出可见指引而不是静默失败。tauri dev 走 devUrl（http），不弹窗。
+    if (!desktopBaseUrl && isTauriPackaged()) {
+      Modal.warning({
+        title: '桌面端尚未配置后端地址',
+        content:
+          '请在应用数据目录的 desktop-config.json 中写入 {"desktop.baseUrl": "http://<机构服务器>:9000/api/v1"} 后重启应用。'
+          + 'macOS: ~/Library/Application Support/online.aicm.hospital.admin/；'
+          + 'Windows: %APPDATA%\\online.aicm.hospital.admin\\',
+        okText: '知道了',
+      });
+    }
+    // 自动更新检查放在 baseURL 把关之后、延迟触发且不 await：不阻塞首屏，失败静默
+    scheduleDesktopUpdateCheck();
+  }
+
   const fetchUserInfo = async () => {
     try {
       const currentUser = await adminApi.getCurrentAdmin();
@@ -166,7 +190,7 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }: a
     if (isPublicEntryRoute(location.pathname)) return;
     const unsubscribe = subscribeTenantSuspended(() => {
       if (location.pathname !== '/tenant-suspended') {
-        window.location.href = '/tenant-suspended';
+        hardNavigate('/tenant-suspended');
       }
     });
     return unsubscribe;

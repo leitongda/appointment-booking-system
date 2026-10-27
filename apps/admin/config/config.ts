@@ -21,6 +21,15 @@ import mfsu from './build/mfsu';
 import targets from './build/targets';
 import chainWebpack from './webpack';
 
+// Tauri 桌面壳分支：desktop:dev / desktop:build 脚本注入 TAURI_DESKTOP=1。
+// 桌面壳选 hash 路由是保守选择：生产态由自定义协议（tauri://localhost /
+// http://tauri.localhost）加载静态 dist，Tauri 资产协议对未命中路径会回退
+// index.html，browser history 深链刷新其实也能恢复；但 admin 有多处 pathname
+// 直用与整页 href 跳转，hash 不依赖资产协议回退行为、跨平台语义最可控
+// （跳转经 utils/hardNavigate、路径记录经 currentRoutePath 适配）。web 构建
+// 不注入该变量，路由模式不变。
+const TAURI_DESKTOP = process.env.TAURI_DESKTOP === '1';
+
 export default defineConfig({
   // 路径别名配置
   alias: {
@@ -38,8 +47,11 @@ export default defineConfig({
     ? [{ src: `https://webapi.amap.com/maps?v=2.0&key=${AMAP_KEY}`, defer: true }]
     : [],
 
-  // 使用 hash 路由
+  // 构建产物文件名加 hash（注：这是 dist 产物 hash 选项，不是路由 history 模式）
   hash: true,
+
+  // 路由 history 模式：web 默认 browser；Tauri 桌面壳（TAURI_DESKTOP=1）用 hash
+  history: TAURI_DESKTOP ? { type: 'hash' } : { type: 'browser' },
 
   // umi 内置功能
   antd: {},

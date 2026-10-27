@@ -15,6 +15,7 @@
  */
 /* eslint-disable @typescript-eslint/no-use-before-define -- flush/shouldFlush/trimQueue 相互调用形成环形引用，运行时按调用期解析，无法调整声明顺序 */
 import { record } from 'rrweb';
+import { getBaseURL } from '@hospital/api';
 import { getTracker } from '@hospital/shared';
 
 
@@ -82,7 +83,10 @@ let lastPagePath: string | null = null;
 
 const debug = process.env.NODE_ENV === 'development';
 const API_BASE = process.env.API_BASE_URL || '/api/v1';
-const BATCH_URL = `${API_BASE}/session-events/batch`;
+// 上报地址在发送时动态取：桌面壳下 getBaseURL() 在 setBaseURL 覆盖后返回机构绝对
+// 地址（web 恒为构建期相对路径）。不能在模块加载期固化为常量——打包态下相对路径
+// 会打向自定义协议资产（tauri://localhost/api/v1/...）而非后端。
+const batchUrl = (): string => `${getBaseURL() || API_BASE}/session-events/batch`;
 
 /** 生成兜底 session_id（优先 crypto.randomUUID，回退时间戳+随机串） */
 function generateId(): string {
@@ -133,9 +137,11 @@ function getViewport(): { w: number; h: number } {
   return { w: window.innerWidth, h: window.innerHeight };
 }
 
-/** 当前页面路径（与 tracker 的 page_path 一致，用 pathname） */
+/** 当前页面路径（hash 路由感知：桌面壳下 pathname 恒为 '/'，真实路由在 location.hash） */
 function getPagePath(): string | null {
   if (typeof window === 'undefined' || !window.location) return null;
+  const hash = window.location.hash;
+  if (hash.startsWith('#/')) return hash.slice(1).split('?')[0] || null;
   return window.location.pathname || null;
 }
 
@@ -235,14 +241,14 @@ async function flush(sync = false): Promise<void> {
     // 1) 兜底场景（页面卸载/隐藏）优先 sendBeacon
     if (sync && typeof navigator !== 'undefined' && navigator.sendBeacon) {
       const ok = navigator.sendBeacon(
-        BATCH_URL,
+        batchUrl(),
         new Blob([body], { type: 'application/json' }),
       );
       if (ok) return;
       // sendBeacon 失败（如队列满/数据过大）：若环境有 fetch，立即用
       // fetch(keepalive) 兜底发送这一批；否则回插队列等下次 flush。
       if (typeof fetch !== 'undefined') {
-        await fetch(BATCH_URL, {
+        await fetch(batchUrl(), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body,
@@ -258,7 +264,7 @@ async function flush(sync = false): Promise<void> {
 
     // 2) 非兜底场景：直接 fetch(keepalive)
     if (typeof fetch !== 'undefined') {
-      await fetch(BATCH_URL, {
+      await fetch(batchUrl(), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body,

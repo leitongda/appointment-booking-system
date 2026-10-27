@@ -1,14 +1,12 @@
 import { LockOutlined, UserOutlined } from '@ant-design/icons';
 import { LoginForm, ProFormText } from '@ant-design/pro-components';
 import { message } from 'antd';
-import { history, useModel } from 'umi';
 import { authApi } from '@hospital/api';
 import { setToken, setStorage, STORAGE_KEYS, resetTokenExpiredState } from '@hospital/shared';
+import { hardNavigate } from '@/utils/hardNavigate';
 import styles from './index.less';
 
 const Login: React.FC = () => {
-  const { refresh } = useModel('@@initialState');
-
   const handleSubmit = async (values: { phone: string; password: string }) => {
     try {
       const result = await authApi.doctorLogin(values);
@@ -22,10 +20,14 @@ const Login: React.FC = () => {
 
       message.success('登录成功');
 
-      // 刷新医生状态
-      await refresh();
-
-      history.push('/dashboard');
+      // 整页跳转而非 refresh() + history.push：
+      // refresh() 重跑 getInitialState 时路由仍在 /login，会命中其「登录页直接返回 {}」
+      // 的早退分支，currentDoctor 不会被填充；随后 push('/dashboard') 触发 layout 的
+      // onPageChange 守卫（无 currentDoctor → 弹回 /login），表现为「登录成功却留在登录页」。
+      // 整页跳转让 getInitialState 在 /dashboard 上带 token 重跑，与 admin 端同一策略。
+      setTimeout(() => {
+        hardNavigate('/dashboard');
+      }, 0);
     } catch (error: any) {
       message.error(error.message || '登录失败');
     }

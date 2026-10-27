@@ -152,3 +152,17 @@ location /_AMapService/ {
 - 格式：`https://your-domain.com/_AMapService`
 - 示例：`https://admin.hospital.com/_AMapService`
 
+## 桌面端发布（desktop-release.yml）
+
+桌面客户端已启用 Tauri updater 自动更新，推 `desktop-v*` tag 时以下三项**缺一不可**（prepare 阶段 fail-fast）：
+
+| Secret 名称 | 是否必须 | 说明 |
+|------------|---------|------|
+| `TAURI_SIGNING_PRIVATE_KEY` | ✅ 必须 | 更新包 minisign 私钥，`~/.tauri/hospital-desktop.key` 的**文件内容**。丢失 = 已安装客户端永远收不到更新，请另备份到密码管理器 |
+| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | ✅ 必须 | 上述私钥口令，`~/.tauri/hospital-desktop.key.password` 的内容 |
+| `DESKTOP_UPDATE_BASE_URL` | ✅ 必须 | 更新源根地址，必须 https（如 `https://yy.xxx.com`）；域名不入库，构建期用 `tauri build --config` 注入 |
+| `APPLE_CERTIFICATE` 等六项 | ❌ 可选 | macOS 签名与公证，缺失时出未签名包 |
+
+发版流程、nginx 布局与发布脚本见 [`desktop-release/README.md`](../desktop-release/README.md)。
+
+

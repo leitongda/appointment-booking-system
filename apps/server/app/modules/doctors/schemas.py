@@ -1,5 +1,5 @@
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.schemas.doctor import DoctorResponse
 
@@ -10,9 +10,10 @@ class DoctorLoginRequest(BaseModel):
 
 
 class DoctorLoginResponse(BaseModel):
-    access_token: str
-    refresh_token: str
-    expires_in: int
+    # 与 AdminLoginResponse 保持一致：对外 camelCase（前端 LoginResult 读 accessToken）
+    access_token: str = Field(..., serialization_alias="accessToken")
+    refresh_token: str = Field(..., serialization_alias="refreshToken")
+    expires_in: int = Field(..., serialization_alias="expiresIn")
     doctor: DoctorResponse
 
 
