@@ -40,7 +40,8 @@ jobs:
   ops:
     runs-on: [self-hosted, macOS, desktop-mac]
     permissions:
-      contents: read
+      # publish-updates 需读取草稿 Release 的产物（草稿对只读 token 不可见）
+      contents: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
