@@ -125,6 +125,14 @@ class Settings(BaseSettings):
         "http://127.0.0.1:8002", "http://127.0.0.1:8003", "http://127.0.0.1:8005", "http://127.0.0.1:9102",
         "tauri://localhost", "http://tauri.localhost", "https://tauri.localhost",
     ]
+
+    # 上传文件的公网访问基址（nginx /uploads/ 所在站点根，如 https://yy.aicm.online）。
+    # 数据库只存相对路径（/uploads/<key>），响应出口由该值拼接为绝对 URL：
+    # 桌面客户端（tauri://localhost）等非同源客户端才能加载图片；web 端同源不受影响。
+    # 留空 = 维持相对路径（本地开发 / 未配置时的安全默认）。
+    # 对称规则见 app/schemas/media.py：出口加前缀（publicize_media），请求入口去前缀（normalize_media），
+    # 保证客户端把接口返回值原样回写时入库的仍是相对路径。
+    PUBLIC_MEDIA_BASE_URL: str = ""
     
     # 限流配置
     RATE_LIMIT_ENABLED: bool = True

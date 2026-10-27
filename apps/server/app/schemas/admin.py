@@ -1,7 +1,8 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
+from app.schemas.media import publicize_media
 from app.schemas.response import to_camel
 
 
@@ -14,7 +15,7 @@ class AdminListResponse(BaseModel):
         populate_by_name=True,
         alias_generator=to_camel,
     )
-    
+
     id: str = Field(..., description="管理员ID")
     username: str = Field(..., description="用户名")
     name: str | None = Field(None, description="姓名")
@@ -24,3 +25,7 @@ class AdminListResponse(BaseModel):
     role_id: str | None = Field(None, description="角色ID")
     status: int = Field(1, description="状态: 0禁用 1正常")
     created_at: datetime | None = Field(None, description="创建时间")
+
+    @field_serializer("avatar", when_used="json")
+    def _publicize_avatar(self, value: str | None) -> str | None:
+        return publicize_media(value)

@@ -1,6 +1,7 @@
 """Schema 基类 — 统一 Pydantic 配置"""
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, model_validator
 
+from app.schemas.media import normalize_media
 from app.schemas.response import to_camel
 
 
@@ -53,4 +54,14 @@ class BaseRequestSchema(BaseModel):
         alias_generator=to_camel,
         populate_by_name=True,
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_media_paths(cls, data):
+        """请求入口：客户端回写的「基址 + /uploads/」还原为相对路径（见 app/schemas/media.py）。
+
+        保证对称性：响应出口会拼前缀，客户端原样回写时若不去前缀，库里的相对路径
+        会被绝对 URL 覆盖。基址未配置时为 no-op，请求解析行为零变化。
+        """
+        return normalize_media(data)
 

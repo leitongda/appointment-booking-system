@@ -1,9 +1,10 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_serializer, model_validator
 
 from app.core.config import settings
 from app.enums.feedback import FeedbackStatus, FeedbackType  # noqa: F401 — re-export
+from app.schemas.media import normalize_media, publicize_media
 from app.schemas.response import to_camel
 
 
@@ -21,6 +22,12 @@ class FeedbackCreate(BaseModel):
     content: str = Field(..., min_length=10, description="反馈内容")
     images: list[str] | None = Field(None, description="图片URL列表")
     contact: str | None = Field(None, max_length=50, description="联系方式")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_media_paths(cls, data):
+        # 客户端可能原样回写接口返回的绝对 URL，入口还原为相对路径
+        return normalize_media(data)
 
 class FeedbackReply(BaseModel):
     """回复反馈"""
@@ -54,6 +61,10 @@ class FeedbackResponse(BaseModel):
     reply: str | None = None
     handled_at: datetime | None = None
     created_at: datetime | None = None
+
+    @field_serializer("images", when_used="json")
+    def _publicize_images(self, value: list[str] | None) -> list[str] | None:
+        return publicize_media(value)
 
 class FeedbackQuery(BaseModel):
     """查询参数"""
