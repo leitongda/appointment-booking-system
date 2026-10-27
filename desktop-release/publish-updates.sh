@@ -31,6 +31,8 @@ fi
 tag=${1:?用法: $0 desktop-vX.Y.Z [--dry-run]}
 dry_run=${2:-}
 version=${tag#desktop-v}
+# 允许 -rcN 预发布后缀：desktop-v1.1.0-rc1 的版本与公告按 1.1.0（与 package.json / CHANGELOG 对齐）
+version="${version%%-*}"
 : "${DESKTOP_UPDATE_BASE_URL:?缺少 DESKTOP_UPDATE_BASE_URL}"
 : "${DESKTOP_UPDATE_SSH:?缺少 DESKTOP_UPDATE_SSH}"
 : "${DESKTOP_UPDATE_REMOTE_DIR:?缺少 DESKTOP_UPDATE_REMOTE_DIR}"
