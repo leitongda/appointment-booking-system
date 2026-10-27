@@ -50,10 +50,19 @@ cleanup() { [ "$keep_work" = 1 ] || rm -rf "$work"; }
 trap cleanup EXIT
 
 echo "▶ 下载 Release $tag 的产物到 $work"
-gh release download "$tag" --dir "$work" \
-  --pattern '*.app.tar.gz' --pattern '*.app.tar.gz.sig' \
-  --pattern '*-setup.exe' --pattern '*-setup.exe.sig' \
-  --pattern '*.dmg'
+# 到 GitHub 的链路可能慢且不稳（百 MB 级产物曾中途 unexpected EOF），最多重试 5 次，--clobber 允许续传覆盖
+download_ok=0
+for attempt in 1 2 3 4 5; do
+  if gh release download "$tag" --dir "$work" --clobber \
+    --pattern '*.app.tar.gz' --pattern '*.app.tar.gz.sig' \
+    --pattern '*-setup.exe' --pattern '*-setup.exe.sig' \
+    --pattern '*.dmg'; then
+    download_ok=1; break
+  fi
+  echo "  下载失败（第 $attempt 次），15 秒后重试…" >&2
+  sleep 15
+done
+[ "$download_ok" = 1 ] || { echo "✗ Release 产物下载连续失败" >&2; exit 1; }
 
 # pick <glob>：在下载目录里恰好匹配 1 个文件，否则报错退出（产物命名变了要立刻暴露，而不是发出错包）
 pick() {
