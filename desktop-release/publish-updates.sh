@@ -75,39 +75,59 @@ pick() {
   printf '%s' "${matches[0]}"
 }
 
+# pick_optional <glob>：0 个匹配返回空（该平台本次无产物，如 Windows 托管 runner 受额度限制未跑），多于 1 个报错
+pick_optional() {
+  local matches=()
+  while IFS= read -r f; do matches+=("$f"); done < <(find "$work" -maxdepth 1 -name "$1" | sort)
+  if [ "${#matches[@]}" -gt 1 ]; then
+    echo "✗ 期望至多 1 个匹配 '$1'，实际 ${#matches[@]} 个：${matches[*]}" >&2
+    exit 1
+  fi
+  [ "${#matches[@]}" -eq 1 ] && printf '%s' "${matches[0]}" || true
+}
+
 stage="$work/stage"
 for app in admin doctor; do
   if [ "$app" = admin ]; then product=HospitalAdmin; else product=HospitalDoctor; fi
   mac_bundle="$(pick "${product}*.app.tar.gz")"
-  win_bundle="$(pick "${product}*-setup.exe")"
+  win_bundle="$(pick_optional "${product}*-setup.exe")"
   dmg="$(pick "${product}*.dmg")"
   dir="$stage/$app/$version"
   mkdir -p "$dir"
-  cp "$mac_bundle" "$mac_bundle.sig" "$win_bundle" "$win_bundle.sig" "$dmg" "$dir/"
+  cp "$mac_bundle" "$mac_bundle.sig" "$dmg" "$dir/"
+  win_url=""; win_sig=""
+  if [ -n "$win_bundle" ]; then
+    cp "$win_bundle" "$win_bundle.sig" "$dir/"
+    win_url="$base/desktop/updates/$app/$version/$(basename "$win_bundle")"
+    win_sig="$(cat "$win_bundle.sig")"
+  else
+    echo "  ⚠ $app：本次无 Windows 产物（-setup.exe），latest.json 不含 windows-x86_64，Windows 端不会收到此版本更新提示" >&2
+  fi
 
   mac_url="$base/desktop/updates/$app/$version/$(basename "$mac_bundle")"
-  win_url="$base/desktop/updates/$app/$version/$(basename "$win_bundle")"
   NOTES="$notes" python3 - "$version" "$pub_date" \
     "$mac_url" "$(cat "$mac_bundle.sig")" \
-    "$win_url" "$(cat "$win_bundle.sig")" > "$stage/$app/latest.json" <<'PY'
+    "$win_url" "$win_sig" > "$stage/$app/latest.json" <<'PY'
 import json, os, sys
 
 version, pub_date, mac_url, mac_sig, win_url, win_sig = sys.argv[1:7]
 mac = {"url": mac_url, "signature": mac_sig}
+platforms = {
+    # universal 包同时服务两种架构的 Mac
+    "darwin-aarch64": mac,
+    "darwin-x86_64": mac,
+}
+if win_url:
+    platforms["windows-x86_64"] = {"url": win_url, "signature": win_sig}
 manifest = {
     "version": version,
     "notes": os.environ["NOTES"],
     "pub_date": pub_date,
-    "platforms": {
-        # universal 包同时服务两种架构的 Mac
-        "darwin-aarch64": mac,
-        "darwin-x86_64": mac,
-        "windows-x86_64": {"url": win_url, "signature": win_sig},
-    },
+    "platforms": platforms,
 }
 print(json.dumps(manifest, ensure_ascii=False, indent=2))
 PY
-  echo "✔ $app：$(basename "$mac_bundle") / $(basename "$win_bundle") / $(basename "$dmg") → latest.json"
+  echo "✔ $app：$(basename "$mac_bundle") / ${win_bundle:+$(basename "$win_bundle") / }$(basename "$dmg") → latest.json"
 done
 
 if [ "$dry_run" = "--dry-run" ]; then
