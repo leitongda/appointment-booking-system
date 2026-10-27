@@ -1,5 +1,6 @@
 use tauri::Manager;
-use tauri_plugin_log::{Target, TargetKind};
+use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
+use tauri_plugin_log::{log, Target, TargetKind};
 use tauri_plugin_store::StoreExt;
 
 /// 桌面配置命令：读取应用数据目录下 desktop-config.json（tauri-plugin-store，相对路径
@@ -42,16 +43,24 @@ fn get_desktop_config(app: tauri::AppHandle) -> Result<serde_json::Value, String
     Ok(serde_json::json!({ "baseUrl": base_url, "storeLoaded": store_loaded }))
 }
 
+/// 唤起主窗口（show + 取消最小化 + 聚焦）：托盘单击、托盘菜单「显示主窗口」、
+/// 重复启动（single-instance）、macOS Dock 重开共用。show() 是 hide() 的逆操作，
+/// 窗口被关窗隐藏到托盘后靠这里唤回。
+fn show_main_window<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.unminimize();
+        let _ = window.set_focus();
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        // single-instance 需尽早注册：重复启动时直接退出并聚焦已有窗口
+        // single-instance 需尽早注册：重复启动时直接退出并唤起已有窗口
+        // （窗口可能已随关窗隐藏到托盘，show() 兼具取消隐藏，仍能唤回）
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.show();
-                let _ = window.unminimize();
-                let _ = window.set_focus();
-            }
+            show_main_window(app);
         }))
         // 日志：应用日志目录（LogDir，如 macOS ~/Library/Logs/online.aicm.hospital.doctor/）
         // + 开发期 stdout，便于 PoC 排查
@@ -64,12 +73,72 @@ pub fn run() {
                 .build(),
         )
         .plugin(tauri_plugin_store::Builder::new().build())
+        // 开机自启：macOS 装 LaunchAgent（~/Library/LaunchAgents），Windows 写注册表
+        // Run 键。仅 Rust 直调不经 IPC，无需 capabilities 授权。随启动即启用；机构
+        // 环境可能禁用自启项，失败仅告警不阻断启动。
+        .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None))
         // 自动更新：updater 校验 minisign 签名后下载安装，process 供前端在安装完成后 relaunch。
         // 公钥/更新源在 tauri.conf.json plugins.updater；真实域名不入库，由 CI 用 --config
         // 合并注入（见 desktop-release.yml），仓库内留 .invalid 占位，本地构建检查更新只会静默失败。
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .invoke_handler(tauri::generate_handler![get_desktop_config])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .setup(|app| {
+            // 托盘常驻：应用图标 + 两项菜单；左键单击托盘唤起主窗口，右键弹菜单。
+            // 主窗口关闭不再退出而是隐藏到托盘（见 on_window_event），真正退出走
+            // 菜单「退出」→ app.exit(0)，不经过窗口 close，不受关窗拦截影响。
+            let show_item =
+                tauri::menu::MenuItem::with_id(app, "show", "显示主窗口", true, None::<&str>)?;
+            let quit_item = tauri::menu::MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
+            let tray_menu = tauri::menu::Menu::with_items(app, &[&show_item, &quit_item])?;
+            tauri::tray::TrayIconBuilder::with_id("main")
+                .icon(
+                    app.default_window_icon()
+                        .expect("bundle.icon 未配置，托盘无图标可用")
+                        .clone(),
+                )
+                .menu(&tray_menu)
+                // 左键留给「唤起主窗口」，菜单交给右键
+                .show_menu_on_left_click(false)
+                .on_menu_event(|app, event| match event.id.as_ref() {
+                    "show" => show_main_window(app),
+                    "quit" => app.exit(0),
+                    _ => {}
+                })
+                .on_tray_icon_event(|tray, event| {
+                    if let tauri::tray::TrayIconEvent::Click {
+                        button: tauri::tray::MouseButton::Left,
+                        button_state: tauri::tray::MouseButtonState::Up,
+                        ..
+                    } = event
+                    {
+                        show_main_window(tray.app_handle());
+                    }
+                })
+                .build(app)?;
+            // 开机自启：enable 幂等（已注册时重复启用无害）
+            if let Err(e) = app.autolaunch().enable() {
+                log::warn!("开机自启启用失败，机构可能禁用了自启项，跳过: {e}");
+            }
+            Ok(())
+        })
+        // 关窗最小化：拦截主窗口关闭请求，隐藏到托盘常驻；菜单「退出」走
+        // app.exit(0)，不经过窗口 close，不受此拦截影响
+        .on_window_event(|window, event| {
+            if window.label() == "main" {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+            }
+        })
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        // macOS：窗口隐藏到托盘后点 Dock 图标只激活应用、不会还原窗口，这里补一次
+        // 唤起（Reopen 是 macOS 专属事件，臂上加 cfg 以免 Windows 构建编译不过）
+        .run(|app, event| match event {
+            #[cfg(target_os = "macos")]
+            tauri::RunEvent::Reopen { .. } => show_main_window(app),
+            _ => {}
+        });
 }
