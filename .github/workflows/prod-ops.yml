@@ -25,16 +25,16 @@ on:
         required: false
         default: ''
       frontend_target_dir:
-        description: 'deploy-frontend 用：服务器静态根（为空则用 PROJECT_DIR/apps/<app>/dist）'
+        description: 'deploy-frontend 用：服务器静态根（默认 /www/wwwroot/hospital-web，实际为 <根>/<app>）'
         required: false
-        default: ''
+        default: '/www/wwwroot/hospital-web'
       updates_remote_dir:
         description: 'publish-updates 用：服务器更新源目录（默认 /www/wwwroot/hospital-web/desktop/updates）'
         required: false
         default: ''
 
 env:
-  PROJECT_DIR: /www/hospital-booking
+  PROJECT_DIR: /www/wwwroot/appointment-booking-system  # inspect 实测：compose 项目在此（build-server.yml 里的 /www/hospital-booking 不存在）
 
 jobs:
   ops:
@@ -99,7 +99,7 @@ jobs:
           fi
           ssh $SSH_OPTS "$SSH_DEST" bash -s <<'REMOTE'
             set -euo pipefail
-            cd /www/hospital-booking
+            cd /www/wwwroot/appointment-booking-system
             echo "--- 构建并重建 backend（其余服务不动）---"
             docker compose build backend
             docker compose up -d --no-deps backend
@@ -132,13 +132,49 @@ jobs:
           pnpm --filter @hospital/admin run build
           pnpm --filter @hospital/doctor run build
           for app in admin doctor; do
-            if [ -n "$TARGET_DIR" ]; then dest="$TARGET_DIR/$app"; else dest="$PROJECT_DIR/apps/$app/dist"; fi
+            dest="${TARGET_DIR:-/www/wwwroot/hospital-web}/$app"
             echo "--- 上传 $app → $dest ---"
             ssh $SSH_OPTS "$SSH_DEST" "mkdir -p '$dest.new' && rm -rf '$dest.new'/*"
             scp -i "$SSH_KEY" -P "$SSH_PORT" -o StrictHostKeyChecking=accept-new -rq apps/$app/dist/. "$SSH_DEST:$dest.new/"
             # 原子切换：保留上一版为 .bak 便于回滚
             ssh $SSH_OPTS "$SSH_DEST" "rm -rf '$dest.bak'; [ -d '$dest' ] && mv '$dest' '$dest.bak'; mv '$dest.new' '$dest'; ls '$dest' | head -3"
           done
+
+      - name: Ensure nginx serves /desktop/updates/ (idempotent)
+        if: ${{ inputs.action == 'publish-updates' }}
+        env:
+          REMOTE_DIR: ${{ inputs.updates_remote_dir }}
+        run: |
+          set -euo pipefail
+          remote_dir="${REMOTE_DIR:-/www/wwwroot/hospital-web/desktop/updates}"
+          ssh $SSH_OPTS "$SSH_DEST" "REMOTE_DIR='$remote_dir' bash -s" <<'REMOTE'
+          set -euo pipefail
+          conf=/www/server/panel/vhost/nginx/html_yy.aicm.online.conf
+          mkdir -p "$REMOTE_DIR/admin" "$REMOTE_DIR/doctor"
+          if grep -q "location /desktop/updates/" "$conf"; then echo "nginx 已有 /desktop/updates/ location，跳过"; exit 0; fi
+          cp -a "$conf" "$conf.bak-desktop-updates-$(date +%Y%m%d%H%M%S)"
+          block=$(mktemp)
+          # 更新源用独立目录（alias），不随前端 dist 原子切换挪动；latest.json 禁缓存。插在 /api/ 反代之前。
+          cat > "$block" <<EOF
+              # 桌面客户端自动更新源（desktop-release/publish-updates.sh 发布）
+              location ~ ^/desktop/updates/(admin|doctor)/latest\.json\$ {
+                  alias $REMOTE_DIR/\$1/latest.json;
+                  add_header Cache-Control "no-cache";
+              }
+              location /desktop/updates/ {
+                  alias $REMOTE_DIR/;
+                  autoindex off;
+              }
+
+          EOF
+          awk -v f="$block" '/^[[:space:]]*location \/api\/ \{/ && !done { while ((getline l < f) > 0) print l; done=1 } { print }' "$conf" > "$conf.new"
+          grep -q "location /desktop/updates/" "$conf.new" || { echo "::error::未找到 location /api/ 插入点"; rm -f "$conf.new"; exit 1; }
+          mv "$conf.new" "$conf"
+          nginx_bin=$(command -v nginx || echo /www/server/nginx/sbin/nginx)
+          "$nginx_bin" -t
+          "$nginx_bin" -s reload
+          echo "nginx 已加入 /desktop/updates/ 并 reload"
+          REMOTE
 
       - name: Publish desktop updates
         if: ${{ inputs.action == 'publish-updates' }}
