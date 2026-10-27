@@ -4,6 +4,7 @@ import json
 from collections.abc import Callable
 
 from fastapi import Request, Response
+from app.schemas.media import publicize_media
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
@@ -67,7 +68,11 @@ class UnifiedResponseMiddleware(BaseHTTPMiddleware):
                 if body[:2] == b'\x1f\x8b':
                     body = gzip.decompress(body)
                 data = json.loads(body.decode())
-                
+
+                # 上传接口的返回值会被客户端回填表单再保存入库，必须保持相对路径
+                if not request.url.path.startswith("/api/v1/upload"):
+                    data = publicize_media(data)
+
                 # 如果已经是统一格式，直接返回
                 if isinstance(data, dict) and "code" in data and "message" in data:
                     return JSONResponse(

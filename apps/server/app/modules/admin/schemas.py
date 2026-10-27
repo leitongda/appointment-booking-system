@@ -2,9 +2,10 @@
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_serializer, model_validator
 
 from app.schemas.base import BaseSchema
+from app.schemas.media import normalize_media, publicize_media
 
 
 class PermissionResponse(BaseModel):
@@ -67,6 +68,11 @@ class AdminCreate(BaseModel):
     store_ids: list[str] | None = Field(None, description="绑定的门店ID列表")
     status: int = Field(1, ge=0, le=1)
 
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_media_paths(cls, data):
+        return normalize_media(data)
+
 class AdminUpdate(BaseModel):
     username: str | None = Field(None, min_length=3, max_length=50)
     password: str | None = Field(None, min_length=6)
@@ -78,6 +84,11 @@ class AdminUpdate(BaseModel):
     store_id: str | None = Field(None, description="当前门店ID（兼容旧版）")
     store_ids: list[str] | None = Field(None, description="绑定的门店ID列表")
     status: int | None = Field(None, ge=0, le=1)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_media_paths(cls, data):
+        return normalize_media(data)
 
 class StoreInfo(BaseModel):
     id: str
@@ -136,6 +147,10 @@ class AdminResponse(BaseModel):
         "populate_by_name": True,
         "serialize_by_alias": True,
     }
+
+    @field_serializer("avatar", when_used="json")
+    def _publicize_avatar(self, value: str | None) -> str | None:
+        return publicize_media(value)
 
 class AdminLoginRequest(BaseModel):
     username: str
@@ -218,6 +233,11 @@ class UpdateProfileRequest(BaseModel):
     phone: str | None = Field(None, max_length=20)
     email: str | None = Field(None, max_length=100)
     avatar: str | None = Field(None, max_length=255)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_media_paths(cls, data):
+        return normalize_media(data)
 
 class SwitchStoreRequest(BaseModel):
     store_id: str = Field(..., description="目标门店ID")
