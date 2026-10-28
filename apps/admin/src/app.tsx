@@ -6,7 +6,7 @@ import PageTransitionWrapper from '@/components/PageTransitionWrapper';
 import GuidedTour from '@/components/GuidedTour';
 import { getToken, removeToken, setStorage, getStorage, removeStorage, STORAGE_KEYS, initCrossTabSync, isPublicEntryRoute, subscribeTenantSuspended, getTracker, recordRouteChange, rememberReturnPath } from '@hospital/shared';
 import type { MiniappStoreThemeValue } from '@hospital/shared';
-import { adminApi, isTauriDesktop, isTauriPackaged, applyDesktopBaseUrl } from '@hospital/api';
+import { adminApi, isTauriDesktop, applyDesktopBaseUrl } from '@hospital/api';
 import type { Settings as LayoutSettings } from '@ant-design/pro-components';
 import type { RunTimeLayoutConfig } from '@umijs/max';
 import { history, useLocation } from '@umijs/max';
@@ -20,6 +20,7 @@ import { handleCrossTabEvent } from '@/utils/crossTab';
 import { initVisibilityAuthCheck } from '@/utils/visibilityAuth';
 import { hardNavigate, currentRoutePath } from '@/utils/hardNavigate';
 import { scheduleDesktopUpdateCheck } from '@/utils/desktopUpdater';
+import { showSetupWizardIfMissing, listenTrayCheckUpdates } from '@/utils/desktopSetup';
 import { initApp } from '@/utils/initApp';
 import { applySpacingCSSVariables, getSpacingMode } from '@/utils/spacing';
 import { getDefaultRoute } from '@/utils/getDefaultRoute';
@@ -106,19 +107,13 @@ export async function getInitialState(): Promise<{
   // 异步关口，在此等待桌面 baseURL 覆盖完成，避免与 initApp 的同步 setBaseURL 竞态。
   // web 端 applyDesktopBaseUrl() 立即返回 null，零影响。
   if (isTauriDesktop()) {
-    const desktopBaseUrl = await applyDesktopBaseUrl();
-    // 打包态（自定义协议）下相对路径无同源后端可打，未配置机构地址时所有请求都会
-    // 失败——给出可见指引而不是静默失败。tauri dev 走 devUrl（http），不弹窗。
-    if (!desktopBaseUrl && isTauriPackaged()) {
-      Modal.warning({
-        title: '桌面端尚未配置后端地址',
-        content:
-          '请在应用数据目录的 desktop-config.json 中写入 {"desktop.baseUrl": "http://<机构服务器>:9000/api/v1"} 后重启应用。'
-          + 'macOS: ~/Library/Application Support/online.aicm.hospital.admin/；'
-          + 'Windows: %APPDATA%\\online.aicm.hospital.admin\\',
-        okText: '知道了',
-      });
-    }
+    await applyDesktopBaseUrl();
+    // 打包态且未配置 desktop.baseUrl 时弹首次启动配置向导（收集地址 → set_desktop_config
+    // 校验写盘 → 整页刷新生效），替代此前「仅弹警告指引用户手工编辑 JSON」的提示；
+    // web / tauri dev 直接返回，零影响。不 await：向导只是弹窗，不阻塞首屏。
+    void showSetupWizardIfMissing();
+    // 托盘菜单「检查更新」：壳 emit desktop-check-updates → 手动检查（结果有反馈）
+    listenTrayCheckUpdates();
     // 自动更新检查放在 baseURL 把关之后、延迟触发且不 await：不阻塞首屏，失败静默
     scheduleDesktopUpdateCheck();
   }

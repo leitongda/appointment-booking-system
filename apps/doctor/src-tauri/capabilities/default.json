@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "医生端桌面壳默认权限：核心能力（窗口/事件等）+ 自动更新（updater 检查/下载/安装）+ process（安装完成后 relaunch）。配置读取走自定义命令 get_desktop_config（不经 ACL，Rust 侧直读 store），前端无需任何 store 插件 IPC 权限。",
+  "description": "医生端桌面壳默认权限：核心能力（窗口/事件等）+ 自动更新（updater 检查/下载/安装）+ process（安装完成后 relaunch）+ notification（窗口隐藏/失焦时的系统通知兜底提醒）。配置读写走自定义命令 get_desktop_config / set_desktop_config（不经 ACL，Rust 侧直读 store），前端无需任何 store 插件 IPC 权限。",
   "windows": ["main"],
-  "permissions": ["core:default", "updater:default", "process:default"]
+  "permissions": ["core:default", "updater:default", "process:default", "notification:default"]
 }

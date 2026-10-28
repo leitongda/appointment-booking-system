@@ -49,8 +49,19 @@
 - [x] 6.10 Windows 脚本兼容：desktop:dev/build 改 cross-env；CI pnpm 由 packageManager 决定（lockfile v9）
 - [~] 6.11 CI 实跑：推 tag `desktop-v0.1.0-rc1`，workflow 已通过解析并创建作业；但作业无法启动——GitHub 账户 Actions 计费/支出限额问题（账户级，需在 Billing & plans 处理后重推 tag）
 
+## 阶段 7：P0 增强（托盘常驻/通知/安全/发版工程）
+
+- [x] 7.1 托盘常驻 + 关窗最小化 + 开机自启（两端对称，f58ed712）：关闭窗口隐藏到托盘不退出进程；托盘菜单「显示主窗口 / 开机自启 / 检查更新 / 退出」
+- [x] 7.2 开机自启收敛：仅首次启动自动注册一次 + 托盘 CheckMenuItem「开机自启」开关持久化（3ca814c2）
+- [x] 7.3 医生端系统通知兜底：WS 消息转系统级提醒，窗口在后台/最小化也不漏（48af1a4d）
+- [x] 7.4 首次启动配置引导向导（缺 desktop-config.json 时逐步引导填后端地址）+ 托盘「检查更新」菜单项（125c07bf）
+- [x] 7.5 CSP 收紧：两端 webview 从无 CSP 改为白名单（454dbea3），随后按实测补齐——connect-src 放行自建机构任意 origin http/https/ws/wss（a52c4eb7）、img-src 补 http:（21550f89）、admin 端补 worker-src blob: 与 restapi.amap.com 修复地图选点（dbf3e539）
+- [x] 7.6 医生端独立图标 + 机构安装配置指南（d78514d0）
+- [x] 7.7 上传文件公网基址 PUBLIC_MEDIA_BASE_URL（服务端）：桌面壳下 `<img>` 相对路径 `/uploads/...` 打向资产协议导致头像/图片不显示，由服务端返回绝对 URL 根治（9389ac00，对应下方已知待办第 1 条，已闭环）
+- [x] 7.8 发版工程：publish-updates 支持 -rcN 预发布后缀（8cc7c4a5）、作业 contents 权限 write（9244c3c3）、下载产物加重试（67df65d7）、允许缺 Windows 产物并告警（47be3f8f）、自托管 runner 生产运维 workflow prod-ops.yml（28be5fe3 + 15556098 按巡检修正生产路径）
+
 ## 已知待办（桌面端特有，不阻塞）
 
-- 后端返回的上传文件为相对路径 `/uploads/...`，打包态 `<img src>` 打向资产协议，头像/上传图片不显示；需在前端加统一 `resolveMediaUrl`（桌面壳下拼后端 origin）或后端返回绝对 URL
+- ~~后端返回的上传文件为相对路径 `/uploads/...`，打包态 `<img src>` 打向资产协议，头像/上传图片不显示~~ 已闭环：服务端新增 PUBLIC_MEDIA_BASE_URL 返回绝对 URL（9389ac00，见 7.7）
 - 本地开发库 schema 漂移：`appointments.assistant_confirm_status` 列缺失（alembic 已在 head），`/statistics/overview` 与 `/statistics/revenue/trend` 500——与桌面壳无关，web 同样复现
 - 拉取本批改动后，各端 umi dev 需清一次 MFSU 缓存（`rm -rf node_modules/.cache src/.umi`），否则报 `isTauriDesktop is not a function`
