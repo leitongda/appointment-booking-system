@@ -20,7 +20,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self' https://webapi.amap.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: asset: http://asset.localhost https: http:; font-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost https://yy.aicm.online wss://yy.aicm.online http: https: ws: wss:"
+      "csp": "default-src 'self'; script-src 'self' https://webapi.amap.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: asset: http://asset.localhost https: http:; font-src 'self' data:; worker-src 'self' blob:; connect-src 'self' ipc: http://ipc.localhost https://yy.aicm.online wss://yy.aicm.online https://restapi.amap.com http: https: ws: wss:"
     }
   },
   "bundle": {
