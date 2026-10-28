@@ -1,4 +1,4 @@
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
 use tauri_plugin_log::{log, Target, TargetKind};
 use tauri_plugin_store::StoreExt;
@@ -41,6 +41,30 @@ fn get_desktop_config(app: tauri::AppHandle) -> Result<serde_json::Value, String
         });
     let store_loaded = !store.keys().is_empty();
     Ok(serde_json::json!({ "baseUrl": base_url, "storeLoaded": store_loaded }))
+}
+
+/// 首次启动配置引导写入命令（前端向导 apps/admin/src/utils/desktopSetup.tsx 调用）：
+/// 校验 base_url 以 http:// 或 https:// 开头后，写入 desktop-config.json 的顶层扁平键
+/// desktop.baseUrl（与 get_desktop_config 同一 store），随即 save() 落盘——插件的 set
+/// 只改内存缓存，不落盘的话重启就丢。成功返回 Ok(())，失败返回 Err(中文说明)，前端
+/// 向导据此保持弹窗让用户重试。
+///
+/// 机构后端地址逐机构可变（云托管 / 自建内网），不能打进安装包：要么首启向导配置，
+/// 要么照 get_desktop_config 文档手工编辑 desktop-config.json。
+#[tauri::command]
+fn set_desktop_config(app: tauri::AppHandle, base_url: String) -> Result<(), String> {
+    let base_url = base_url.trim();
+    if !(base_url.starts_with("http://") || base_url.starts_with("https://")) {
+        return Err("地址必须以 http:// 或 https:// 开头".to_string());
+    }
+    let store = app
+        .store("desktop-config.json")
+        .map_err(|e| format!("打开桌面配置失败: {e}"))?;
+    store.set("desktop.baseUrl", base_url);
+    store
+        .save()
+        .map_err(|e| format!("保存桌面配置失败: {e}"))?;
+    Ok(())
 }
 
 /// 唤起主窗口（show + 取消最小化 + 聚焦）：托盘单击、托盘菜单「显示主窗口」、
@@ -86,15 +110,21 @@ pub fn run() {
         // 仅注册插件备用；前端经 window.__TAURI__.notification 即可调用（零 npm 依赖），
         // 需 capabilities 的 notification:default 授权。
         .plugin(tauri_plugin_notification::init())
-        .invoke_handler(tauri::generate_handler![get_desktop_config])
+        .invoke_handler(tauri::generate_handler![
+            get_desktop_config,
+            set_desktop_config
+        ])
         .setup(|app| {
-            // 托盘常驻：应用图标 + 两项菜单；左键单击托盘唤起主窗口，右键弹菜单。
+            // 托盘常驻：应用图标 + 三项菜单；左键单击托盘唤起主窗口，右键弹菜单。
             // 主窗口关闭不再退出而是隐藏到托盘（见 on_window_event），真正退出走
             // 菜单「退出」→ app.exit(0)，不经过窗口 close，不受关窗拦截影响。
             let show_item =
                 tauri::menu::MenuItem::with_id(app, "show", "显示主窗口", true, None::<&str>)?;
+            let check_updates_item =
+                tauri::menu::MenuItem::with_id(app, "check-updates", "检查更新", true, None::<&str>)?;
             let quit_item = tauri::menu::MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
-            let tray_menu = tauri::menu::Menu::with_items(app, &[&show_item, &quit_item])?;
+            let tray_menu =
+                tauri::menu::Menu::with_items(app, &[&show_item, &check_updates_item, &quit_item])?;
             tauri::tray::TrayIconBuilder::with_id("main")
                 .icon(
                     app.default_window_icon()
@@ -106,6 +136,13 @@ pub fn run() {
                 .show_menu_on_left_click(false)
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "show" => show_main_window(app),
+                    // 检查更新：先唤起主窗口（手动检查的结果反馈弹在 webview 里，窗口
+                    // 隐藏到托盘时用户看不见），再向主窗口发事件；前端 desktopSetup.tsx
+                    // 监听后调用 checkDesktopUpdate({ manual: true })。
+                    "check-updates" => {
+                        show_main_window(app);
+                        let _ = app.emit_to("main", "desktop-check-updates", ());
+                    }
                     "quit" => app.exit(0),
                     _ => {}
                 })

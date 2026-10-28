@@ -11,6 +11,7 @@ import {
 import { initApiConfig } from '@/utils/request';
 import { hardNavigate } from '@/utils/hardNavigate';
 import { scheduleDesktopUpdateCheck } from '@/utils/desktopUpdater';
+import { showSetupWizardIfMissing, listenTrayCheckUpdates } from '@/utils/desktopSetup';
 
 // 设置 API 基础路径（从环境变量读取，支持动态配置）
 const apiBaseUrl = process.env.API_BASE_URL || '/api/v1';
@@ -116,6 +117,12 @@ export async function getInitialState(): Promise<{ currentDoctor?: CurrentDoctor
   // web 端 applyDesktopBaseUrl() 立即返回 null，零影响。
   if (isTauriDesktop()) {
     await applyDesktopBaseUrl();
+    // 打包态未配置机构后端地址时弹首次启动配置向导（收集地址 → set_desktop_config
+    // 写盘 → 整页刷新生效）；web / tauri dev 直接返回，零影响。不 await：向导只是
+    // 弹窗，不阻塞首屏。
+    void showSetupWizardIfMissing();
+    // 托盘菜单「检查更新」：壳 emit desktop-check-updates → 手动检查（结果有反馈）
+    listenTrayCheckUpdates();
     // 自动更新检查放在 baseURL 把关之后、延迟触发且不 await：不阻塞首屏，失败静默
     scheduleDesktopUpdateCheck();
   }
