@@ -30,7 +30,7 @@
     "gen:types": "openapi-typescript src/types/api-generated/openapi.json -o src/types/api-generated/schema.d.ts"
   },
   "dependencies": {
-    "dayjs": "^1.11.10",
+    "dayjs": "^1.11.21",
     "react-image-crop": "^11.0.7"
   },
   "devDependencies": {
