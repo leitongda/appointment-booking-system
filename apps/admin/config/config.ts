@@ -72,8 +72,8 @@ export default defineConfig({
   // npm 客户端
   npmClient: 'pnpm',
 
-  // 开发配置
-  mfsu,
+  // 开发配置（MFSU=off 可临时禁用模块联邦加速，用于排查依赖预构建问题）
+  mfsu: process.env.MFSU === 'off' ? false : mfsu,
 
   // 构建目标
   targets,

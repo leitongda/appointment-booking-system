@@ -1,0 +1,813 @@
+/**
+ * Kargul Workspace 日历设计 tokens —— 1:1 复刻自
+ * github.com/kargulstudio/calender-app-design (MIT) src/app/globals.css
+ * 变量加 kg- 前缀并作用于 .kg-root，避免污染全局。
+ */
+.kg-root {
+  --kg-bg-app: #f8f8f8;
+  --kg-bg-surface: #ffffff;
+  --kg-bg-selected: #eaeae6;
+  --kg-bg-hover: #f1f1ee;
+
+  --kg-border-hairline: #e5e7e1;
+  --kg-border-control: #ededed;
+  --kg-border-segment: #e5e5e5;
+
+  --kg-text-primary: #1d1d1d;
+  --kg-text-secondary: #757575;
+  --kg-text-placeholder: #a1a1a1;
+  --kg-text-dayname: #c2c2c2;
+  --kg-text-on-accent: #ffffff;
+
+  --kg-brand: #8965de;
+  --kg-brand-strong: #7a55d4;
+  --kg-brand-tint: rgba(137, 101, 222, 0.1);
+
+  --kg-event-green-bg: #bde7db;
+  --kg-event-green-fg: #005c42;
+  --kg-event-purple-bg: #e3daf7;
+  --kg-event-purple-fg: #594290;
+  --kg-event-cyan-bg: #aee9f4;
+  --kg-event-cyan-fg: #28555d;
+  --kg-event-orange-bg: #fdd8b8;
+  --kg-event-orange-fg: #774317;
+  --kg-event-pink-bg: #fdd4e6;
+  --kg-event-pink-fg: #813455;
+  --kg-event-blue-bg: #c5e2f9;
+  --kg-event-blue-fg: #0e5289;
+
+  --kg-status-success: #00a475;
+  --kg-status-success-tint: rgba(0, 164, 117, 0.08);
+  --kg-status-success-border: rgba(0, 164, 117, 0.12);
+  --kg-status-danger: #ef4747;
+  --kg-status-danger-tint: rgba(239, 71, 71, 0.08);
+  --kg-status-danger-border: rgba(239, 71, 71, 0.12);
+  --kg-status-warning: #e07a1f;
+  --kg-status-warning-tint: rgba(248, 140, 47, 0.1);
+  --kg-status-warning-border: rgba(248, 140, 47, 0.16);
+  --kg-status-neutral: #757575;
+  --kg-status-neutral-tint: rgba(117, 117, 117, 0.08);
+  --kg-status-neutral-border: rgba(117, 117, 117, 0.14);
+
+  --kg-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+
+  font-family: 'Geist', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  font-weight: 500;
+  color: var(--kg-text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Typography —— 设计规范：Geist Medium, line-height 1, 字距 -2%（12px 为 -1%） */
+.kg-root .kg-t16 {
+  font-size: 16px;
+  line-height: 1;
+  letter-spacing: -0.32px;
+}
+.kg-root .kg-t14 {
+  font-size: 14px;
+  line-height: 1;
+  letter-spacing: -0.28px;
+}
+.kg-root .kg-t12 {
+  font-size: 12px;
+  line-height: 1;
+  letter-spacing: -0.12px;
+}
+.kg-root .kg-salt {
+  font-feature-settings: 'salt' 1;
+}
+
+/* 可按压元素：仅平滑的颜色过渡，无缩放回弹 */
+.kg-root .kg-press {
+  transition-property: background-color, border-color, color, box-shadow, opacity;
+  transition-duration: 160ms;
+  transition-timing-function: var(--kg-ease-out);
+}
+
+.kg-root .kg-scroll-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@keyframes kg-event-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(137, 101, 222, 0.55);
+  }
+  100% {
+    box-shadow: 0 0 0 10px rgba(137, 101, 222, 0);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* 日历卡片容器                                                        */
+/* ------------------------------------------------------------------ */
+.kg-root .kg-cal {
+  --kg-axis: 70px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--kg-bg-surface);
+  border: 1px solid var(--kg-border-hairline);
+  border-radius: 12px;
+}
+
+/* ------------------------------------------------------------------ */
+/* 头部：范围标题 + 今天/翻页 + Day/Week/Month 滑动分段                 */
+/* ------------------------------------------------------------------ */
+.kg-root .kg-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 68px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--kg-border-hairline);
+  background: var(--kg-bg-surface);
+  flex-shrink: 0;
+}
+.kg-root .kg-header-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  align-items: flex-start;
+}
+.kg-root .kg-header-titles h2 {
+  margin: 0;
+  color: var(--kg-text-primary);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.kg-root .kg-header-titles p {
+  margin: 0;
+  color: var(--kg-text-secondary);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kg-root .kg-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--kg-border-control);
+  border-radius: 8px;
+  background: var(--kg-bg-surface);
+  color: var(--kg-text-primary);
+  font-size: 14px;
+  line-height: 1;
+  letter-spacing: -0.28px;
+  font-weight: 500;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition-property: background-color, border-color, color, box-shadow, opacity;
+  transition-duration: 160ms;
+  transition-timing-function: var(--kg-ease-out);
+  &:hover:not(:disabled) {
+    background: var(--kg-bg-hover);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.kg-root .kg-arrows {
+  display: flex;
+  align-items: center;
+  height: 30px;
+  border: 1px solid var(--kg-border-control);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--kg-bg-surface);
+  flex-shrink: 0;
+}
+.kg-root .kg-arrows button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 29px;
+  height: 100%;
+  border: none;
+  background: transparent;
+  color: var(--kg-text-secondary);
+  cursor: pointer;
+  padding: 0;
+  transition-property: background-color, color;
+  transition-duration: 160ms;
+  transition-timing-function: var(--kg-ease-out);
+  &:hover {
+    background: var(--kg-bg-hover);
+  }
+}
+.kg-root .kg-arrows .kg-arrows-divider {
+  width: 1px;
+  height: 100%;
+  background: var(--kg-border-control);
+}
+
+.kg-root .kg-seg {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 30px;
+  width: 163px;
+  padding: 1px;
+  border-radius: 8px;
+  background: var(--kg-bg-app);
+  flex-shrink: 0;
+}
+.kg-root .kg-seg-pill {
+  position: absolute;
+  top: 1px;
+  left: 0;
+  height: calc(100% - 2px);
+  width: calc((100% - 6px) / 3);
+  border-radius: 8px;
+  border: 1px solid var(--kg-border-segment);
+  background: var(--kg-bg-surface);
+  transition: transform 200ms var(--kg-ease-out);
+  transform: translateX(calc(var(--kg-seg-i) * (100% + 2px) + 1px));
+}
+.kg-root .kg-seg button {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  height: calc(100% - 2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  font-size: 14px;
+  line-height: 1;
+  letter-spacing: -0.24px;
+  font-weight: 500;
+  color: var(--kg-text-secondary);
+  cursor: pointer;
+  padding: 0;
+  transition: color 150ms ease;
+  &:hover {
+    color: var(--kg-text-primary);
+  }
+}
+.kg-root .kg-seg button.kg-seg-active {
+  color: var(--kg-text-primary);
+}
+
+/* ------------------------------------------------------------------ */
+/* 星期表头                                                            */
+/* ------------------------------------------------------------------ */
+.kg-root .kg-dayheaders {
+  display: flex;
+  align-items: flex-start;
+  height: 56px;
+  width: 100%;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-bottom: 1px solid var(--kg-border-hairline);
+  background: var(--kg-bg-surface);
+}
+.kg-root .kg-axis-spacer {
+  position: sticky;
+  left: 0;
+  z-index: 10;
+  width: var(--kg-axis);
+  height: 100%;
+  flex-shrink: 0;
+  background: var(--kg-bg-surface);
+}
+.kg-root .kg-dayheader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  padding: 0 12px;
+  border: none;
+  border-left: 1px solid var(--kg-border-hairline);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  &:focus-visible {
+    background: var(--kg-bg-hover);
+    outline: none;
+  }
+}
+.kg-root .kg-dayheader .kg-dow {
+  flex-shrink: 0;
+  text-align: center;
+  white-space: nowrap;
+  color: var(--kg-text-dayname);
+}
+.kg-root .kg-daynum {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
+  min-width: 24px;
+  padding: 0 4px;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 8px;
+  white-space: nowrap;
+  color: var(--kg-text-primary);
+  transition: background-color 150ms ease, color 150ms ease;
+}
+.kg-root .kg-daynum.kg-today {
+  color: var(--kg-brand);
+}
+.kg-root .kg-dayheader:hover .kg-daynum.kg-today {
+  background: var(--kg-brand-tint);
+}
+.kg-root .kg-dayheader:hover .kg-daynum:not(.kg-selected) {
+  background: var(--kg-bg-hover);
+}
+.kg-root .kg-daynum.kg-selected {
+  background: var(--kg-brand);
+  box-shadow: 0 0 0 1px var(--kg-brand), inset 0 4px 4px 0 rgba(255, 255, 255, 0.16);
+  color: #fff;
+  font-weight: 600;
+}
+
+/* ------------------------------------------------------------------ */
+/* 全天泳道                                                            */
+/* ------------------------------------------------------------------ */
+.kg-root .kg-allday {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-bottom: 1px solid var(--kg-border-hairline);
+  background: var(--kg-bg-surface);
+}
+.kg-root .kg-allday-label {
+  position: sticky;
+  left: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: var(--kg-axis);
+  flex-shrink: 0;
+  padding-right: 12px;
+  background: var(--kg-bg-surface);
+  color: var(--kg-text-placeholder);
+}
+.kg-root .kg-allday-cell {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  padding: 0 4px;
+  border-left: 1px solid var(--kg-border-hairline);
+  cursor: default;
+}
+.kg-root .kg-chip {
+  display: flex;
+  align-items: center;
+  height: 28px;
+  width: 100%;
+  flex-shrink: 0;
+  overflow: hidden;
+  border: none;
+  border-radius: 8px;
+  padding: 0 8px;
+  text-align: left;
+  cursor: pointer;
+  transition-property: filter;
+  transition-duration: 160ms;
+  transition-timing-function: var(--kg-ease-out);
+  &:hover {
+    filter: brightness(0.97);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* 时间网格                                                            */
+/* ------------------------------------------------------------------ */
+.kg-root .kg-scroller {
+  position: relative;
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior-x: contain;
+}
+.kg-root .kg-gridwrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 100%;
+}
+.kg-root .kg-stickyhead {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: var(--kg-bg-surface);
+}
+.kg-root .kg-bodyrow {
+  position: relative;
+  display: flex;
+  width: 100%;
+}
+.kg-root .kg-hourlines {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--kg-axis);
+  right: 0;
+  pointer-events: none;
+}
+.kg-root .kg-hourline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--kg-border-hairline);
+}
+.kg-root .kg-axis {
+  position: sticky;
+  left: 0;
+  z-index: 20;
+  width: var(--kg-axis);
+  height: 100%;
+  flex-shrink: 0;
+  background: var(--kg-bg-surface);
+  user-select: none;
+}
+.kg-root .kg-axis span {
+  position: absolute;
+  right: 12px;
+  white-space: nowrap;
+  color: var(--kg-text-secondary);
+}
+.kg-root .kg-daycols {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  flex: 1;
+  user-select: none;
+}
+.kg-root .kg-daycols.kg-grabbing {
+  cursor: grabbing;
+}
+.kg-root .kg-daycol {
+  position: relative;
+  height: 100%;
+  min-width: 0;
+  flex: 1;
+  border-left: 1px solid var(--kg-border-hairline);
+}
+
+/* 事件块 */
+.kg-root .kg-event {
+  position: absolute;
+  overflow: hidden;
+  border-radius: 8px;
+  font-weight: 500;
+  outline: none;
+  transition-property: box-shadow, filter, opacity;
+  transition-duration: 150ms;
+  &:hover {
+    filter: brightness(0.97);
+  }
+}
+.kg-root .kg-event.kg-can-drag {
+  cursor: grab;
+}
+.kg-root .kg-event.kg-locked {
+  cursor: pointer;
+}
+.kg-root .kg-event.kg-dragging {
+  z-index: 30;
+  opacity: 0.95;
+  box-shadow: 0 8px 24px -6px rgba(15, 15, 15, 0.28);
+}
+.kg-root .kg-event-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  height: 100%;
+  width: 100%;
+  padding: 8px;
+}
+.kg-root .kg-event-compact {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  width: 100%;
+  padding: 0 8px;
+}
+.kg-root .kg-event p {
+  margin: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  width: 100%;
+  flex-shrink: 0;
+}
+.kg-root .kg-event .kg-ev-title {
+  font-size: 14px;
+  line-height: 1;
+  letter-spacing: -0.28px;
+}
+.kg-root .kg-event .kg-ev-time,
+.kg-root .kg-event .kg-ev-note {
+  font-size: 12px;
+  line-height: 1;
+  letter-spacing: -0.24px;
+}
+.kg-root .kg-event .kg-ev-compact-title {
+  font-size: 14px;
+  line-height: 1;
+  letter-spacing: -0.28px;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.kg-root .kg-event .kg-ev-compact-time {
+  font-size: 12px;
+  line-height: 1;
+  letter-spacing: -0.12px;
+  margin-left: 4px;
+  opacity: 0.8;
+}
+.kg-root .kg-event .kg-resize {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 6px;
+  cursor: ns-resize;
+}
+
+/* 拖拽创建幽灵块 */
+.kg-root .kg-ghost {
+  position: absolute;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+  border-radius: 8px;
+  border: 1px dashed rgba(137, 101, 222, 0.6);
+  background: var(--kg-brand-tint);
+  color: var(--kg-brand);
+  padding: 8px;
+  pointer-events: none;
+}
+
+/* 当前时刻线 */
+.kg-root .kg-nowline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+}
+.kg-root .kg-nowdot {
+  width: 8px;
+  height: 8px;
+  margin-left: -4px;
+  border-radius: 50%;
+  background: var(--kg-brand);
+  flex-shrink: 0;
+}
+.kg-root .kg-nowbar {
+  height: 1.5px;
+  flex: 1;
+  background: var(--kg-brand);
+}
+
+/* ------------------------------------------------------------------ */
+/* 月视图                                                              */
+/* ------------------------------------------------------------------ */
+.kg-root .kg-month {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.kg-root .kg-month-weekdays {
+  display: grid;
+  height: 40px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--kg-border-hairline);
+}
+.kg-root .kg-month-weekdays .kg-month-dow {
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  color: var(--kg-text-dayname);
+}
+.kg-root .kg-month-weekdays .kg-month-dow + .kg-month-dow {
+  border-left: 1px solid var(--kg-border-hairline);
+}
+.kg-root .kg-month-grid {
+  display: grid;
+  flex: 1;
+  min-height: 0;
+}
+.kg-root .kg-month-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 0;
+  overflow: hidden;
+  padding: 6px;
+  border-bottom: 1px solid var(--kg-border-hairline);
+  border-left: 1px solid var(--kg-border-hairline);
+  cursor: default;
+}
+.kg-root .kg-month-cell.kg-no-left-border {
+  border-left: none;
+}
+.kg-root .kg-month-cell.kg-outside {
+  background: rgba(248, 248, 248, 0.6);
+}
+.kg-root .kg-month-daynum {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
+  min-width: 24px;
+  padding: 0 4px;
+  flex-shrink: 0;
+  align-self: flex-start;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 14px;
+  line-height: 1;
+  letter-spacing: -0.28px;
+  color: var(--kg-text-primary);
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease;
+  &:hover:not(.kg-selected) {
+    background: var(--kg-bg-hover);
+  }
+}
+.kg-root .kg-month-daynum.kg-today {
+  color: var(--kg-brand);
+  &:hover {
+    background: var(--kg-brand-tint);
+  }
+}
+.kg-root .kg-month-daynum.kg-outside-num {
+  color: var(--kg-text-placeholder);
+}
+.kg-root .kg-month-daynum.kg-selected {
+  background: var(--kg-brand);
+  box-shadow: 0 0 0 1px var(--kg-brand), inset 0 4px 4px 0 rgba(255, 255, 255, 0.16);
+  color: #fff;
+  font-weight: 600;
+}
+.kg-root .kg-month-chip {
+  display: flex;
+  align-items: center;
+  height: 22px;
+  width: 100%;
+  flex-shrink: 0;
+  overflow: hidden;
+  border: none;
+  border-radius: 6px;
+  padding: 0 6px;
+  text-align: left;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  letter-spacing: -0.24px;
+  transition-property: filter;
+  transition-duration: 160ms;
+  &:hover {
+    filter: brightness(0.97);
+  }
+}
+.kg-root .kg-month-chip.kg-dim {
+  opacity: 0.6;
+}
+.kg-root .kg-month-more {
+  align-self: flex-start;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 6px;
+  background: transparent;
+  font-size: 12px;
+  line-height: 1;
+  letter-spacing: -0.12px;
+  color: var(--kg-text-secondary);
+  cursor: pointer;
+  &:hover {
+    background: var(--kg-bg-hover);
+    color: var(--kg-text-primary);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* 详情弹层（锚点定位）                                                 */
+/* ------------------------------------------------------------------ */
+.kg-root .kg-pop {
+  position: fixed;
+  z-index: 1050;
+  width: 300px;
+  max-width: calc(100vw - 24px);
+  overflow: hidden;
+  border-radius: 12px;
+  background: var(--kg-bg-surface);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.14), 0 0 0 1px var(--kg-border-hairline);
+}
+.kg-root .kg-pop-head {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+}
+.kg-root .kg-pop-swatch {
+  width: 12px;
+  height: 12px;
+  margin-top: 2px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.kg-root .kg-pop-body {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+.kg-root .kg-pop-body h3 {
+  margin: 0;
+  line-height: 1.25;
+  word-break: break-word;
+  color: var(--kg-text-primary);
+}
+.kg-root .kg-pop-body p {
+  margin: 0;
+  color: var(--kg-text-secondary);
+}
+.kg-root .kg-pop-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 4px;
+}
+.kg-root .kg-pop-foot {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-top: 1px solid var(--kg-border-hairline);
+  background: var(--kg-bg-app);
+  padding: 8px;
+}
+.kg-root .kg-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  line-height: 1;
+  letter-spacing: -0.12px;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+.kg-root .kg-badge.kg-badge-success {
+  color: var(--kg-status-success);
+  background: var(--kg-status-success-tint);
+  box-shadow: inset 0 0 0 1px var(--kg-status-success-border);
+}
+.kg-root .kg-badge.kg-badge-warning {
+  color: var(--kg-status-warning);
+  background: var(--kg-status-warning-tint);
+  box-shadow: inset 0 0 0 1px var(--kg-status-warning-border);
+}
+.kg-root .kg-badge.kg-badge-danger {
+  color: var(--kg-status-danger);
+  background: var(--kg-status-danger-tint);
+  box-shadow: inset 0 0 0 1px var(--kg-status-danger-border);
+}
+.kg-root .kg-badge.kg-badge-neutral {
+  color: var(--kg-status-neutral);
+  background: var(--kg-status-neutral-tint);
+  box-shadow: inset 0 0 0 1px var(--kg-status-neutral-border);
+}
