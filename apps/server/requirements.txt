@@ -17,7 +17,7 @@ email-validator==2.3.0
 # 认证
 python-jose[cryptography]==3.5.0
 bcrypt==5.0.0
-cryptography==48.0.0
+cryptography==49.0.0
 
 # 缓存
 redis==7.4.0
