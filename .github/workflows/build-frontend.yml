@@ -45,7 +45,7 @@ jobs:
           pnpm build:temp-registration
 
       - name: Upload admin dist to server
-        uses: appleboy/scp-action@v0.1.7
+        uses: appleboy/scp-action@v1.0.0
         with:
           host: ${{ secrets.CVM_HOST }}
           username: ${{ secrets.CVM_USERNAME }}
@@ -56,7 +56,7 @@ jobs:
           strip_components: 3
 
       - name: Upload doctor dist to server
-        uses: appleboy/scp-action@v0.1.7
+        uses: appleboy/scp-action@v1.0.0
         with:
           host: ${{ secrets.CVM_HOST }}
           username: ${{ secrets.CVM_USERNAME }}
@@ -67,7 +67,7 @@ jobs:
           strip_components: 3
 
       - name: Upload patient-h5 dist to server
-        uses: appleboy/scp-action@v0.1.7
+        uses: appleboy/scp-action@v1.0.0
         with:
           host: ${{ secrets.CVM_HOST }}
           username: ${{ secrets.CVM_USERNAME }}
@@ -78,7 +78,7 @@ jobs:
           strip_components: 3
 
       - name: Upload temp-registration dist to server
-        uses: appleboy/scp-action@v0.1.7
+        uses: appleboy/scp-action@v1.0.0
         with:
           host: ${{ secrets.CVM_HOST }}
           username: ${{ secrets.CVM_USERNAME }}
