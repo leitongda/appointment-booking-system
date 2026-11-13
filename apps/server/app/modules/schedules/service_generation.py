@@ -287,4 +287,11 @@ class ScheduleGenerationMixin:
                 schedule_id=schedule_id,
             )
         except Exception as e:
+            # 通知是尽力而为：失败时必须回滚，否则 session 停留在
+            # aborted 事务上，后续同 session 的考勤/返回序列化全部
+            # 报 PendingRollbackError，把已成功的创建变成 500。
             logger.warning(f"排班通知发送失败 (doctor_id={doctor_id}): {e}")
+            try:
+                await self.db.rollback()
+            except Exception:
+                logger.warning("排班通知失败后的回滚也失败，忽略")
