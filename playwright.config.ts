@@ -74,9 +74,11 @@ export default defineConfig({
   webServer: useRealApi
     ? undefined // 真实 API 模式下不启动 dev server（需要独立启动）
     : {
-        command: 'pnpm dev:admin',
+        // admin dev 默认端口是 9105（apps/admin dev 脚本 PORT=${PORT:-9105}），
+        // 这里显式指定为 8005 与上方 url 一致，否则 webServer 永远等不到就绪
+        command: 'PORT=8005 pnpm dev:admin',
         url: 'http://127.0.0.1:8005',
         reuseExistingServer: !process.env.CI,
-        timeout: 120_000,
+        timeout: 300_000, // CI 冷缓存下 umi 首次编译可能超过 120s
       },
 });
