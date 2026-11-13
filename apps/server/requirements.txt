@@ -10,7 +10,7 @@ psycopg2-binary==2.9.11
 alembic==1.15.2
 
 # 数据校验
-pydantic==2.11.3
+pydantic==2.13.4
 pydantic-settings==2.14.1
 email-validator==2.3.0
 
