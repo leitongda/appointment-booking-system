@@ -183,6 +183,8 @@ ink_parallax_layers.zip
 .reasonix/
 .zcode/
 reasonix.toml
+.playwright-mcp/
+.v2c/
 
 # Local review artifacts & personal scripts
 /reviews/

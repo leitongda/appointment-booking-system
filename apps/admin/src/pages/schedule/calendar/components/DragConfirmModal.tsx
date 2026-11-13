@@ -66,7 +66,7 @@ const DragConfirmModal: React.FC<DragConfirmModalProps> = ({
       okButtonProps={{ disabled: hasBlocking }}
       okText="确认调整"
       cancelText="取消"
-      destroyOnClose
+      destroyOnHidden
     >
       <Descriptions column={1} size="small" bordered style={{ marginBottom: 16 }}>
         <Descriptions.Item label="医生">
