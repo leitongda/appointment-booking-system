@@ -21,7 +21,6 @@ on:
 
 env:
   NODE_VERSION: '20'
-  PNPM_VERSION: '8'
   # 服务器配置
   DEPLOY_PATH: /www/hospital-booking/apps/admin  # 服务器上的部署目录
   BACKUP_PATH: /www/hospital-booking/backups     # 备份目录
@@ -42,10 +41,9 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
 
       # ==================== 3. 设置 pnpm ====================
+      # v4 自动读取 package.json 的 packageManager，避免与显式 version 冲突
       - name: 📦 Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: ${{ env.PNPM_VERSION }}
+        uses: pnpm/action-setup@v4
 
       # ==================== 4. 获取 pnpm store 目录 ====================
       - name: 📁 Get pnpm store directory
